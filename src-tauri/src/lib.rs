@@ -39,41 +39,46 @@ fn run_empire_snapshot() -> Result<String, String> {
   run_shell("cd ~/dev/o2 && bash scripts/o2_empire_snapshot.sh")
 }
 
-fn launch_dev_in_terminal(repo: &str, port: u16, url: &str) -> Result<String, String> {
-  // Make the launch idempotent:
-  // - Kill anything currently bound to the port (ignore failures)
-  // - Start dev server
-  // - Wait until the port is actually listening
-  // - Open the browser to the URL
-  //
-  // Requires: fuser (usually installed), bash, gnome-terminal, xdg-open
-  let cmd = format!(
-    "gnome-terminal -- bash -lc '\
-      cd \"{repo}\" \
-      && echo \"[radcontrol] freeing port {port} (best-effort)...\" \
-      && (fuser -k {port}/tcp >/dev/null 2>&1 || true) \
-      && echo \"[radcontrol] starting dev server...\" \
-      && (npm run dev & DEV_PID=$!) \
-      && echo \"[radcontrol] waiting for localhost:{port}...\" \
-      && for i in {{1..60}}; do \
-           (bash -lc \"</dev/tcp/127.0.0.1/{port}\" >/dev/null 2>&1) && break; \
-           sleep 0.25; \
-         done \
-      && echo \"[radcontrol] opening {url}\" \
-      && xdg-open \"{url}\" >/dev/null 2>&1 \
-      && exec bash'");
+/// Launches a dev server in a new terminal, making it *idempotent* by freeing the port first,
+/// then waiting for the port to listen, then opening the URL.
+///
+/// Requirements (present on Pop!_OS in your setup):
+/// - bash
+/// - gnome-terminal
+/// - fuser
+/// - xdg-open
+fn launch_dev_in_terminal(repo: &str, port: u16, url: &str, dev_cmd: &str) -> Result<String, String> {
+  let script = format!(
+    r#"gnome-terminal -- bash -lc '
+set -e
+cd "{repo}"
+echo "[radcontrol] freeing port {port} (best-effort)..."
+(fuser -k {port}/tcp >/dev/null 2>&1 || true)
+
+echo "[radcontrol] starting dev server..."
+{dev_cmd}
+
+echo "[radcontrol] waiting for localhost:{port}..."
+for i in {{1..80}}; do
+  (bash -lc "</dev/tcp/127.0.0.1/{port}" >/dev/null 2>&1) && break
+  sleep 0.25
+done
+
+echo "[radcontrol] opening {url}"
+xdg-open "{url}" >/dev/null 2>&1 || true
+
+exec bash
+'"#
+  );
 
   let status = Command::new("bash")
     .arg("-lc")
-    .arg(cmd)
+    .arg(script)
     .status()
     .map_err(|e| format!("Failed to launch terminal: {e}"))?;
 
   if status.success() {
-    Ok(format!(
-      "Launched dev server in a new terminal window and opened {}.",
-      url
-    ))
+    Ok(format!("Launched dev server in a new terminal window and opened {}.", url))
   } else {
     Err(format!(
       "Terminal launch failed (exit {}). Is gnome-terminal installed?",
@@ -93,10 +98,12 @@ fn run_dqotd_session_start() -> Result<String, String> {
 
 #[tauri::command]
 fn launch_dqotd_dev_server_terminal() -> Result<String, String> {
+  // DQOTD runs default next dev (3000)
   launch_dev_in_terminal(
     "/home/chris/dev/rad-empire/radcon/dev/charliedino",
     3000,
     "http://localhost:3000",
+    "npm run dev &",
   )
 }
 
@@ -121,10 +128,12 @@ fn run_tbis_session_start() -> Result<String, String> {
 
 #[tauri::command]
 fn launch_tbis_dev_server_terminal() -> Result<String, String> {
+  // You pinned TBIS to 3001 (package.json). Keep that consistent here.
   launch_dev_in_terminal(
     "/home/chris/dev/rad-empire/radcon/dev/tbis",
     3001,
     "http://localhost:3001",
+    "npm run dev &",
   )
 }
 
@@ -144,9 +153,11 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       greet,
       run_empire_snapshot,
+      // DQOTD
       run_dqotd_session_start,
       launch_dqotd_dev_server_terminal,
       commit_push_dqotd_o2_artifacts,
+      // TBIS
       run_tbis_session_start,
       launch_tbis_dev_server_terminal,
       commit_push_tbis_o2_artifacts
