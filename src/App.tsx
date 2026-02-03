@@ -63,6 +63,43 @@ export default function App() {
     }
   }
 
+  async function copyLogsToClipboard() {
+    const text = log ?? "";
+    if (!text.trim()) return;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setChat((c) => [...c, { who: "o2", text: "Logs copied to clipboard." }]);
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "-9999px";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        setChat((c) => [
+          ...c,
+          {
+            who: "o2",
+            text: ok
+              ? "Logs copied to clipboard."
+              : "Copy failed (clipboard denied).",
+          },
+        ]);
+      } catch {
+        setChat((c) => [
+          ...c,
+          { who: "o2", text: "Copy failed (clipboard denied)." },
+        ]);
+      }
+    }
+  }
+
   async function runEmpireSnapshot(): Promise<string> {
     if (busy) return "";
     setBusy(true);
@@ -111,10 +148,7 @@ export default function App() {
 
       setChat((c) => [
         ...c,
-        {
-          who: "o2",
-          text: "DQOTD session started. Dev server launched in a new terminal.",
-        },
+        { who: "o2", text: "DQOTD session started. Dev server launched." },
       ]);
     } catch (e) {
       appendLog("\nERROR:\n" + fmtErr(e));
@@ -137,7 +171,6 @@ export default function App() {
       const out = await invoke<string>("commit_push_dqotd_o2_artifacts");
       appendLog("\n--- output ---\n" + out.trim());
       appendLog(`\nDone: ${nowStamp()}`);
-
       setChat((c) => [
         ...c,
         { who: "o2", text: "Committed + pushed DQOTD O2 artifacts." },
@@ -175,10 +208,7 @@ export default function App() {
 
       setChat((c) => [
         ...c,
-        {
-          who: "o2",
-          text: "TBIS session started. Dev server launched in a new terminal.",
-        },
+        { who: "o2", text: "TBIS session started. Dev server launched." },
       ]);
     } catch (e) {
       appendLog("\nERROR:\n" + fmtErr(e));
@@ -201,7 +231,6 @@ export default function App() {
       const out = await invoke<string>("commit_push_tbis_o2_artifacts");
       appendLog("\n--- output ---\n" + out.trim());
       appendLog(`\nDone: ${nowStamp()}`);
-
       setChat((c) => [
         ...c,
         { who: "o2", text: "Committed + pushed TBIS O2 artifacts." },
@@ -217,40 +246,32 @@ export default function App() {
     }
   }
 
-  async function copyLogsToClipboard() {
-    const text = log ?? "";
-    if (!text.trim()) return;
+  async function restartRadcontrolDev() {
+    if (busy) return;
+    setBusy(true);
+    resetRunLog("RESTART RADCONTROL (DEV)");
 
     try {
-      await navigator.clipboard.writeText(text);
-      setChat((c) => [...c, { who: "o2", text: "Logs copied to clipboard." }]);
-    } catch {
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        ta.style.top = "-9999px";
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        const ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-        setChat((c) => [
-          ...c,
-          {
-            who: "o2",
-            text: ok
-              ? "Logs copied to clipboard."
-              : "Copy failed (clipboard denied).",
-          },
-        ]);
-      } catch {
-        setChat((c) => [
-          ...c,
-          { who: "o2", text: "Copy failed (clipboard denied)." },
-        ]);
-      }
+      appendLog("\nLaunching RadControl restart in a new terminal...");
+      const out = await invoke<string>("restart_radcontrol_dev");
+      appendLog("\n--- output ---\n" + out.trim());
+      appendLog(`\nDone: ${nowStamp()}`);
+
+      setChat((c) => [
+        ...c,
+        {
+          who: "o2",
+          text: "Restart launched. This window may go blank after port 1420 is freed—close it once the new RadControl is up.",
+        },
+      ]);
+    } catch (e) {
+      appendLog("\nERROR:\n" + fmtErr(e));
+      setChat((c) => [
+        ...c,
+        { who: "o2", text: "Restart failed. Check Logs." },
+      ]);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -260,13 +281,7 @@ export default function App() {
     setChat((c) => [...c, { who: "me" as const, text: t }]);
     setChatInput("");
     setTimeout(() => {
-      setChat((c) => [
-        ...c,
-        {
-          who: "o2",
-          text: "Logged. Next: Projects buttons will run O2 routines and dev servers.",
-        },
-      ]);
+      setChat((c) => [...c, { who: "o2", text: "Logged." }]);
     }, 150);
   }
 
@@ -344,7 +359,7 @@ export default function App() {
               <SectionTitle>Projects</SectionTitle>
 
               <div className="grid">
-                {/* Row 1 */}
+                {/* Row 1: Empire + RadControl restart */}
                 <button
                   className="cardBtn"
                   disabled={busy}
@@ -358,14 +373,17 @@ export default function App() {
 
                 <button
                   className="cardBtn"
-                  disabled
-                  title="Reserved for a future empire-level button"
+                  disabled={busy}
+                  onClick={restartRadcontrolDev}
                 >
-                  <div className="cardTitle">Reserved Slot</div>
-                  <div className="cardSub">Future button (TBD)</div>
+                  <div className="cardTitle">Restart RadControl (dev)</div>
+                  <div className="cardSub">
+                    Frees <code>1420</code> → launches{" "}
+                    <code>npm run tauri dev</code> in new terminal
+                  </div>
                 </button>
 
-                {/* Row 2 */}
+                {/* Row 2: TBIS + TBIS commit */}
                 <button
                   className="cardBtn"
                   disabled={busy}
@@ -373,7 +391,8 @@ export default function App() {
                 >
                   <div className="cardTitle">Work on TBIS</div>
                   <div className="cardSub">
-                    Snapshot → Session Start → Launch Dev Server
+                    Snapshot → Session Start → Launch Dev Server (opens
+                    localhost)
                   </div>
                 </button>
 
@@ -382,14 +401,16 @@ export default function App() {
                   disabled={busy}
                   onClick={commitPushTbisArtifacts}
                 >
-                  <div className="cardTitle">Commit + Push TBIS Artifacts</div>
+                  <div className="cardTitle">
+                    Commit + Push TBIS O2 Artifacts
+                  </div>
                   <div className="cardSub">
                     Commits <code>docs/_repo_snapshot.txt</code> +{" "}
                     <code>docs/_o2_repo_index.txt</code>
                   </div>
                 </button>
 
-                {/* Row 3 */}
+                {/* Row 3: DQOTD + DQOTD commit */}
                 <button
                   className="cardBtn"
                   disabled={busy}
@@ -397,7 +418,8 @@ export default function App() {
                 >
                   <div className="cardTitle">Work on DQOTD</div>
                   <div className="cardSub">
-                    Snapshot → Session Start → Launch Dev Server
+                    Snapshot → Session Start → Launch Dev Server (opens
+                    localhost)
                   </div>
                 </button>
 
