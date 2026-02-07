@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import "./App.css";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -20,7 +21,7 @@ function TabButton({
   onClick,
 }: {
   active: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
   onClick: () => void;
 }) {
   return (
@@ -30,7 +31,7 @@ function TabButton({
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children }: { children: ReactNode }) {
   return <div className="sectionTitle">{children}</div>;
 }
 
@@ -204,8 +205,12 @@ export default function App() {
   }, [tab]);
 
   /* =========================
-     O2 actions
+     O2 actions (whitelist runner)
      ========================= */
+
+  async function runO2Single(key: string) {
+    return await invoke<string>("run_o2", { key });
+  }
 
   async function runO2(key: string, title: string) {
     if (busy) return;
@@ -214,7 +219,7 @@ export default function App() {
 
     try {
       appendLog(`\nRunning: ${key}`);
-      const out = await invoke<string>("run_o2", { key });
+      const out = await runO2Single(key);
       appendLog("\n--- output ---\n" + out.trim());
       appendLog(`\nDone: ${nowStamp()}`);
       setChat((c) => [
@@ -233,152 +238,29 @@ export default function App() {
     }
   }
 
-  async function runEmpireSnapshot(): Promise<string> {
-    if (busy) return "";
-    setBusy(true);
-    resetRunLog("EMPIRE SNAPSHOT");
-    try {
-      appendLog("\n[1/1] Running empire snapshot...");
-      const out = await invoke<string>("run_empire_snapshot");
-      appendLog("\n--- output ---\n" + out.trim());
-      appendLog(`\nDone: ${nowStamp()}`);
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: "Empire snapshot complete. Output is in Logs." },
-      ]);
-      return out;
-    } catch (e) {
-      appendLog("\nERROR:\n" + fmtErr(e));
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: "Snapshot failed. Check Logs for details." },
-      ]);
-      throw e;
-    } finally {
-      setBusy(false);
-      refreshPortsBurst();
-    }
-  }
-
-  async function workOnDqotd() {
+  async function runO2Flow(keys: string[], title: string) {
     if (busy) return;
     setBusy(true);
-    resetRunLog("WORK ON DQOTD");
+    resetRunLog(title);
 
     try {
-      appendLog("\n[1/3] Empire snapshot...");
-      const snap = await invoke<string>("run_empire_snapshot");
-      appendLog("\n--- snapshot output ---\n" + snap.trim());
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i]!;
+        appendLog(`\n[${i + 1}/${keys.length}] Running: ${key}`);
+        const out = await runO2Single(key);
+        appendLog("\n--- output ---\n" + out.trim());
+      }
 
-      appendLog("\n[2/3] DQOTD session start (o2_session_start.sh)...");
-      const sess = await invoke<string>("run_dqotd_session_start");
-      appendLog("\n--- session start output ---\n" + sess.trim());
-
-      appendLog("\n[3/3] Launching DQOTD dev server in a new terminal...");
-      const launch = await invoke<string>("launch_dqotd_dev_server_terminal");
-      appendLog("\n--- launch output ---\n" + launch.trim());
-
-      appendLog(`\nDone: ${nowStamp()}`);
-
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: "DQOTD session started. Dev server launched." },
-      ]);
-
-      refreshPortsBurst();
-    } catch (e) {
-      appendLog("\nERROR:\n" + fmtErr(e));
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: "DQOTD start failed. Check Logs." },
-      ]);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function commitPushDqotdArtifacts() {
-    if (busy) return;
-    setBusy(true);
-    resetRunLog("COMMIT + PUSH (DQOTD O2 ARTIFACTS)");
-
-    try {
-      appendLog("\nRunning git add/commit/push for DQOTD artifacts...");
-      const out = await invoke<string>("commit_push_dqotd_o2_artifacts");
-      appendLog("\n--- output ---\n" + out.trim());
       appendLog(`\nDone: ${nowStamp()}`);
       setChat((c) => [
         ...c,
-        { who: "o2", text: "Committed + pushed DQOTD O2 artifacts." },
+        { who: "o2", text: `${title} complete. Output is in Logs.` },
       ]);
     } catch (e) {
       appendLog("\nERROR:\n" + fmtErr(e));
       setChat((c) => [
         ...c,
-        { who: "o2", text: "Commit/push failed. Check Logs." },
-      ]);
-    } finally {
-      setBusy(false);
-      refreshPortsBurst();
-    }
-  }
-
-  async function workOnTbis() {
-    if (busy) return;
-    setBusy(true);
-    resetRunLog("WORK ON TBIS");
-
-    try {
-      appendLog("\n[1/3] Empire snapshot...");
-      const snap = await invoke<string>("run_empire_snapshot");
-      appendLog("\n--- snapshot output ---\n" + snap.trim());
-
-      appendLog("\n[2/3] TBIS session start (o2_session_start.sh)...");
-      const sess = await invoke<string>("run_tbis_session_start");
-      appendLog("\n--- session start output ---\n" + sess.trim());
-
-      appendLog("\n[3/3] Launching TBIS dev server in a new terminal...");
-      const launch = await invoke<string>("launch_tbis_dev_server_terminal");
-      appendLog("\n--- launch output ---\n" + launch.trim());
-
-      appendLog(`\nDone: ${nowStamp()}`);
-
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: "TBIS session started. Dev server launched." },
-      ]);
-
-      refreshPortsBurst();
-    } catch (e) {
-      appendLog("\nERROR:\n" + fmtErr(e));
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: "TBIS start failed. Check Logs." },
-      ]);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function commitPushTbisArtifacts() {
-    if (busy) return;
-    setBusy(true);
-    resetRunLog("COMMIT + PUSH (TBIS O2 ARTIFACTS)");
-
-    try {
-      appendLog("\nRunning git add/commit/push for TBIS artifacts...");
-      const out = await invoke<string>("commit_push_tbis_o2_artifacts");
-      appendLog("\n--- output ---\n" + out.trim());
-      appendLog(`\nDone: ${nowStamp()}`);
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: "Committed + pushed TBIS O2 artifacts." },
-      ]);
-    } catch (e) {
-      appendLog("\nERROR:\n" + fmtErr(e));
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: "Commit/push failed. Check Logs." },
+        { who: "o2", text: `${title} failed. Check Logs.` },
       ]);
     } finally {
       setBusy(false);
@@ -481,7 +363,9 @@ export default function App() {
                 {chat.map((m, idx) => (
                   <div
                     key={idx}
-                    className={`chatLine ${m.who === "me" ? "chatMe" : "chatO2"}`}
+                    className={`chatLine ${
+                      m.who === "me" ? "chatMe" : "chatO2"
+                    }`}
                   >
                     <span className="chatWho">
                       {m.who === "me" ? "You" : "O2"}:
@@ -516,7 +400,9 @@ export default function App() {
                 <button
                   className="cardBtn"
                   disabled={busy}
-                  onClick={() => void runEmpireSnapshot()}
+                  onClick={() =>
+                    void runO2("empire.snapshot", "O2: Empire snapshot")
+                  }
                 >
                   <div className="cardTitle">Empire Snapshot</div>
                   <div className="cardSub">
@@ -539,59 +425,91 @@ export default function App() {
                 <button
                   className="cardBtn"
                   disabled={busy}
-                  onClick={workOnTbis}
+                  onClick={() =>
+                    void runO2Flow(
+                      ["empire.snapshot", "tbis.session_start"],
+                      "O2: Start TBIS session",
+                    )
+                  }
                 >
-                  <div className="cardTitle">Work on TBIS</div>
+                  <div className="cardTitle">Start TBIS Session</div>
                   <div className="cardSub">
-                    Snapshot → Session Start → Launch Dev Server (opens
-                    localhost)
+                    Empire snapshot → TBIS session start (deterministic)
                   </div>
                 </button>
 
                 <button
                   className="cardBtn"
                   disabled={busy}
-                  onClick={commitPushTbisArtifacts}
+                  onClick={() =>
+                    void runO2("tbis.snapshot", "O2: TBIS snapshot")
+                  }
                 >
-                  <div className="cardTitle">
-                    Commit + Push TBIS O2 Artifacts
-                  </div>
+                  <div className="cardTitle">TBIS Snapshot</div>
                   <div className="cardSub">
-                    Commits <code>docs/_repo_snapshot.txt</code> +{" "}
-                    <code>docs/_o2_repo_index.txt</code>
+                    Runs TBIS <code>scripts/snapshot_repo_state.sh</code>
                   </div>
                 </button>
 
                 <button
                   className="cardBtn"
                   disabled={busy}
-                  onClick={workOnDqotd}
+                  onClick={() =>
+                    void runO2("tbis.index", "O2: TBIS repo index")
+                  }
                 >
-                  <div className="cardTitle">Work on DQOTD</div>
+                  <div className="cardTitle">TBIS Repo Index</div>
                   <div className="cardSub">
-                    Snapshot → Session Start → Launch Dev Server (opens
-                    localhost)
+                    Runs TBIS <code>scripts/o2_index_repo.sh</code>
                   </div>
                 </button>
 
                 <button
                   className="cardBtn"
                   disabled={busy}
-                  onClick={commitPushDqotdArtifacts}
+                  onClick={() =>
+                    void runO2Flow(
+                      ["empire.snapshot", "dqotd.session_start"],
+                      "O2: Start DQOTD session",
+                    )
+                  }
                 >
-                  <div className="cardTitle">
-                    Commit + Push DQOTD O2 Artifacts
-                  </div>
+                  <div className="cardTitle">Start DQOTD Session</div>
                   <div className="cardSub">
-                    Commits <code>docs/_repo_snapshot.txt</code> +{" "}
-                    <code>docs/_o2_repo_index.txt</code>
+                    Empire snapshot → DQOTD session start (deterministic)
+                  </div>
+                </button>
+
+                <button
+                  className="cardBtn"
+                  disabled={busy}
+                  onClick={() =>
+                    void runO2("dqotd.snapshot", "O2: DQOTD snapshot")
+                  }
+                >
+                  <div className="cardTitle">DQOTD Snapshot</div>
+                  <div className="cardSub">
+                    Runs DQOTD <code>scripts/snapshot_repo_state.sh</code>
+                  </div>
+                </button>
+
+                <button
+                  className="cardBtn"
+                  disabled={busy}
+                  onClick={() =>
+                    void runO2("dqotd.index", "O2: DQOTD repo index")
+                  }
+                >
+                  <div className="cardTitle">DQOTD Repo Index</div>
+                  <div className="cardSub">
+                    Runs DQOTD <code>scripts/o2_index_repo.sh</code>
                   </div>
                 </button>
               </div>
 
               <div className="hint">
-                Goal: snapshot → session start → checks → start dev server, all
-                from one click.
+                Goal: everything shell-adjacent routes through{" "}
+                <code>run_o2</code> keys (Rust whitelist). No drift.
               </div>
             </>
           )}
