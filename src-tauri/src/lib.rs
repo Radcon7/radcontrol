@@ -45,6 +45,47 @@ fn run_shell(cmd: &str) -> Result<String, String> {
   }
 }
 
+/* =========================
+   O2 SAFE WHITELIST RUNNER
+   ========================= */
+
+fn run_o2_key(key: &str) -> Result<String, String> {
+  // Whitelist only. No freeform shell.
+  // Keys map to fixed, known-safe commands.
+  let cmd = match key {
+    // RadControl (this repo)
+    "radcontrol.session_start" => "cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app && ./scripts/o2_session_start.sh",
+    "radcontrol.snapshot" => "cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app && ./scripts/snapshot_repo_state.sh",
+    "radcontrol.index" => "cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app && ./scripts/o2_index_repo.sh",
+
+    // Empire O2
+    "empire.snapshot" => "cd ~/dev/o2 && bash scripts/o2_empire_snapshot.sh",
+
+    // TBIS
+    "tbis.session_start" => "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_session_start.sh",
+    "tbis.snapshot" => "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/snapshot_repo_state.sh",
+    "tbis.index" => "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_index_repo.sh",
+
+    // DQOTD
+    "dqotd.session_start" => "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_session_start.sh",
+    "dqotd.snapshot" => "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/snapshot_repo_state.sh",
+    "dqotd.index" => "cd ~/dev/rad-empire/radcon/dev/charliedino && (test -x ./scripts/o2_index_repo.sh && ./scripts/o2_index_repo.sh || echo \"(no dqotd index script yet)\")",
+
+    _ => return Err(format!("Unknown O2 key: {key}")),
+  };
+
+  run_shell(cmd)
+}
+
+#[tauri::command]
+fn run_o2(key: &str) -> Result<String, String> {
+  run_o2_key(key)
+}
+
+/* =========================
+   Existing commands
+   ========================= */
+
 #[tauri::command]
 fn run_empire_snapshot() -> Result<String, String> {
   run_shell("cd ~/dev/o2 && bash scripts/o2_empire_snapshot.sh")
@@ -145,8 +186,6 @@ fn parse_prog_from_ss(s: &str) -> Option<String> {
 
 #[tauri::command]
 fn port_status(port: u16) -> Result<PortStatus, String> {
-  // Use ss instead of lsof (lsof can miss listeners in your environment).
-  // NOTE: ss exists on Pop!/Ubuntu by default (iproute2).
   let raw =
     run_shell(&format!("ss -ltnpH 'sport = :{port}' 2>/dev/null || true")).unwrap_or_default();
 
@@ -184,15 +223,8 @@ fn launch_dev_in_terminal_smart(
   display_name: &str,
   candidates: &[&str],
 ) -> Result<String, String> {
-  // Strategy:
-  // - Start npm run dev immediately (let Next pick its port)
-  // - Poll a list of candidate URLs until one responds
-  // - Open the first that responds
-  // - Keep terminal open
   let list = candidates.join(" ");
 
-  // IMPORTANT: Use 127.0.0.1 candidates (not localhost) because this machine
-  // can resolve localhost to ::1 while Next binds IPv4 only, breaking curl.
   let cmd = format!(
     "gnome-terminal -- bash -lc '\
       set -e; \
@@ -302,7 +334,6 @@ fn run_dqotd_session_start() -> Result<String, String> {
 
 #[tauri::command]
 fn launch_dqotd_dev_server_terminal() -> Result<String, String> {
-  // DQOTD canonical: 3000. Still probe 3001 as fallback in case Next auto-bumped.
   launch_dev_in_terminal_smart(
     "/home/chris/dev/rad-empire/radcon/dev/charliedino",
     "DQOTD",
@@ -336,7 +367,6 @@ fn run_tbis_session_start() -> Result<String, String> {
 
 #[tauri::command]
 fn launch_tbis_dev_server_terminal() -> Result<String, String> {
-  // TBIS canonical: 3001. Still probe 3000 as fallback in case Next auto-bumped.
   launch_dev_in_terminal_smart(
     "/home/chris/dev/rad-empire/radcon/dev/tbis",
     "TBIS",
@@ -364,6 +394,9 @@ pub fn run() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
       greet,
+      // new safe whitelist runner
+      run_o2,
+      // empire
       run_empire_snapshot,
       gather_radcontrol_intel,
       // ports
