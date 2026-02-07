@@ -54,6 +54,7 @@ export default function App() {
     {},
   );
 
+  // Intervention tab output window (now used for O2 runs, not legacy memo gen)
   const [interventionMemo, setInterventionMemo] = useState<string>("");
 
   // If a refresh is requested while one is running, queue one more.
@@ -211,6 +212,43 @@ export default function App() {
   /* =========================
      O2 actions
      ========================= */
+
+  async function runO2(key: string, title: string) {
+    if (busy) return;
+    setBusy(true);
+
+    // Logs panel: keep a canonical record
+    resetRunLog(title);
+
+    try {
+      appendLog(`\nRunning: run_o2("${key}")...`);
+      const out = await invoke<string>("run_o2", { key });
+      const trimmed = (out ?? "").trim();
+
+      appendLog("\n--- output ---\n" + trimmed);
+      appendLog(`\nDone: ${nowStamp()}`);
+
+      // Intervention panel: show latest run output
+      setInterventionMemo(
+        `=== ${title} ===\nKey: ${key}\nStarted: ${nowStamp()}\n\n${trimmed || "(no output)"}\n`,
+      );
+
+      setChat((c) => [...c, { who: "o2", text: `${title} complete.` }]);
+    } catch (e) {
+      const msg = fmtErr(e);
+      appendLog("\nERROR:\n" + msg);
+      setInterventionMemo(
+        `=== ${title} ===\nKey: ${key}\nStarted: ${nowStamp()}\n\nERROR:\n${msg}\n`,
+      );
+      setChat((c) => [
+        ...c,
+        { who: "o2", text: `${title} failed. Check Logs.` },
+      ]);
+    } finally {
+      setBusy(false);
+      refreshPortsBurst();
+    }
+  }
 
   async function runEmpireSnapshot(): Promise<string> {
     if (busy) return "";
@@ -414,80 +452,6 @@ export default function App() {
     return `Port ${p}`;
   }
 
-  function generateInterventionMemo() {
-    const lines: string[] = [];
-    lines.push("=== INTERVENTION NOTE TO SELF ===");
-    lines.push(`Generated: ${nowStamp()}`);
-    lines.push("");
-    lines.push("What RadControl is:");
-    lines.push(
-      "- Tauri + Vite desktop dashboard for launching sessions and keeping the empire from drifting.",
-    );
-    lines.push("");
-    lines.push("Active Ports (best-effort):");
-
-    for (const p of PORTS) {
-      const s = ports[p];
-      const label = portLabel(p);
-      if (!s) {
-        lines.push(`- ${label} :${p} — (unknown; refresh ports)`);
-        continue;
-      }
-      const state = s.listening ? "LISTENING" : "FREE";
-      const pid = s.pid ? ` (pid ${s.pid})` : "";
-      const cmd = s.command ? ` (${s.command})` : "";
-      lines.push(`- ${label} :${p} — ${state}${pid}${cmd}`);
-    }
-
-    lines.push("");
-    lines.push("Primary Buttons Already Implemented (Projects tab):");
-    lines.push("- Empire Snapshot (o2_empire_snapshot.sh)");
-    lines.push(
-      "- Work on TBIS (snapshot → o2_session_start.sh → launch dev server)",
-    );
-    lines.push(
-      "- Commit + Push TBIS O2 artifacts (docs/_repo_snapshot.txt + docs/_o2_repo_index.txt)",
-    );
-    lines.push(
-      "- Work on DQOTD (snapshot → o2_session_start.sh → launch dev server)",
-    );
-    lines.push(
-      "- Commit + Push DQOTD O2 artifacts (docs/_repo_snapshot.txt + docs/_o2_repo_index.txt)",
-    );
-    lines.push("- Restart RadControl (dev) (frees 1420 → npm run tauri dev)");
-    lines.push("");
-    lines.push("Known Constraints / Gotchas:");
-    lines.push("- Port 1420 conflicts are common; use ss/fuser to free it.");
-    lines.push(
-      "- Dev server launcher probes 127.0.0.1 URLs to avoid localhost ::1 issues.",
-    );
-    lines.push("");
-    lines.push("If we feel “lost”:");
-    lines.push("- Click Empire Snapshot first.");
-    lines.push("- Then click the specific project session start.");
-    lines.push("- Use Logs + Active Ports to confirm what actually started.");
-    lines.push("");
-    lines.push("Next likely upgrades:");
-    lines.push(
-      "- Make Intervention generate a richer memo by calling a Rust command (run a script, parse key files).",
-    );
-    lines.push(
-      "- Add more buttons under Intervention for “Fix 1420”, “Open TBIS repo”, “Open DQOTD repo”, etc.",
-    );
-
-    setInterventionMemo(lines.join("\n"));
-  }
-
-  function runIntervention() {
-    // Best-effort refresh ports, then generate memo.
-    // (We generate immediately too, so you get something even if refresh is slow.)
-    generateInterventionMemo();
-    refreshPortsBurst();
-    setTimeout(() => {
-      generateInterventionMemo();
-    }, 1100);
-  }
-
   return (
     <div className="appShell">
       <div className="topBar">
@@ -678,18 +642,56 @@ export default function App() {
               <div className="interventionTop">
                 <button
                   className="primaryBtn"
-                  onClick={runIntervention}
+                  onClick={() =>
+                    void runO2(
+                      "radcontrol.session_start",
+                      "O2: RadControl session start",
+                    )
+                  }
                   disabled={busy}
-                  title="Generate the drift-killer memo"
+                  title="Run RadControl o2_session_start.sh"
                 >
-                  Intervention
+                  Session Start
+                </button>
+
+                <button
+                  className="secondaryBtn"
+                  onClick={() =>
+                    void runO2("radcontrol.index", "O2: RadControl repo index")
+                  }
+                  disabled={busy}
+                  title="Run RadControl o2_index_repo.sh"
+                >
+                  Repo Index
+                </button>
+
+                <button
+                  className="secondaryBtn"
+                  onClick={() =>
+                    void runO2("radcontrol.snapshot", "O2: RadControl snapshot")
+                  }
+                  disabled={busy}
+                  title="Run RadControl snapshot_repo_state.sh"
+                >
+                  Snapshot
+                </button>
+
+                <button
+                  className="secondaryBtn"
+                  onClick={() =>
+                    void runO2("empire.snapshot", "O2: Empire snapshot")
+                  }
+                  disabled={busy}
+                  title="Run ~/dev/o2/scripts/o2_empire_snapshot.sh"
+                >
+                  Empire Snapshot
                 </button>
 
                 <button
                   className="secondaryBtn"
                   onClick={() => void copyTextToClipboard(interventionMemo)}
                   disabled={!interventionMemo.trim() || busy}
-                  title="Copy Intervention memo to clipboard"
+                  title="Copy output to clipboard"
                 >
                   Copy
                 </button>
@@ -698,7 +700,7 @@ export default function App() {
                   className="secondaryBtn"
                   onClick={() => setInterventionMemo("")}
                   disabled={busy}
-                  title="Clear the memo window"
+                  title="Clear the output window"
                 >
                   Clear
                 </button>
@@ -707,12 +709,12 @@ export default function App() {
               <div className="interventionBox">
                 {interventionMemo.trim()
                   ? interventionMemo
-                  : "Click Intervention to generate the note-to-self memo."}
+                  : "Run an O2 action above. Output appears here."}
               </div>
 
               <div className="hint" style={{ marginTop: 12 }}>
-                Use this when we drift. It captures what matters *right now*
-                without digging through old chats.
+                Use this when we drift. Run the smallest O2 action needed to
+                re-anchor.
               </div>
             </>
           )}
