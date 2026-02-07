@@ -54,9 +54,6 @@ export default function App() {
     {},
   );
 
-  // Intervention tab output window (now used for O2 runs, not legacy memo gen)
-  const [interventionMemo, setInterventionMemo] = useState<string>("");
-
   // If a refresh is requested while one is running, queue one more.
   const portsRefreshQueuedRef = useRef(false);
 
@@ -65,7 +62,7 @@ export default function App() {
     if (tab === "projects") return "Start sessions the same way every time";
     if (tab === "roadmap") return "Empire dashboard (MVP placeholder)";
     if (tab === "personal") return "Personal vault (MVP placeholder)";
-    return "Stop drift. Re-anchor. Continue.";
+    return "O2 control panel: no drift, no surprises";
   }, [tab]);
 
   function appendLog(text: string) {
@@ -145,7 +142,6 @@ export default function App() {
           results.push(r);
         } catch (e) {
           const msg = fmtErr(e);
-          // CRITICAL: don't swallow errors — log them so we can see why status is wrong.
           appendLog(`\n[ports] port_status(${p}) ERROR:\n${msg}\n`);
           results.push({
             port: p,
@@ -176,8 +172,6 @@ export default function App() {
   }
 
   function refreshPortsBurst() {
-    // Port may not be listening immediately after we launch the dev server in a new terminal.
-    // So we refresh now, then again shortly after, then once more.
     void refreshPorts();
     setTimeout(() => void refreshPorts(), 900);
     setTimeout(() => void refreshPorts(), 2500);
@@ -216,30 +210,19 @@ export default function App() {
   async function runO2(key: string, title: string) {
     if (busy) return;
     setBusy(true);
-
-    // Logs panel: keep a canonical record
     resetRunLog(title);
 
     try {
-      appendLog(`\nRunning: run_o2("${key}")...`);
+      appendLog(`\nRunning: ${key}`);
       const out = await invoke<string>("run_o2", { key });
-      const trimmed = (out ?? "").trim();
-
-      appendLog("\n--- output ---\n" + trimmed);
+      appendLog("\n--- output ---\n" + out.trim());
       appendLog(`\nDone: ${nowStamp()}`);
-
-      // Intervention panel: show latest run output
-      setInterventionMemo(
-        `=== ${title} ===\nKey: ${key}\nStarted: ${nowStamp()}\n\n${trimmed || "(no output)"}\n`,
-      );
-
-      setChat((c) => [...c, { who: "o2", text: `${title} complete.` }]);
+      setChat((c) => [
+        ...c,
+        { who: "o2", text: `${title} complete. Output is in Logs.` },
+      ]);
     } catch (e) {
-      const msg = fmtErr(e);
-      appendLog("\nERROR:\n" + msg);
-      setInterventionMemo(
-        `=== ${title} ===\nKey: ${key}\nStarted: ${nowStamp()}\n\nERROR:\n${msg}\n`,
-      );
+      appendLog("\nERROR:\n" + fmtErr(e));
       setChat((c) => [
         ...c,
         { who: "o2", text: `${title} failed. Check Logs.` },
@@ -302,7 +285,6 @@ export default function App() {
         { who: "o2", text: "DQOTD session started. Dev server launched." },
       ]);
 
-      // Important: give the ports panel multiple chances to catch the listener.
       refreshPortsBurst();
     } catch (e) {
       appendLog("\nERROR:\n" + fmtErr(e));
@@ -366,7 +348,6 @@ export default function App() {
         { who: "o2", text: "TBIS session started. Dev server launched." },
       ]);
 
-      // Important: give the ports panel multiple chances to catch the listener.
       refreshPortsBurst();
     } catch (e) {
       appendLog("\nERROR:\n" + fmtErr(e));
@@ -639,6 +620,11 @@ export default function App() {
             <>
               <SectionTitle>Intervention</SectionTitle>
 
+              <div className="hint" style={{ marginBottom: 12 }}>
+                Buttons only. Deterministic. If you feel drift, run one of these
+                and read Logs.
+              </div>
+
               <div className="interventionTop">
                 <button
                   className="primaryBtn"
@@ -686,35 +672,11 @@ export default function App() {
                 >
                   Empire Snapshot
                 </button>
-
-                <button
-                  className="secondaryBtn"
-                  onClick={() => void copyTextToClipboard(interventionMemo)}
-                  disabled={!interventionMemo.trim() || busy}
-                  title="Copy output to clipboard"
-                >
-                  Copy
-                </button>
-
-                <button
-                  className="secondaryBtn"
-                  onClick={() => setInterventionMemo("")}
-                  disabled={busy}
-                  title="Clear the output window"
-                >
-                  Clear
-                </button>
-              </div>
-
-              <div className="interventionBox">
-                {interventionMemo.trim()
-                  ? interventionMemo
-                  : "Run an O2 action above. Output appears here."}
               </div>
 
               <div className="hint" style={{ marginTop: 12 }}>
-                Use this when we drift. Run the smallest O2 action needed to
-                re-anchor.
+                Note: Intervention uses the Rust whitelist runner{" "}
+                <code>run_o2</code>. No freeform shell.
               </div>
             </>
           )}
