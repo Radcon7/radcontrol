@@ -13,7 +13,7 @@ type PortStatus = {
   raw: string;
 };
 
-const PORTS = [1420, 3000, 3001] as const;
+const PORTS = [1420, 3000, 3001, 3002] as const;
 
 function TabButton({
   active,
@@ -312,6 +312,7 @@ export default function App() {
     if (p === 1420) return "RadControl (Vite)";
     if (p === 3000) return "DQOTD";
     if (p === 3001) return "TBIS";
+    if (p === 3002) return "Offroad Croquet";
     return `Port ${p}`;
   }
 
