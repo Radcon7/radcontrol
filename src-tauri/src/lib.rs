@@ -65,11 +65,19 @@ fn run_o2_key(key: &str) -> Result<String, String> {
     "tbis.session_start" => "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_session_start.sh",
     "tbis.snapshot" => "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/snapshot_repo_state.sh",
     "tbis.index" => "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_index_repo.sh",
+    "tbis.smoke" => "cd ~/dev/rad-empire/radcon/dev/tbis && (test -x ./scripts/o2_smoke_local.sh && ./scripts/o2_smoke_local.sh || (echo \"Missing scripts/o2_smoke_local.sh\" && exit 1))",
 
     // DQOTD
     "dqotd.session_start" => "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_session_start.sh",
     "dqotd.snapshot" => "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/snapshot_repo_state.sh",
-    "dqotd.index" => "cd ~/dev/rad-empire/radcon/dev/charliedino && (test -x ./scripts/o2_index_repo.sh && ./scripts/o2_index_repo.sh || echo \"(no dqotd index script yet)\")",
+    "dqotd.index" => "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_index_repo.sh",
+    "dqotd.smoke" => "cd ~/dev/rad-empire/radcon/dev/charliedino && (test -x ./scripts/o2_smoke_local.sh && ./scripts/o2_smoke_local.sh || (echo \"Missing scripts/o2_smoke_local.sh\" && exit 1))",
+
+    // Offroad Croquet
+    "offroadcroquet.session_start" => "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_session_start.sh",
+    "offroadcroquet.snapshot" => "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/snapshot_repo_state.sh",
+    "offroadcroquet.index" => "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_index_repo.sh",
+    "offroadcroquet.smoke" => "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && (test -x ./scripts/o2_smoke_local.sh && ./scripts/o2_smoke_local.sh || (echo \"Missing scripts/o2_smoke_local.sh\" && exit 1))",
 
     _ => return Err(format!("Unknown O2 key: {key}")),
   };
@@ -122,6 +130,12 @@ OUT=/tmp/radcontrol_intel.txt
     ~/dev/rad-empire/radcon/dev/charliedino/docs || true
   echo
 
+  echo "=== OFFROAD CROQUET (scripts + docs) ==="
+  tree -a -L 3 \
+    ~/dev/rad-empire/radwolfe/dev/offroadcroquet/scripts \
+    ~/dev/rad-empire/radwolfe/dev/offroadcroquet/docs || true
+  echo
+
   echo "=== RADCONTROL (repo structure) ==="
   cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app || exit 1
   tree -a -L 3 --dirsfirst src src-tauri 2>/dev/null || true
@@ -132,12 +146,14 @@ OUT=/tmp/radcontrol_intel.txt
     ~/dev/o2/scripts \
     ~/dev/rad-empire/radcon/dev/tbis/scripts \
     ~/dev/rad-empire/radcon/dev/charliedino/scripts \
-    2>/dev/null | head -n 200 || true
+    ~/dev/rad-empire/radwolfe/dev/offroadcroquet/scripts \
+    2>/dev/null | head -n 220 || true
   echo
 
   echo "=== NOTE TO SELF (RadControl assumptions) ==="
   echo "- DQOTD expected: http://127.0.0.1:3000/dqotd"
   echo "- TBIS expected:  http://127.0.0.1:3001/tbis"
+  echo "- Offroad expected: http://127.0.0.1:3002/ (or whatever dev uses)"
   echo "- RadControl UI:  http://127.0.0.1:1420"
   echo "- If 1420 busy: kill_port(1420) or Restart RadControl (dev)"
   echo
@@ -389,6 +405,38 @@ fn commit_push_tbis_o2_artifacts() -> Result<String, String> {
   )
 }
 
+/* =========================
+   OFFROAD CROQUET
+   ========================= */
+
+#[tauri::command]
+fn run_offroadcroquet_session_start() -> Result<String, String> {
+  run_shell("cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && bash scripts/o2_session_start.sh")
+}
+
+#[tauri::command]
+fn launch_offroadcroquet_dev_server_terminal() -> Result<String, String> {
+  launch_dev_in_terminal_smart(
+    "/home/chris/dev/rad-empire/radwolfe/dev/offroadcroquet",
+    "Offroad Croquet",
+    &[
+      "http://127.0.0.1:3002/",
+      "http://127.0.0.1:3000/",
+      "http://127.0.0.1:3001/",
+    ],
+  )
+}
+
+#[tauri::command]
+fn commit_push_offroadcroquet_o2_artifacts() -> Result<String, String> {
+  run_shell(
+    "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet \
+     && git add docs/_repo_snapshot.txt docs/_o2_repo_index.txt \
+     && git commit -m \"o2: snapshot + index\" \
+     && git push",
+  )
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -411,7 +459,11 @@ pub fn run() {
       // tbis
       run_tbis_session_start,
       launch_tbis_dev_server_terminal,
-      commit_push_tbis_o2_artifacts
+      commit_push_tbis_o2_artifacts,
+      // offroad
+      run_offroadcroquet_session_start,
+      launch_offroadcroquet_dev_server_terminal,
+      commit_push_offroadcroquet_o2_artifacts
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
