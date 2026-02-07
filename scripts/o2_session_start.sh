@@ -15,5 +15,9 @@ echo "git status:"
 git status || true
 echo
 
+echo "running repo index..."
+"$ROOT/scripts/o2_index_repo.sh"
+echo
+
 echo "running snapshot..."
 "$ROOT/scripts/snapshot_repo_state.sh"
