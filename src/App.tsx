@@ -1,8 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { invoke } from "@tauri-apps/api/core";
 
-type TabKey = "chat" | "projects" | "roadmap" | "personal";
+type TabKey = "chat" | "projects" | "roadmap" | "personal" | "intervention";
+
+type PortStatus = {
+  port: number;
+  listening: boolean;
+  pid: number | null;
+  command: string | null;
+  raw: string;
+};
+
+const PORTS = [1420, 3000, 3001] as const;
 
 function TabButton({
   active,
@@ -39,11 +49,22 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<string>("");
 
+  const [portsBusy, setPortsBusy] = useState(false);
+  const [ports, setPorts] = useState<Record<number, PortStatus | undefined>>(
+    {},
+  );
+
+  const [interventionMemo, setInterventionMemo] = useState<string>("");
+
+  // If a refresh is requested while one is running, queue one more.
+  const portsRefreshQueuedRef = useRef(false);
+
   const headerSubtitle = useMemo(() => {
     if (tab === "chat") return "Chat + Session Notes";
     if (tab === "projects") return "Start sessions the same way every time";
     if (tab === "roadmap") return "Empire dashboard (MVP placeholder)";
-    return "Personal vault (MVP placeholder)";
+    if (tab === "personal") return "Personal vault (MVP placeholder)";
+    return "Stop drift. Re-anchor. Continue.";
   }, [tab]);
 
   function appendLog(text: string) {
@@ -63,42 +84,133 @@ export default function App() {
     }
   }
 
-  async function copyLogsToClipboard() {
-    const text = log ?? "";
+  async function copyTextToClipboard(text: string) {
     if (!text.trim()) return;
 
     try {
       await navigator.clipboard.writeText(text);
-      setChat((c) => [...c, { who: "o2", text: "Logs copied to clipboard." }]);
+      setChat((c) => [...c, { who: "o2", text: "Copied to clipboard." }]);
+      return;
     } catch {
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        ta.style.top = "-9999px";
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        const ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-        setChat((c) => [
-          ...c,
-          {
-            who: "o2",
-            text: ok
-              ? "Logs copied to clipboard."
-              : "Copy failed (clipboard denied).",
-          },
-        ]);
-      } catch {
-        setChat((c) => [
-          ...c,
-          { who: "o2", text: "Copy failed (clipboard denied)." },
-        ]);
+      // fallback below
+    }
+
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.style.top = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      setChat((c) => [
+        ...c,
+        {
+          who: "o2",
+          text: ok ? "Copied to clipboard." : "Copy failed (clipboard denied).",
+        },
+      ]);
+    } catch {
+      setChat((c) => [...c, { who: "o2", text: "Copy failed." }]);
+    }
+  }
+
+  async function copyLogsToClipboard() {
+    await copyTextToClipboard(log ?? "");
+  }
+
+  /* =========================
+     Active Ports Panel
+     ========================= */
+
+  async function refreshPorts() {
+    // If a refresh is already in-flight, queue a single follow-up refresh.
+    if (portsBusy) {
+      portsRefreshQueuedRef.current = true;
+      return;
+    }
+
+    setPortsBusy(true);
+
+    try {
+      const results: PortStatus[] = [];
+
+      for (const p of PORTS) {
+        try {
+          const r = await invoke<PortStatus>("port_status", { port: p });
+          results.push(r);
+        } catch (e) {
+          const msg = fmtErr(e);
+          // CRITICAL: don't swallow errors — log them so we can see why status is wrong.
+          appendLog(`\n[ports] port_status(${p}) ERROR:\n${msg}\n`);
+          results.push({
+            port: p,
+            listening: false,
+            pid: null,
+            command: null,
+            raw: `ERROR: ${msg}`,
+          });
+        }
+      }
+
+      setPorts((prev) => {
+        const next: Record<number, PortStatus | undefined> = { ...prev };
+        for (const r of results) next[r.port] = r;
+        return next;
+      });
+    } finally {
+      setPortsBusy(false);
+
+      // If something requested a refresh while we were busy, run one more immediately.
+      if (portsRefreshQueuedRef.current) {
+        portsRefreshQueuedRef.current = false;
+        setTimeout(() => {
+          void refreshPorts();
+        }, 0);
       }
     }
   }
+
+  function refreshPortsBurst() {
+    // Port may not be listening immediately after we launch the dev server in a new terminal.
+    // So we refresh now, then again shortly after, then once more.
+    void refreshPorts();
+    setTimeout(() => void refreshPorts(), 900);
+    setTimeout(() => void refreshPorts(), 2500);
+  }
+
+  async function killAndRefresh(port: number) {
+    if (busy || portsBusy) return;
+    setPortsBusy(true);
+    try {
+      appendLog(`\n[ports] Freeing port ${port} (best-effort)...`);
+      const out = await invoke<string>("kill_port", { port });
+      appendLog(`\n--- kill_port output ---\n${out.trim()}`);
+    } catch (e) {
+      appendLog("\n[ports] kill_port ERROR:\n" + fmtErr(e));
+    } finally {
+      setPortsBusy(false);
+      refreshPortsBurst();
+    }
+  }
+
+  // Refresh ports on first mount, and whenever we enter Projects tab.
+  useEffect(() => {
+    refreshPortsBurst();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (tab === "projects") refreshPortsBurst();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  /* =========================
+     O2 actions
+     ========================= */
 
   async function runEmpireSnapshot(): Promise<string> {
     if (busy) return "";
@@ -123,6 +235,7 @@ export default function App() {
       throw e;
     } finally {
       setBusy(false);
+      refreshPortsBurst();
     }
   }
 
@@ -150,6 +263,9 @@ export default function App() {
         ...c,
         { who: "o2", text: "DQOTD session started. Dev server launched." },
       ]);
+
+      // Important: give the ports panel multiple chances to catch the listener.
+      refreshPortsBurst();
     } catch (e) {
       appendLog("\nERROR:\n" + fmtErr(e));
       setChat((c) => [
@@ -183,6 +299,7 @@ export default function App() {
       ]);
     } finally {
       setBusy(false);
+      refreshPortsBurst();
     }
   }
 
@@ -210,6 +327,9 @@ export default function App() {
         ...c,
         { who: "o2", text: "TBIS session started. Dev server launched." },
       ]);
+
+      // Important: give the ports panel multiple chances to catch the listener.
+      refreshPortsBurst();
     } catch (e) {
       appendLog("\nERROR:\n" + fmtErr(e));
       setChat((c) => [
@@ -243,6 +363,7 @@ export default function App() {
       ]);
     } finally {
       setBusy(false);
+      refreshPortsBurst();
     }
   }
 
@@ -272,6 +393,7 @@ export default function App() {
       ]);
     } finally {
       setBusy(false);
+      refreshPortsBurst();
     }
   }
 
@@ -283,6 +405,87 @@ export default function App() {
     setTimeout(() => {
       setChat((c) => [...c, { who: "o2", text: "Logged." }]);
     }, 150);
+  }
+
+  function portLabel(p: number) {
+    if (p === 1420) return "RadControl (Vite)";
+    if (p === 3000) return "DQOTD";
+    if (p === 3001) return "TBIS";
+    return `Port ${p}`;
+  }
+
+  function generateInterventionMemo() {
+    const lines: string[] = [];
+    lines.push("=== INTERVENTION NOTE TO SELF ===");
+    lines.push(`Generated: ${nowStamp()}`);
+    lines.push("");
+    lines.push("What RadControl is:");
+    lines.push(
+      "- Tauri + Vite desktop dashboard for launching sessions and keeping the empire from drifting.",
+    );
+    lines.push("");
+    lines.push("Active Ports (best-effort):");
+
+    for (const p of PORTS) {
+      const s = ports[p];
+      const label = portLabel(p);
+      if (!s) {
+        lines.push(`- ${label} :${p} — (unknown; refresh ports)`);
+        continue;
+      }
+      const state = s.listening ? "LISTENING" : "FREE";
+      const pid = s.pid ? ` (pid ${s.pid})` : "";
+      const cmd = s.command ? ` (${s.command})` : "";
+      lines.push(`- ${label} :${p} — ${state}${pid}${cmd}`);
+    }
+
+    lines.push("");
+    lines.push("Primary Buttons Already Implemented (Projects tab):");
+    lines.push("- Empire Snapshot (o2_empire_snapshot.sh)");
+    lines.push(
+      "- Work on TBIS (snapshot → o2_session_start.sh → launch dev server)",
+    );
+    lines.push(
+      "- Commit + Push TBIS O2 artifacts (docs/_repo_snapshot.txt + docs/_o2_repo_index.txt)",
+    );
+    lines.push(
+      "- Work on DQOTD (snapshot → o2_session_start.sh → launch dev server)",
+    );
+    lines.push(
+      "- Commit + Push DQOTD O2 artifacts (docs/_repo_snapshot.txt + docs/_o2_repo_index.txt)",
+    );
+    lines.push("- Restart RadControl (dev) (frees 1420 → npm run tauri dev)");
+    lines.push("");
+    lines.push("Known Constraints / Gotchas:");
+    lines.push("- Port 1420 conflicts are common; use ss/fuser to free it.");
+    lines.push(
+      "- Dev server launcher probes 127.0.0.1 URLs to avoid localhost ::1 issues.",
+    );
+    lines.push("");
+    lines.push("If we feel “lost”:");
+    lines.push("- Click Empire Snapshot first.");
+    lines.push("- Then click the specific project session start.");
+    lines.push("- Use Logs + Active Ports to confirm what actually started.");
+    lines.push("");
+    lines.push("Next likely upgrades:");
+    lines.push(
+      "- Make Intervention generate a richer memo by calling a Rust command (run a script, parse key files).",
+    );
+    lines.push(
+      "- Add more buttons under Intervention for “Fix 1420”, “Open TBIS repo”, “Open DQOTD repo”, etc.",
+    );
+
+    setInterventionMemo(lines.join("\n"));
+  }
+
+  function runIntervention() {
+    // Best-effort refresh ports, then generate memo.
+    // (We generate immediately too, so you get something even if refresh is slow.)
+    generateInterventionMemo();
+    refreshPortsBurst();
+    setTimeout(() => {
+      generateInterventionMemo();
+    }, 1100);
   }
 
   return (
@@ -314,6 +517,12 @@ export default function App() {
             onClick={() => setTab("personal")}
           >
             Personal
+          </TabButton>
+          <TabButton
+            active={tab === "intervention"}
+            onClick={() => setTab("intervention")}
+          >
+            Intervention
           </TabButton>
         </div>
       </div>
@@ -359,7 +568,6 @@ export default function App() {
               <SectionTitle>Projects</SectionTitle>
 
               <div className="grid">
-                {/* Row 1: Empire + RadControl restart */}
                 <button
                   className="cardBtn"
                   disabled={busy}
@@ -383,7 +591,6 @@ export default function App() {
                   </div>
                 </button>
 
-                {/* Row 2: TBIS + TBIS commit */}
                 <button
                   className="cardBtn"
                   disabled={busy}
@@ -410,7 +617,6 @@ export default function App() {
                   </div>
                 </button>
 
-                {/* Row 3: DQOTD + DQOTD commit */}
                 <button
                   className="cardBtn"
                   disabled={busy}
@@ -464,9 +670,116 @@ export default function App() {
               </div>
             </>
           )}
+
+          {tab === "intervention" && (
+            <>
+              <SectionTitle>Intervention</SectionTitle>
+
+              <div className="interventionTop">
+                <button
+                  className="primaryBtn"
+                  onClick={runIntervention}
+                  disabled={busy}
+                  title="Generate the drift-killer memo"
+                >
+                  Intervention
+                </button>
+
+                <button
+                  className="secondaryBtn"
+                  onClick={() => void copyTextToClipboard(interventionMemo)}
+                  disabled={!interventionMemo.trim() || busy}
+                  title="Copy Intervention memo to clipboard"
+                >
+                  Copy
+                </button>
+
+                <button
+                  className="secondaryBtn"
+                  onClick={() => setInterventionMemo("")}
+                  disabled={busy}
+                  title="Clear the memo window"
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="interventionBox">
+                {interventionMemo.trim()
+                  ? interventionMemo
+                  : "Click Intervention to generate the note-to-self memo."}
+              </div>
+
+              <div className="hint" style={{ marginTop: 12 }}>
+                Use this when we drift. It captures what matters *right now*
+                without digging through old chats.
+              </div>
+            </>
+          )}
         </div>
 
         <div className="side">
+          <SectionTitle>Active Ports</SectionTitle>
+
+          <div className="portsBox">
+            {PORTS.map((p) => {
+              const s = ports[p];
+              const listening = Boolean(s?.listening);
+              const pid = s?.pid ?? null;
+              const cmd = s?.command ?? null;
+
+              return (
+                <div key={p} className="portRow">
+                  <div className="portLeft">
+                    <div className="portName">{portLabel(p)}</div>
+                    <div className="portMeta">
+                      <span
+                        className={`pill ${listening ? "pillOn" : "pillOff"}`}
+                        title={s?.raw ? s.raw : ""}
+                      >
+                        {listening ? "LISTENING" : "FREE"}
+                      </span>
+
+                      <span className="portNum">:{p}</span>
+                      {listening && pid ? (
+                        <span className="portPid">pid {pid}</span>
+                      ) : null}
+                      {listening && cmd ? (
+                        <span className="portCmd">{cmd}</span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="portRight">
+                    <button
+                      className="secondaryBtn"
+                      onClick={() => void killAndRefresh(p)}
+                      disabled={busy || portsBusy || !listening}
+                      title={
+                        listening
+                          ? "Kill listener(s) on this port"
+                          : "Nothing is listening on this port"
+                      }
+                    >
+                      {listening ? "Kill" : "Free"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="portsActions">
+              <button
+                className="secondaryBtn"
+                onClick={() => void refreshPortsBurst()}
+                disabled={busy || portsBusy}
+                title="Refresh port status"
+              >
+                {portsBusy ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
+          </div>
+
           <SectionTitle>Logs</SectionTitle>
           <div className="logBox">
             {busy ? "Running…" : log || "No logs yet."}

@@ -1,5 +1,16 @@
 use std::process::Command;
 
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct PortStatus {
+  port: u16,
+  listening: bool,
+  pid: Option<u32>,
+  command: Option<String>,
+  raw: String,
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
   format!("Hello, {}! You've been greeted from Rust!", name)
@@ -39,29 +50,188 @@ fn run_empire_snapshot() -> Result<String, String> {
   run_shell("cd ~/dev/o2 && bash scripts/o2_empire_snapshot.sh")
 }
 
-fn launch_dev_in_terminal(repo: &str, port: u16, url: &str) -> Result<String, String> {
-  // Idempotent-ish:
-  // - Best-effort free the port
-  // - Start dev server
-  // - Wait until port is listening
-  // - Open browser
-  //
-  // Requires: bash, gnome-terminal, fuser, xdg-open
+#[tauri::command]
+fn gather_radcontrol_intel() -> Result<String, String> {
+  // Keep output bounded so Logs stay usable.
+  // Also write to /tmp so you can paste/share later.
+  run_shell(
+    r#"
+set -e
+OUT=/tmp/radcontrol_intel.txt
+: > "$OUT"
+
+{
+  echo "=== DATE ==="
+  date
+  echo
+
+  echo "=== O2 (scripts) ==="
+  tree -a -L 3 ~/dev/o2/scripts || true
+  echo
+
+  echo "=== TBIS (scripts + docs) ==="
+  tree -a -L 3 \
+    ~/dev/rad-empire/radcon/dev/tbis/scripts \
+    ~/dev/rad-empire/radcon/dev/tbis/docs || true
+  echo
+
+  echo "=== DQOTD (scripts + docs) ==="
+  tree -a -L 3 \
+    ~/dev/rad-empire/radcon/dev/charliedino/scripts \
+    ~/dev/rad-empire/radcon/dev/charliedino/docs || true
+  echo
+
+  echo "=== RADCONTROL (repo structure) ==="
+  cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app || exit 1
+  tree -a -L 3 --dirsfirst src src-tauri 2>/dev/null || true
+  echo
+
+  echo "=== QUICK GREP: entrypoints (session/snapshot/index/smoke) ==="
+  grep -RIn --line-number -E "o2_|snapshot|session_start|repo_snapshot|repo_index|smoke" \
+    ~/dev/o2/scripts \
+    ~/dev/rad-empire/radcon/dev/tbis/scripts \
+    ~/dev/rad-empire/radcon/dev/charliedino/scripts \
+    2>/dev/null | head -n 200 || true
+  echo
+
+  echo "=== NOTE TO SELF (RadControl assumptions) ==="
+  echo "- DQOTD expected: http://127.0.0.1:3000/dqotd"
+  echo "- TBIS expected:  http://127.0.0.1:3001/tbis"
+  echo "- RadControl UI:  http://127.0.0.1:1420"
+  echo "- If 1420 busy: kill_port(1420) or Restart RadControl (dev)"
+  echo
+
+  echo "Wrote: $OUT"
+} | tee "$OUT"
+"#,
+  )
+}
+
+/* =========================
+   Active Ports helpers
+   ========================= */
+
+// Parse pid=1234 from ss output like:
+// users:(("node",pid=1234,fd=23))
+fn parse_pid_from_ss(s: &str) -> Option<u32> {
+  let idx = s.find("pid=")?;
+  let rest = &s[idx + 4..];
+  let mut digits = String::new();
+  for ch in rest.chars() {
+    if ch.is_ascii_digit() {
+      digits.push(ch);
+    } else {
+      break;
+    }
+  }
+  digits.parse::<u32>().ok()
+}
+
+// Parse program name from ss output like: users:(("node",pid=1234,fd=23))
+fn parse_prog_from_ss(s: &str) -> Option<String> {
+  // find first ("NAME"
+  let start = s.find("((")?;
+  let rest = &s[start + 2..];
+  let q1 = rest.find('"')?;
+  let rest2 = &rest[q1 + 1..];
+  let q2 = rest2.find('"')?;
+  let name = &rest2[..q2];
+  if name.trim().is_empty() {
+    None
+  } else {
+    Some(name.to_string())
+  }
+}
+
+#[tauri::command]
+fn port_status(port: u16) -> Result<PortStatus, String> {
+  // Use ss instead of lsof (lsof can miss listeners in your environment).
+  // NOTE: ss exists on Pop!/Ubuntu by default (iproute2).
+  let raw =
+    run_shell(&format!("ss -ltnpH 'sport = :{port}' 2>/dev/null || true")).unwrap_or_default();
+
+  let listening = raw.lines().any(|ln| !ln.trim().is_empty());
+
+  let pid = if listening { parse_pid_from_ss(&raw) } else { None };
+  let command = if listening { parse_prog_from_ss(&raw) } else { None };
+
+  Ok(PortStatus {
+    port,
+    listening,
+    pid,
+    command,
+    raw: if raw.trim().is_empty() {
+      "(no ss listener lines)".to_string()
+    } else {
+      raw
+    },
+  })
+}
+
+#[tauri::command]
+fn kill_port(port: u16) -> Result<String, String> {
+  run_shell(&format!(
+    "(fuser -k {port}/tcp >/dev/null 2>&1 || true); echo \"done\""
+  ))
+}
+
+/* =========================
+   Dev server launcher (smart)
+   ========================= */
+
+fn launch_dev_in_terminal_smart(
+  repo: &str,
+  display_name: &str,
+  candidates: &[&str],
+) -> Result<String, String> {
+  // Strategy:
+  // - Start npm run dev immediately (let Next pick its port)
+  // - Poll a list of candidate URLs until one responds
+  // - Open the first that responds
+  // - Keep terminal open
+  let list = candidates.join(" ");
+
+  // IMPORTANT: Use 127.0.0.1 candidates (not localhost) because this machine
+  // can resolve localhost to ::1 while Next binds IPv4 only, breaking curl.
   let cmd = format!(
     "gnome-terminal -- bash -lc '\
-      cd \"{repo}\" \
-      && echo \"[radcontrol] freeing port {port} (best-effort)...\" \
-      && (fuser -k {port}/tcp >/dev/null 2>&1 || true) \
-      && echo \"[radcontrol] starting dev server...\" \
-      && (npm run dev &) \
-      && echo \"[radcontrol] waiting for localhost:{port}...\" \
-      && for i in {{1..80}}; do \
-           (bash -lc \"</dev/tcp/127.0.0.1/{port}\" >/dev/null 2>&1) && break; \
-           sleep 0.25; \
-         done \
-      && echo \"[radcontrol] opening {url}\" \
-      && xdg-open \"{url}\" >/dev/null 2>&1 \
-      && exec bash'"
+      set -e; \
+      echo \"\"; \
+      echo \"========================================\"; \
+      echo \"[radcontrol] project: {display_name}\"; \
+      echo \"[radcontrol] repo: {repo}\"; \
+      echo \"[radcontrol] probing: {list}\"; \
+      echo \"========================================\"; \
+      echo \"\"; \
+      cd \"{repo}\"; \
+      echo \"[radcontrol] starting dev server (background)...\"; \
+      (npm run dev) & \
+      DEV_PID=$!; \
+      echo \"[radcontrol] dev pid: $DEV_PID\"; \
+      echo \"[radcontrol] waiting for HTTP...\"; \
+      FOUND=\"\"; \
+      for i in $(seq 1 320); do \
+        for u in {list}; do \
+          if curl -sS -o /dev/null -I \"$u\"; then \
+            FOUND=\"$u\"; \
+            break; \
+          fi; \
+        done; \
+        if [ -n \"$FOUND\" ]; then \
+          echo \"[radcontrol] http OK — opening $FOUND\"; \
+          xdg-open \"$FOUND\" >/dev/null 2>&1 || true; \
+          break; \
+        fi; \
+        sleep 0.25; \
+      done; \
+      if [ -z \"$FOUND\" ]; then \
+        echo \"[radcontrol] WARNING: none of the probe URLs became ready.\"; \
+      fi; \
+      echo \"\"; \
+      echo \"[radcontrol] dev server is running (pid $DEV_PID). Close this terminal to stop it.\"; \
+      echo \"\"; \
+      wait $DEV_PID; \
+      exec bash'"
   );
 
   let status = Command::new("bash")
@@ -71,7 +241,10 @@ fn launch_dev_in_terminal(repo: &str, port: u16, url: &str) -> Result<String, St
     .map_err(|e| format!("Failed to launch terminal: {e}"))?;
 
   if status.success() {
-    Ok(format!("Launched dev server in a new terminal window and opened {}.", url))
+    Ok(format!(
+      "Launched {} dev server in a new terminal and will open the first responding URL.",
+      display_name
+    ))
   } else {
     Err(format!(
       "Terminal launch failed (exit {}). Is gnome-terminal installed?",
@@ -88,9 +261,6 @@ fn launch_dev_in_terminal(repo: &str, port: u16, url: &str) -> Result<String, St
 fn restart_radcontrol_dev() -> Result<String, String> {
   let repo = "/home/chris/dev/rad-empire/radcontrol/dev/radcontrol-app";
 
-  // This will kill the current Vite listener on 1420 (which this app uses),
-  // then start a fresh `npm run tauri dev` in a new terminal window.
-  // Your current RadControl window may go blank afterward — close it once the new one is up.
   let cmd = format!(
     "gnome-terminal -- bash -lc '\
       cd \"{repo}\" \
@@ -109,7 +279,10 @@ fn restart_radcontrol_dev() -> Result<String, String> {
     .map_err(|e| format!("Failed to launch terminal: {e}"))?;
 
   if status.success() {
-    Ok("Restart launched in a new terminal. (This window may go blank after 1420 is freed.)".to_string())
+    Ok(
+      "Restart launched in a new terminal. (This window may go blank after 1420 is freed.)"
+        .to_string(),
+    )
   } else {
     Err(format!(
       "Restart launch failed (exit {}). Is gnome-terminal installed?",
@@ -129,10 +302,16 @@ fn run_dqotd_session_start() -> Result<String, String> {
 
 #[tauri::command]
 fn launch_dqotd_dev_server_terminal() -> Result<String, String> {
-  launch_dev_in_terminal(
+  // DQOTD canonical: 3000. Still probe 3001 as fallback in case Next auto-bumped.
+  launch_dev_in_terminal_smart(
     "/home/chris/dev/rad-empire/radcon/dev/charliedino",
-    3000,
-    "http://localhost:3000",
+    "DQOTD",
+    &[
+      "http://127.0.0.1:3000/dqotd",
+      "http://127.0.0.1:3001/dqotd",
+      "http://127.0.0.1:3000/",
+      "http://127.0.0.1:3001/",
+    ],
   )
 }
 
@@ -157,11 +336,16 @@ fn run_tbis_session_start() -> Result<String, String> {
 
 #[tauri::command]
 fn launch_tbis_dev_server_terminal() -> Result<String, String> {
-  // TBIS is pinned to 3001 in your repo now.
-  launch_dev_in_terminal(
+  // TBIS canonical: 3001. Still probe 3000 as fallback in case Next auto-bumped.
+  launch_dev_in_terminal_smart(
     "/home/chris/dev/rad-empire/radcon/dev/tbis",
-    3001,
-    "http://localhost:3001",
+    "TBIS",
+    &[
+      "http://127.0.0.1:3001/tbis",
+      "http://127.0.0.1:3000/tbis",
+      "http://127.0.0.1:3001/",
+      "http://127.0.0.1:3000/",
+    ],
   )
 }
 
@@ -181,15 +365,16 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       greet,
       run_empire_snapshot,
-
+      gather_radcontrol_intel,
+      // ports
+      port_status,
+      kill_port,
       // self
       restart_radcontrol_dev,
-
       // dqotd
       run_dqotd_session_start,
       launch_dqotd_dev_server_terminal,
       commit_push_dqotd_o2_artifacts,
-
       // tbis
       run_tbis_session_start,
       launch_tbis_dev_server_terminal,
