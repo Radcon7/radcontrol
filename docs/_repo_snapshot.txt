@@ -1,0 +1,1355 @@
+=== SNAPSHOT: RadControl ===
+root: /home/chris/dev/rad-empire/radcontrol/dev/radcontrol-app
+time: Sat Feb  7 10:56:57 AM EST 2026
+
+## identity
+branch: feat/active-ports-panel
+commit: cb491bda114585a3a8d8d5aeeb6b12f8315af95b
+
+## status
+On branch feat/active-ports-panel
+Your branch is up to date with 'origin/feat/active-ports-panel'.
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	docs/
+	scripts/
+
+nothing added to commit but untracked files present (use "git add" to track)
+
+## recent commits
+cb491bd feat(radcontrol): intervention tab, ui polish, and refreshed app icons
+2d6222d feat: add radcontrol self-restart button
+2ca24a2 feat: stable tbis+dqotd launch + o2 commands
+b8f928c chore: add gitignore
+fb821d1 init: radcontrol tauri app
+
+## tree (depth 4)
+.
+├── dist
+│   ├── assets
+│   │   ├── index-CZJdjEU8.css
+│   │   └── index-D0lVgvFb.js
+│   ├── index.html
+│   ├── tauri.svg
+│   └── vite.svg
+├── docs
+│   ├── _o2_repo_index.txt
+│   ├── _repo_snapshot.txt
+│   └── REPO_STATE.md
+├── .git
+│   ├── branches
+│   ├── COMMIT_EDITMSG
+│   ├── config
+│   ├── description
+│   ├── FETCH_HEAD
+│   ├── HEAD
+│   ├── hooks
+│   │   ├── applypatch-msg.sample
+│   │   ├── commit-msg.sample
+│   │   ├── fsmonitor-watchman.sample
+│   │   ├── post-update.sample
+│   │   ├── pre-applypatch.sample
+│   │   ├── pre-commit.sample
+│   │   ├── pre-merge-commit.sample
+│   │   ├── prepare-commit-msg.sample
+│   │   ├── pre-push.sample
+│   │   ├── pre-rebase.sample
+│   │   ├── pre-receive.sample
+│   │   ├── push-to-checkout.sample
+│   │   └── update.sample
+│   ├── index
+│   ├── info
+│   │   └── exclude
+│   ├── logs
+│   │   ├── HEAD
+│   │   └── refs
+│   │       ├── heads
+│   │       └── remotes
+│   ├── objects
+│   │   ├── 01
+│   │   │   └── 34dcee885b60fbaa626cc4377adff47d787c49
+│   │   ├── 02
+│   │   │   └── d370e03145699288c8c3dcd762bc9a1d250e14
+│   │   ├── 04
+│   │   │   └── 6bf3716e177190cdb3977dc6e8bdde033216a4
+│   │   ├── 05
+│   │   │   ├── 335488aa68335b16859fef727a8232419c014a
+│   │   │   └── a38f9f4872871103d98e84b4f67c934bc038d6
+│   │   ├── 09
+│   │   │   └── bd5fae36aa1be85139981053bfe50c02bb5238
+│   │   ├── 0a
+│   │   │   └── 85f97e338cc9eb191c8b4f5a1f8c94ff508f51
+│   │   ├── 0c
+│   │   │   └── a4f27198838968bd60ed7d371bfa23496b7fe5
+│   │   ├── 10
+│   │   │   └── 2e366893d0efb942ca24045e00e14fe08e5448
+│   │   ├── 11
+│   │   │   ├── 6fe73b38859046c44909df5529bc0e6a286281
+│   │   │   └── f02fe2a0061d6e6e1f271b21da95423b448b32
+│   │   ├── 12
+│   │   │   └── a5bcee268851fdab744ec4a31f75d3d008e031
+│   │   ├── 19
+│   │   │   └── 67569549de87ec5b6e13161aa14d23a0d767eb
+│   │   ├── 1c
+│   │   │   └── d2f80d73ee33a6715c074c5adf7ea0b788de8a
+│   │   ├── 1f
+│   │   │   └── e803d2ca35f4cf104f673db77f74c2027042fd
+│   │   ├── 23
+│   │   │   └── 3725e5042280855ad2a8cd63f65614103b17b6
+│   │   ├── 24
+│   │   │   └── d7cc6de8e0b4d34e998fb0e0a195a20dc4b213
+│   │   ├── 25
+│   │   │   └── ea796eda13e22ac9b3f5b1e471131257d18bc2
+│   │   ├── 26
+│   │   │   └── 8b90fa37b97cb94c5275e4baaa0793feea0327
+│   │   ├── 2a
+│   │   │   └── eb5fda6bcbf2f0eb17f561a9f299143140f7eb
+│   │   ├── 2b
+│   │   │   └── e325ed2578821637e991b3c3f2eaaf47632f51
+│   │   ├── 2c
+│   │   │   └── a24a23ecb5fb1bcb13003a90d1c04cb6f6585d
+│   │   ├── 2d
+│   │   │   └── 6222dfd7cce529e58d91574e20f7b342b2cd23
+│   │   ├── 2f
+│   │   │   └── fbf24b68988bd935f5c695a59753fcb1a5de0e
+│   │   ├── 30
+│   │   │   └── 5c91c40af0abb2c1c5661147455e4dc54ad659
+│   │   ├── 31
+│   │   │   ├── 4365aa52dee36e7eede6ff22312cddfe2b3cbe
+│   │   │   └── b62c92804b76aa2896dfd4bfca252255667332
+│   │   ├── 33
+│   │   │   ├── 8249572c36f29f72d4714fa7b4b6af68a4f021
+│   │   │   └── e2bc4d1aab25a40fbc9bc893149aecbfe09a73
+│   │   ├── 34
+│   │   │   └── 4a9b36477bbdd85656dacab5ecbc891ac39fb5
+│   │   ├── 37
+│   │   │   ├── 28f55f663496c41beb12616b71363f60055380
+│   │   │   └── 6d2121c84c878ea27a9880dfa84d5c9e79f902
+│   │   ├── 39
+│   │   │   └── 32f4cce0666ab6e44d684130fa73b9a94f7a03
+│   │   ├── 3b
+│   │   │   └── 778994147025dab487b5691f6003e77297f1ec
+│   │   ├── 3f
+│   │   │   └── 254a2b39fd2da16ef33c03f2d51f8567330315
+│   │   ├── 41
+│   │   │   ├── 74dae2e62b52877956d027ad2f46a8a3b6e706
+│   │   │   └── 8c9b0ffc6f2684c4e711551c633717ee7403af
+│   │   ├── 42
+│   │   │   └── 872c59f5b01c9155864572bc2fbd5833a7406c
+│   │   ├── 45
+│   │   │   └── 5638826192851ad1ae604d66f2ca352979442c
+│   │   ├── 48
+│   │   │   ├── 0fde353259344d0e22fa251e3796ca82fb2d0b
+│   │   │   └── aa9dff8528a3007277270dca4261e813804f16
+│   │   ├── 4c
+│   │   │   └── dbf49a76bae9e1927ecd9c4e2288ebf81d93cf
+│   │   ├── 51
+│   │   │   ├── c8aa19a20b49cb98d46f847e14ce6e234599ea
+│   │   │   └── ceeea70b748c61a48cdd548ea265b731bd7444
+│   │   ├── 56
+│   │   │   └── c5a0f6b0086048ece7a8fe1b0f0b03bcead92e
+│   │   ├── 5a
+│   │   │   ├── 0c2b56e3d154066a60d9cc624dc57f27f31f84
+│   │   │   └── 4d3e47e49b5dcf184efbcbf8d38a2569e9fc32
+│   │   ├── 62
+│   │   │   ├── 1970023096ed9f494ba18ace15421a45cd65fa
+│   │   │   └── 4c7bfba0498dcebbc8a020fe06f08cfff2384a
+│   │   ├── 63
+│   │   │   └── 440d7984936a9caa89275928d8dce97e4d033b
+│   │   ├── 69
+│   │   │   └── 6fec9b394a2e2aa95950301bbe462f5a21f1b9
+│   │   ├── 6b
+│   │   │   └── e5e50e9b9ae84d9e2ee433f32ef446495eaf3b
+│   │   ├── 6c
+│   │   │   └── 87de9bb3358469122cc991d5cf578927246184
+│   │   ├── 6e
+│   │   │   └── fae1a993711a2b51c21c665e3b2112ae00cf66
+│   │   ├── 71
+│   │   │   └── 888e1f1c07cf9dfa734483ac0b7f425b811e26
+│   │   ├── 78
+│   │   │   └── 489ae7f1f313ac2c17535f35bfe4a11bd79432
+│   │   ├── 79
+│   │   │   └── 33d9997b448077093f8775931c88fff95ba14b
+│   │   ├── 7e
+│   │   │   └── fe643d3d02178102e0577343b1af6b8cc9a7b9
+│   │   ├── 80
+│   │   │   └── 4c831cfd6681cffc8332c01a45e61a27675d38
+│   │   ├── 81
+│   │   │   └── 9f0ad4fd79dc104b747efa8dac540f882ffd38
+│   │   ├── 85
+│   │   │   └── 2fd53c47c0df840d2d01d5bfa0c0c5396509e5
+│   │   ├── 86
+│   │   │   └── 3f416da71b21fadbb567c1ea31b65a0e3a8d30
+│   │   ├── 87
+│   │   │   └── ea1495b4cb5fc0cb15aa6c03cd2e272d322858
+│   │   ├── 8a
+│   │   │   ├── 7880e3c72597b23134b75ac55a9650d9459439
+│   │   │   └── 86c2ed8a22fb3c82a04555b46c117c5c2e50a4
+│   │   ├── 8f
+│   │   │   ├── 70f15f331492302214bb173be820d98597b5a6
+│   │   │   └── 8ca4ef90f05a36964064e7118c97ddf5a1dcee
+│   │   ├── 91
+│   │   │   └── c4f3c382f1562a91d9963deabcfaa96b17688e
+│   │   ├── 94
+│   │   │   └── c0b2fc152a086447a04f62793957235d2475be
+│   │   ├── 95
+│   │   │   └── 2eb19af9abcea3145924996d093008f4fe3beb
+│   │   ├── 9d
+│   │   │   ├── 73f3f015623329bf14091e11cbb48e52ce4d7e
+│   │   │   └── f9b779dcf163be0e4ddaa4d64cc6dbccc96f1f
+│   │   ├── 9f
+│   │   │   └── bd4b143eff6e4ea957e7b9d2a64726c33ad78a
+│   │   ├── a4
+│   │   │   └── 37dd51741e9e56e14b5d6024493cb2abfd5259
+│   │   ├── a5
+│   │   │   └── 47bf36d8d11a4f89c59c144f24795749086dd1
+│   │   ├── a7
+│   │   │   └── fc6fbf23de2a53e36754bc4a2c306d0291d7b2
+│   │   ├── a9
+│   │   │   ├── 14a0b886170f4f88b89dd09fadbde8e31b4d4e
+│   │   │   ├── 1ffcf8f9384e53fb891efa154c501b8752ba73
+│   │   │   └── 4a14ace9f19beaf048140049f6282cc450ba5d
+│   │   ├── ac
+│   │   │   └── ce37907cb9eed2a0ed3a31b4db46e43c21606b
+│   │   ├── ae
+│   │   │   └── 650459b6eb379948bacb54818918a5fa30b11d
+│   │   ├── af
+│   │   │   ├── 912e678d07be19fd4f2268e866587b65db9ef0
+│   │   │   ├── a02cba9017077a8bdbb8b0e5156bd90c4f9e23
+│   │   │   └── a1af75932766f25ad19b61ba8cb4a873f8a914
+│   │   ├── b1
+│   │   │   └── 3a9cbaa8d47c0665f2ed9b39e4ed66f53b1d32
+│   │   ├── b2
+│   │   │   └── 1bd681d99748c046b14202ab79bd8da0143302
+│   │   ├── b3
+│   │   │   └── 636e4b22ba65db9061cd60a77b02c92022dfd6
+│   │   ├── b4
+│   │   │   └── 0ea4239580d5a8ef4d1802f6859cd10da744a2
+│   │   ├── b8
+│   │   │   ├── 1f820394d1504ff4b4091473a8263542c9edc4
+│   │   │   └── f928cb61e2d570cc3b78af25119eac5e919def
+│   │   ├── b9
+│   │   │   └── 2bcab15040ac1755c050d0ebef06c833af5e62
+│   │   ├── bf
+│   │   │   └── 163f289d14ab1e73d80d1d2e58ea245bc34aff
+│   │   ├── c0
+│   │   │   └── 21d2ba76619c08969ab688db3b27f29257aa6f
+│   │   ├── c3
+│   │   │   └── 9ae3826f9d717e3d48e15ccb0034271e2be86f
+│   │   ├── c5
+│   │   │   ├── dc607d9be0051fe32565f664a32d4e34dd9f90
+│   │   │   └── eeda68feddd14f5e5e1ca8e70d4b3a6547caec
+│   │   ├── c6
+│   │   │   └── 6e583942bfab7e6c04100003f538066ecf56a8
+│   │   ├── c7
+│   │   │   └── 044c4f85d305c43fe4ef4c7d6abb78f31d9042
+│   │   ├── cb
+│   │   │   ├── 491bda114585a3a8d8d5aeeb6b12f8315af95b
+│   │   │   └── d7033a3b59e26ff068324504b24bc42894c6bf
+│   │   ├── ce
+│   │   │   └── 3680348dc8c17c9589fbd35c014225616a630d
+│   │   ├── d3
+│   │   │   └── d9bff3a1302c521dfac543a289f98cb5cdbc9e
+│   │   ├── d5
+│   │   │   ├── dc34b16ab93491b5ebbeb217a8a21fc7bbbe2f
+│   │   │   └── fbfb2ab4e57e8a75620cded43bddc1a15daa99
+│   │   ├── d8
+│   │   │   ├── 60e1e6a7cac333c3cc0bc9cb67faf286b07d69
+│   │   │   └── 9a4275b36428b6c677d37ef40ffbef37d093c2
+│   │   ├── da
+│   │   │   ├── 3acf079a89525d6ef13364026b8ce0d4bb2c88
+│   │   │   └── e8e1cca5a64a3b405072ed7527d01c7aeba9e1
+│   │   ├── dd
+│   │   │   └── ad22a3e2f787396217486bec78f03be955a138
+│   │   ├── e0
+│   │   │   └── 78bbdfce6a703820c80ce284c5f8d685607a5a
+│   │   ├── e1
+│   │   │   ├── 06231f6c0063c12b72faf5744cb7c2fb7c4b6f
+│   │   │   ├── b2d8a853049d90ba96b5826f94b01dada068ba
+│   │   │   └── cd2619e0b5ec089cbba5ec7b03ddf2b1dfceb6
+│   │   ├── e3
+│   │   │   └── 6a32b199652695d1b60cd8cd2a5e36ee5e5126
+│   │   ├── e6
+│   │   │   └── 7f83cdc7bd032e335157c5917bee8bcbd5a7d8
+│   │   ├── e7
+│   │   │   └── b8dfb1b2a60bd50538bec9f876511b9cac21e3
+│   │   ├── e8
+│   │   │   └── 1becee571e96f76aa5667f9324c05e5e7a4479
+│   │   ├── e9
+│   │   │   └── 5f29bda7ea5a4e8e01dbc2df2bc82790c623c5
+│   │   ├── ea
+│   │   │   ├── 27d5739f455ba4104e0d58a3ed67949f622137
+│   │   │   └── 9c223a6cbab0465000584a9d5dd052adffe3c2
+│   │   ├── f0
+│   │   │   └── 68c37f30a5cb9cc95b1c10fca1ea24b3621c56
+│   │   ├── f1
+│   │   │   └── b28588b48dfb74f887347f2493f87811d15e18
+│   │   ├── f3
+│   │   │   └── f705af2f2e044682ac042b37dba6682a0c8a6b
+│   │   ├── f4
+│   │   │   ├── 0e5786a750171c522215ad3f0905fc58e2e8d0
+│   │   │   └── f249339a05ce5a1cf7c3464297f18056c0ca0a
+│   │   ├── f9
+│   │   │   ├── 5a50aa44ac5fc4932bc62f3659473d00c52232
+│   │   │   └── bc04839491e66c07b16ab03743c0c53b4109cc
+│   │   ├── fa
+│   │   │   └── 4dd856a345b66a0bf10e34289183f6a8831170
+│   │   ├── fb
+│   │   │   └── 821d1081014e3f6a88bbd50622112f07b127b5
+│   │   ├── fe
+│   │   │   ├── 5ec9ff1334bf3167cf31cd71dc0ee8aa2531e6
+│   │   │   └── a8456fc094cf811be1d3e686cf964ff365d152
+│   │   ├── ff
+│   │   │   └── 93803bbc0ac572a2b1503c045251b309e05275
+│   │   ├── info
+│   │   └── pack
+│   ├── ORIG_HEAD
+│   └── refs
+│       ├── heads
+│       │   ├── feat
+│       │   └── main
+│       ├── remotes
+│       │   └── origin
+│       └── tags
+├── .gitignore
+├── index.html
+├── node_modules
+│   ├── @babel
+│   │   ├── code-frame
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── compat-data
+│   │   │   ├── corejs2-built-ins.js
+│   │   │   ├── corejs3-shipped-proposals.js
+│   │   │   ├── data
+│   │   │   ├── LICENSE
+│   │   │   ├── native-modules.js
+│   │   │   ├── overlapping-plugins.js
+│   │   │   ├── package.json
+│   │   │   ├── plugin-bugfixes.js
+│   │   │   ├── plugins.js
+│   │   │   └── README.md
+│   │   ├── core
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   ├── README.md
+│   │   │   └── src
+│   │   ├── generator
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── helper-compilation-targets
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── helper-globals
+│   │   │   ├── data
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── helper-module-imports
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── helper-module-transforms
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── helper-plugin-utils
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── helpers
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── helper-string-parser
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── helper-validator-identifier
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── helper-validator-option
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── parser
+│   │   │   ├── bin
+│   │   │   ├── CHANGELOG.md
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   ├── README.md
+│   │   │   └── typings
+│   │   ├── plugin-transform-react-jsx-self
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── plugin-transform-react-jsx-source
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── template
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── traverse
+│   │   │   ├── lib
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   ├── README.md
+│   │   │   └── tsconfig.overrides.json
+│   │   └── types
+│   │       ├── lib
+│   │       ├── LICENSE
+│   │       ├── package.json
+│   │       └── README.md
+│   ├── baseline-browser-mapping
+│   │   ├── dist
+│   │   │   ├── cli.js
+│   │   │   ├── index.cjs
+│   │   │   ├── index.d.ts
+│   │   │   └── index.js
+│   │   ├── LICENSE.txt
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── .bin
+│   │   ├── baseline-browser-mapping -> ../baseline-browser-mapping/dist/cli.js
+│   │   ├── browserslist -> ../browserslist/cli.js
+│   │   ├── esbuild -> ../esbuild/bin/esbuild
+│   │   ├── jsesc -> ../jsesc/bin/jsesc
+│   │   ├── json5 -> ../json5/lib/cli.js
+│   │   ├── nanoid -> ../nanoid/bin/nanoid.cjs
+│   │   ├── parser -> ../@babel/parser/bin/babel-parser.js
+│   │   ├── rollup -> ../rollup/dist/bin/rollup
+│   │   ├── semver -> ../semver/bin/semver.js
+│   │   ├── tauri -> ../@tauri-apps/cli/tauri.js
+│   │   ├── tsc -> ../typescript/bin/tsc
+│   │   ├── tsserver -> ../typescript/bin/tsserver
+│   │   ├── update-browserslist-db -> ../update-browserslist-db/cli.js
+│   │   └── vite -> ../vite/bin/vite.js
+│   ├── browserslist
+│   │   ├── browser.js
+│   │   ├── cli.js
+│   │   ├── error.d.ts
+│   │   ├── error.js
+│   │   ├── index.d.ts
+│   │   ├── index.js
+│   │   ├── LICENSE
+│   │   ├── node.js
+│   │   ├── package.json
+│   │   ├── parse.js
+│   │   └── README.md
+│   ├── caniuse-lite
+│   │   ├── data
+│   │   │   ├── agents.js
+│   │   │   ├── browsers.js
+│   │   │   ├── browserVersions.js
+│   │   │   ├── features
+│   │   │   ├── features.js
+│   │   │   └── regions
+│   │   ├── dist
+│   │   │   ├── lib
+│   │   │   └── unpacker
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── convert-source-map
+│   │   ├── index.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── csstype
+│   │   ├── index.d.ts
+│   │   ├── index.js.flow
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── debug
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   └── src
+│   │       ├── browser.js
+│   │       ├── common.js
+│   │       ├── index.js
+│   │       └── node.js
+│   ├── electron-to-chromium
+│   │   ├── chromium-versions.js
+│   │   ├── chromium-versions.json
+│   │   ├── full-chromium-versions.js
+│   │   ├── full-chromium-versions.json
+│   │   ├── full-versions.js
+│   │   ├── full-versions.json
+│   │   ├── index.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   ├── versions.js
+│   │   └── versions.json
+│   ├── @esbuild
+│   │   └── linux-x64
+│   │       ├── bin
+│   │       ├── package.json
+│   │       └── README.md
+│   ├── esbuild
+│   │   ├── bin
+│   │   │   └── esbuild
+│   │   ├── install.js
+│   │   ├── lib
+│   │   │   ├── main.d.ts
+│   │   │   └── main.js
+│   │   ├── LICENSE.md
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── escalade
+│   │   ├── dist
+│   │   │   ├── index.js
+│   │   │   └── index.mjs
+│   │   ├── index.d.mts
+│   │   ├── index.d.ts
+│   │   ├── license
+│   │   ├── package.json
+│   │   ├── readme.md
+│   │   └── sync
+│   │       ├── index.d.mts
+│   │       ├── index.d.ts
+│   │       ├── index.js
+│   │       └── index.mjs
+│   ├── fdir
+│   │   ├── dist
+│   │   │   ├── index.cjs
+│   │   │   ├── index.d.cts
+│   │   │   ├── index.d.mts
+│   │   │   └── index.mjs
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── gensync
+│   │   ├── index.js
+│   │   ├── index.js.flow
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   └── test
+│   │       ├── .babelrc
+│   │       └── index.test.js
+│   ├── @jridgewell
+│   │   ├── gen-mapping
+│   │   │   ├── dist
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   ├── README.md
+│   │   │   ├── src
+│   │   │   └── types
+│   │   ├── remapping
+│   │   │   ├── dist
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   ├── README.md
+│   │   │   ├── src
+│   │   │   └── types
+│   │   ├── resolve-uri
+│   │   │   ├── dist
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── sourcemap-codec
+│   │   │   ├── dist
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   ├── README.md
+│   │   │   ├── src
+│   │   │   └── types
+│   │   └── trace-mapping
+│   │       ├── dist
+│   │       ├── LICENSE
+│   │       ├── package.json
+│   │       ├── README.md
+│   │       ├── src
+│   │       └── types
+│   ├── jsesc
+│   │   ├── bin
+│   │   │   └── jsesc
+│   │   ├── jsesc.js
+│   │   ├── LICENSE-MIT.txt
+│   │   ├── man
+│   │   │   └── jsesc.1
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── json5
+│   │   ├── dist
+│   │   │   ├── index.js
+│   │   │   ├── index.min.js
+│   │   │   ├── index.min.mjs
+│   │   │   └── index.mjs
+│   │   ├── lib
+│   │   │   ├── cli.js
+│   │   │   ├── index.d.ts
+│   │   │   ├── index.js
+│   │   │   ├── parse.d.ts
+│   │   │   ├── parse.js
+│   │   │   ├── register.js
+│   │   │   ├── require.js
+│   │   │   ├── stringify.d.ts
+│   │   │   ├── stringify.js
+│   │   │   ├── unicode.d.ts
+│   │   │   ├── unicode.js
+│   │   │   ├── util.d.ts
+│   │   │   └── util.js
+│   │   ├── LICENSE.md
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── js-tokens
+│   │   ├── CHANGELOG.md
+│   │   ├── index.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── lru-cache
+│   │   ├── index.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── ms
+│   │   ├── index.js
+│   │   ├── license.md
+│   │   ├── package.json
+│   │   └── readme.md
+│   ├── nanoid
+│   │   ├── async
+│   │   │   ├── index.browser.cjs
+│   │   │   ├── index.browser.js
+│   │   │   ├── index.cjs
+│   │   │   ├── index.d.ts
+│   │   │   ├── index.js
+│   │   │   ├── index.native.js
+│   │   │   └── package.json
+│   │   ├── bin
+│   │   │   └── nanoid.cjs
+│   │   ├── index.browser.cjs
+│   │   ├── index.browser.js
+│   │   ├── index.cjs
+│   │   ├── index.d.cts
+│   │   ├── index.d.ts
+│   │   ├── index.js
+│   │   ├── LICENSE
+│   │   ├── nanoid.js
+│   │   ├── non-secure
+│   │   │   ├── index.cjs
+│   │   │   ├── index.d.ts
+│   │   │   ├── index.js
+│   │   │   └── package.json
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   └── url-alphabet
+│   │       ├── index.cjs
+│   │       ├── index.js
+│   │       └── package.json
+│   ├── node-releases
+│   │   ├── data
+│   │   │   ├── processed
+│   │   │   └── release-schedule
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── .package-lock.json
+│   ├── picocolors
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── picocolors.browser.js
+│   │   ├── picocolors.d.ts
+│   │   ├── picocolors.js
+│   │   ├── README.md
+│   │   └── types.d.ts
+│   ├── picomatch
+│   │   ├── index.js
+│   │   ├── lib
+│   │   │   ├── constants.js
+│   │   │   ├── parse.js
+│   │   │   ├── picomatch.js
+│   │   │   ├── scan.js
+│   │   │   └── utils.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── posix.js
+│   │   └── README.md
+│   ├── postcss
+│   │   ├── lib
+│   │   │   ├── at-rule.d.ts
+│   │   │   ├── at-rule.js
+│   │   │   ├── comment.d.ts
+│   │   │   ├── comment.js
+│   │   │   ├── container.d.ts
+│   │   │   ├── container.js
+│   │   │   ├── css-syntax-error.d.ts
+│   │   │   ├── css-syntax-error.js
+│   │   │   ├── declaration.d.ts
+│   │   │   ├── declaration.js
+│   │   │   ├── document.d.ts
+│   │   │   ├── document.js
+│   │   │   ├── fromJSON.d.ts
+│   │   │   ├── fromJSON.js
+│   │   │   ├── input.d.ts
+│   │   │   ├── input.js
+│   │   │   ├── lazy-result.d.ts
+│   │   │   ├── lazy-result.js
+│   │   │   ├── list.d.ts
+│   │   │   ├── list.js
+│   │   │   ├── map-generator.js
+│   │   │   ├── node.d.ts
+│   │   │   ├── node.js
+│   │   │   ├── no-work-result.d.ts
+│   │   │   ├── no-work-result.js
+│   │   │   ├── parse.d.ts
+│   │   │   ├── parse.js
+│   │   │   ├── parser.js
+│   │   │   ├── postcss.d.mts
+│   │   │   ├── postcss.d.ts
+│   │   │   ├── postcss.js
+│   │   │   ├── postcss.mjs
+│   │   │   ├── previous-map.d.ts
+│   │   │   ├── previous-map.js
+│   │   │   ├── processor.d.ts
+│   │   │   ├── processor.js
+│   │   │   ├── result.d.ts
+│   │   │   ├── result.js
+│   │   │   ├── root.d.ts
+│   │   │   ├── root.js
+│   │   │   ├── rule.d.ts
+│   │   │   ├── rule.js
+│   │   │   ├── stringifier.d.ts
+│   │   │   ├── stringifier.js
+│   │   │   ├── stringify.d.ts
+│   │   │   ├── stringify.js
+│   │   │   ├── symbols.js
+│   │   │   ├── terminal-highlight.js
+│   │   │   ├── tokenize.js
+│   │   │   ├── warning.d.ts
+│   │   │   ├── warning.js
+│   │   │   └── warn-once.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── react
+│   │   ├── cjs
+│   │   │   ├── react-compiler-runtime.development.js
+│   │   │   ├── react-compiler-runtime.production.js
+│   │   │   ├── react-compiler-runtime.profiling.js
+│   │   │   ├── react.development.js
+│   │   │   ├── react-jsx-dev-runtime.development.js
+│   │   │   ├── react-jsx-dev-runtime.production.js
+│   │   │   ├── react-jsx-dev-runtime.profiling.js
+│   │   │   ├── react-jsx-dev-runtime.react-server.development.js
+│   │   │   ├── react-jsx-dev-runtime.react-server.production.js
+│   │   │   ├── react-jsx-runtime.development.js
+│   │   │   ├── react-jsx-runtime.production.js
+│   │   │   ├── react-jsx-runtime.profiling.js
+│   │   │   ├── react-jsx-runtime.react-server.development.js
+│   │   │   ├── react-jsx-runtime.react-server.production.js
+│   │   │   ├── react.production.js
+│   │   │   ├── react.react-server.development.js
+│   │   │   └── react.react-server.production.js
+│   │   ├── compiler-runtime.js
+│   │   ├── index.js
+│   │   ├── jsx-dev-runtime.js
+│   │   ├── jsx-dev-runtime.react-server.js
+│   │   ├── jsx-runtime.js
+│   │   ├── jsx-runtime.react-server.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── react.react-server.js
+│   │   └── README.md
+│   ├── react-dom
+│   │   ├── cjs
+│   │   │   ├── react-dom-client.development.js
+│   │   │   ├── react-dom-client.production.js
+│   │   │   ├── react-dom.development.js
+│   │   │   ├── react-dom.production.js
+│   │   │   ├── react-dom-profiling.development.js
+│   │   │   ├── react-dom-profiling.profiling.js
+│   │   │   ├── react-dom.react-server.development.js
+│   │   │   ├── react-dom.react-server.production.js
+│   │   │   ├── react-dom-server.browser.development.js
+│   │   │   ├── react-dom-server.browser.production.js
+│   │   │   ├── react-dom-server.bun.development.js
+│   │   │   ├── react-dom-server.bun.production.js
+│   │   │   ├── react-dom-server.edge.development.js
+│   │   │   ├── react-dom-server.edge.production.js
+│   │   │   ├── react-dom-server-legacy.browser.development.js
+│   │   │   ├── react-dom-server-legacy.browser.production.js
+│   │   │   ├── react-dom-server-legacy.node.development.js
+│   │   │   ├── react-dom-server-legacy.node.production.js
+│   │   │   ├── react-dom-server.node.development.js
+│   │   │   ├── react-dom-server.node.production.js
+│   │   │   ├── react-dom-test-utils.development.js
+│   │   │   └── react-dom-test-utils.production.js
+│   │   ├── client.js
+│   │   ├── client.react-server.js
+│   │   ├── index.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── profiling.js
+│   │   ├── profiling.react-server.js
+│   │   ├── react-dom.react-server.js
+│   │   ├── README.md
+│   │   ├── server.browser.js
+│   │   ├── server.bun.js
+│   │   ├── server.edge.js
+│   │   ├── server.js
+│   │   ├── server.node.js
+│   │   ├── server.react-server.js
+│   │   ├── static.browser.js
+│   │   ├── static.edge.js
+│   │   ├── static.js
+│   │   ├── static.node.js
+│   │   ├── static.react-server.js
+│   │   └── test-utils.js
+│   ├── react-refresh
+│   │   ├── babel.js
+│   │   ├── cjs
+│   │   │   ├── react-refresh-babel.development.js
+│   │   │   ├── react-refresh-babel.production.js
+│   │   │   ├── react-refresh-runtime.development.js
+│   │   │   └── react-refresh-runtime.production.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   └── runtime.js
+│   ├── @rolldown
+│   │   └── pluginutils
+│   │       ├── dist
+│   │       ├── LICENSE
+│   │       └── package.json
+│   ├── @rollup
+│   │   └── rollup-linux-x64-gnu
+│   │       ├── package.json
+│   │       ├── README.md
+│   │       └── rollup.linux-x64-gnu.node
+│   ├── rollup
+│   │   ├── dist
+│   │   │   ├── bin
+│   │   │   ├── es
+│   │   │   ├── getLogFilter.d.ts
+│   │   │   ├── getLogFilter.js
+│   │   │   ├── loadConfigFile.d.ts
+│   │   │   ├── loadConfigFile.js
+│   │   │   ├── native.js
+│   │   │   ├── parseAst.d.ts
+│   │   │   ├── parseAst.js
+│   │   │   ├── rollup.d.ts
+│   │   │   ├── rollup.js
+│   │   │   └── shared
+│   │   ├── LICENSE.md
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── scheduler
+│   │   ├── cjs
+│   │   │   ├── scheduler.development.js
+│   │   │   ├── scheduler.native.development.js
+│   │   │   ├── scheduler.native.production.js
+│   │   │   ├── scheduler.production.js
+│   │   │   ├── scheduler-unstable_mock.development.js
+│   │   │   ├── scheduler-unstable_mock.production.js
+│   │   │   ├── scheduler-unstable_post_task.development.js
+│   │   │   └── scheduler-unstable_post_task.production.js
+│   │   ├── index.js
+│   │   ├── index.native.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   ├── unstable_mock.js
+│   │   └── unstable_post_task.js
+│   ├── semver
+│   │   ├── bin
+│   │   │   └── semver.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── range.bnf
+│   │   ├── README.md
+│   │   └── semver.js
+│   ├── source-map-js
+│   │   ├── lib
+│   │   │   ├── array-set.js
+│   │   │   ├── base64.js
+│   │   │   ├── base64-vlq.js
+│   │   │   ├── binary-search.js
+│   │   │   ├── mapping-list.js
+│   │   │   ├── quick-sort.js
+│   │   │   ├── source-map-consumer.d.ts
+│   │   │   ├── source-map-consumer.js
+│   │   │   ├── source-map-generator.d.ts
+│   │   │   ├── source-map-generator.js
+│   │   │   ├── source-node.d.ts
+│   │   │   ├── source-node.js
+│   │   │   └── util.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   ├── source-map.d.ts
+│   │   └── source-map.js
+│   ├── @tauri-apps
+│   │   ├── api
+│   │   │   ├── app.cjs
+│   │   │   ├── app.d.ts
+│   │   │   ├── app.js
+│   │   │   ├── CHANGELOG.md
+│   │   │   ├── core.cjs
+│   │   │   ├── core.d.ts
+│   │   │   ├── core.js
+│   │   │   ├── dpi.cjs
+│   │   │   ├── dpi.d.ts
+│   │   │   ├── dpi.js
+│   │   │   ├── event.cjs
+│   │   │   ├── event.d.ts
+│   │   │   ├── event.js
+│   │   │   ├── external
+│   │   │   ├── image.cjs
+│   │   │   ├── image.d.ts
+│   │   │   ├── image.js
+│   │   │   ├── index.cjs
+│   │   │   ├── index.d.ts
+│   │   │   ├── index.js
+│   │   │   ├── LICENSE_APACHE-2.0
+│   │   │   ├── LICENSE_MIT
+│   │   │   ├── menu
+│   │   │   ├── menu.cjs
+│   │   │   ├── menu.d.ts
+│   │   │   ├── menu.js
+│   │   │   ├── mocks.cjs
+│   │   │   ├── mocks.d.ts
+│   │   │   ├── mocks.js
+│   │   │   ├── package.json
+│   │   │   ├── path.cjs
+│   │   │   ├── path.d.ts
+│   │   │   ├── path.js
+│   │   │   ├── README.md
+│   │   │   ├── tray.cjs
+│   │   │   ├── tray.d.ts
+│   │   │   ├── tray.js
+│   │   │   ├── webview.cjs
+│   │   │   ├── webview.d.ts
+│   │   │   ├── webview.js
+│   │   │   ├── webviewWindow.cjs
+│   │   │   ├── webviewWindow.d.ts
+│   │   │   ├── webviewWindow.js
+│   │   │   ├── window.cjs
+│   │   │   ├── window.d.ts
+│   │   │   └── window.js
+│   │   ├── cli
+│   │   │   ├── append-headers.js
+│   │   │   ├── CHANGELOG.md
+│   │   │   ├── config.schema.json
+│   │   │   ├── index.d.ts
+│   │   │   ├── index.js
+│   │   │   ├── LICENSE_APACHE-2.0
+│   │   │   ├── LICENSE_MIT
+│   │   │   ├── main.d.ts
+│   │   │   ├── main.js
+│   │   │   ├── package.json
+│   │   │   ├── README.md
+│   │   │   └── tauri.js
+│   │   ├── cli-linux-x64-gnu
+│   │   │   ├── cli.linux-x64-gnu.node
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   └── plugin-opener
+│   │       ├── dist-js
+│   │       ├── LICENSE.spdx
+│   │       ├── package.json
+│   │       └── README.md
+│   ├── tinyglobby
+│   │   ├── dist
+│   │   │   ├── index.cjs
+│   │   │   ├── index.d.cts
+│   │   │   ├── index.d.mts
+│   │   │   └── index.mjs
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── @types
+│   │   ├── babel__core
+│   │   │   ├── index.d.ts
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── babel__generator
+│   │   │   ├── index.d.ts
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── babel__template
+│   │   │   ├── index.d.ts
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── babel__traverse
+│   │   │   ├── index.d.ts
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── estree
+│   │   │   ├── flow.d.ts
+│   │   │   ├── index.d.ts
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   └── README.md
+│   │   ├── react
+│   │   │   ├── canary.d.ts
+│   │   │   ├── compiler-runtime.d.ts
+│   │   │   ├── experimental.d.ts
+│   │   │   ├── global.d.ts
+│   │   │   ├── index.d.ts
+│   │   │   ├── jsx-dev-runtime.d.ts
+│   │   │   ├── jsx-runtime.d.ts
+│   │   │   ├── LICENSE
+│   │   │   ├── package.json
+│   │   │   ├── README.md
+│   │   │   └── ts5.0
+│   │   └── react-dom
+│   │       ├── canary.d.ts
+│   │       ├── client.d.ts
+│   │       ├── experimental.d.ts
+│   │       ├── index.d.ts
+│   │       ├── LICENSE
+│   │       ├── package.json
+│   │       ├── README.md
+│   │       ├── server.browser.d.ts
+│   │       ├── server.bun.d.ts
+│   │       ├── server.d.ts
+│   │       ├── server.edge.d.ts
+│   │       ├── server.node.d.ts
+│   │       ├── static.browser.d.ts
+│   │       ├── static.d.ts
+│   │       ├── static.edge.d.ts
+│   │       ├── static.node.d.ts
+│   │       └── test-utils
+│   ├── typescript
+│   │   ├── bin
+│   │   │   ├── tsc
+│   │   │   └── tsserver
+│   │   ├── lib
+│   │   │   ├── cs
+│   │   │   ├── de
+│   │   │   ├── es
+│   │   │   ├── fr
+│   │   │   ├── it
+│   │   │   ├── ja
+│   │   │   ├── ko
+│   │   │   ├── lib.decorators.d.ts
+│   │   │   ├── lib.decorators.legacy.d.ts
+│   │   │   ├── lib.dom.asynciterable.d.ts
+│   │   │   ├── lib.dom.d.ts
+│   │   │   ├── lib.dom.iterable.d.ts
+│   │   │   ├── lib.d.ts
+│   │   │   ├── lib.es2015.collection.d.ts
+│   │   │   ├── lib.es2015.core.d.ts
+│   │   │   ├── lib.es2015.d.ts
+│   │   │   ├── lib.es2015.generator.d.ts
+│   │   │   ├── lib.es2015.iterable.d.ts
+│   │   │   ├── lib.es2015.promise.d.ts
+│   │   │   ├── lib.es2015.proxy.d.ts
+│   │   │   ├── lib.es2015.reflect.d.ts
+│   │   │   ├── lib.es2015.symbol.d.ts
+│   │   │   ├── lib.es2015.symbol.wellknown.d.ts
+│   │   │   ├── lib.es2016.array.include.d.ts
+│   │   │   ├── lib.es2016.d.ts
+│   │   │   ├── lib.es2016.full.d.ts
+│   │   │   ├── lib.es2016.intl.d.ts
+│   │   │   ├── lib.es2017.arraybuffer.d.ts
+│   │   │   ├── lib.es2017.date.d.ts
+│   │   │   ├── lib.es2017.d.ts
+│   │   │   ├── lib.es2017.full.d.ts
+│   │   │   ├── lib.es2017.intl.d.ts
+│   │   │   ├── lib.es2017.object.d.ts
+│   │   │   ├── lib.es2017.sharedmemory.d.ts
+│   │   │   ├── lib.es2017.string.d.ts
+│   │   │   ├── lib.es2017.typedarrays.d.ts
+│   │   │   ├── lib.es2018.asyncgenerator.d.ts
+│   │   │   ├── lib.es2018.asynciterable.d.ts
+│   │   │   ├── lib.es2018.d.ts
+│   │   │   ├── lib.es2018.full.d.ts
+│   │   │   ├── lib.es2018.intl.d.ts
+│   │   │   ├── lib.es2018.promise.d.ts
+│   │   │   ├── lib.es2018.regexp.d.ts
+│   │   │   ├── lib.es2019.array.d.ts
+│   │   │   ├── lib.es2019.d.ts
+│   │   │   ├── lib.es2019.full.d.ts
+│   │   │   ├── lib.es2019.intl.d.ts
+│   │   │   ├── lib.es2019.object.d.ts
+│   │   │   ├── lib.es2019.string.d.ts
+│   │   │   ├── lib.es2019.symbol.d.ts
+│   │   │   ├── lib.es2020.bigint.d.ts
+│   │   │   ├── lib.es2020.date.d.ts
+│   │   │   ├── lib.es2020.d.ts
+│   │   │   ├── lib.es2020.full.d.ts
+│   │   │   ├── lib.es2020.intl.d.ts
+│   │   │   ├── lib.es2020.number.d.ts
+│   │   │   ├── lib.es2020.promise.d.ts
+│   │   │   ├── lib.es2020.sharedmemory.d.ts
+│   │   │   ├── lib.es2020.string.d.ts
+│   │   │   ├── lib.es2020.symbol.wellknown.d.ts
+│   │   │   ├── lib.es2021.d.ts
+│   │   │   ├── lib.es2021.full.d.ts
+│   │   │   ├── lib.es2021.intl.d.ts
+│   │   │   ├── lib.es2021.promise.d.ts
+│   │   │   ├── lib.es2021.string.d.ts
+│   │   │   ├── lib.es2021.weakref.d.ts
+│   │   │   ├── lib.es2022.array.d.ts
+│   │   │   ├── lib.es2022.d.ts
+│   │   │   ├── lib.es2022.error.d.ts
+│   │   │   ├── lib.es2022.full.d.ts
+│   │   │   ├── lib.es2022.intl.d.ts
+│   │   │   ├── lib.es2022.object.d.ts
+│   │   │   ├── lib.es2022.regexp.d.ts
+│   │   │   ├── lib.es2022.string.d.ts
+│   │   │   ├── lib.es2023.array.d.ts
+│   │   │   ├── lib.es2023.collection.d.ts
+│   │   │   ├── lib.es2023.d.ts
+│   │   │   ├── lib.es2023.full.d.ts
+│   │   │   ├── lib.es2023.intl.d.ts
+│   │   │   ├── lib.es2024.arraybuffer.d.ts
+│   │   │   ├── lib.es2024.collection.d.ts
+│   │   │   ├── lib.es2024.d.ts
+│   │   │   ├── lib.es2024.full.d.ts
+│   │   │   ├── lib.es2024.object.d.ts
+│   │   │   ├── lib.es2024.promise.d.ts
+│   │   │   ├── lib.es2024.regexp.d.ts
+│   │   │   ├── lib.es2024.sharedmemory.d.ts
+│   │   │   ├── lib.es2024.string.d.ts
+│   │   │   ├── lib.es5.d.ts
+│   │   │   ├── lib.es6.d.ts
+│   │   │   ├── lib.esnext.array.d.ts
+│   │   │   ├── lib.esnext.collection.d.ts
+│   │   │   ├── lib.esnext.decorators.d.ts
+│   │   │   ├── lib.esnext.disposable.d.ts
+│   │   │   ├── lib.esnext.d.ts
+│   │   │   ├── lib.esnext.float16.d.ts
+│   │   │   ├── lib.esnext.full.d.ts
+│   │   │   ├── lib.esnext.intl.d.ts
+│   │   │   ├── lib.esnext.iterator.d.ts
+│   │   │   ├── lib.esnext.promise.d.ts
+│   │   │   ├── lib.scripthost.d.ts
+│   │   │   ├── lib.webworker.asynciterable.d.ts
+│   │   │   ├── lib.webworker.d.ts
+│   │   │   ├── lib.webworker.importscripts.d.ts
+│   │   │   ├── lib.webworker.iterable.d.ts
+│   │   │   ├── pl
+│   │   │   ├── pt-br
+│   │   │   ├── ru
+│   │   │   ├── tr
+│   │   │   ├── _tsc.js
+│   │   │   ├── tsc.js
+│   │   │   ├── _tsserver.js
+│   │   │   ├── tsserver.js
+│   │   │   ├── tsserverlibrary.d.ts
+│   │   │   ├── tsserverlibrary.js
+│   │   │   ├── typescript.d.ts
+│   │   │   ├── typescript.js
+│   │   │   ├── typesMap.json
+│   │   │   ├── _typingsInstaller.js
+│   │   │   ├── typingsInstaller.js
+│   │   │   ├── watchGuard.js
+│   │   │   ├── zh-cn
+│   │   │   └── zh-tw
+│   │   ├── LICENSE.txt
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   ├── SECURITY.md
+│   │   └── ThirdPartyNoticeText.txt
+│   ├── update-browserslist-db
+│   │   ├── check-npm-version.js
+│   │   ├── cli.js
+│   │   ├── index.d.ts
+│   │   ├── index.js
+│   │   ├── LICENSE
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   └── utils.js
+│   ├── .vite
+│   │   └── deps
+│   │       ├── chunk-AIQQI3PJ.js
+│   │       ├── chunk-AIQQI3PJ.js.map
+│   │       ├── chunk-BUSYA2B4.js
+│   │       ├── chunk-BUSYA2B4.js.map
+│   │       ├── chunk-PYPE4BMF.js
+│   │       ├── chunk-PYPE4BMF.js.map
+│   │       ├── _metadata.json
+│   │       ├── package.json
+│   │       ├── react-dom_client.js
+│   │       ├── react-dom_client.js.map
+│   │       ├── react-dom.js
+│   │       ├── react-dom.js.map
+│   │       ├── react.js
+│   │       ├── react.js.map
+│   │       ├── react_jsx-dev-runtime.js
+│   │       ├── react_jsx-dev-runtime.js.map
+│   │       ├── react_jsx-runtime.js
+│   │       ├── react_jsx-runtime.js.map
+│   │       ├── @tauri-apps_api_core.js
+│   │       └── @tauri-apps_api_core.js.map
+│   ├── vite
+│   │   ├── bin
+│   │   │   ├── openChrome.js
+│   │   │   └── vite.js
+│   │   ├── client.d.ts
+│   │   ├── dist
+│   │   │   ├── client
+│   │   │   └── node
+│   │   ├── LICENSE.md
+│   │   ├── misc
+│   │   │   ├── false.js
+│   │   │   └── true.js
+│   │   ├── package.json
+│   │   ├── README.md
+│   │   └── types
+│   │       ├── customEvent.d.ts
+│   │       ├── hmrPayload.d.ts
+│   │       ├── hot.d.ts
+│   │       ├── importGlob.d.ts
+│   │       ├── import-meta.d.ts
+│   │       ├── importMeta.d.ts
+│   │       ├── internal
+│   │       ├── metadata.d.ts
+│   │       └── package.json
+│   ├── @vitejs
+│   │   └── plugin-react
+│   │       ├── dist
+│   │       ├── LICENSE
+│   │       ├── package.json
+│   │       └── README.md
+│   ├── .vite-temp
+│   └── yallist
+│       ├── iterator.js
+│       ├── LICENSE
+│       ├── package.json
+│       ├── README.md
+│       └── yallist.js
+├── package.json
+├── package-lock.json
+├── public
+│   ├── tauri.svg
+│   └── vite.svg
+├── README.md
+├── scripts
+│   ├── o2_session_start.sh
+│   └── snapshot_repo_state.sh
+├── src
+│   ├── App.css
+│   ├── App.tsx
+│   ├── assets
+│   │   └── react.svg
+│   ├── main.tsx
+│   └── vite-env.d.ts
+├── src-tauri
+│   ├── build.rs
+│   ├── capabilities
+│   │   └── default.json
+│   ├── Cargo.lock
+│   ├── Cargo.toml
+│   ├── gen
+│   │   └── schemas
+│   │       ├── acl-manifests.json
+│   │       ├── capabilities.json
+│   │       ├── desktop-schema.json
+│   │       └── linux-schema.json
+│   ├── .gitignore
+│   ├── icons
+│   │   ├── 128x128@2x.png
+│   │   ├── 128x128.png
+│   │   ├── 32x32.png
+│   │   ├── 64x64.png
+│   │   ├── android
+│   │   │   ├── mipmap-anydpi-v26
+│   │   │   ├── mipmap-hdpi
+│   │   │   ├── mipmap-mdpi
+│   │   │   ├── mipmap-xhdpi
+│   │   │   ├── mipmap-xxhdpi
+│   │   │   ├── mipmap-xxxhdpi
+│   │   │   └── values
+│   │   ├── icon.icns
+│   │   ├── icon.ico
+│   │   ├── icon.png
+│   │   ├── ios
+│   │   │   ├── AppIcon-20x20@1x.png
+│   │   │   ├── AppIcon-20x20@2x-1.png
+│   │   │   ├── AppIcon-20x20@2x.png
+│   │   │   ├── AppIcon-20x20@3x.png
+│   │   │   ├── AppIcon-29x29@1x.png
+│   │   │   ├── AppIcon-29x29@2x-1.png
+│   │   │   ├── AppIcon-29x29@2x.png
+│   │   │   ├── AppIcon-29x29@3x.png
+│   │   │   ├── AppIcon-40x40@1x.png
+│   │   │   ├── AppIcon-40x40@2x-1.png
+│   │   │   ├── AppIcon-40x40@2x.png
+│   │   │   ├── AppIcon-40x40@3x.png
+│   │   │   ├── AppIcon-512@2x.png
+│   │   │   ├── AppIcon-60x60@2x.png
+│   │   │   ├── AppIcon-60x60@3x.png
+│   │   │   ├── AppIcon-76x76@1x.png
+│   │   │   ├── AppIcon-76x76@2x.png
+│   │   │   └── AppIcon-83.5x83.5@2x.png
+│   │   ├── Square107x107Logo.png
+│   │   ├── Square142x142Logo.png
+│   │   ├── Square150x150Logo.png
+│   │   ├── Square284x284Logo.png
+│   │   ├── Square30x30Logo.png
+│   │   ├── Square310x310Logo.png
+│   │   ├── Square44x44Logo.png
+│   │   ├── Square71x71Logo.png
+│   │   ├── Square89x89Logo.png
+│   │   └── StoreLogo.png
+│   ├── icon.svg
+│   ├── src
+│   │   ├── lib.rs
+│   │   └── main.rs
+│   ├── target
+│   │   ├── CACHEDIR.TAG
+│   │   ├── debug
+│   │   │   ├── build
+│   │   │   ├── .cargo-lock
+│   │   │   ├── deps
+│   │   │   ├── examples
+│   │   │   ├── .fingerprint
+│   │   │   ├── incremental
+│   │   │   ├── libradcontrol_app_lib.a
+│   │   │   ├── libradcontrol_app_lib.d
+│   │   │   ├── libradcontrol_app_lib.rlib
+│   │   │   ├── libradcontrol_app_lib.so
+│   │   │   ├── radcontrol-app
+│   │   │   └── radcontrol-app.d
+│   │   └── .rustc_info.json
+│   └── tauri.conf.json
+├── tsconfig.json
+├── tsconfig.node.json
+├── vite.config.ts
+└── .vscode
+    └── extensions.json
+
+338 directories, 979 files
+
+## package.json (name + scripts)
+2:  "name": "radcontrol-app",
+6:  "scripts": {
+
+## verification
+lint: not run
+build: not run
