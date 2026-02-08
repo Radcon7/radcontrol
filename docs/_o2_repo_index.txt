@@ -1,0 +1,704 @@
+O2_REPO_INDEX (RadControl)
+Generated: 2026-02-08 08:10:42 -0500
+Repo: /home/chris/dev/rad-empire/radcontrol/dev/radcontrol-app
+
+
+================================================================================
+GIT STATUS (for context)
+================================================================================
+## feat/active-ports-panel...origin/feat/active-ports-panel
+ M docs/_o2_repo_index.txt
+
+================================================================================
+TOP-LEVEL FILES (bounded)
+================================================================================
+total 140
+drwxrwxr-x 11 chris chris  4096 Feb  7 10:54 .
+drwxrwxr-x  3 chris chris  4096 Feb  2 16:33 ..
+drwxrwxr-x  3 chris chris  4096 Feb  7 14:27 dist
+drwxrwxr-x  2 chris chris  4096 Feb  7 11:02 docs
+drwxrwxr-x  8 chris chris  4096 Feb  8 08:10 .git
+-rw-rw-r--  1 chris chris   292 Feb  7 11:02 .gitignore
+-rw-rw-r--  1 chris chris   376 Feb  2 16:33 index.html
+drwxrwxr-x 46 chris chris  4096 Feb  2 19:59 node_modules
+-rw-rw-r--  1 chris chris   581 Feb  2 19:56 package.json
+-rw-rw-r--  1 chris chris 68564 Feb  2 19:58 package-lock.json
+drwxrwxr-x  2 chris chris  4096 Feb  2 16:33 public
+-rw-rw-r--  1 chris chris   378 Feb  2 16:33 README.md
+drwxrwxr-x  2 chris chris  4096 Feb  7 11:00 scripts
+drwxrwxr-x  3 chris chris  4096 Feb  2 16:33 src
+drwxrwxr-x  7 chris chris  4096 Feb  3 14:53 src-tauri
+-rw-rw-r--  1 chris chris   605 Feb  2 16:33 tsconfig.json
+-rw-rw-r--  1 chris chris   213 Feb  2 16:33 tsconfig.node.json
+-rw-rw-r--  1 chris chris   818 Feb  2 16:33 vite.config.ts
+drwxrwxr-x  2 chris chris  4096 Feb  2 16:33 .vscode
+
+================================================================================
+DOCS INDEX
+================================================================================
+total 76
+drwxrwxr-x  2 chris chris  4096 Feb  7 11:02 .
+drwxrwxr-x 11 chris chris  4096 Feb  7 10:54 ..
+-rw-rw-r--  1 chris chris  1812 Feb  8 08:10 _o2_repo_index.txt
+-rw-rw-r--  1 chris chris 60982 Feb  7 11:02 _repo_snapshot.txt
+-rw-rw-r--  1 chris chris   576 Feb  7 10:56 REPO_STATE.md
+
+================================================================================
+KEY DOCS (bounded previews)
+================================================================================
+
+----- FILE: docs/REPO_STATE.md (head -n 220) -----
+# RadControl — REPO STATE
+
+Purpose:
+RadControl is the cockpit / command-center app for the Rad Empire.
+It surfaces state, runs O2 rituals, and provides intervention / panic tooling.
+
+Scope rules:
+
+- No business logic from TBIS / DQOTD lives here
+- No repo-crossing mutations
+- This app observes, triggers, and reports
+
+Snapshot:
+
+- `scripts/snapshot_repo_state.sh` produces `docs/_repo_snapshot.txt`
+- Snapshots are evidence only; no side effects
+
+Status:
+
+- Snapshot contract: implemented
+- O2 session start: implemented
+- UI work: intentionally out of scope for this step
+
+================================================================================
+SOURCE TREE (bounded listings)
+================================================================================
+src/App.css
+src/App.tsx
+src/assets/react.svg
+src/main.tsx
+src/vite-env.d.ts
+
+src-tauri/build.rs
+src-tauri/capabilities/default.json
+src-tauri/Cargo.lock
+src-tauri/Cargo.toml
+src-tauri/gen/schemas/acl-manifests.json
+src-tauri/gen/schemas/capabilities.json
+src-tauri/gen/schemas/desktop-schema.json
+src-tauri/gen/schemas/linux-schema.json
+src-tauri/.gitignore
+src-tauri/icons/128x128@2x.png
+src-tauri/icons/128x128.png
+src-tauri/icons/32x32.png
+src-tauri/icons/64x64.png
+src-tauri/icons/android/mipmap-anydpi-v26/ic_launcher.xml
+src-tauri/icons/android/mipmap-hdpi/ic_launcher_foreground.png
+src-tauri/icons/android/mipmap-hdpi/ic_launcher.png
+src-tauri/icons/android/mipmap-hdpi/ic_launcher_round.png
+src-tauri/icons/android/mipmap-mdpi/ic_launcher_foreground.png
+src-tauri/icons/android/mipmap-mdpi/ic_launcher.png
+src-tauri/icons/android/mipmap-mdpi/ic_launcher_round.png
+src-tauri/icons/android/mipmap-xhdpi/ic_launcher_foreground.png
+src-tauri/icons/android/mipmap-xhdpi/ic_launcher.png
+src-tauri/icons/android/mipmap-xhdpi/ic_launcher_round.png
+src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_foreground.png
+src-tauri/icons/android/mipmap-xxhdpi/ic_launcher.png
+src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_round.png
+src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_foreground.png
+src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher.png
+src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_round.png
+src-tauri/icons/android/values/ic_launcher_background.xml
+src-tauri/icons/icon.icns
+src-tauri/icons/icon.ico
+src-tauri/icons/icon.png
+src-tauri/icons/ios/AppIcon-20x20@1x.png
+src-tauri/icons/ios/AppIcon-20x20@2x-1.png
+src-tauri/icons/ios/AppIcon-20x20@2x.png
+src-tauri/icons/ios/AppIcon-20x20@3x.png
+src-tauri/icons/ios/AppIcon-29x29@1x.png
+src-tauri/icons/ios/AppIcon-29x29@2x-1.png
+src-tauri/icons/ios/AppIcon-29x29@2x.png
+src-tauri/icons/ios/AppIcon-29x29@3x.png
+src-tauri/icons/ios/AppIcon-40x40@1x.png
+src-tauri/icons/ios/AppIcon-40x40@2x-1.png
+src-tauri/icons/ios/AppIcon-40x40@2x.png
+src-tauri/icons/ios/AppIcon-40x40@3x.png
+src-tauri/icons/ios/AppIcon-512@2x.png
+src-tauri/icons/ios/AppIcon-60x60@2x.png
+src-tauri/icons/ios/AppIcon-60x60@3x.png
+src-tauri/icons/ios/AppIcon-76x76@1x.png
+src-tauri/icons/ios/AppIcon-76x76@2x.png
+src-tauri/icons/ios/AppIcon-83.5x83.5@2x.png
+src-tauri/icons/Square107x107Logo.png
+src-tauri/icons/Square142x142Logo.png
+src-tauri/icons/Square150x150Logo.png
+src-tauri/icons/Square284x284Logo.png
+src-tauri/icons/Square30x30Logo.png
+src-tauri/icons/Square310x310Logo.png
+src-tauri/icons/Square44x44Logo.png
+src-tauri/icons/Square71x71Logo.png
+src-tauri/icons/Square89x89Logo.png
+src-tauri/icons/StoreLogo.png
+src-tauri/icon.svg
+src-tauri/src/lib.rs
+src-tauri/src/main.rs
+src-tauri/target/CACHEDIR.TAG
+src-tauri/target/debug/.cargo-lock
+src-tauri/target/debug/deps/adler2-5f0b6935d86902d3.d
+src-tauri/target/debug/deps/aho_corasick-3bae3441ed780ba8.d
+src-tauri/target/debug/deps/aho_corasick-a995d759b8847db2.d
+src-tauri/target/debug/deps/aho_corasick-b29f9e28b37650a9.d
+src-tauri/target/debug/deps/alloc_no_stdlib-1ece1f21f92d17f4.d
+src-tauri/target/debug/deps/alloc_no_stdlib-67691f9c6f17d870.d
+src-tauri/target/debug/deps/alloc_no_stdlib-778a7860eed98e73.d
+src-tauri/target/debug/deps/alloc_stdlib-6f2226cff8fe00ba.d
+src-tauri/target/debug/deps/alloc_stdlib-7f7e99260462cf2b.d
+src-tauri/target/debug/deps/alloc_stdlib-cddaf383e067b4b5.d
+src-tauri/target/debug/deps/anyhow-1b7f4f83d86d733a.d
+src-tauri/target/debug/deps/anyhow-51757abed7cb4741.d
+src-tauri/target/debug/deps/anyhow-c2c6366a4d20c9a0.d
+src-tauri/target/debug/deps/async_broadcast-662c1b8f34331021.d
+src-tauri/target/debug/deps/async_broadcast-bfd1db65b2970cf8.d
+src-tauri/target/debug/deps/async_channel-2968452e7d163e09.d
+src-tauri/target/debug/deps/async_channel-ac27c53cb73f7f1f.d
+src-tauri/target/debug/deps/async_executor-4eae2c3d96dc88e4.d
+src-tauri/target/debug/deps/async_executor-7985ac8cf3941d38.d
+src-tauri/target/debug/deps/async_io-3f5d7cdc1b5ab97a.d
+src-tauri/target/debug/deps/async_io-4e5c231541710382.d
+src-tauri/target/debug/deps/async_lock-ec5f01e9f59bc2e2.d
+src-tauri/target/debug/deps/async_lock-f41e9a789a95f73f.d
+src-tauri/target/debug/deps/async_process-225c503a8e0fc075.d
+src-tauri/target/debug/deps/async_process-9986e6c7473e52da.d
+src-tauri/target/debug/deps/async_signal-300843f0bca18449.d
+src-tauri/target/debug/deps/async_signal-5d8d851ec12feca8.d
+src-tauri/target/debug/deps/async_task-a4c271845eac12ec.d
+src-tauri/target/debug/deps/async_task-d78ed30e29aaf988.d
+src-tauri/target/debug/deps/async_trait-e5fe953eed8bfc85.d
+src-tauri/target/debug/deps/async_trait-e8e486634ca0662f.d
+src-tauri/target/debug/deps/atk-1b2a2aa78b5308e5.d
+src-tauri/target/debug/deps/atk-42b110e61a1f3466.d
+src-tauri/target/debug/deps/atk_sys-869284a417eaa45f.d
+src-tauri/target/debug/deps/atk_sys-ecb5174f34cccec0.d
+src-tauri/target/debug/deps/atomic_waker-5c640f2c7189cb4a.d
+src-tauri/target/debug/deps/atomic_waker-95123ffabb4fa1fb.d
+src-tauri/target/debug/deps/autocfg-0d14e8d065a140e1.d
+src-tauri/target/debug/deps/base64-46c0f9fa1b85a3b6.d
+src-tauri/target/debug/deps/bitflags-0ea9e6ce817d05a7.d
+src-tauri/target/debug/deps/bitflags-a6d9708e8e1f38f8.d
+src-tauri/target/debug/deps/bitflags-b92f85bd1b7cfeed.d
+src-tauri/target/debug/deps/bitflags-d30769216f5262ce.d
+src-tauri/target/debug/deps/bitflags-f2b0fab4f64dfab5.d
+src-tauri/target/debug/deps/block_buffer-28b9cbe7c152ecd7.d
+src-tauri/target/debug/deps/blocking-45f57749778840e0.d
+src-tauri/target/debug/deps/blocking-d790b255f45c5942.d
+src-tauri/target/debug/deps/brotli-30fa3698f9e6db76.d
+src-tauri/target/debug/deps/brotli-7540b2f4a362eb24.d
+src-tauri/target/debug/deps/brotli_decompressor-0b5c1ee07113a174.d
+src-tauri/target/debug/deps/brotli_decompressor-2ebc054ea34e953f.d
+src-tauri/target/debug/deps/brotli_decompressor-f0af6443610eae18.d
+src-tauri/target/debug/deps/brotli-fa62d266c829cca8.d
+src-tauri/target/debug/deps/byteorder-58ae5444a1760e59.d
+src-tauri/target/debug/deps/byteorder-a1e3d01720755c30.d
+src-tauri/target/debug/deps/byteorder-edf2ebbeecf5e25b.d
+src-tauri/target/debug/deps/bytes-3c172a291e8ea536.d
+src-tauri/target/debug/deps/bytes-430a5ea50dfc04ca.d
+src-tauri/target/debug/deps/bytes-8a0ea69a5fc60eae.d
+src-tauri/target/debug/deps/cairo-422dfa01ed6f36cc.d
+src-tauri/target/debug/deps/cairo-8557ebba00768eb4.d
+src-tauri/target/debug/deps/cairo_sys-28a4bd26a29ddb6e.d
+src-tauri/target/debug/deps/cairo_sys-9594655efecdd7fa.d
+src-tauri/target/debug/deps/camino-cce7f22fa183c49d.d
+src-tauri/target/debug/deps/cargo_metadata-8547808e062ae696.d
+src-tauri/target/debug/deps/cargo_metadata-d890b2b268ebee9b.d
+src-tauri/target/debug/deps/cargo_platform-239fe7b3596f35fe.d
+src-tauri/target/debug/deps/cargo_platform-ffba1d0373e8e892.d
+src-tauri/target/debug/deps/cargo_toml-ca0531234f217310.d
+src-tauri/target/debug/deps/cargo_toml-fd95a7571ac6c76d.d
+src-tauri/target/debug/deps/cc-82e6525795a1116d.d
+src-tauri/target/debug/deps/cfb-49c2054d5211f2d8.d
+src-tauri/target/debug/deps/cfb-4ccd7829a9ebf984.d
+src-tauri/target/debug/deps/cfb-991c06336af1dd3d.d
+src-tauri/target/debug/deps/cfb-d5a85bfbe219fc0c.d
+src-tauri/target/debug/deps/cfg_expr-400c7d3bbdc3e020.d
+src-tauri/target/debug/deps/cfg_if-8e8257695bad511f.d
+src-tauri/target/debug/deps/cfg_if-a3662b74b62b86e1.d
+src-tauri/target/debug/deps/cfg_if-b32225363003f8d2.d
+src-tauri/target/debug/deps/concurrent_queue-a62b50e297972f94.d
+src-tauri/target/debug/deps/concurrent_queue-cce73bba6a8c0eaa.d
+src-tauri/target/debug/deps/convert_case-54cc36b08becbf5b.d
+src-tauri/target/debug/deps/cookie-099760733344d5bb.d
+src-tauri/target/debug/deps/cookie-f312d952410c2c99.d
+src-tauri/target/debug/deps/cpufeatures-b729edffdc02e4e5.d
+src-tauri/target/debug/deps/crc32fast-9cda794191dba32a.d
+src-tauri/target/debug/deps/crc32fast-b1d1d59d1d87d69a.d
+src-tauri/target/debug/deps/crossbeam_channel-923f4bf9bcf1eef2.d
+src-tauri/target/debug/deps/crossbeam_channel-a1fbb21935d2cf61.d
+src-tauri/target/debug/deps/crossbeam_utils-14fedfa256662a13.d
+src-tauri/target/debug/deps/crossbeam_utils-5da4fd44914f170a.d
+src-tauri/target/debug/deps/crypto_common-d4b5bc4fd2797890.d
+src-tauri/target/debug/deps/cssparser-4c7f39d51375ed0d.d
+src-tauri/target/debug/deps/cssparser-dd7fa88f98de65c6.d
+src-tauri/target/debug/deps/cssparser_macros-195645eb2806b6b1.d
+src-tauri/target/debug/deps/cssparser_macros-8809d4c1df3cc1ea.d
+src-tauri/target/debug/deps/ctor-237d67c1bbff44b1.d
+src-tauri/target/debug/deps/ctor-c24b0f37d9bcc1c4.d
+src-tauri/target/debug/deps/darling-66f946b27bb497db.d
+src-tauri/target/debug/deps/darling-740d3f02c40273df.d
+src-tauri/target/debug/deps/darling_core-4cdef0457966ac5e.d
+src-tauri/target/debug/deps/darling_core-a9524986bbb168d7.d
+src-tauri/target/debug/deps/darling_macro-a2e635f87522d32d.d
+src-tauri/target/debug/deps/darling_macro-f8540ea3700ce722.d
+src-tauri/target/debug/deps/debug_unreachable-e17c8371e1b2c2e2.d
+src-tauri/target/debug/deps/deranged-2b1b88e8a87c6f4d.d
+src-tauri/target/debug/deps/deranged-a2f910b523466b2b.d
+src-tauri/target/debug/deps/derive_more-f106605f8435c4ed.d
+src-tauri/target/debug/deps/derive_more-f4aaf9bb500dd4d9.d
+src-tauri/target/debug/deps/digest-eb00eef2dd4734c9.d
+src-tauri/target/debug/deps/dirs-375b5e4dabad542d.d
+src-tauri/target/debug/deps/dirs-4c49f63f2b261469.d
+src-tauri/target/debug/deps/dirs-6c5d6301d0d90ef2.d
+src-tauri/target/debug/deps/dirs_sys-a8fdd2f846234cbf.d
+src-tauri/target/debug/deps/dirs_sys-dfbbbed4f55c2655.d
+src-tauri/target/debug/deps/dirs_sys-ebfdfed037c08ee1.d
+src-tauri/target/debug/deps/displaydoc-186531fb7fe0c656.d
+src-tauri/target/debug/deps/displaydoc-dfcba44f74dbca1c.d
+src-tauri/target/debug/deps/dlopen2-4d113838e968bf91.d
+src-tauri/target/debug/deps/dlopen2-65a81bf78b3a4794.d
+src-tauri/target/debug/deps/dlopen2_derive-246bebb1fe31c591.d
+src-tauri/target/debug/deps/dlopen2_derive-e6a2e942251dd29c.d
+src-tauri/target/debug/deps/dpi-08e83564f0b92215.d
+src-tauri/target/debug/deps/dpi-75e42d3fc4f6da28.d
+src-tauri/target/debug/deps/dtoa-62c40d566ea5031e.d
+src-tauri/target/debug/deps/dtoa_short-b65ac342c3d29192.d
+src-tauri/target/debug/deps/dunce-61e00f1a2f2dfa9d.d
+src-tauri/target/debug/deps/dunce-bc72c7e02af5773c.d
+src-tauri/target/debug/deps/dunce-f987accf206edd79.d
+src-tauri/target/debug/deps/dyn_clone-29002daa583477c3.d
+src-tauri/target/debug/deps/embed_resource-1988831018242759.d
+src-tauri/target/debug/deps/embed_resource-e39a60b2f1063e83.d
+src-tauri/target/debug/deps/endi-0f86f31f74af98f5.d
+src-tauri/target/debug/deps/endi-86b5fc95712d2b14.d
+src-tauri/target/debug/deps/endi-ade2346cd7d7eb1f.d
+src-tauri/target/debug/deps/enumflags2-278ec6d03885fc0b.d
+src-tauri/target/debug/deps/enumflags2-591c491656605728.d
+src-tauri/target/debug/deps/enumflags2-6598638382fcb43e.d
+src-tauri/target/debug/deps/enumflags2-77f46a63f8a05803.d
+src-tauri/target/debug/deps/enumflags2_derive-4cfb1683d7c147ad.d
+src-tauri/target/debug/deps/enumflags2_derive-ad1f5e276c12a1a5.d
+src-tauri/target/debug/deps/equivalent-f98b8a501ccae7db.d
+src-tauri/target/debug/deps/erased_serde-3c5653818bde0d10.d
+src-tauri/target/debug/deps/erased_serde-73e652e549fe835b.d
+src-tauri/target/debug/deps/erased_serde-804a8acbe205497d.d
+src-tauri/target/debug/deps/erased_serde-b8d474d4d7860527.d
+src-tauri/target/debug/deps/errno-6d9f793914b74ef4.d
+src-tauri/target/debug/deps/errno-b53b0d305ddc61d3.d
+src-tauri/target/debug/deps/event_listener-0d2710cbcd6ffa60.d
+src-tauri/target/debug/deps/event_listener-2cb59792f7f602fc.d
+src-tauri/target/debug/deps/event_listener_strategy-8d4cd532e5117667.d
+src-tauri/target/debug/deps/event_listener_strategy-b770ca4c47a99046.d
+src-tauri/target/debug/deps/fastrand-3964bb6aea7e3a12.d
+src-tauri/target/debug/deps/fastrand-dc1aa1b65d428bf9.d
+src-tauri/target/debug/deps/fdeflate-017bda6e17ec0a86.d
+src-tauri/target/debug/deps/field_offset-2e47a3faef926ab0.d
+src-tauri/target/debug/deps/field_offset-adce1f1ae07c44b5.d
+src-tauri/target/debug/deps/find_msvc_tools-fade39207c1a2a08.d
+src-tauri/target/debug/deps/flate2-1bc2bf591764d2d2.d
+src-tauri/target/debug/deps/flate2-d54ed2a8d214581b.d
+src-tauri/target/debug/deps/fnv-1215859a684cad45.d
+src-tauri/target/debug/deps/fnv-ae2537f16fe0ea01.d
+src-tauri/target/debug/deps/fnv-ed1c187ff18be8d3.d
+src-tauri/target/debug/deps/form_urlencoded-350572c4320bcbf0.d
+src-tauri/target/debug/deps/form_urlencoded-9721cd9a66f8e902.d
+src-tauri/target/debug/deps/form_urlencoded-b97668b00aa4c988.d
+src-tauri/target/debug/deps/form_urlencoded-e5c7420c24a1f050.d
+src-tauri/target/debug/deps/futf-06fd7a21a04b60c4.d
+src-tauri/target/debug/deps/futures_channel-b91a79b1f6c9ca93.d
+src-tauri/target/debug/deps/futures_channel-b9ff915dc2145789.d
+src-tauri/target/debug/deps/futures_core-96f63155bca042f2.d
+src-tauri/target/debug/deps/futures_core-e5c803e80b7fb431.d
+src-tauri/target/debug/deps/futures_executor-8b2b87c53e50afee.d
+src-tauri/target/debug/deps/futures_executor-d233866db3ea0c86.d
+src-tauri/target/debug/deps/futures_io-4b178e2cb2403023.d
+src-tauri/target/debug/deps/futures_io-ba24ef26e4995e78.d
+src-tauri/target/debug/deps/futures_lite-365944513c58ba51.d
+src-tauri/target/debug/deps/futures_lite-4994cc70d17a1f13.d
+src-tauri/target/debug/deps/futures_macro-33456961ce6ad9ef.d
+src-tauri/target/debug/deps/futures_macro-e186aa9e0713ce93.d
+src-tauri/target/debug/deps/futures_task-61fa7f47582367a7.d
+src-tauri/target/debug/deps/futures_task-78ede253e776db0d.d
+src-tauri/target/debug/deps/futures_util-3ebf568b297905db.d
+src-tauri/target/debug/deps/futures_util-f2a81dbce22e424c.d
+src-tauri/target/debug/deps/fxhash-857eaab0817d7dea.d
+src-tauri/target/debug/deps/fxhash-e960fe1218f84f9f.d
+src-tauri/target/debug/deps/gdk-1cb78c76ed9febd0.d
+src-tauri/target/debug/deps/gdk-6819053db8ba674f.d
+src-tauri/target/debug/deps/gdk_pixbuf-0ba61c5fbe0e01d3.d
+src-tauri/target/debug/deps/gdk_pixbuf-33053daf1849a32d.d
+src-tauri/target/debug/deps/gdk_pixbuf_sys-10901ff539a6c472.d
+src-tauri/target/debug/deps/gdk_pixbuf_sys-3d1624f5123d6221.d
+src-tauri/target/debug/deps/gdk_sys-18669703dbda925a.d
+src-tauri/target/debug/deps/gdk_sys-ac61a389834abe1f.d
+src-tauri/target/debug/deps/gdk_wayland_sys-1179110c7a5bda3e.d
+src-tauri/target/debug/deps/gdk_wayland_sys-48b2f3ac7dfa86b2.d
+src-tauri/target/debug/deps/gdkx11-2e361acbac864ee4.d
+src-tauri/target/debug/deps/gdkx11-ba2f652d4c402a43.d
+src-tauri/target/debug/deps/gdk_x11_sys-9e410aeff2513216.d
+src-tauri/target/debug/deps/gdk_x11_sys-be33307930fab49e.d
+src-tauri/target/debug/deps/generic_array-aa4d093ab8564e9c.d
+src-tauri/target/debug/deps/getrandom-21c9ac291936d663.d
+src-tauri/target/debug/deps/getrandom-33b954eff6c8d16c.d
+src-tauri/target/debug/deps/getrandom-399fd939b02decd9.d
+src-tauri/target/debug/deps/getrandom-8fa40c8b5818602a.d
+src-tauri/target/debug/deps/getrandom-93df067c5b7d4388.d
+src-tauri/target/debug/deps/getrandom-a64ba3e11982d260.d
+src-tauri/target/debug/deps/getrandom-f450aca48fbd65da.d
+src-tauri/target/debug/deps/gio-d56f5b7ab580cf51.d
+src-tauri/target/debug/deps/gio-f342f83eb7f3e7f6.d
+src-tauri/target/debug/deps/gio_sys-7c191198b75705b2.d
+src-tauri/target/debug/deps/gio_sys-8d003d0b0a1da9d3.d
+src-tauri/target/debug/deps/glib-0077cadff5571aca.d
+src-tauri/target/debug/deps/glib-27f20eac6c3ff436.d
+src-tauri/target/debug/deps/glib_macros-2cad4e261445f2ce.d
+src-tauri/target/debug/deps/glib_macros-b8648b16339312dd.d
+src-tauri/target/debug/deps/glib_sys-2942d9694214bc7e.d
+src-tauri/target/debug/deps/glib_sys-7863068012a100ed.d
+src-tauri/target/debug/deps/glob-1474c40cbe50dbea.d
+src-tauri/target/debug/deps/glob-b1f30f7aaf0abaed.d
+src-tauri/target/debug/deps/glob-bcead0f095c23f00.d
+src-tauri/target/debug/deps/gobject_sys-0d1dd610904a7e70.d
+src-tauri/target/debug/deps/gobject_sys-960682400010378e.d
+src-tauri/target/debug/deps/gtk-0512ad4a3ede9f88.d
+src-tauri/target/debug/deps/gtk-249993fe7e77dc7b.d
+src-tauri/target/debug/deps/gtk3_macros-55719c1acf27e7ae.d
+src-tauri/target/debug/deps/gtk3_macros-6430aae72fd57c1b.d
+src-tauri/target/debug/deps/gtk_sys-633a273f841355cc.d
+src-tauri/target/debug/deps/gtk_sys-f20e406688bc77f2.d
+src-tauri/target/debug/deps/hashbrown-227f54941a72f70b.d
+src-tauri/target/debug/deps/hashbrown-f360952be3e3660b.d
+src-tauri/target/debug/deps/heck-11170b0e09f29964.d
+src-tauri/target/debug/deps/heck-1e214f02a45a51ed.d
+src-tauri/target/debug/deps/heck-7a89650fa4d78e93.d
+src-tauri/target/debug/deps/heck-b6dd292169dd14d6.d
+src-tauri/target/debug/deps/hex-1ad13c98d2bb845e.d
+src-tauri/target/debug/deps/hex-ec5e55b35efc6a6c.d
+src-tauri/target/debug/deps/html5ever-1919f2bba31fa170.d
+src-tauri/target/debug/deps/html5ever-71a5efa246eefcbe.d
+src-tauri/target/debug/deps/http-95567570f6c7d470.d
+src-tauri/target/debug/deps/http-a8402898b069b931.d
+src-tauri/target/debug/deps/http-ed919841c32a7daa.d
+src-tauri/target/debug/deps/ico-34cd4ee6ae0558e2.d
+src-tauri/target/debug/deps/ico-f4ac0bab2c0b60e5.d
+src-tauri/target/debug/deps/icu_collections-16539a942b0a4a00.d
+src-tauri/target/debug/deps/icu_collections-553badde0c78f885.d
+src-tauri/target/debug/deps/icu_collections-85956d032ae6f1e9.d
+src-tauri/target/debug/deps/icu_collections-9376a87dd9364b07.d
+src-tauri/target/debug/deps/icu_locale_core-5ee64ad90831ff2b.d
+src-tauri/target/debug/deps/icu_locale_core-8678151949021ddb.d
+src-tauri/target/debug/deps/icu_locale_core-95a46c4b4b7e5997.d
+src-tauri/target/debug/deps/icu_locale_core-eae075804d96f428.d
+src-tauri/target/debug/deps/icu_normalizer-0d5eed07f6d3182a.d
+src-tauri/target/debug/deps/icu_normalizer-540472f91fdbaccb.d
+src-tauri/target/debug/deps/icu_normalizer-6fdf5750118ed2dd.d
+src-tauri/target/debug/deps/icu_normalizer_data-5dffa5481237220f.d
+src-tauri/target/debug/deps/icu_normalizer_data-bcd1fe42b7108afa.d
+src-tauri/target/debug/deps/icu_normalizer_data-e8ad1c5c5a7a13dd.d
+src-tauri/target/debug/deps/icu_normalizer-ede664da07754d06.d
+src-tauri/target/debug/deps/icu_properties-84fc332b16d95ff2.d
+src-tauri/target/debug/deps/icu_properties-8963c6faac5bc38c.d
+src-tauri/target/debug/deps/icu_properties-be0721d100cb538f.d
+src-tauri/target/debug/deps/icu_properties_data-0a211bf5deff302c.d
+src-tauri/target/debug/deps/icu_properties_data-6103b16535e7b474.d
+src-tauri/target/debug/deps/icu_properties_data-a09be0d03dc603de.d
+src-tauri/target/debug/deps/icu_properties-ee5d73532d2146e3.d
+src-tauri/target/debug/deps/icu_provider-2845388fa725b219.d
+src-tauri/target/debug/deps/icu_provider-4950e75ac9b9aae2.d
+src-tauri/target/debug/deps/icu_provider-608345e43ca1f49e.d
+src-tauri/target/debug/deps/icu_provider-fbdf990536a6c1eb.d
+src-tauri/target/debug/deps/ident_case-0f6ad5d47d62a42b.d
+src-tauri/target/debug/deps/idna_adapter-01f7085ebeea7dbe.d
+src-tauri/target/debug/deps/idna_adapter-1b71ca0a57f3c461.d
+src-tauri/target/debug/deps/idna_adapter-9ca2b47013bc2f00.d
+src-tauri/target/debug/deps/idna_adapter-ecde92c0ec53316e.d
+src-tauri/target/debug/deps/idna-c5f0a3ea3be9dac0.d
+src-tauri/target/debug/deps/idna-cae3228897ed985f.d
+src-tauri/target/debug/deps/idna-cc921bcdc1621263.d
+src-tauri/target/debug/deps/idna-f2a11f1713967aaa.d
+src-tauri/target/debug/deps/indexmap-07d09f5e13ff1797.d
+src-tauri/target/debug/deps/indexmap-4aabb35eb73973af.d
+src-tauri/target/debug/deps/indexmap-54b9d00f717e1e96.d
+src-tauri/target/debug/deps/infer-4e3e9430ec4187ab.d
+src-tauri/target/debug/deps/infer-6fcbe7fff5e79d22.d
+src-tauri/target/debug/deps/infer-72a717a8c1480378.d
+src-tauri/target/debug/deps/infer-752efe37627ba197.d
+src-tauri/target/debug/deps/is_docker-1eb72d67755832ce.d
+src-tauri/target/debug/deps/is_docker-a4b0568bd1030c8b.d
+src-tauri/target/debug/deps/is_wsl-8d04e9553eec1fdf.d
+src-tauri/target/debug/deps/is_wsl-91b997340b5c6779.d
+src-tauri/target/debug/deps/itoa-09f80ef5323d1051.d
+src-tauri/target/debug/deps/itoa-205e3ec5ed467be4.d
+src-tauri/target/debug/deps/itoa-97a86c4d9c63d441.d
+src-tauri/target/debug/deps/javascriptcore-b8059cbabf69cbcc.d
+src-tauri/target/debug/deps/javascriptcore-ddbc88cfc4dfaf03.d
+src-tauri/target/debug/deps/javascriptcore_rs_sys-62eeb8c06983ab5a.d
+src-tauri/target/debug/deps/javascriptcore_rs_sys-fc5b0e828526f2e0.d
+src-tauri/target/debug/deps/json_patch-5d27911f0a79c505.d
+src-tauri/target/debug/deps/json_patch-8a18c603c6ec41bf.d
+src-tauri/target/debug/deps/json_patch-98c54c6664b7e35d.d
+src-tauri/target/debug/deps/json_patch-c76e666330b6244d.d
+src-tauri/target/debug/deps/jsonptr-4ad575edcff0c36d.d
+src-tauri/target/debug/deps/jsonptr-91bd09ff171eae60.d
+src-tauri/target/debug/deps/jsonptr-b599f1744e1387ce.d
+src-tauri/target/debug/deps/jsonptr-c6e5794e9dee36f4.d
+src-tauri/target/debug/deps/keyboard_types-6e5e5c2671a8e09e.d
+src-tauri/target/debug/deps/keyboard_types-c752adf58b3a5e2e.d
+src-tauri/target/debug/deps/kuchikiki-4c6ea38f13930563.d
+src-tauri/target/debug/deps/kuchikiki-a09e718a21667b20.d
+src-tauri/target/debug/deps/lazy_static-731d3a117dc8921d.d
+src-tauri/target/debug/deps/lazy_static-a5e8db74bffd96ad.d
+src-tauri/target/debug/deps/libadler2-5f0b6935d86902d3.rlib
+src-tauri/target/debug/deps/libadler2-5f0b6935d86902d3.rmeta
+src-tauri/target/debug/deps/libaho_corasick-3bae3441ed780ba8.rlib
+src-tauri/target/debug/deps/libaho_corasick-3bae3441ed780ba8.rmeta
+src-tauri/target/debug/deps/libaho_corasick-a995d759b8847db2.rmeta
+src-tauri/target/debug/deps/libaho_corasick-b29f9e28b37650a9.rlib
+src-tauri/target/debug/deps/libaho_corasick-b29f9e28b37650a9.rmeta
+src-tauri/target/debug/deps/liballoc_no_stdlib-1ece1f21f92d17f4.rlib
+src-tauri/target/debug/deps/liballoc_no_stdlib-1ece1f21f92d17f4.rmeta
+src-tauri/target/debug/deps/liballoc_no_stdlib-67691f9c6f17d870.rlib
+src-tauri/target/debug/deps/liballoc_no_stdlib-67691f9c6f17d870.rmeta
+src-tauri/target/debug/deps/liballoc_no_stdlib-778a7860eed98e73.rmeta
+src-tauri/target/debug/deps/liballoc_stdlib-6f2226cff8fe00ba.rlib
+src-tauri/target/debug/deps/liballoc_stdlib-6f2226cff8fe00ba.rmeta
+src-tauri/target/debug/deps/liballoc_stdlib-7f7e99260462cf2b.rlib
+src-tauri/target/debug/deps/liballoc_stdlib-7f7e99260462cf2b.rmeta
+src-tauri/target/debug/deps/liballoc_stdlib-cddaf383e067b4b5.rmeta
+src-tauri/target/debug/deps/libanyhow-1b7f4f83d86d733a.rlib
+src-tauri/target/debug/deps/libanyhow-1b7f4f83d86d733a.rmeta
+src-tauri/target/debug/deps/libanyhow-51757abed7cb4741.rmeta
+src-tauri/target/debug/deps/libanyhow-c2c6366a4d20c9a0.rlib
+src-tauri/target/debug/deps/libanyhow-c2c6366a4d20c9a0.rmeta
+src-tauri/target/debug/deps/libasync_broadcast-662c1b8f34331021.rlib
+
+================================================================================
+HOTSPOT GREPS (intervention + command wiring)
+================================================================================
+
+================================================================================
+INTERVENTION
+================================================================================
+src/App.css:628:.interventionTop {
+src/App.css:635:.interventionBox {
+src/App.tsx:6:type TabKey = "chat" | "projects" | "roadmap" | "personal" | "intervention";
+src/App.tsx:350:            active={tab === "intervention"}
+src/App.tsx:351:            onClick={() => setTab("intervention")}
+src/App.tsx:538:          {tab === "intervention" && (
+src/App.tsx:547:              <div className="interventionTop">
+
+================================================================================
+TABS / NAV
+================================================================================
+src/App.tsx:6:type TabKey = "chat" | "projects" | "roadmap" | "personal" | "intervention";
+src/App.tsx:62:    if (tab === "chat") return "Chat + Session Notes";
+src/App.tsx:63:    if (tab === "projects") return "Start sessions the same way every time";
+src/App.tsx:64:    if (tab === "roadmap") return "Empire dashboard (MVP placeholder)";
+src/App.tsx:65:    if (tab === "personal") return "Personal vault (MVP placeholder)";
+src/App.tsx:203:    if (tab === "projects") refreshPortsBurst();
+src/App.tsx:328:          <TabButton active={tab === "chat"} onClick={() => setTab("chat")}>
+src/App.tsx:332:            active={tab === "projects"}
+src/App.tsx:333:            onClick={() => setTab("projects")}
+src/App.tsx:338:            active={tab === "roadmap"}
+src/App.tsx:339:            onClick={() => setTab("roadmap")}
+src/App.tsx:344:            active={tab === "personal"}
+src/App.tsx:345:            onClick={() => setTab("personal")}
+src/App.tsx:350:            active={tab === "intervention"}
+src/App.tsx:351:            onClick={() => setTab("intervention")}
+src/App.tsx:360:          {tab === "chat" && (
+src/App.tsx:396:          {tab === "projects" && (
+src/App.tsx:518:          {tab === "roadmap" && (
+src/App.tsx:528:          {tab === "personal" && (
+src/App.tsx:538:          {tab === "intervention" && (
+
+================================================================================
+TAURI INVOKES
+================================================================================
+
+================================================================================
+FS / PATH / SHELL (if any)
+================================================================================
+src/App.css:80:/* App shell: slightly less padding so content feels larger */
+src/App.tsx:106:      const ok = document.execCommand("copy");
+src/App.tsx:512:                Goal: everything shell-adjacent routes through{" "}
+src/App.tsx:598:                <code>run_o2</code>. No freeform shell.
+src/assets/react.svg:1:<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="35.93" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 228"><path fill="#00D8FF" d="M210.483 73.824a171.49 171.49 0 0 0-8.24-2.597c.465-1.9.893-3.777 1.273-5.621c6.238-30.281 2.16-54.676-11.769-62.708c-13.355-7.7-35.196.329-57.254 19.526a171.23 171.23 0 0 0-6.375 5.848a155.866 155.866 0 0 0-4.241-3.917C100.759 3.829 77.587-4.822 63.673 3.233C50.33 10.957 46.379 33.89 51.995 62.588a170.974 170.974 0 0 0 1.892 8.48c-3.28.932-6.445 1.924-9.474 2.98C17.309 83.498 0 98.307 0 113.668c0 15.865 18.582 31.778 46.812 41.427a145.52 145.52 0 0 0 6.921 2.165a167.467 167.467 0 0 0-2.01 9.138c-5.354 28.2-1.173 50.591 12.134 58.266c13.744 7.926 36.812-.22 59.273-19.855a145.567 145.567 0 0 0 5.342-4.923a168.064 168.064 0 0 0 6.92 6.314c21.758 18.722 43.246 26.282 56.54 18.586c13.731-7.949 18.194-32.003 12.4-61.268a145.016 145.016 0 0 0-1.535-6.842c1.62-.48 3.21-.974 4.76-1.488c29.348-9.723 48.443-25.443 48.443-41.52c0-15.417-17.868-30.326-45.517-39.844Zm-6.365 70.984c-1.4.463-2.836.91-4.3 1.345c-3.24-10.257-7.612-21.163-12.963-32.432c5.106-11 9.31-21.767 12.459-31.957c2.619.758 5.16 1.557 7.61 2.4c23.69 8.156 38.14 20.213 38.14 29.504c0 9.896-15.606 22.743-40.946 31.14Zm-10.514 20.834c2.562 12.94 2.927 24.64 1.23 33.787c-1.524 8.219-4.59 13.698-8.382 15.893c-8.067 4.67-25.32-1.4-43.927-17.412a156.726 156.726 0 0 1-6.437-5.87c7.214-7.889 14.423-17.06 21.459-27.246c12.376-1.098 24.068-2.894 34.671-5.345a134.17 134.17 0 0 1 1.386 6.193ZM87.276 214.515c-7.882 2.783-14.16 2.863-17.955.675c-8.075-4.657-11.432-22.636-6.853-46.752a156.923 156.923 0 0 1 1.869-8.499c10.486 2.32 22.093 3.988 34.498 4.994c7.084 9.967 14.501 19.128 21.976 27.15a134.668 134.668 0 0 1-4.877 4.492c-9.933 8.682-19.886 14.842-28.658 17.94ZM50.35 144.747c-12.483-4.267-22.792-9.812-29.858-15.863c-6.35-5.437-9.555-10.836-9.555-15.216c0-9.322 13.897-21.212 37.076-29.293c2.813-.98 5.757-1.905 8.812-2.773c3.204 10.42 7.406 21.315 12.477 32.332c-5.137 11.18-9.399 22.249-12.634 32.792a134.718 134.718 0 0 1-6.318-1.979Zm12.378-84.26c-4.811-24.587-1.616-43.134 6.425-47.789c8.564-4.958 27.502 2.111 47.463 19.835a144.318 144.318 0 0 1 3.841 3.545c-7.438 7.987-14.787 17.08-21.808 26.988c-12.04 1.116-23.565 2.908-34.161 5.309a160.342 160.342 0 0 1-1.76-7.887Zm110.427 27.268a347.8 347.8 0 0 0-7.785-12.803c8.168 1.033 15.994 2.404 23.343 4.08c-2.206 7.072-4.956 14.465-8.193 22.045a381.151 381.151 0 0 0-7.365-13.322Zm-45.032-43.861c5.044 5.465 10.096 11.566 15.065 18.186a322.04 322.04 0 0 0-30.257-.006c4.974-6.559 10.069-12.652 15.192-18.18ZM82.802 87.83a323.167 323.167 0 0 0-7.227 13.238c-3.184-7.553-5.909-14.98-8.134-22.152c7.304-1.634 15.093-2.97 23.209-3.984a321.524 321.524 0 0 0-7.848 12.897Zm8.081 65.352c-8.385-.936-16.291-2.203-23.593-3.793c2.26-7.3 5.045-14.885 8.298-22.6a321.187 321.187 0 0 0 7.257 13.246c2.594 4.48 5.28 8.868 8.038 13.147Zm37.542 31.03c-5.184-5.592-10.354-11.779-15.403-18.433c4.902.192 9.899.29 14.978.29c5.218 0 10.376-.117 15.453-.343c-4.985 6.774-10.018 12.97-15.028 18.486Zm52.198-57.817c3.422 7.8 6.306 15.345 8.596 22.52c-7.422 1.694-15.436 3.058-23.88 4.071a382.417 382.417 0 0 0 7.859-13.026a347.403 347.403 0 0 0 7.425-13.565Zm-16.898 8.101a358.557 358.557 0 0 1-12.281 19.815a329.4 329.4 0 0 1-23.444.823c-7.967 0-15.716-.248-23.178-.732a310.202 310.202 0 0 1-12.513-19.846h.001a307.41 307.41 0 0 1-10.923-20.627a310.278 310.278 0 0 1 10.89-20.637l-.001.001a307.318 307.318 0 0 1 12.413-19.761c7.613-.576 15.42-.876 23.31-.876H128c7.926 0 15.743.303 23.354.883a329.357 329.357 0 0 1 12.335 19.695a358.489 358.489 0 0 1 11.036 20.54a329.472 329.472 0 0 1-11 20.722Zm22.56-122.124c8.572 4.944 11.906 24.881 6.52 51.026c-.344 1.668-.73 3.367-1.15 5.09c-10.622-2.452-22.155-4.275-34.23-5.408c-7.034-10.017-14.323-19.124-21.64-27.008a160.789 160.789 0 0 1 5.888-5.4c18.9-16.447 36.564-22.941 44.612-18.3ZM128 90.808c12.625 0 22.86 10.235 22.86 22.86s-10.235 22.86-22.86 22.86s-22.86-10.235-22.86-22.86s10.235-22.86 22.86-22.86Z"></path></svg>
+
+================================================================================
+PACKAGE / TOOLING (bounded)
+================================================================================
+
+----- FILE: package.json (head -n 220) -----
+{
+  "name": "radcontrol-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-opener": "^2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/cli": "^2.10.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  }
+}
+
+----- FILE: vite.config.ts (head -n 200) -----
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+// @ts-expect-error process is a nodejs global
+const host = process.env.TAURI_DEV_HOST;
+
+// https://vite.dev/config/
+export default defineConfig(async () => ({
+  plugins: [react()],
+
+  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+  //
+  // 1. prevent Vite from obscuring rust errors
+  clearScreen: false,
+  // 2. tauri expects a fixed port, fail if that port is not available
+  server: {
+    port: 1420,
+    strictPort: true,
+    host: host || false,
+    hmr: host
+      ? {
+          protocol: "ws",
+          host,
+          port: 1421,
+        }
+      : undefined,
+    watch: {
+      // 3. tell Vite to ignore watching `src-tauri`
+      ignored: ["**/src-tauri/**"],
+    },
+  },
+}));
+
+----- FILE: tsconfig.json (head -n 200) -----
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
+
+================================================================================
+SCRIPTS (bounded)
+================================================================================
+
+----- FILE: scripts/o2_session_start.sh (head -n 200) -----
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+echo "O2 session start — RadControl"
+echo "root: $ROOT"
+echo
+
+pwd
+git rev-parse --show-toplevel || true
+echo
+
+echo "git status:"
+git status || true
+echo
+
+echo "running repo index..."
+"$ROOT/scripts/o2_index_repo.sh"
+echo
+
+echo "running snapshot..."
+"$ROOT/scripts/snapshot_repo_state.sh"
+----- FILE: scripts/snapshot_repo_state.sh (head -n 220) -----
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OUT="$ROOT/docs/_repo_snapshot.txt"
+
+{
+  echo "=== SNAPSHOT: RadControl ==="
+  echo "root: $ROOT"
+  echo "time: $(date)"
+  echo
+
+  echo "## identity"
+  git rev-parse --abbrev-ref HEAD 2>/dev/null | sed 's/^/branch: /' || echo "branch: (no git)"
+  git rev-parse HEAD 2>/dev/null | sed 's/^/commit: /' || echo "commit: (no git)"
+  echo
+
+  echo "## status"
+  git status || true
+  echo
+
+  echo "## recent commits"
+  git log -5 --oneline || true
+  echo
+
+  echo "## tree (depth 4)"
+  tree -a -L 4 || true
+  echo
+
+  echo "## package.json (name + scripts)"
+  if [ -f "$ROOT/package.json" ]; then
+    grep -E '"name"|\"scripts\"' -n "$ROOT/package.json" || true
+  else
+    echo "(no package.json)"
+  fi
+  echo
+
+  echo "## verification"
+  echo "lint: not run"
+  echo "build: not run"
+} > "$OUT"
+
+echo "wrote $OUT"
+================================================================================
+END
+================================================================================
+Wrote: docs/_o2_repo_index.txt
