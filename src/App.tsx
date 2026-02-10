@@ -1,19 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import "./App.css";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
-type TabKey = "chat" | "projects" | "roadmap" | "personal" | "intervention";
+type TabKey = "chat" | "projects" | "roadmap" | "personal";
 
 type PortStatus = {
   port: number;
   listening: boolean;
-  pid: number | null;
-  command: string | null;
-  raw: string;
+  pid?: number | null;
+  cmd?: string | null;
+  err?: string | null;
 };
 
-const PORTS = [1420, 3000, 3001, 3002] as const;
+type LogMsg = { who: "me" | "o2"; text: string };
+
+type ProjectKey = "empire" | "tbis" | "dqotd" | "offroad" | "radstock";
+
+type ProjectRow = {
+  key: ProjectKey;
+  label: string;
+  repoHint?: string;
+  port?: number;
+  url?: string;
+
+  // Existing O2 hooks
+  o2StartKey?: string;
+  o2SnapshotKey?: string;
+  o2CommitKey?: string;
+
+  // New: per-project tooling map (Codex/O2 resources + constraints)
+  o2MapKey?: string;
+
+  // New: empire-only proof pack (system-wide O2+Codex capabilities snapshot)
+  o2ProofPackKey?: string;
+};
 
 function TabButton({
   active,
@@ -21,7 +42,7 @@ function TabButton({
   onClick,
 }: {
   active: boolean;
-  children: ReactNode;
+  children: React.ReactNode;
   onClick: () => void;
 }) {
   return (
@@ -31,128 +52,137 @@ function TabButton({
   );
 }
 
-function SectionTitle({ children }: { children: ReactNode }) {
+function SectionTitle({ children }: { children: React.ReactNode }) {
   return <div className="sectionTitle">{children}</div>;
 }
 
-function nowStamp() {
-  return new Date().toLocaleString();
+function fmtErr(e: unknown) {
+  if (!e) return "Unknown error";
+  if (typeof e === "string") return e;
+  if (e instanceof Error) return e.message + (e.stack ? `\n${e.stack}` : "");
+  try {
+    return JSON.stringify(e, null, 2);
+  } catch {
+    return String(e);
+  }
 }
 
 export default function App() {
   const [tab, setTab] = useState<TabKey>("projects");
-
-  const [chatInput, setChatInput] = useState("");
-  const [chat, setChat] = useState<Array<{ who: "me" | "o2"; text: string }>>([
+  const [chat, setChat] = useState<LogMsg[]>([
     { who: "o2", text: "RadControl online. Start a session from Projects." },
   ]);
 
+  const [log, setLog] = useState("");
   const [busy, setBusy] = useState(false);
-  const [log, setLog] = useState<string>("");
 
+  const appendLog = (s: string) => {
+    setLog((prev) => (prev ? prev + "\n" + s : s));
+  };
+
+  function clearLogs() {
+    setLog("");
+  }
+
+  // --- Projects config (single source of truth) ---
+  const PROJECTS: ProjectRow[] = useMemo(
+    () => [
+      {
+        key: "empire",
+        label: "Empire",
+        repoHint: "Control layer",
+        o2SnapshotKey: "empire.snapshot",
+        o2CommitKey: "o2.commit",
+        o2MapKey: "empire.map",
+        o2ProofPackKey: "empire.proofpack",
+      },
+      {
+        key: "tbis",
+        label: "TBIS",
+        repoHint: "radcon/dev/tbis",
+        port: 3001,
+        url: "http://localhost:3001",
+        o2StartKey: "tbis.dev",
+        o2SnapshotKey: "tbis.snapshot",
+        o2CommitKey: "tbis.commit",
+        o2MapKey: "tbis.map",
+      },
+      {
+        key: "dqotd",
+        label: "DQOTD",
+        repoHint: "radcon/dev/charliedino",
+        port: 3000,
+        url: "http://localhost:3000/dqotd",
+        o2StartKey: "dqotd.dev",
+        o2SnapshotKey: "dqotd.snapshot",
+        o2CommitKey: "dqotd.commit",
+        o2MapKey: "dqotd.map",
+      },
+      {
+        key: "offroad",
+        label: "Offroad Croquet",
+        repoHint: "radwolfe/dev/offroadcroquet",
+        port: 3002,
+        url: "http://localhost:3002",
+        o2StartKey: "offroad.dev",
+        o2SnapshotKey: "offroad.snapshot",
+        o2CommitKey: "offroad.commit",
+        o2MapKey: "offroad.map",
+      },
+      {
+        key: "radstock",
+        label: "RadStock",
+        repoHint: "TBD",
+        o2MapKey: "radstock.map",
+      },
+    ],
+    [],
+  );
+
+  // --- Port status per row ---
   const [portsBusy, setPortsBusy] = useState(false);
   const [ports, setPorts] = useState<Record<number, PortStatus | undefined>>(
     {},
   );
 
-  // If a refresh is requested while one is running, queue one more.
-  const portsRefreshQueuedRef = useRef(false);
-
-  const headerSubtitle = useMemo(() => {
-    if (tab === "chat") return "Chat + Session Notes";
-    if (tab === "projects") return "Start sessions the same way every time";
-    if (tab === "roadmap") return "Empire dashboard (MVP placeholder)";
-    if (tab === "personal") return "Personal vault (MVP placeholder)";
-    return "O2 control panel: no drift, no surprises";
-  }, [tab]);
-
-  function appendLog(text: string) {
-    setLog((prev) => (prev ? `${prev}\n${text}` : text));
-  }
-
-  function resetRunLog(title: string) {
-    setLog(`=== ${title} ===\nStarted: ${nowStamp()}\n`);
-  }
-
-  function fmtErr(e: unknown) {
-    if (typeof e === "string") return e;
-    try {
-      return JSON.stringify(e);
-    } catch {
-      return String(e);
+  const PORTS = useMemo(() => {
+    const s = new Set<number>();
+    for (const p of PROJECTS) {
+      if (typeof p.port === "number") s.add(p.port);
     }
-  }
+    s.add(1420);
+    return Array.from(s.values()).sort((a, b) => a - b);
+  }, [PROJECTS]);
 
-  async function copyTextToClipboard(text: string) {
-    if (!text.trim()) return;
+  const refreshInFlightRef = useRef(false);
+  const refreshQueuedRef = useRef(false);
+  const burstTimerRef = useRef<number | null>(null);
 
-    try {
-      await navigator.clipboard.writeText(text);
-      setChat((c) => [...c, { who: "o2", text: "Copied to clipboard." }]);
-      return;
-    } catch {
-      // fallback below
-    }
-
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      ta.style.top = "-9999px";
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-      setChat((c) => [
-        ...c,
-        {
-          who: "o2",
-          text: ok ? "Copied to clipboard." : "Copy failed (clipboard denied).",
-        },
-      ]);
-    } catch {
-      setChat((c) => [...c, { who: "o2", text: "Copy failed." }]);
-    }
-  }
-
-  async function copyLogsToClipboard() {
-    await copyTextToClipboard(log ?? "");
-  }
-
-  /* =========================
-     Active Ports Panel
-     ========================= */
-
-  async function refreshPorts() {
-    // If a refresh is already in-flight, queue a single follow-up refresh.
-    if (portsBusy) {
-      portsRefreshQueuedRef.current = true;
+  async function refreshPortsOnce() {
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true;
       return;
     }
-
+    refreshInFlightRef.current = true;
     setPortsBusy(true);
 
     try {
-      const results: PortStatus[] = [];
-
-      for (const p of PORTS) {
-        try {
-          const r = await invoke<PortStatus>("port_status", { port: p });
-          results.push(r);
-        } catch (e) {
-          const msg = fmtErr(e);
-          appendLog(`\n[ports] port_status(${p}) ERROR:\n${msg}\n`);
-          results.push({
-            port: p,
-            listening: false,
-            pid: null,
-            command: null,
-            raw: `ERROR: ${msg}`,
-          });
-        }
-      }
+      const results = await Promise.all(
+        PORTS.map(async (p): Promise<PortStatus> => {
+          try {
+            return await invoke<PortStatus>("port_status", { port: p });
+          } catch (e) {
+            const msg = fmtErr(e);
+            return {
+              port: p,
+              listening: false,
+              pid: null,
+              cmd: null,
+              err: msg,
+            };
+          }
+        }),
+      );
 
       setPorts((prev) => {
         const next: Record<number, PortStatus | undefined> = { ...prev };
@@ -161,30 +191,30 @@ export default function App() {
       });
     } finally {
       setPortsBusy(false);
-
-      // If something requested a refresh while we were busy, run one more immediately.
-      if (portsRefreshQueuedRef.current) {
-        portsRefreshQueuedRef.current = false;
-        setTimeout(() => {
-          void refreshPorts();
-        }, 0);
+      refreshInFlightRef.current = false;
+      if (refreshQueuedRef.current) {
+        refreshQueuedRef.current = false;
+        setTimeout(() => void refreshPortsOnce(), 150);
       }
     }
   }
 
   function refreshPortsBurst() {
-    void refreshPorts();
-    setTimeout(() => void refreshPorts(), 900);
-    setTimeout(() => void refreshPorts(), 2500);
+    if (burstTimerRef.current) window.clearTimeout(burstTimerRef.current);
+    void refreshPortsOnce();
+    burstTimerRef.current = window.setTimeout(() => {
+      void refreshPortsOnce();
+      burstTimerRef.current = null;
+    }, 700);
   }
 
-  async function killAndRefresh(port: number) {
+  async function freePort(port: number) {
     if (busy || portsBusy) return;
     setPortsBusy(true);
     try {
       appendLog(`\n[ports] Freeing port ${port} (best-effort)...`);
-      const out = await invoke<string>("kill_port", { port });
-      appendLog(`\n--- kill_port output ---\n${out.trim()}`);
+      await invoke("kill_port", { port });
+      appendLog(`[ports] kill_port(${port}) OK`);
     } catch (e) {
       appendLog("\n[ports] kill_port ERROR:\n" + fmtErr(e));
     } finally {
@@ -193,7 +223,6 @@ export default function App() {
     }
   }
 
-  // Refresh ports on first mount, and whenever we enter Projects tab.
   useEffect(() => {
     refreshPortsBurst();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -204,62 +233,36 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  /* =========================
-     O2 actions (whitelist runner)
-     ========================= */
-
-  async function runO2Single(key: string) {
-    return await invoke<string>("run_o2", { key });
-  }
-
-  async function runO2(key: string, title: string) {
-    if (busy) return;
-    setBusy(true);
-    resetRunLog(title);
-
+  // --- Logs controls ---
+  async function copyLogsToClipboard() {
     try {
-      appendLog(`\nRunning: ${key}`);
-      const out = await runO2Single(key);
-      appendLog("\n--- output ---\n" + out.trim());
-      appendLog(`\nDone: ${nowStamp()}`);
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: `${title} complete. Output is in Logs.` },
+      await navigator.clipboard.writeText(log || "");
+      setChat((prev) => [
+        ...prev,
+        { who: "o2", text: "Copied Logs to clipboard." },
       ]);
     } catch (e) {
-      appendLog("\nERROR:\n" + fmtErr(e));
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: `${title} failed. Check Logs.` },
-      ]);
-    } finally {
-      setBusy(false);
-      refreshPortsBurst();
+      appendLog("\n[ui] Copy Logs failed:\n" + fmtErr(e));
     }
   }
 
-  async function runO2Flow(keys: string[], title: string) {
+  // --- O2 helpers ---
+  async function runO2(title: string, key: string) {
     if (busy) return;
     setBusy(true);
-    resetRunLog(title);
-
+    setChat((prev) => [...prev, { who: "me", text: `${title}…` }]);
+    appendLog(`\n[o2] ${title} → run_o2("${key}")\n`);
     try {
-      for (let i = 0; i < keys.length; i++) {
-        const key = keys[i]!;
-        appendLog(`\n[${i + 1}/${keys.length}] Running: ${key}`);
-        const out = await runO2Single(key);
-        appendLog("\n--- output ---\n" + out.trim());
-      }
-
-      appendLog(`\nDone: ${nowStamp()}`);
-      setChat((c) => [
-        ...c,
+      const out = await invoke<string>("run_o2", { key });
+      appendLog(out ? out.trimEnd() : "(no output)");
+      setChat((prev) => [
+        ...prev,
         { who: "o2", text: `${title} complete. Output is in Logs.` },
       ]);
     } catch (e) {
-      appendLog("\nERROR:\n" + fmtErr(e));
-      setChat((c) => [
-        ...c,
+      appendLog("\n[o2] ERROR:\n" + fmtErr(e));
+      setChat((prev) => [
+        ...prev,
         { who: "o2", text: `${title} failed. Check Logs.` },
       ]);
     } finally {
@@ -271,68 +274,95 @@ export default function App() {
   async function restartRadcontrolDev() {
     if (busy) return;
     setBusy(true);
-    resetRunLog("RESTART RADCONTROL (DEV)");
-
+    appendLog(`\n[radcontrol] Restart (Dev) requested…\n`);
     try {
-      appendLog("\nLaunching RadControl restart in a new terminal...");
-      const out = await invoke<string>("restart_radcontrol_dev");
-      appendLog("\n--- output ---\n" + out.trim());
-      appendLog(`\nDone: ${nowStamp()}`);
-
-      setChat((c) => [
-        ...c,
+      await invoke("restart_radcontrol_dev");
+      appendLog(`[radcontrol] restart_radcontrol_dev invoked. Closing window…`);
+      const win = getCurrentWindow();
+      await win.close();
+    } catch (e) {
+      appendLog("\n[radcontrol] Restart failed:\n" + fmtErr(e));
+      setChat((prev) => [
+        ...prev,
         {
           who: "o2",
-          text: "Restart launched. This window may go blank after port 1420 is freed—close it once the new RadControl is up.",
+          text: "Restart failed. Check Logs + /tmp/radcontrol.restart.log",
         },
       ]);
-    } catch (e) {
-      appendLog("\nERROR:\n" + fmtErr(e));
-      setChat((c) => [
-        ...c,
-        { who: "o2", text: "Restart failed. Check Logs." },
-      ]);
-    } finally {
       setBusy(false);
-      refreshPortsBurst();
     }
   }
 
-  function sendChat() {
-    const t = chatInput.trim();
-    if (!t) return;
-    setChat((c) => [...c, { who: "me" as const, text: t }]);
-    setChatInput("");
-    setTimeout(() => {
-      setChat((c) => [...c, { who: "o2", text: "Logged." }]);
-    }, 150);
+  // --- URL open ---
+  async function openUrl(url?: string) {
+    if (!url) return;
+    try {
+      const out = await invoke<string>("open_url", { url });
+      appendLog(`\n[ui] ${out}`);
+      return;
+    } catch (e) {
+      appendLog("\n[ui] open_url ERROR:\n" + fmtErr(e));
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      appendLog(`\n[ui] URL copied to clipboard:\n${url}`);
+    } catch (e) {
+      appendLog("\n[ui] Clipboard copy failed:\n" + fmtErr(e));
+    }
   }
 
-  function portLabel(p: number) {
-    if (p === 1420) return "RadControl (Vite)";
-    if (p === 3000) return "DQOTD";
-    if (p === 3001) return "TBIS";
-    if (p === 3002) return "Offroad Croquet";
-    return `Port ${p}`;
+  async function workOnProject(p: ProjectRow) {
+    if (busy) return;
+
+    const port = p.port;
+    const s = typeof port === "number" ? ports[port] : undefined;
+    const listening = Boolean(s?.listening);
+
+    if (!listening && p.o2StartKey) {
+      await runO2(`Start ${p.label}`, p.o2StartKey);
+    } else if (!listening && !p.o2StartKey && typeof port === "number") {
+      appendLog(
+        `\n[workon] ${p.label}: not running, but no o2StartKey configured.\n`,
+      );
+    }
+
+    await openUrl(p.url);
   }
+
+  function statusForRow(p: ProjectRow) {
+    if (typeof p.port !== "number") return { pill: "pillOff", text: "READY" };
+    const s = ports[p.port];
+    if (!s) return { pill: "pillWarn", text: "UNKNOWN" };
+    return s.listening
+      ? { pill: "pillOn", text: "RUNNING" }
+      : { pill: "pillOff", text: "STOPPED" };
+  }
+
+  const titleText = useMemo(() => {
+    if (tab === "projects") return "Start sessions the same way every time";
+    if (tab === "chat") return "Chat";
+    if (tab === "roadmap") return "Roadmap";
+    return "Personal";
+  }, [tab]);
 
   return (
     <div className="appShell">
-      <div className="topBar">
-        <div className="brand">
-          <div className="brandTitle">RadControl</div>
-          <div className="brandSub">{headerSubtitle}</div>
+      <header className="header">
+        <div className="headerLeft">
+          <div className="brand">RadControl</div>
+          <div className="tagline">{titleText}</div>
         </div>
 
         <div className="tabs">
-          <TabButton active={tab === "chat"} onClick={() => setTab("chat")}>
-            Chat
-          </TabButton>
           <TabButton
             active={tab === "projects"}
             onClick={() => setTab("projects")}
           >
             Projects
+          </TabButton>
+          <TabButton active={tab === "chat"} onClick={() => setTab("chat")}>
+            Chat
           </TabButton>
           <TabButton
             active={tab === "roadmap"}
@@ -346,347 +376,229 @@ export default function App() {
           >
             Personal
           </TabButton>
-          <TabButton
-            active={tab === "intervention"}
-            onClick={() => setTab("intervention")}
+        </div>
+
+        <div className="headerRight">
+          <button
+            className="btn btnGhost"
+            onClick={() => void refreshPortsBurst()}
+            disabled={busy || portsBusy}
+            title="Refresh project runtime status"
           >
-            Intervention
-          </TabButton>
+            {portsBusy ? "Refreshing…" : "Refresh Status"}
+          </button>
+          <button
+            className="btn btnDanger"
+            onClick={() => void restartRadcontrolDev()}
+            disabled={busy}
+            title="Restart RadControl dev + close window to avoid white screen"
+          >
+            Restart RadControl (Dev)
+          </button>
         </div>
-      </div>
+      </header>
 
-      <div className="body">
-        <div className="main">
-          {tab === "chat" && (
-            <>
-              <SectionTitle>Chat</SectionTitle>
-              <div className="chatBox">
-                {chat.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className={`chatLine ${
-                      m.who === "me" ? "chatMe" : "chatO2"
-                    }`}
-                  >
-                    <span className="chatWho">
-                      {m.who === "me" ? "You" : "O2"}:
-                    </span>{" "}
-                    <span>{m.text}</span>
-                  </div>
-                ))}
-              </div>
+      <main className="mainArea">
+        {tab === "projects" ? (
+          <div className="projectsWrap">
+            <SectionTitle>Projects</SectionTitle>
 
-              <div className="chatInputRow">
-                <input
-                  className="chatInput"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Type here…"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") sendChat();
-                  }}
-                />
-                <button className="primaryBtn" onClick={sendChat}>
-                  Send
-                </button>
-              </div>
-            </>
-          )}
+            <div className="projectsTable">
+              {PROJECTS.map((p) => {
+                const st = statusForRow(p);
+                const port = p.port;
+                const s = typeof port === "number" ? ports[port] : undefined;
+                const pid = s?.pid ?? null;
+                const cmd = s?.cmd ?? null;
+                const canKill =
+                  typeof port === "number" && Boolean(s?.listening);
 
-          {tab === "projects" && (
-            <>
-              <SectionTitle>Projects</SectionTitle>
+                const showProofPack = p.key === "empire" && !!p.o2ProofPackKey;
 
-              <div className="grid">
-                <button
-                  className="cardBtn"
-                  disabled={busy}
-                  onClick={() =>
-                    void runO2("empire.snapshot", "O2: Empire snapshot")
-                  }
-                >
-                  <div className="cardTitle">Empire Snapshot</div>
-                  <div className="cardSub">
-                    Runs <code>~/dev/o2/scripts/o2_empire_snapshot.sh</code>
-                  </div>
-                </button>
-
-                <button
-                  className="cardBtn"
-                  disabled={busy}
-                  onClick={restartRadcontrolDev}
-                >
-                  <div className="cardTitle">Restart RadControl (dev)</div>
-                  <div className="cardSub">
-                    Frees <code>1420</code> → launches{" "}
-                    <code>npm run tauri dev</code> in new terminal
-                  </div>
-                </button>
-
-                <button
-                  className="cardBtn"
-                  disabled={busy}
-                  onClick={() =>
-                    void runO2Flow(
-                      ["empire.snapshot", "tbis.session_start"],
-                      "O2: Start TBIS session",
-                    )
-                  }
-                >
-                  <div className="cardTitle">Start TBIS Session</div>
-                  <div className="cardSub">
-                    Empire snapshot → TBIS session start (deterministic)
-                  </div>
-                </button>
-
-                <button
-                  className="cardBtn"
-                  disabled={busy}
-                  onClick={() =>
-                    void runO2("tbis.snapshot", "O2: TBIS snapshot")
-                  }
-                >
-                  <div className="cardTitle">TBIS Snapshot</div>
-                  <div className="cardSub">
-                    Runs TBIS <code>scripts/snapshot_repo_state.sh</code>
-                  </div>
-                </button>
-
-                <button
-                  className="cardBtn"
-                  disabled={busy}
-                  onClick={() =>
-                    void runO2("tbis.index", "O2: TBIS repo index")
-                  }
-                >
-                  <div className="cardTitle">TBIS Repo Index</div>
-                  <div className="cardSub">
-                    Runs TBIS <code>scripts/o2_index_repo.sh</code>
-                  </div>
-                </button>
-
-                <button
-                  className="cardBtn"
-                  disabled={busy}
-                  onClick={() =>
-                    void runO2Flow(
-                      ["empire.snapshot", "dqotd.session_start"],
-                      "O2: Start DQOTD session",
-                    )
-                  }
-                >
-                  <div className="cardTitle">Start DQOTD Session</div>
-                  <div className="cardSub">
-                    Empire snapshot → DQOTD session start (deterministic)
-                  </div>
-                </button>
-
-                <button
-                  className="cardBtn"
-                  disabled={busy}
-                  onClick={() =>
-                    void runO2("dqotd.snapshot", "O2: DQOTD snapshot")
-                  }
-                >
-                  <div className="cardTitle">DQOTD Snapshot</div>
-                  <div className="cardSub">
-                    Runs DQOTD <code>scripts/snapshot_repo_state.sh</code>
-                  </div>
-                </button>
-
-                <button
-                  className="cardBtn"
-                  disabled={busy}
-                  onClick={() =>
-                    void runO2("dqotd.index", "O2: DQOTD repo index")
-                  }
-                >
-                  <div className="cardTitle">DQOTD Repo Index</div>
-                  <div className="cardSub">
-                    Runs DQOTD <code>scripts/o2_index_repo.sh</code>
-                  </div>
-                </button>
-              </div>
-
-              <div className="hint">
-                Goal: everything shell-adjacent routes through{" "}
-                <code>run_o2</code> keys (Rust whitelist). No drift.
-              </div>
-            </>
-          )}
-
-          {tab === "roadmap" && (
-            <>
-              <SectionTitle>Roadmap</SectionTitle>
-              <div className="placeholder">
-                MVP placeholder. Next: cards from local DB (tech, legal,
-                financial, status).
-              </div>
-            </>
-          )}
-
-          {tab === "personal" && (
-            <>
-              <SectionTitle>Personal</SectionTitle>
-              <div className="placeholder">
-                MVP placeholder. Next: encrypted local notes (not in git by
-                default).
-              </div>
-            </>
-          )}
-
-          {tab === "intervention" && (
-            <>
-              <SectionTitle>Intervention</SectionTitle>
-
-              <div className="hint" style={{ marginBottom: 12 }}>
-                Buttons only. Deterministic. If you feel drift, run one of these
-                and read Logs.
-              </div>
-
-              <div className="interventionTop">
-                <button
-                  className="primaryBtn"
-                  onClick={() =>
-                    void runO2(
-                      "radcontrol.session_start",
-                      "O2: RadControl session start",
-                    )
-                  }
-                  disabled={busy}
-                  title="Run RadControl o2_session_start.sh"
-                >
-                  Session Start
-                </button>
-
-                <button
-                  className="secondaryBtn"
-                  onClick={() =>
-                    void runO2("radcontrol.index", "O2: RadControl repo index")
-                  }
-                  disabled={busy}
-                  title="Run RadControl o2_index_repo.sh"
-                >
-                  Repo Index
-                </button>
-
-                <button
-                  className="secondaryBtn"
-                  onClick={() =>
-                    void runO2("radcontrol.snapshot", "O2: RadControl snapshot")
-                  }
-                  disabled={busy}
-                  title="Run RadControl snapshot_repo_state.sh"
-                >
-                  Snapshot
-                </button>
-
-                <button
-                  className="secondaryBtn"
-                  onClick={() =>
-                    void runO2("empire.snapshot", "O2: Empire snapshot")
-                  }
-                  disabled={busy}
-                  title="Run ~/dev/o2/scripts/o2_empire_snapshot.sh"
-                >
-                  Empire Snapshot
-                </button>
-              </div>
-
-              <div className="hint" style={{ marginTop: 12 }}>
-                Note: Intervention uses the Rust whitelist runner{" "}
-                <code>run_o2</code>. No freeform shell.
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="side">
-          <SectionTitle>Active Ports</SectionTitle>
-
-          <div className="portsBox">
-            {PORTS.map((p) => {
-              const s = ports[p];
-              const listening = Boolean(s?.listening);
-              const pid = s?.pid ?? null;
-              const cmd = s?.command ?? null;
-
-              return (
-                <div key={p} className="portRow">
-                  <div className="portLeft">
-                    <div className="portName">{portLabel(p)}</div>
-                    <div className="portMeta">
-                      <span
-                        className={`pill ${listening ? "pillOn" : "pillOff"}`}
-                        title={s?.raw ? s.raw : ""}
-                      >
-                        {listening ? "LISTENING" : "FREE"}
-                      </span>
-
-                      <span className="portNum">:{p}</span>
-                      {listening && pid ? (
-                        <span className="portPid">pid {pid}</span>
-                      ) : null}
-                      {listening && cmd ? (
-                        <span className="portCmd">{cmd}</span>
+                return (
+                  <div className="projectRow" key={p.key}>
+                    <div className="projectLeft">
+                      <div className="projectLabel">{p.label}</div>
+                      {p.repoHint ? (
+                        <div className="projectHint">{p.repoHint}</div>
                       ) : null}
                     </div>
-                  </div>
 
-                  <div className="portRight">
-                    <button
-                      className="secondaryBtn"
-                      onClick={() => void killAndRefresh(p)}
-                      disabled={busy || portsBusy || !listening}
-                      title={
-                        listening
-                          ? "Kill listener(s) on this port"
-                          : "Nothing is listening on this port"
-                      }
-                    >
-                      {listening ? "Kill" : "Free"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                    <div className="projectRight">
+                      <button
+                        className="btn btnPrimary"
+                        onClick={() => void workOnProject(p)}
+                        disabled={busy}
+                        title="Start dev server if needed, then open"
+                      >
+                        Work on
+                      </button>
 
-            <div className="portsActions">
-              <button
-                className="secondaryBtn"
-                onClick={() => void refreshPortsBurst()}
-                disabled={busy || portsBusy}
-                title="Refresh port status"
-              >
-                {portsBusy ? "Refreshing…" : "Refresh"}
-              </button>
+                      <button
+                        className="btn"
+                        onClick={() =>
+                          p.o2SnapshotKey
+                            ? void runO2(`Snapshot ${p.label}`, p.o2SnapshotKey)
+                            : appendLog(
+                                `\n[snapshot] ${p.label}: no o2SnapshotKey configured.\n`,
+                              )
+                        }
+                        disabled={busy}
+                        title="Generate paste-ready snapshot into Logs"
+                      >
+                        Snapshot
+                      </button>
+
+                      <button
+                        className="btn"
+                        onClick={() =>
+                          p.o2CommitKey
+                            ? void runO2(`Commit ${p.label}`, p.o2CommitKey)
+                            : appendLog(
+                                `\n[commit] ${p.label}: no o2CommitKey configured.\n`,
+                              )
+                        }
+                        disabled={busy}
+                        title="Run pre-commit checks; commit+push if green. Output goes to Logs."
+                      >
+                        Commit
+                      </button>
+
+                      <button
+                        className="btn btnDanger btnIcon"
+                        onClick={() =>
+                          typeof port === "number" ? void freePort(port) : null
+                        }
+                        disabled={busy || portsBusy || !canKill}
+                        title={
+                          typeof port !== "number"
+                            ? "No port"
+                            : canKill
+                              ? "Kill whatever is listening on this port"
+                              : "Nothing is listening"
+                        }
+                      >
+                        Kill
+                      </button>
+
+                      <button
+                        className="btn btnGhost"
+                        onClick={() =>
+                          p.o2MapKey
+                            ? void runO2(`${p.label} O2 Map`, p.o2MapKey)
+                            : appendLog(
+                                `\n[map] ${p.label}: no o2MapKey configured.\n`,
+                              )
+                        }
+                        disabled={busy}
+                        title="Paste-ready map of Codex + O2 resources and constraints for this project"
+                      >
+                        Map
+                      </button>
+
+                      {showProofPack ? (
+                        <button
+                          className="btn btnGhost"
+                          onClick={() =>
+                            p.o2ProofPackKey
+                              ? void runO2(
+                                  "Empire Proof Pack",
+                                  p.o2ProofPackKey,
+                                )
+                              : appendLog(
+                                  `\n[proofpack] Empire: no o2ProofPackKey configured.\n`,
+                                )
+                          }
+                          disabled={busy}
+                          title="Paste-ready proof of O2 + Codex infrastructure and available capabilities"
+                        >
+                          Proof Pack
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <div className="projectMid">
+                      <div className="projectStatusLine">
+                        <span className={`pill ${st.pill}`}>{st.text}</span>
+                        {typeof port === "number" ? (
+                          <span className="portMono">:{port}</span>
+                        ) : (
+                          <span className="portMono">—</span>
+                        )}
+                        {typeof port === "number" && s?.listening && pid ? (
+                          <span className="meta">
+                            pid {pid}
+                            {cmd ? ` • ${cmd}` : ""}
+                          </span>
+                        ) : null}
+                        {typeof port === "number" && s?.err ? (
+                          <span className="meta metaWarn">check failed</span>
+                        ) : null}
+                      </div>
+
+                      {p.url ? (
+                        <button
+                          className="linkBtn"
+                          onClick={() => void openUrl(p.url)}
+                          title="Open project URL"
+                        >
+                          {p.url}
+                        </button>
+                      ) : (
+                        <div className="projectUrlMuted">—</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="projectsFootnote">
+              Uses <code>run_o2</code> only. No freeform shell.
             </div>
           </div>
+        ) : (
+          <div className="placeholderTab">
+            <SectionTitle>
+              {tab === "chat"
+                ? "Chat"
+                : tab === "roadmap"
+                  ? "Roadmap"
+                  : "Personal"}
+            </SectionTitle>
+            <div className="placeholderBody">
+              This tab is unchanged in this step.
+            </div>
+          </div>
+        )}
+      </main>
 
-          <SectionTitle>Logs</SectionTitle>
-          <div className="logBox">
+      <footer className="logsBar">
+        <div className="logsLeft">
+          <div className="logsTitle">Logs</div>
+          <div className="logsBox">
             {busy ? "Running…" : log || "No logs yet."}
           </div>
-
-          <div className="logActions">
-            <button
-              className="secondaryBtn"
-              onClick={() => setLog("")}
-              disabled={busy}
-            >
-              Clear
-            </button>
-            <button
-              className="secondaryBtn"
-              onClick={() => void copyLogsToClipboard()}
-              disabled={busy || !log.trim()}
-              title="Copies all Logs to clipboard"
-            >
-              Copy Logs
-            </button>
-          </div>
         </div>
-      </div>
+
+        <div className="logsActionsRight">
+          <button
+            className="btn btnGhost"
+            onClick={() => clearLogs()}
+            disabled={busy}
+          >
+            Clear
+          </button>
+          <button
+            className="btn btnPrimary"
+            onClick={() => void copyLogsToClipboard()}
+            disabled={busy}
+            title="Copy Logs to clipboard"
+          >
+            Copy
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }
