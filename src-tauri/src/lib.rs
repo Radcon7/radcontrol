@@ -97,30 +97,45 @@ fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
   let o2_root = std::env::var("O2_ROOT").unwrap_or(format!("{home}/dev/o2"));
   let script_path = format!("{o2_root}/{script_rel}");
 
+  // Build a safely-quoted bash command:
+  // bash -lc 'bash "<script_path>" "<arg1>" "<arg2>" ...'
+  let mut cmd = String::new();
+  cmd.push_str("bash ");
+  cmd.push('"');
+  cmd.push_str(&script_path.replace('"', "\\\""));
+  cmd.push('"');
+
+  for a in args {
+    cmd.push(' ');
+    cmd.push('"');
+    cmd.push_str(&a.replace('"', "\\\""));
+    cmd.push('"');
+  }
+
   let out = Command::new("bash")
     .arg("-lc")
-    .arg(format!("bash \"{}\" {}", script_path, args.join(" ")))
+    .arg(cmd)
     .output()
     .map_err(|e| format!("Failed to run bash: {e}"))?;
 
   let stdout = String::from_utf8_lossy(&out.stdout).to_string();
   let stderr = String::from_utf8_lossy(&out.stderr).to_string();
 
+  let combined = if stderr.trim().is_empty() {
+    stdout
+  } else if stdout.trim().is_empty() {
+    stderr
+  } else {
+    format!("{stdout}\n{stderr}")
+  };
+
   if out.status.success() {
-    let combined = if stderr.trim().is_empty() {
-      stdout
-    } else if stdout.trim().is_empty() {
-      stderr
-    } else {
-      format!("{stdout}\n{stderr}")
-    };
     Ok(combined.trim_end().to_string())
   } else {
     Err(format!(
-      "Script failed (exit={:?}).\nSTDOUT:\n{}\n\nSTDERR:\n{}",
-      out.status.code(),
-      stdout.trim_end(),
-      stderr.trim_end()
+      "Script failed (exit {}).\n{}",
+      out.status.code().unwrap_or(-1),
+      combined.trim_end()
     ))
   }
 }
@@ -147,8 +162,12 @@ fn run_o2_key(key: &str) -> Result<String, String> {
     "tbis.snapshot" => run_shell_output(
       "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/snapshot_repo_state.sh",
     ),
-    "tbis.index" => run_shell_output("cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_index_repo.sh"),
-    "tbis.smoke" => run_shell_output("cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_smoke_local.sh"),
+    "tbis.index" => run_shell_output(
+      "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_index_repo.sh",
+    ),
+    "tbis.smoke" => run_shell_output(
+      "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_smoke_local.sh",
+    ),
     "tbis.commit" => run_o2_script("scripts/o2_commit.sh", &["~/dev/rad-empire/radcon/dev/tbis"]),
     "tbis.map" => run_o2_script("scripts/o2_map.sh", &["tbis"]),
     "tbis.dev" => {
@@ -163,8 +182,12 @@ fn run_o2_key(key: &str) -> Result<String, String> {
     "dqotd.snapshot" => run_shell_output(
       "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/snapshot_repo_state.sh",
     ),
-    "dqotd.index" => run_shell_output("cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_index_repo.sh"),
-    "dqotd.smoke" => run_shell_output("cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_smoke_local.sh"),
+    "dqotd.index" => run_shell_output(
+      "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_index_repo.sh",
+    ),
+    "dqotd.smoke" => run_shell_output(
+      "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_smoke_local.sh",
+    ),
     "dqotd.commit" => run_o2_script("scripts/o2_commit.sh", &["~/dev/rad-empire/radcon/dev/charliedino"]),
     "dqotd.map" => run_o2_script("scripts/o2_map.sh", &["dqotd"]),
     "dqotd.dev" => {
@@ -179,121 +202,4 @@ fn run_o2_key(key: &str) -> Result<String, String> {
     "offroad.snapshot" => run_shell_output(
       "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/snapshot_repo_state.sh",
     ),
-    "offroad.index" => run_shell_output("cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_index_repo.sh"),
-    "offroad.smoke" => run_shell_output("cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_smoke_local.sh"),
-    "offroad.commit" => run_o2_script("scripts/o2_commit.sh", &["~/dev/rad-empire/radwolfe/dev/offroadcroquet"]),
-    "offroad.map" => run_o2_script("scripts/o2_map.sh", &["offroad"]),
-    "offroad.dev" => {
-      spawn_shell(
-        "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet \
-         && nohup npm run dev -- --port 3002 >/tmp/offroad.dev.log 2>&1 &",
-      )?;
-      Ok("Offroad dev launch requested → http://localhost:3002 (log: /tmp/offroad.dev.log)".into())
-    }
-
-    // Radstock (map only for now)
-    "radstock.map" => run_o2_script("scripts/o2_map.sh", &["radstock"]),
-
-    _ => Err(format!(
-      "Unknown O2 key: {key}\n\
-       [radcontrol build probe]\n\
-       - this build knows: empire.map, tbis.map, dqotd.map, offroad.map, radstock.map, empire.proofpack\n\
-       - o2_root default: $HOME/dev/o2\n\
-       - if you still see the OLD message without this probe block, you are running an OLD backend binary"
-    )),
-  }
-}
-
-#[tauri::command]
-fn run_o2(key: &str) -> Result<String, String> {
-  run_o2_key(key)
-}
-
-/* =========================
-   Ports
-   ========================= */
-
-fn parse_pid_from_ss(s: &str) -> Option<u32> {
-  let idx = s.find("pid=")?;
-  let rest = &s[idx + 4..];
-  rest
-    .chars()
-    .take_while(|c| c.is_ascii_digit())
-    .collect::<String>()
-    .parse()
-    .ok()
-}
-
-fn parse_prog_from_ss(s: &str) -> Option<String> {
-  let start = s.find("((")?;
-  let rest = &s[start + 2..];
-  let q1 = rest.find('"')?;
-  let rest2 = &rest[q1 + 1..];
-  let q2 = rest2.find('"')?;
-  Some(rest2[..q2].to_string())
-}
-
-#[tauri::command]
-fn port_status(port: u16) -> Result<PortStatus, String> {
-  let raw = run_shell_output(&format!("ss -ltnpH 'sport = :{port}' 2>/dev/null || true"))
-    .unwrap_or_default();
-
-  let listening = raw.lines().any(|l| !l.trim().is_empty());
-  let pid = if listening { parse_pid_from_ss(&raw) } else { None };
-  let cmd = if listening { parse_prog_from_ss(&raw) } else { None };
-
-  Ok(PortStatus {
-    port,
-    listening,
-    pid,
-    cmd,
-    err: None,
-  })
-}
-
-#[tauri::command]
-fn kill_port(port: u16) -> Result<String, String> {
-  run_shell_output(&format!("fuser -k {port}/tcp || true"))
-}
-
-/* =========================
-   RADCONTROL — NON-BLOCKING RESTART
-   ========================= */
-
-#[tauri::command]
-fn restart_radcontrol_dev() -> Result<String, String> {
-  spawn_shell(
-    "cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app \
-     && nohup bash -lc 'fuser -k 1420/tcp >/dev/null 2>&1 || true; npm run tauri dev' \
-        >/tmp/radcontrol.restart.log 2>&1 &",
-  )?;
-  Ok("RadControl restart spawned (log: /tmp/radcontrol.restart.log)".into())
-}
-
-/* =========================
-   ENTRY POINT
-   ========================= */
-
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-  tauri::Builder::default()
-    .plugin(single_instance(|app, _args, _cwd| {
-      if let Some((_label, w)) = app.webview_windows().into_iter().next() {
-        let _ = w.show();
-        let _ = w.unminimize();
-        let _ = w.set_focus();
-        let _ = w.set_always_on_top(true);
-        let _ = w.set_always_on_top(false);
-      }
-    }))
-    .invoke_handler(tauri::generate_handler![
-      greet,
-      run_o2,
-      open_url,
-      port_status,
-      kill_port,
-      restart_radcontrol_dev,
-    ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
-}
+    "offroad.index" => run_sh_
