@@ -1,10 +1,9 @@
-/* RadControl UI — higher contrast + larger typography */
+/* RadControl UI — high contrast + larger typography (projects rows + bottom logs bar) */
 
 :root {
   --bg0: #05070f;
   --bg1: #070d1d;
 
-  /* Panels are intentionally more opaque for stronger contrast */
   --panel: rgba(255, 255, 255, 0.095);
   --panel2: rgba(255, 255, 255, 0.12);
   --panel3: rgba(255, 255, 255, 0.145);
@@ -52,10 +51,8 @@ body {
     Arial,
     "Apple Color Emoji",
     "Segoe UI Emoji";
-
   color: var(--text);
 
-  /* darker background + brighter glows => more layer contrast */
   background:
     radial-gradient(
       1200px 760px at 18% 10%,
@@ -77,14 +74,17 @@ body {
   overflow: hidden;
 }
 
-/* App shell: slightly less padding so content feels larger */
+/* App shell */
 .appShell {
   height: 100vh;
   padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-/* TOP BAR */
-.topBar {
+/* HEADER (matches App.tsx .header) */
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -99,16 +99,16 @@ body {
   backdrop-filter: blur(14px);
 }
 
-.brand {
+.headerLeft {
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 320px;
 }
 
-.brandTitle {
-  font-weight: 850;
-  letter-spacing: 0.2px;
+.brand {
+  font-weight: 900;
+  letter-spacing: 0.25px;
   font-size: 20px;
   line-height: 1.1;
   background: linear-gradient(
@@ -122,9 +122,15 @@ body {
   color: transparent;
 }
 
-.brandSub {
+.tagline {
   font-size: 13px;
   color: var(--muted);
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* Tabs */
@@ -136,7 +142,6 @@ body {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--stroke);
 
-  /* prevent clipping when there are many tabs */
   max-width: 64vw;
   overflow-x: auto;
   overflow-y: hidden;
@@ -196,39 +201,6 @@ body {
   transform: translateY(0px) scale(0.99);
 }
 
-/* BODY LAYOUT */
-.body {
-  display: grid;
-  grid-template-columns: 1fr 420px; /* wider logs */
-  gap: 16px;
-  margin-top: 14px;
-
-  height: calc(100vh - 12px - 12px - 72px - 14px);
-  min-height: 560px;
-}
-
-.main,
-.side {
-  border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, var(--panel2), var(--panel));
-  border: 1px solid var(--stroke2);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.main {
-  padding: 20px;
-  gap: 14px;
-}
-
-.side {
-  padding: 20px;
-  gap: 12px;
-}
-
 /* Section title */
 .sectionTitle {
   font-size: 13px;
@@ -247,102 +219,33 @@ body {
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.26), transparent);
 }
 
-/* Cards grid */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+/* MAIN AREA */
+.mainArea {
+  flex: 1;
+  min-height: 0;
+  border-radius: var(--radius-xl);
+
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border: 1px solid var(--stroke2);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  padding: 20px;
   gap: 14px;
 }
 
-.cardBtn {
-  text-align: left;
-  border: 1px solid var(--stroke2);
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.1),
-    rgba(255, 255, 255, 0.06)
-  );
-  border-radius: var(--radius-lg);
-  padding: 16px 16px 15px;
-  cursor: pointer;
-  color: var(--text);
-  transition:
-    transform 130ms ease,
-    border-color 130ms ease,
-    background 130ms ease,
-    box-shadow 130ms ease,
-    filter 130ms ease;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.48);
-  position: relative;
-  overflow: hidden;
+.placeholderTab {
+  width: 100%;
+  height: 100%;
 }
 
-.cardBtn::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  background: radial-gradient(
-    380px 140px at 18% 12%,
-    rgba(97, 242, 169, 0.2),
-    transparent 62%
-  );
-  opacity: 0;
-  transition: opacity 130ms ease;
-  pointer-events: none;
-}
-
-.cardBtn:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.6);
-  filter: brightness(1.03);
-}
-
-.cardBtn:hover::before {
-  opacity: 1;
-}
-
-.cardBtn:active {
-  transform: translateY(-1px) scale(0.995);
-}
-
-.cardBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
-}
-
-.cardTitle {
-  font-weight: 820;
-  font-size: 15px;
-  letter-spacing: 0.2px;
-}
-
-.cardSub {
-  margin-top: 7px;
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.4;
-}
-
-.cardSub code {
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.88);
-  background: rgba(0, 0, 0, 0.34);
-  padding: 2px 7px;
-  border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-}
-
-/* Hint / placeholder */
-.hint,
-.placeholder {
-  margin-top: 2px;
-  padding: 13px 13px;
+.placeholderBody {
+  margin-top: 10px;
+  padding: 13px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(0, 0, 0, 0.26);
@@ -351,94 +254,48 @@ body {
   line-height: 1.45;
 }
 
-/* Chat */
-.chatBox {
-  flex: 1;
-  min-height: 260px;
-  padding: 12px;
-  border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(0, 0, 0, 0.28);
-  overflow: auto;
-}
+/* =========================
+   Buttons (App.tsx uses .btn variants)
+   ========================= */
 
-.chatLine {
-  padding: 11px 11px;
-  border-radius: 14px;
-  margin-bottom: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+.btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.06);
-}
-
-.chatMe {
-  border-color: rgba(104, 160, 255, 0.3);
-  background: linear-gradient(
-    180deg,
-    rgba(104, 160, 255, 0.14),
-    rgba(255, 255, 255, 0.05)
-  );
-}
-
-.chatO2 {
-  border-color: rgba(97, 242, 169, 0.28);
-  background: linear-gradient(
-    180deg,
-    rgba(97, 242, 169, 0.13),
-    rgba(255, 255, 255, 0.05)
-  );
-}
-
-.chatWho {
-  font-weight: 820;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.chatInputRow {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.chatInput {
-  flex: 1;
-  height: 44px;
-  padding: 0 13px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.26);
   color: var(--text);
-  outline: none;
-  transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease,
-    background 120ms ease;
-  font-size: 14px;
-}
-
-.chatInput:focus {
-  border-color: rgba(104, 160, 255, 0.42);
-  box-shadow: 0 0 0 4px rgba(104, 160, 255, 0.14);
-  background: rgba(0, 0, 0, 0.3);
-}
-
-/* Buttons */
-.primaryBtn,
-.secondaryBtn {
-  height: 44px;
-  padding: 0 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
   cursor: pointer;
+
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 780;
+  border-radius: 12px;
+
   transition:
     transform 120ms ease,
     background 120ms ease,
     border-color 120ms ease,
-    box-shadow 120ms ease;
-  font-weight: 780;
-  font-size: 14px;
+    box-shadow 120ms ease,
+    filter 120ms ease;
 }
 
-.primaryBtn {
+.btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.btn:active {
+  transform: translateY(0px) scale(0.99);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+.btnPrimary {
   color: rgba(0, 0, 0, 0.92);
   background: linear-gradient(
     90deg,
@@ -447,151 +304,44 @@ body {
   );
   border-color: rgba(255, 255, 255, 0.26);
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+  padding: 12px 18px;
+  font-weight: 850;
 }
 
-.primaryBtn:hover {
-  transform: translateY(-1px);
+.btnPrimary:hover {
   box-shadow: 0 22px 46px rgba(0, 0, 0, 0.58);
 }
 
-.secondaryBtn {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
+.btnGhost {
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.secondaryBtn:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.26);
-  background: rgba(255, 255, 255, 0.09);
+.btnDanger {
+  border-color: rgba(255, 95, 215, 0.28);
+  background: rgba(255, 95, 215, 0.08);
 }
 
-.primaryBtn:active,
-.secondaryBtn:active {
-  transform: translateY(0px) scale(0.99);
+.btnDanger:hover {
+  border-color: rgba(255, 95, 215, 0.42);
+  background: rgba(255, 95, 215, 0.12);
 }
 
-/* Logs */
-.logBox {
-  flex: 1;
-  min-height: 300px;
-  border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(0, 0, 0, 0.3);
-  padding: 12px;
-  overflow: auto;
-
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.9);
-  white-space: pre-wrap;
-}
-
-.logActions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Scrollbars */
-.chatBox::-webkit-scrollbar,
-.logBox::-webkit-scrollbar {
-  width: 10px;
-}
-
-.chatBox::-webkit-scrollbar-thumb,
-.logBox::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  border: 2px solid rgba(0, 0, 0, 0.28);
-}
-
-.chatBox::-webkit-scrollbar-thumb:hover,
-.logBox::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.26);
+.btnIcon {
+  padding: 12px 14px;
 }
 
 /* =========================
-   Active Ports panel
+   Pills / status
    ========================= */
-
-.portsBox {
-  border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(0, 0, 0, 0.28);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.portRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  padding: 10px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.portLeft {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.portName {
-  font-weight: 820;
-  font-size: 13px;
-  letter-spacing: 0.2px;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.portMeta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 12px;
-  min-width: 0;
-}
-
-.portNum,
-.portPid,
-.portCmd {
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.84);
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  padding: 2px 7px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-
-.portCmd {
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .pill {
   display: inline-flex;
   align-items: center;
-  height: 20px;
-  padding: 0 8px;
+  padding: 7px 12px;
   border-radius: 999px;
-  font-weight: 820;
+  font-size: 12px;
+  font-weight: 900;
   letter-spacing: 0.08em;
-  font-size: 10px;
   border: 1px solid rgba(255, 255, 255, 0.16);
 }
 
@@ -609,51 +359,338 @@ body {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.portRight {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.portsActions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 2px;
+.pillWarn {
+  color: rgba(0, 0, 0, 0.92);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 241, 120, 0.95),
+    rgba(255, 171, 120, 0.92)
+  );
 }
 
 /* =========================
-   Intervention tab
+   Projects table (rows)
+   Layout now: label | buttons | status/url
    ========================= */
 
-.interventionTop {
+.projectsWrap {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  align-items: center;
-  margin-bottom: 12px;
 }
 
-.interventionBox {
-  white-space: pre-wrap;
+.projectsTable {
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 10px;
+
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  overflow: hidden;
+
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.projectRow {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 260px 760px 1fr;
+  align-items: center;
+  column-gap: 18px;
+
+  padding: 18px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.projectRow:last-child {
+  border-bottom: none;
+}
+
+.projectLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.projectLabel {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+.projectHint {
+  font-size: 12px;
+  color: var(--muted2);
+}
+
+/* MIDDLE (buttons) */
+.projectRight {
+  display: flex;
+  justify-content: center; /* buttons live in the middle column */
+  align-items: center;
+  gap: 14px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+/* RIGHT (status/url) */
+.projectMid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.projectStatusLine {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end; /* status block hugs far right */
+  flex-wrap: wrap;
+}
+
+.portMono {
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
   font-size: 13px;
-  line-height: 1.45;
-  padding: 14px;
-  border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(0, 0, 0, 0.28);
-  max-height: 62vh;
-  overflow: auto;
+  opacity: 0.85;
 }
 
-@media (max-width: 980px) {
-  .body {
-    grid-template-columns: 1fr;
-    height: calc(100vh - 12px - 12px - 72px - 14px);
+.meta {
+  font-size: 12px;
+  color: var(--muted2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 560px;
+}
+
+.metaWarn {
+  color: rgba(255, 215, 170, 0.9);
+}
+
+.linkBtn {
+  width: 100%;
+  text-align: right;
+  font-size: 13px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.9);
+  opacity: 0.92;
+}
+
+.linkBtn:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.projectUrlMuted {
+  text-align: right;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.projectsFootnote {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted2);
+}
+
+.projectsFootnote code {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(0, 0, 0, 0.34);
+  padding: 2px 7px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* =========================
+   Intervention layout (matches Projects)
+   ========================= */
+
+.interventionTop {
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.12);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.interventionTopTitle {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+.interventionTopHint {
+  font-size: 12px;
+  color: var(--muted2);
+  line-height: 1.45;
+}
+
+.interventionTopBtns {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.interventionCard {
+  padding: 18px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.interventionCard:last-child {
+  border-bottom: none;
+}
+
+.interventionCardTitle {
+  font-size: 16px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.interventionCardBody {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+/* =========================
+   Bottom-wide Logs strip
+   ========================= */
+
+.logsBar {
+  display: grid;
+  grid-template-columns: 1fr auto; /* logs | actions */
+  gap: 12px;
+
+  padding: 14px 16px;
+  border-radius: var(--radius-xl);
+
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border: 1px solid var(--stroke2);
+  box-shadow: var(--shadow2);
+  backdrop-filter: blur(14px);
+}
+
+.logsLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.logsTitle {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.logsBox {
+  height: 150px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  overflow: auto;
+
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: pre-wrap;
+}
+
+.logsActionsRight {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Scrollbars */
+.logsBox::-webkit-scrollbar {
+  width: 10px;
+}
+
+.logsBox::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  border: 2px solid rgba(0, 0, 0, 0.28);
+}
+
+.logsBox::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .projectRow {
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: auto auto;
+    row-gap: 12px;
   }
 
-  .grid {
+  .projectRight {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .projectStatusLine,
+  .linkBtn,
+  .projectUrlMuted {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  .tabs {
+    max-width: 56vw;
+  }
+}
+
+@media (max-width: 900px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerLeft {
+    min-width: 0;
+  }
+
+  .headerRight {
+    justify-content: flex-end;
+  }
+
+  .logsBar {
     grid-template-columns: 1fr;
+  }
+
+  .logsActionsRight {
+    justify-content: flex-end;
   }
 }
