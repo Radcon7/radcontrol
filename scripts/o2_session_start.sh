@@ -21,3 +21,5 @@ echo
 
 echo "running snapshot..."
 "$ROOT/scripts/snapshot_repo_state.sh"
+echo
+echo "done"
