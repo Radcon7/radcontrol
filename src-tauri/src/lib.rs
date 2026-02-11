@@ -77,7 +77,6 @@ fn spawn_shell(cmd: &str) -> Result<String, String> {
 #[tauri::command]
 fn open_url(url: String) -> Result<String, String> {
   // Use xdg-open directly and DO NOT wait.
-  // This is the key change vs output(): it returns immediately.
   Command::new("xdg-open")
     .arg(&url)
     .stdin(Stdio::null())
@@ -90,13 +89,8 @@ fn open_url(url: String) -> Result<String, String> {
 }
 
 /* =========================
-   O2 SAFE WHITELIST RUNNER
+   O2 SCRIPT RUNNER (safe, centralized)
    ========================= */
-
-fn run_o2_key(key: &str) -> Result<String, String> {
-  // Anything that starts a dev server MUST be non-blocking (spawn_shell).
-  // Snapshot/index/smoke/commit can be blocking (run_shell_output).
-use std::process::Command;
 
 fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
   let home = std::env::var("HOME").map_err(|e| format!("HOME not set: {e}"))?;
@@ -104,8 +98,8 @@ fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
   let script_path = format!("{o2_root}/{script_rel}");
 
   let out = Command::new("bash")
-    .arg(script_path)
-    .args(args)
+    .arg("-lc")
+    .arg(format!("bash \"{}\" {}", script_path, args.join(" ")))
     .output()
     .map_err(|e| format!("Failed to run bash: {e}"))?;
 
@@ -113,7 +107,14 @@ fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
   let stderr = String::from_utf8_lossy(&out.stderr).to_string();
 
   if out.status.success() {
-    Ok(stdout.trim_end().to_string())
+    let combined = if stderr.trim().is_empty() {
+      stdout
+    } else if stdout.trim().is_empty() {
+      stderr
+    } else {
+      format!("{stdout}\n{stderr}")
+    };
+    Ok(combined.trim_end().to_string())
   } else {
     Err(format!(
       "Script failed (exit={:?}).\nSTDOUT:\n{}\n\nSTDERR:\n{}",
@@ -123,6 +124,8 @@ fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
     ))
   }
 }
+
+fn run_o2_key(key: &str) -> Result<String, String> {
   match key {
     // RadControl
     "radcontrol.session_start" => run_shell_output(
@@ -136,25 +139,19 @@ fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
     ),
 
     // Empire
-    "empire.snapshot" => {
-      run_shell_output("cd ~/dev/o2 && bash scripts/o2_empire_snapshot.sh")
-    }
+    "empire.snapshot" => run_shell_output("cd ~/dev/o2 && bash scripts/o2_empire_snapshot.sh"),
+    "empire.map" => run_o2_script("scripts/o2_map.sh", &["empire"]),
+    "empire.proofpack" => run_o2_script("scripts/o2_proofpack.sh", &[]),
 
     // TBIS
     "tbis.snapshot" => run_shell_output(
       "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/snapshot_repo_state.sh",
     ),
-    "tbis.index" => run_shell_output(
-      "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_index_repo.sh",
-    ),
-    "tbis.smoke" => run_shell_output(
-      "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_smoke_local.sh",
-    ),
-    "tbis.commit" => run_shell_output(
-      "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_commit.sh",
-    ),
+    "tbis.index" => run_shell_output("cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_index_repo.sh"),
+    "tbis.smoke" => run_shell_output("cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_smoke_local.sh"),
+    "tbis.commit" => run_o2_script("scripts/o2_commit.sh", &["~/dev/rad-empire/radcon/dev/tbis"]),
+    "tbis.map" => run_o2_script("scripts/o2_map.sh", &["tbis"]),
     "tbis.dev" => {
-      // Non-blocking launch
       spawn_shell(
         "cd ~/dev/rad-empire/radcon/dev/tbis \
          && nohup npm run dev -- --port 3001 >/tmp/tbis.dev.log 2>&1 &",
@@ -166,17 +163,11 @@ fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
     "dqotd.snapshot" => run_shell_output(
       "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/snapshot_repo_state.sh",
     ),
-    "dqotd.index" => run_shell_output(
-      "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_index_repo.sh",
-    ),
-    "dqotd.smoke" => run_shell_output(
-      "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_smoke_local.sh",
-    ),
-    "dqotd.commit" => run_shell_output(
-      "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_commit.sh",
-    ),
+    "dqotd.index" => run_shell_output("cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_index_repo.sh"),
+    "dqotd.smoke" => run_shell_output("cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_smoke_local.sh"),
+    "dqotd.commit" => run_o2_script("scripts/o2_commit.sh", &["~/dev/rad-empire/radcon/dev/charliedino"]),
+    "dqotd.map" => run_o2_script("scripts/o2_map.sh", &["dqotd"]),
     "dqotd.dev" => {
-      // Non-blocking launch
       spawn_shell(
         "cd ~/dev/rad-empire/radcon/dev/charliedino \
          && nohup npm run dev -- --port 3000 >/tmp/dqotd.dev.log 2>&1 &",
@@ -188,15 +179,10 @@ fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
     "offroad.snapshot" => run_shell_output(
       "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/snapshot_repo_state.sh",
     ),
-    "offroad.index" => run_shell_output(
-      "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_index_repo.sh",
-    ),
-    "offroad.smoke" => run_shell_output(
-      "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_smoke_local.sh",
-    ),
-    "offroad.commit" => run_shell_output(
-      "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_commit.sh",
-    ),
+    "offroad.index" => run_shell_output("cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_index_repo.sh"),
+    "offroad.smoke" => run_shell_output("cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_smoke_local.sh"),
+    "offroad.commit" => run_o2_script("scripts/o2_commit.sh", &["~/dev/rad-empire/radwolfe/dev/offroadcroquet"]),
+    "offroad.map" => run_o2_script("scripts/o2_map.sh", &["offroad"]),
     "offroad.dev" => {
       spawn_shell(
         "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet \
@@ -204,19 +190,17 @@ fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
       )?;
       Ok("Offroad dev launch requested → http://localhost:3002 (log: /tmp/offroad.dev.log)".into())
     }
-    "empire.map" => run_o2_script("scripts/o2_map.sh", &["empire"]),
-    "tbis.map" => run_o2_script("scripts/o2_map.sh", &["tbis"]),
-    "dqotd.map" => run_o2_script("scripts/o2_map.sh", &["dqotd"]),
-    "offroad.map" => run_o2_script("scripts/o2_map.sh", &["offroad"]),
+
+    // Radstock (map only for now)
     "radstock.map" => run_o2_script("scripts/o2_map.sh", &["radstock"]),
-    "empire.proofpack" => run_o2_script("scripts/o2_proofpack.sh", &[]),
+
     _ => Err(format!(
-  "Unknown O2 key: {key}\n\
-   [radcontrol build probe]\n\
-   - this build knows: empire.map, tbis.map, dqotd.map, offroad.map, radstock.map, empire.proofpack\n\
-   - o2_root default: $HOME/dev/o2\n\
-   - if you still see the OLD message without this probe block, you are running an OLD backend binary"
-)),
+      "Unknown O2 key: {key}\n\
+       [radcontrol build probe]\n\
+       - this build knows: empire.map, tbis.map, dqotd.map, offroad.map, radstock.map, empire.proofpack\n\
+       - o2_root default: $HOME/dev/o2\n\
+       - if you still see the OLD message without this probe block, you are running an OLD backend binary"
+    )),
   }
 }
 
@@ -251,10 +235,8 @@ fn parse_prog_from_ss(s: &str) -> Option<String> {
 
 #[tauri::command]
 fn port_status(port: u16) -> Result<PortStatus, String> {
-  let raw = run_shell_output(&format!(
-    "ss -ltnpH 'sport = :{port}' 2>/dev/null || true"
-  ))
-  .unwrap_or_default();
+  let raw = run_shell_output(&format!("ss -ltnpH 'sport = :{port}' 2>/dev/null || true"))
+    .unwrap_or_default();
 
   let listening = raw.lines().any(|l| !l.trim().is_empty());
   let pid = if listening { parse_pid_from_ss(&raw) } else { None };
@@ -280,8 +262,6 @@ fn kill_port(port: u16) -> Result<String, String> {
 
 #[tauri::command]
 fn restart_radcontrol_dev() -> Result<String, String> {
-  // Spawn a new dev instance and return immediately.
-  // The UI closes its window after invoke returns.
   spawn_shell(
     "cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app \
      && nohup bash -lc 'fuser -k 1420/tcp >/dev/null 2>&1 || true; npm run tauri dev' \
