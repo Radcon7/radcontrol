@@ -15,7 +15,7 @@ type PortStatus = {
 
 type LogMsg = { who: "me" | "o2"; text: string };
 
-type ProjectKey = "empire" | "tbis" | "dqotd" | "offroad" | "radstock";
+type ProjectKey = string;
 
 type ProjectRow = {
   key: ProjectKey;
@@ -34,6 +34,35 @@ type ProjectRow = {
 
   // New: empire-only proof pack (system-wide O2+Codex capabilities snapshot)
   o2ProofPackKey?: string;
+};
+
+type ProjectOrg = "radcon" | "radwolfe" | "labs" | "other";
+type ProjectKind = "nextjs" | "tauri" | "python" | "docs" | "static" | "other";
+
+type AddProjectPayload = {
+  // Identity
+  key: string; // slug, e.g. "radcrm"
+  label: string; // display name
+  org: ProjectOrg;
+
+  // Location
+  repoPath: string; // full path
+  repoHint?: string; // brief hint shown in list
+
+  // Runtime
+  kind: ProjectKind;
+  port?: number;
+  url?: string;
+
+  // O2 hooks (optional)
+  o2StartKey?: string;
+  o2SnapshotKey?: string;
+  o2CommitKey?: string;
+  o2MapKey?: string;
+  o2ProofPackKey?: string;
+
+  // Notes
+  notes?: string;
 };
 
 function TabButton({
@@ -58,18 +87,65 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 function fmtErr(e: unknown) {
   if (!e) return "Unknown error";
+
+  if (typeof e === "object") {
+    const any = e as any;
+
+    const direct =
+      any?.error ??
+      any?.message ??
+      any?.cause?.error ??
+      any?.cause?.message ??
+      any?.data?.error ??
+      any?.data?.message;
+
+    if (typeof direct === "string" && direct.trim()) return direct;
+
+    // Sometimes: { error: { message: "..." } }
+    if (typeof direct === "object" && direct) {
+      const nested = direct?.message ?? direct?.error;
+      if (typeof nested === "string" && nested.trim()) return nested;
+    }
+
+    if (typeof any?.toString === "function") {
+      const s = String(any);
+      if (s && s !== "[object Object]") return s;
+    }
+
+    try {
+      return JSON.stringify(e, null, 2);
+    } catch {
+      return "[unstringifiable error object]";
+    }
+  }
+
   if (typeof e === "string") return e;
   if (e instanceof Error) return e.message + (e.stack ? `\n${e.stack}` : "");
-  try {
-    return JSON.stringify(e, null, 2);
-  } catch {
-    return String(e);
-  }
+  return String(e);
+}
+
+function slugify(s: string) {
+  return (s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function isValidSlug(s: string) {
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s);
+}
+
+function asPort(n: string) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return undefined;
+  if (v < 1 || v > 65535) return undefined;
+  return Math.trunc(v);
 }
 
 export default function App() {
   const [tab, setTab] = useState<TabKey>("projects");
-  const [chat, setChat] = useState<LogMsg[]>([
+  const [_chat, setChat] = useState<LogMsg[]>([
     { who: "o2", text: "RadControl online. Start a session from Projects." },
   ]);
 
@@ -85,14 +161,22 @@ export default function App() {
   }
 
   // --- Projects config (single source of truth) ---
-  const PROJECTS: ProjectRow[] = useMemo(
+  const BASE_PROJECTS: ProjectRow[] = useMemo(
     () => [
       {
-        key: "empire",
-        label: "Empire",
-        repoHint: "Control layer",
+        key: "empire-tech",
+        label: "Empire Technology",
+        repoHint: "RadControl / O2 / patterns / proofpacks",
         o2SnapshotKey: "empire.snapshot",
-        o2CommitKey: "o2.commit",
+        o2MapKey: "empire.map",
+        o2ProofPackKey: "empire.proofpack",
+      },
+      {
+        key: "empire-biz",
+        label: "Empire Business",
+        repoHint: "LLCs / legal / finance / governance (site + docs soon)",
+        // Temporary: same working keys until empire-biz gets its own repo/tooling
+        o2SnapshotKey: "empire.snapshot",
         o2MapKey: "empire.map",
         o2ProofPackKey: "empire.proofpack",
       },
@@ -135,9 +219,295 @@ export default function App() {
         repoHint: "TBD",
         o2MapKey: "radstock.map",
       },
+      {
+        key: "radcrm",
+        label: "RadCRM",
+        repoHint:
+          "radcon/dev/radcrm — Companies / People / Interactions / Trips / Campaigns",
+        port: 3011,
+        url: "http://localhost:3011",
+      },
     ],
     [],
   );
+  const [projects, setProjects] = useState<ProjectRow[]>([]);
+
+  function mergeProjects(base: ProjectRow[], reg: any[]): ProjectRow[] {
+    const byKey = new Map<string, ProjectRow>();
+    for (const b of base) byKey.set(b.key, b);
+
+    for (const r of reg) {
+      if (!r || typeof r !== "object") continue;
+      const key = typeof r.key === "string" ? r.key : "";
+      if (!key) continue;
+
+      // IMPORTANT: base wins for known keys; registry only adds new keys.
+      if (byKey.has(key)) continue;
+
+      const row: ProjectRow = {
+        key,
+        label: typeof r.label === "string" ? r.label : key,
+        repoHint: typeof r.repoHint === "string" ? r.repoHint : undefined,
+        port: typeof r.port === "number" ? r.port : undefined,
+        url: typeof r.url === "string" ? r.url : undefined,
+        o2StartKey: typeof r.o2StartKey === "string" ? r.o2StartKey : undefined,
+        o2SnapshotKey:
+          typeof r.o2SnapshotKey === "string" ? r.o2SnapshotKey : undefined,
+        o2CommitKey:
+          typeof r.o2CommitKey === "string" ? r.o2CommitKey : undefined,
+        o2MapKey: typeof r.o2MapKey === "string" ? r.o2MapKey : undefined,
+        o2ProofPackKey:
+          typeof r.o2ProofPackKey === "string" ? r.o2ProofPackKey : undefined,
+      };
+
+      byKey.set(key, row);
+    }
+
+    return Array.from(byKey.values());
+  }
+
+  useEffect(() => {
+    // Always start from base immediately (so UI isn't empty)
+    setProjects(BASE_PROJECTS);
+
+    // Then try to append registry projects
+    (async () => {
+      try {
+        const raw = await invoke<string>("radpattern_list_projects");
+        const reg = JSON.parse(raw);
+        if (!Array.isArray(reg)) throw new Error("registry is not an array");
+        const merged = mergeProjects(BASE_PROJECTS, reg);
+        setProjects(merged);
+        appendLog(
+          `\n[radpattern] list projects OK: ${reg.length} registry rows → ${merged.length} total projects\n`,
+        );
+      } catch (e) {
+        appendLog("\n[radpattern] list projects failed:\n" + fmtErr(e));
+        // keep BASE_PROJECTS only
+        setProjects(BASE_PROJECTS);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [BASE_PROJECTS]);
+  const usedPorts = useMemo(() => {
+    const s = new Set<number>();
+    for (const p of projects) {
+      if (typeof p.port === "number") s.add(p.port);
+    }
+    s.add(1420);
+    return s;
+  }, [projects]);
+
+  function suggestPort() {
+    // Prefer 3010-3099 block for new “internal apps”
+    for (let p = 3010; p <= 3099; p++) {
+      if (!usedPorts.has(p)) return p;
+    }
+    // Fallback: next available above 3000
+    for (let p = 3000; p <= 3999; p++) {
+      if (!usedPorts.has(p)) return p;
+    }
+    return undefined;
+  }
+
+  // --- Add Project modal state ---
+  const [addOpen, setAddOpen] = useState(false);
+  const [addErr, setAddErr] = useState<string | null>(null);
+  const [addBusy, setAddBusy] = useState(false);
+
+  const defaultSuggestedPort = useMemo(() => suggestPort(), [usedPorts]); // stable enough
+  const defaultPayload = useMemo<AddProjectPayload>(() => {
+    const port = defaultSuggestedPort;
+    return {
+      key: "",
+      label: "",
+      org: "radcon",
+      kind: "nextjs",
+      repoPath: "",
+      repoHint: "",
+      port,
+      url: typeof port === "number" ? `http://localhost:${port}` : "",
+      o2StartKey: "",
+      o2SnapshotKey: "",
+      o2CommitKey: "",
+      o2MapKey: "",
+      o2ProofPackKey: "",
+      notes: "",
+    };
+  }, [defaultSuggestedPort]);
+
+  const [form, setForm] = useState<AddProjectPayload>(defaultPayload);
+
+  function openAddProject() {
+    setAddErr(null);
+    setForm(defaultPayload);
+    setAddOpen(true);
+  }
+
+  function closeAddProject() {
+    if (addBusy) return;
+    setAddOpen(false);
+    setAddErr(null);
+  }
+
+  function setFormField<K extends keyof AddProjectPayload>(
+    k: K,
+    v: AddProjectPayload[K],
+  ) {
+    setForm((prev) => ({ ...prev, [k]: v }));
+  }
+
+  function inferRepoPath(org: ProjectOrg, key: string) {
+    const slug = slugify(key);
+    if (!slug) return "";
+    // Canonical defaults (you can expand later)
+    if (org === "radcon") return `~/dev/rad-empire/radcon/dev/${slug}`;
+    if (org === "radwolfe") return `~/dev/rad-empire/radwolfe/dev/${slug}`;
+    if (org === "labs") return `~/dev/rad-empire/radcon/dev/${slug}`;
+    return `~/dev/rad-empire/${slug}`;
+  }
+
+  function validateAdd(p: AddProjectPayload) {
+    const key = slugify(p.key);
+    if (!key) return "Project Key is required.";
+    if (!isValidSlug(key))
+      return "Project Key must be lowercase letters/numbers with hyphens only (e.g. radcrm, offroad-croquet).";
+    if (!p.label.trim()) return "Display Name is required.";
+    if (!p.repoPath.trim()) return "Repo Path is required.";
+    if (p.port != null) {
+      if (typeof p.port !== "number" || p.port < 1 || p.port > 65535)
+        return "Port must be a number between 1 and 65535.";
+      if (usedPorts.has(p.port))
+        return `Port ${p.port} is already in use by an existing project.`;
+    }
+    if (p.url && p.port && !p.url.includes(String(p.port))) {
+      // not fatal, but usually a mistake
+      return "URL doesn’t appear to match the chosen port.";
+    }
+    return null;
+  }
+
+  async function submitAddProject() {
+    if (addBusy || busy) return;
+
+    const normalized: AddProjectPayload = {
+      ...form,
+      key: slugify(form.key),
+      label: form.label.trim(),
+      repoPath: form.repoPath.trim(),
+      repoHint: form.repoHint?.trim() || undefined,
+      url: form.url?.trim() || undefined,
+      o2StartKey: form.o2StartKey?.trim() || undefined,
+      o2SnapshotKey: form.o2SnapshotKey?.trim() || undefined,
+      o2CommitKey: form.o2CommitKey?.trim() || undefined,
+      o2MapKey: form.o2MapKey?.trim() || undefined,
+      o2ProofPackKey: form.o2ProofPackKey?.trim() || undefined,
+      notes: form.notes?.trim() || undefined,
+    };
+
+    const err = validateAdd(normalized);
+    if (err) {
+      setAddErr(err);
+      return;
+    }
+
+    setAddErr(null);
+    setAddBusy(true);
+    appendLog(
+      `\n[radcontrol] Add Project requested:\n${JSON.stringify(normalized, null, 2)}\n`,
+    );
+
+    try {
+      // radpattern will:
+      // - scaffold dirs/app (optional)
+      // - reserve/record port
+      // - update O2 project registry
+      const out = await invoke<string>("radpattern_add_project", {
+        payload: normalized,
+      });
+      appendLog(out ? out.trimEnd() : "(no output)");
+
+      // Immediately refresh registry-backed projects in the UI
+      try {
+        const raw = await invoke<string>("radpattern_list_projects");
+        const reg = JSON.parse(raw);
+        if (!Array.isArray(reg)) throw new Error("registry is not an array");
+        const merged = mergeProjects(BASE_PROJECTS, reg);
+        setProjects(merged);
+        appendLog(
+          `\n[radpattern] registry refreshed: ${merged.length} total projects\n`,
+        );
+      } catch (e2) {
+        appendLog("\n[radpattern] registry refresh failed:\n" + fmtErr(e2));
+        // keep whatever the UI already has
+      }
+
+      setChat((prev) => [
+        ...prev,
+        { who: "o2", text: `Add Project: ${normalized.label} complete.` },
+      ]);
+      setAddOpen(false);
+    } catch (e) {
+      const msg = fmtErr(e);
+      appendLog("\n[radcontrol] Add Project ERROR:\n" + msg);
+      setChat((prev) => [
+        ...prev,
+        { who: "o2", text: "Add Project failed. Check Logs." },
+      ]);
+      setAddErr(msg);
+    } finally {
+      setAddBusy(false);
+    }
+  }
+
+  // ESC closes Add Project modal
+  useEffect(() => {
+    if (!addOpen) return;
+
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") closeAddProject();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addOpen, addBusy]);
+
+  // Auto-helpers: when key changes, suggest defaults if fields are empty
+  useEffect(() => {
+    if (!addOpen) return;
+    const key = slugify(form.key);
+    // Suggest label if blank
+    if (key && !form.label.trim()) {
+      const pretty = key
+        .split("-")
+        .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+        .join(" ");
+      setForm((prev) => ({ ...prev, label: pretty }));
+    }
+    // Suggest repoPath if blank
+    if (key && !form.repoPath.trim()) {
+      setForm((prev) => ({ ...prev, repoPath: inferRepoPath(prev.org, key) }));
+    }
+    // Suggest O2 keys if blank
+    if (key && !form.o2MapKey?.trim()) {
+      setForm((prev) => ({ ...prev, o2MapKey: `${key}.map` }));
+    }
+    if (key && !form.o2SnapshotKey?.trim()) {
+      setForm((prev) => ({ ...prev, o2SnapshotKey: `${key}.snapshot` }));
+    }
+    if (key && !form.o2CommitKey?.trim()) {
+      setForm((prev) => ({ ...prev, o2CommitKey: `${key}.commit` }));
+    }
+    if (
+      key &&
+      !form.o2StartKey?.trim() &&
+      (form.kind === "nextjs" || form.kind === "tauri")
+    ) {
+      setForm((prev) => ({ ...prev, o2StartKey: `${key}.dev` }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addOpen, form.key]);
 
   // --- Port status per row ---
   const [portsBusy, setPortsBusy] = useState(false);
@@ -147,12 +517,12 @@ export default function App() {
 
   const PORTS = useMemo(() => {
     const s = new Set<number>();
-    for (const p of PROJECTS) {
+    for (const p of projects) {
       if (typeof p.port === "number") s.add(p.port);
     }
     s.add(1420);
     return Array.from(s.values()).sort((a, b) => a - b);
-  }, [PROJECTS]);
+  }, [projects]);
 
   const refreshInFlightRef = useRef(false);
   const refreshQueuedRef = useRef(false);
@@ -296,6 +666,22 @@ export default function App() {
   // --- URL open ---
   async function openUrl(url?: string) {
     if (!url) return;
+
+    // HARD RULE (A): RadControl should never open itself in a browser.
+    // In Tauri dev, the UI is served from localhost:1420. Opening that in Chrome
+    // breaks invoke() and causes "Command not found" confusion.
+    try {
+      const u = new URL(url);
+      if (u.hostname === "localhost" && u.port === "1420") {
+        appendLog(
+          `\n[ui] Refusing to open RadControl UI in browser (${url}). Use the RadControl app window.\n`,
+        );
+        return;
+      }
+    } catch {
+      // If it's not a valid URL, just fall through to the normal behavior
+    }
+
     try {
       const out = await invoke<string>("open_url", { url });
       appendLog(`\n[ui] ${out}`);
@@ -403,8 +789,531 @@ export default function App() {
           <div className="projectsWrap">
             <SectionTitle>Projects</SectionTitle>
 
+            {/* Projects actions row */}
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <button
+                className="btn btnPrimary"
+                onClick={() => openAddProject()}
+                disabled={busy || portsBusy}
+                title="Create a new project via radpattern"
+              >
+                Add Project
+              </button>
+
+              <div style={{ opacity: 0.8, fontSize: 12 }}>
+                Creates repo + directories + port assignment + registry via{" "}
+                <code>radpattern</code>.
+              </div>
+            </div>
+
+            {/* Add Project modal */}
+            {addOpen ? (
+              <div
+                role="dialog"
+                aria-modal="true"
+                onMouseDown={(e) => {
+                  // click outside to close
+                  if (e.target === e.currentTarget) closeAddProject();
+                }}
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0,0,0,0.55)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 20,
+                  zIndex: 9999,
+                }}
+              >
+                <div
+                  style={{
+                    width: "min(980px, 96vw)",
+                    maxHeight: "90vh",
+                    overflow: "auto",
+                    background: "#0f141a",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: 14,
+                    padding: 16,
+                    boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                    }}
+                  >
+                    <div style={{ fontSize: 16, fontWeight: 800 }}>
+                      Add Project
+                    </div>
+                    <button
+                      className="btn btnGhost"
+                      onClick={() => closeAddProject()}
+                      disabled={addBusy}
+                    >
+                      Close
+                    </button>
+                  </div>
+
+                  <div style={{ marginTop: 10, opacity: 0.85, fontSize: 12 }}>
+                    This will eventually call <code>radpattern</code> to
+                    scaffold directories/apps, reserve ports, and update the
+                    RadControl project registry.
+                  </div>
+
+                  {addErr ? (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        padding: 10,
+                        borderRadius: 10,
+                        background: "rgba(255, 80, 80, 0.12)",
+                        border: "1px solid rgba(255, 80, 80, 0.35)",
+                        fontSize: 12,
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {addErr}
+                    </div>
+                  ) : null}
+
+                  <div
+                    style={{
+                      marginTop: 14,
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 12,
+                    }}
+                  >
+                    {/* Left column */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 12, opacity: 0.85 }}>
+                          Project Key (slug)
+                        </span>
+                        <input
+                          value={form.key}
+                          onChange={(e) => setFormField("key", e.target.value)}
+                          placeholder="radcrm"
+                          style={inputStyle}
+                          disabled={addBusy}
+                        />
+                      </label>
+
+                      <label
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 12, opacity: 0.85 }}>
+                          Display Name
+                        </span>
+                        <input
+                          value={form.label}
+                          onChange={(e) =>
+                            setFormField("label", e.target.value)
+                          }
+                          placeholder="RadCRM"
+                          style={inputStyle}
+                          disabled={addBusy}
+                        />
+                      </label>
+
+                      <label
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 12, opacity: 0.85 }}>
+                          Org / Owner
+                        </span>
+                        <select
+                          value={form.org}
+                          onChange={(e) => {
+                            const org = e.target.value as ProjectOrg;
+                            setForm((prev) => ({
+                              ...prev,
+                              org,
+                              repoPath: prev.repoPath.trim()
+                                ? prev.repoPath
+                                : inferRepoPath(org, prev.key),
+                            }));
+                          }}
+                          style={inputStyle}
+                          disabled={addBusy}
+                        >
+                          <option value="radcon">radcon</option>
+                          <option value="radwolfe">radwolfe</option>
+                          <option value="labs">labs</option>
+                          <option value="other">other</option>
+                        </select>
+                      </label>
+
+                      <label
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 12, opacity: 0.85 }}>
+                          Repo Path
+                        </span>
+                        <input
+                          value={form.repoPath}
+                          onChange={(e) =>
+                            setFormField("repoPath", e.target.value)
+                          }
+                          placeholder="~/dev/rad-empire/radcon/dev/radcrm"
+                          style={inputStyle}
+                          disabled={addBusy}
+                        />
+                      </label>
+
+                      <label
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 12, opacity: 0.85 }}>
+                          Repo Hint (shown in list)
+                        </span>
+                        <input
+                          value={form.repoHint || ""}
+                          onChange={(e) =>
+                            setFormField("repoHint", e.target.value)
+                          }
+                          placeholder="radcon/dev/radcrm — Companies / People / Interactions"
+                          style={inputStyle}
+                          disabled={addBusy}
+                        />
+                      </label>
+
+                      <label
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 12, opacity: 0.85 }}>
+                          Notes
+                        </span>
+                        <textarea
+                          value={form.notes || ""}
+                          onChange={(e) =>
+                            setFormField("notes", e.target.value)
+                          }
+                          placeholder="Anything special about this project…"
+                          style={{
+                            ...inputStyle,
+                            minHeight: 90,
+                            resize: "vertical",
+                          }}
+                          disabled={addBusy}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Right column */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 12, opacity: 0.85 }}>
+                          Kind
+                        </span>
+                        <select
+                          value={form.kind}
+                          onChange={(e) =>
+                            setFormField("kind", e.target.value as ProjectKind)
+                          }
+                          style={inputStyle}
+                          disabled={addBusy}
+                        >
+                          <option value="nextjs">Next.js</option>
+                          <option value="tauri">Tauri</option>
+                          <option value="python">Python</option>
+                          <option value="docs">Docs</option>
+                          <option value="static">Static</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </label>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: 10,
+                        }}
+                      >
+                        <label
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 12, opacity: 0.85 }}>
+                            Port
+                          </span>
+                          <input
+                            value={form.port == null ? "" : String(form.port)}
+                            onChange={(e) => {
+                              const v = asPort(e.target.value);
+                              setForm((prev) => ({
+                                ...prev,
+                                port: v,
+                                url: prev.url?.trim()
+                                  ? prev.url
+                                  : v != null
+                                    ? `http://localhost:${v}`
+                                    : "",
+                              }));
+                            }}
+                            placeholder={
+                              defaultSuggestedPort
+                                ? String(defaultSuggestedPort)
+                                : "3011"
+                            }
+                            style={inputStyle}
+                            disabled={addBusy}
+                          />
+                        </label>
+
+                        <label
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 12, opacity: 0.85 }}>
+                            URL
+                          </span>
+                          <input
+                            value={form.url || ""}
+                            onChange={(e) =>
+                              setFormField("url", e.target.value)
+                            }
+                            placeholder="http://localhost:3011"
+                            style={inputStyle}
+                            disabled={addBusy}
+                          />
+                        </label>
+                      </div>
+
+                      <div
+                        style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}
+                      >
+                        O2 keys (optional). Leave blank if the project doesn’t
+                        have these yet.
+                      </div>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: 10,
+                        }}
+                      >
+                        <label
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 12, opacity: 0.85 }}>
+                            o2StartKey
+                          </span>
+                          <input
+                            value={form.o2StartKey || ""}
+                            onChange={(e) =>
+                              setFormField("o2StartKey", e.target.value)
+                            }
+                            placeholder="radcrm.dev"
+                            style={inputStyle}
+                            disabled={addBusy}
+                          />
+                        </label>
+
+                        <label
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 12, opacity: 0.85 }}>
+                            o2MapKey
+                          </span>
+                          <input
+                            value={form.o2MapKey || ""}
+                            onChange={(e) =>
+                              setFormField("o2MapKey", e.target.value)
+                            }
+                            placeholder="radcrm.map"
+                            style={inputStyle}
+                            disabled={addBusy}
+                          />
+                        </label>
+
+                        <label
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 12, opacity: 0.85 }}>
+                            o2SnapshotKey
+                          </span>
+                          <input
+                            value={form.o2SnapshotKey || ""}
+                            onChange={(e) =>
+                              setFormField("o2SnapshotKey", e.target.value)
+                            }
+                            placeholder="radcrm.snapshot"
+                            style={inputStyle}
+                            disabled={addBusy}
+                          />
+                        </label>
+
+                        <label
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 12, opacity: 0.85 }}>
+                            o2CommitKey
+                          </span>
+                          <input
+                            value={form.o2CommitKey || ""}
+                            onChange={(e) =>
+                              setFormField("o2CommitKey", e.target.value)
+                            }
+                            placeholder="radcrm.commit"
+                            style={inputStyle}
+                            disabled={addBusy}
+                          />
+                        </label>
+
+                        <label
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                          }}
+                        >
+                          <span style={{ fontSize: 12, opacity: 0.85 }}>
+                            o2ProofPackKey (empire-tech)
+                          </span>
+                          <input
+                            value={form.o2ProofPackKey || ""}
+                            onChange={(e) =>
+                              setFormField("o2ProofPackKey", e.target.value)
+                            }
+                            placeholder="empire.proofpack"
+                            style={inputStyle}
+                            disabled={addBusy}
+                          />
+                        </label>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          alignItems: "center",
+                          marginTop: 10,
+                        }}
+                      >
+                        <button
+                          className="btn btnGhost"
+                          onClick={() => {
+                            const key = slugify(form.key);
+                            setForm((prev) => ({
+                              ...prev,
+                              key,
+                              repoPath: prev.repoPath.trim()
+                                ? prev.repoPath
+                                : inferRepoPath(prev.org, key),
+                              port: prev.port ?? defaultSuggestedPort,
+                              url: prev.url?.trim()
+                                ? prev.url
+                                : prev.port != null
+                                  ? `http://localhost:${prev.port}`
+                                  : defaultSuggestedPort != null
+                                    ? `http://localhost:${defaultSuggestedPort}`
+                                    : "",
+                            }));
+                          }}
+                          disabled={addBusy}
+                          title="Normalize key + fill common defaults"
+                        >
+                          Auto-fill defaults
+                        </button>
+
+                        <div style={{ flex: 1 }} />
+
+                        <button
+                          className="btn btnGhost"
+                          onClick={() => closeAddProject()}
+                          disabled={addBusy}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="btn btnPrimary"
+                          onClick={() => void submitAddProject()}
+                          disabled={addBusy || busy}
+                          title="Call radpattern to scaffold + register"
+                        >
+                          {addBusy ? "Creating…" : "Create Project"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="projectsTable">
-              {PROJECTS.map((p) => {
+              {projects.map((p) => {
                 const st = statusForRow(p);
                 const port = p.port;
                 const s = typeof port === "number" ? ports[port] : undefined;
@@ -413,7 +1322,8 @@ export default function App() {
                 const canKill =
                   typeof port === "number" && Boolean(s?.listening);
 
-                const showProofPack = p.key === "empire" && !!p.o2ProofPackKey;
+                const showProofPack =
+                  p.key === "empire-tech" && !!p.o2ProofPackKey;
 
                 return (
                   <div className="projectRow" key={p.key}>
@@ -502,11 +1412,11 @@ export default function App() {
                           onClick={() =>
                             p.o2ProofPackKey
                               ? void runO2(
-                                  "Empire Proof Pack",
+                                  "Empire Tech Proof Pack",
                                   p.o2ProofPackKey,
                                 )
                               : appendLog(
-                                  `\n[proofpack] Empire: no o2ProofPackKey configured.\n`,
+                                  `\n[proofpack] ${p.label}: no o2ProofPackKey configured.\n`,
                                 )
                           }
                           disabled={busy}
@@ -602,3 +1512,14 @@ export default function App() {
     </div>
   );
 }
+
+// Minimal inline input style so modal is usable even before App.css tweaks
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 10px",
+  borderRadius: 10,
+  border: "1px solid rgba(255,255,255,0.14)",
+  background: "rgba(255,255,255,0.06)",
+  color: "rgba(255,255,255,0.92)",
+  outline: "none",
+};
