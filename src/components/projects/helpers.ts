@@ -16,11 +16,6 @@ export function fmtErr(e: unknown) {
 
     if (typeof direct === "string" && direct.trim()) return direct;
 
-    if (typeof direct === "object" && direct) {
-      const nested = direct?.message ?? direct?.error;
-      if (typeof nested === "string" && nested.trim()) return nested;
-    }
-
     if (typeof any?.toString === "function") {
       const s = String(any);
       if (s && s !== "[object Object]") return s;
@@ -34,7 +29,7 @@ export function fmtErr(e: unknown) {
   }
 
   if (typeof e === "string") return e;
-  if (e instanceof Error) return e.message + (e.stack ? `\n${e.stack}` : "");
+  if (e instanceof Error) return e.message;
   return String(e);
 }
 
@@ -73,53 +68,89 @@ export function validateAdd(
   const key = slugify(p.key);
   if (!key) return "Project Key is required.";
   if (!isValidSlug(key))
-    return "Project Key must be lowercase letters/numbers with hyphens only (e.g. tbis, offroad-croquet).";
+    return "Project Key must be lowercase letters/numbers with hyphens only.";
   if (!p.label.trim()) return "Display Name is required.";
   if (!p.repoPath.trim()) return "Repo Path is required.";
   if (p.port != null) {
     if (typeof p.port !== "number" || p.port < 1 || p.port > 65535)
-      return "Port must be a number between 1 and 65535.";
-    if (usedPorts.has(p.port))
-      return `Port ${p.port} is already in use by an existing project.`;
-  }
-  if (p.url && p.port && !p.url.includes(String(p.port))) {
-    return "URL doesn’t appear to match the chosen port.";
+      return "Port must be between 1 and 65535.";
+    if (usedPorts.has(p.port)) return `Port ${p.port} is already in use.`;
   }
   return null;
 }
 
-/**
- * Registry is the ONLY source of truth.
- * Accepts whatever keys exist; UI must not “invent” rows.
- */
-export function registryToProjects(reg: any[]): ProjectRow[] {
-  const out: ProjectRow[] = [];
-  for (const r of reg) {
-    if (!r || typeof r !== "object") continue;
-    const key = typeof r.key === "string" ? r.key : "";
+/* ------------------------------------------------------------------
+   REGISTRY → PROJECT ROWS
+   ------------------------------------------------------------------ */
+
+type RegistryEntry = {
+  key?: unknown;
+  label?: unknown;
+  repoHint?: unknown;
+  port?: unknown;
+  url?: unknown;
+
+  o2StartKey?: unknown;
+  o2SnapshotKey?: unknown;
+  o2CommitKey?: unknown;
+  o2MapKey?: unknown;
+  o2ProofPackKey?: unknown;
+};
+
+function asString(v: unknown): string | undefined {
+  return typeof v === "string" && v.trim() ? v : undefined;
+}
+
+function asNumber(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+export function registryToProjects(registry: any[]): ProjectRow[] {
+  const list = Array.isArray(registry) ? (registry as RegistryEntry[]) : [];
+
+  const rows: ProjectRow[] = [];
+
+  for (const r of list) {
+    const keyRaw = asString(r.key);
+    const key = keyRaw ? slugify(keyRaw) : "";
     if (!key) continue;
 
-    out.push({
-      key,
-      label: typeof r.label === "string" ? r.label : key,
-      repoHint: typeof r.repoHint === "string" ? r.repoHint : undefined,
-      port: typeof r.port === "number" ? r.port : undefined,
-      url: typeof r.url === "string" ? r.url : undefined,
+    const label = asString(r.label) ?? key;
+    const repoHint = asString(r.repoHint);
+    const url = asString(r.url);
 
-      o2StartKey: typeof r.o2StartKey === "string" ? r.o2StartKey : undefined,
-      o2SnapshotKey:
-        typeof r.o2SnapshotKey === "string" ? r.o2SnapshotKey : undefined,
-      o2CommitKey:
-        typeof r.o2CommitKey === "string" ? r.o2CommitKey : undefined,
-      o2MapKey: typeof r.o2MapKey === "string" ? r.o2MapKey : undefined,
-      o2ProofPackKey:
-        typeof r.o2ProofPackKey === "string" ? r.o2ProofPackKey : undefined,
+    const port = asNumber(r.port);
+
+    const o2StartKey = asString(r.o2StartKey);
+    const o2SnapshotKey = asString(r.o2SnapshotKey);
+    const o2CommitKey = asString(r.o2CommitKey);
+    const o2MapKey = asString(r.o2MapKey);
+    const o2ProofPackKey = asString(r.o2ProofPackKey);
+
+    rows.push({
+      key,
+      label,
+      repoHint,
+      port,
+      url,
+      o2StartKey,
+      o2SnapshotKey,
+      o2CommitKey,
+      o2MapKey,
+      o2ProofPackKey,
     });
   }
 
-  // stable ordering (optional but nice)
-  out.sort((a, b) => a.label.localeCompare(b.label));
-  return out;
+  // Stable ordering: by label then key (prevents “random reorder” feel)
+  rows.sort((a, b) => {
+    const al = (a.label || "").toLowerCase();
+    const bl = (b.label || "").toLowerCase();
+    if (al < bl) return -1;
+    if (al > bl) return 1;
+    return (a.key || "").localeCompare(b.key || "");
+  });
+
+  return rows;
 }
 
 export function nextPortSuggestion(usedPorts: Set<number>) {

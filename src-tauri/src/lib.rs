@@ -1,4 +1,7 @@
+use std::fs;
 use std::process::{Command, Stdio};
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::Manager;
@@ -26,7 +29,23 @@ fn greet(name: &str) -> String {
   format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-/// Blocking helper ONLY for commands where we truly want the output
+/* =========================
+   Registry (STRUCTURED SOURCE OF TRUTH)
+   ========================= */
+
+#[tauri::command]
+fn radpattern_list_projects() -> Result<String, String> {
+  let home = std::env::var("HOME").map_err(|e| format!("HOME not set: {e}"))?;
+  let path = format!("{home}/dev/rad-empire/radcontrol/projects.json");
+
+  fs::read_to_string(&path)
+    .map_err(|e| format!("Failed to read registry at {path}: {e}"))
+}
+
+/* =========================
+   Shell Helpers
+   ========================= */
+
 fn run_shell_output(cmd: &str) -> Result<String, String> {
   let out = Command::new("bash")
     .arg("-lc")
@@ -56,7 +75,6 @@ fn run_shell_output(cmd: &str) -> Result<String, String> {
   }
 }
 
-/// Non-blocking helper: spawn and return immediately (no UI freezes)
 fn spawn_shell(cmd: &str) -> Result<String, String> {
   Command::new("bash")
     .arg("-lc")
@@ -71,50 +89,38 @@ fn spawn_shell(cmd: &str) -> Result<String, String> {
 }
 
 /* =========================
-   Open URL (host browser) — NON-BLOCKING
+   DQOTD helpers
    ========================= */
 
-#[tauri::command]
-fn open_url(url: String) -> Result<String, String> {
-  Command::new("xdg-open")
-    .arg(&url)
-    .stdin(Stdio::null())
-    .stdout(Stdio::null())
-    .stderr(Stdio::null())
-    .spawn()
-    .map_err(|e| format!("Failed to launch browser (xdg-open): {e}"))?;
-
-  Ok(format!("open_url spawned: {url}"))
+fn parse_local_url_from_log(log: &str) -> Option<String> {
+  // Example:
+  // - Local:         http://localhost:3000
+  for line in log.lines() {
+    let l = line.trim();
+    if let Some(rest) = l.strip_prefix("- Local:") {
+      let url = rest.trim();
+      if url.starts_with("http://localhost:") {
+        return Some(url.to_string());
+      }
+    }
+  }
+  None
 }
 
-/* =========================
-   O2 SCRIPT RUNNER
-   ========================= */
-
-fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
-  let home = std::env::var("HOME").map_err(|e| format!("HOME not set: {e}"))?;
-  let o2_root = std::env::var("O2_ROOT").unwrap_or(format!("{home}/dev/o2"));
-  let script_path = format!("{o2_root}/{script_rel}");
-
-  let out = Command::new("bash")
-    .arg(script_path)
-    .args(args)
-    .output()
-    .map_err(|e| format!("Failed to run bash: {e}"))?;
-
-  let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-  let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-
-  if out.status.success() {
-    Ok(stdout.trim_end().to_string())
-  } else {
-    Err(format!(
-      "Script failed (exit={:?}).\nSTDOUT:\n{}\n\nSTDERR:\n{}",
-      out.status.code(),
-      stdout.trim_end(),
-      stderr.trim_end()
-    ))
+fn wait_for_dqotd_url(log_path: &str, timeout: Duration) -> Result<String, String> {
+  let start = Instant::now();
+  while start.elapsed() < timeout {
+    let content = fs::read_to_string(log_path).unwrap_or_default();
+    if let Some(url) = parse_local_url_from_log(&content) {
+      // Optional: quick HEAD probe to ensure it responds
+      let _ = run_shell_output(&format!("curl -sS -I {url} >/dev/null || true"));
+      return Ok(url);
+    }
+    sleep(Duration::from_millis(200));
   }
+  Err(format!(
+    "Timed out waiting for DQOTD Local URL in {log_path}. Check the log for errors."
+  ))
 }
 
 /* =========================
@@ -122,30 +128,9 @@ fn run_o2_script(script_rel: &str, args: &[&str]) -> Result<String, String> {
    ========================= */
 
 fn run_o2_key(key: &str) -> Result<String, String> {
-  // Anything that starts a dev server MUST be non-blocking (spawn_shell).
-  // Snapshot/index/smoke/commit can be blocking (run_shell_output).
   match key {
-    // RadControl
-    "radcontrol.session_start" => run_shell_output(
-      "cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app && ./scripts/o2_session_start.sh",
-    ),
-    "radcontrol.snapshot" => run_shell_output(
-      "cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app && ./scripts/snapshot_repo_state.sh",
-    ),
-    "radcontrol.index" => run_shell_output(
-      "cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app && ./scripts/o2_index_repo.sh",
-    ),
-
-    // Empire
-    "empire.snapshot" => run_shell_output("cd ~/dev/o2 && bash scripts/o2_empire_snapshot.sh"),
-
-    // TBIS
     "tbis.snapshot" =>
       run_shell_output("cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/snapshot_repo_state.sh"),
-    "tbis.index" =>
-      run_shell_output("cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_index_repo.sh"),
-    "tbis.smoke" =>
-      run_shell_output("cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_smoke_local.sh"),
     "tbis.commit" =>
       run_shell_output("cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_commit.sh"),
     "tbis.dev" => {
@@ -153,62 +138,48 @@ fn run_o2_key(key: &str) -> Result<String, String> {
         "cd ~/dev/rad-empire/radcon/dev/tbis \
          && nohup npm run dev -- --port 3001 >/tmp/tbis.dev.log 2>&1 &",
       )?;
-      Ok("TBIS dev launch requested → http://localhost:3001 (log: /tmp/tbis.dev.log)".into())
+      Ok("TBIS dev launch requested → http://localhost:3001".into())
     }
 
-    // DQOTD
-    "dqotd.snapshot" => run_shell_output(
-      "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/snapshot_repo_state.sh",
-    ),
-    "dqotd.index" =>
-      run_shell_output("cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_index_repo.sh"),
-    "dqotd.smoke" =>
-      run_shell_output("cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_smoke_local.sh"),
+    "dqotd.snapshot" =>
+      run_shell_output("cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/snapshot_repo_state.sh"),
     "dqotd.commit" =>
       run_shell_output("cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_commit.sh"),
     "dqotd.dev" => {
+      // 0) fresh log so parsing is deterministic
+      run_shell_output(": > /tmp/dqotd.dev.log || true").ok();
+
+      // 1) kill any existing DQOTD next dev / next-server for this repo (targeted)
+      run_shell_output("pkill -f 'radcon/dev/charliedino.*next dev' || true").ok();
+      run_shell_output("pkill -f 'radcon/dev/charliedino.*next-server' || true").ok();
+
+      // 2) remove turbopack lock
+      run_shell_output("rm -f ~/dev/rad-empire/radcon/dev/charliedino/.next/dev/lock || true").ok();
+
+      // 3) start dev (allow Next to choose port; prefer 3000 if free)
       spawn_shell(
         "cd ~/dev/rad-empire/radcon/dev/charliedino \
-         && nohup npm run dev -- --port 3000 >/tmp/dqotd.dev.log 2>&1 &",
+         && nohup npm run dev >/tmp/dqotd.dev.log 2>&1 &",
       )?;
-      Ok("DQOTD dev launch requested → http://localhost:3000/dqotd (log: /tmp/dqotd.dev.log)".into())
+
+      // 4) parse the actual Local URL from log
+      let url = wait_for_dqotd_url("/tmp/dqotd.dev.log", Duration::from_secs(15))?;
+      Ok(format!("DQOTD dev ready → {url}"))
     }
 
-    // Offroad Croquet
-    "offroad.snapshot" => run_shell_output(
-      "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/snapshot_repo_state.sh",
-    ),
-    "offroad.index" => run_shell_output(
-      "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_index_repo.sh",
-    ),
-    "offroad.smoke" => run_shell_output(
-      "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_smoke_local.sh",
-    ),
-    "offroad.commit" => run_shell_output(
-      "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_commit.sh",
-    ),
+    "offroad.snapshot" =>
+      run_shell_output("cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/snapshot_repo_state.sh"),
+    "offroad.commit" =>
+      run_shell_output("cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_commit.sh"),
     "offroad.dev" => {
       spawn_shell(
         "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet \
          && nohup npm run dev -- --port 3002 >/tmp/offroad.dev.log 2>&1 &",
       )?;
-      Ok("Offroad dev launch requested → http://localhost:3002 (log: /tmp/offroad.dev.log)".into())
+      Ok("Offroad dev launch requested → http://localhost:3002".into())
     }
 
-    // O2 scripts
-    "empire.map" => run_o2_script("scripts/o2_map.sh", &["empire"]),
-    "tbis.map" => run_o2_script("scripts/o2_map.sh", &["tbis"]),
-    "dqotd.map" => run_o2_script("scripts/o2_map.sh", &["dqotd"]),
-    "offroad.map" => run_o2_script("scripts/o2_map.sh", &["offroad"]),
-    "radstock.map" => run_o2_script("scripts/o2_map.sh", &["radstock"]),
-    "empire.proofpack" => run_o2_script("scripts/o2_proofpack.sh", &[]),
-
-    _ => Err(format!(
-      "Unknown O2 key: {key}\n\
-       Known map/proofpack: empire.map, tbis.map, dqotd.map, offroad.map, radstock.map, empire.proofpack\n\
-       O2 root default: $HOME/dev/o2 (override with O2_ROOT)\n\
-       If you see an older/shorter error, you are running an old backend binary."
-    )),
+    _ => Err(format!("Unknown O2 key: {key}")),
   }
 }
 
@@ -243,8 +214,9 @@ fn parse_prog_from_ss(s: &str) -> Option<String> {
 
 #[tauri::command]
 fn port_status(port: u16) -> Result<PortStatus, String> {
-  let raw = run_shell_output(&format!("ss -ltnpH 'sport = :{port}' 2>/dev/null || true"))
-    .unwrap_or_default();
+  let raw =
+    run_shell_output(&format!("ss -ltnpH 'sport = :{port}' 2>/dev/null || true"))
+      .unwrap_or_default();
 
   let listening = raw.lines().any(|l| !l.trim().is_empty());
   let pid = if listening { parse_pid_from_ss(&raw) } else { None };
@@ -264,10 +236,6 @@ fn kill_port(port: u16) -> Result<String, String> {
   run_shell_output(&format!("fuser -k {port}/tcp || true"))
 }
 
-/* =========================
-   RADCONTROL — NON-BLOCKING RESTART
-   ========================= */
-
 #[tauri::command]
 fn restart_radcontrol_dev() -> Result<String, String> {
   spawn_shell(
@@ -275,29 +243,28 @@ fn restart_radcontrol_dev() -> Result<String, String> {
      && nohup bash -lc 'fuser -k 1420/tcp >/dev/null 2>&1 || true; npm run tauri dev' \
         >/tmp/radcontrol.restart.log 2>&1 &",
   )?;
-  Ok("RadControl restart spawned (log: /tmp/radcontrol.restart.log)".into())
+  Ok("RadControl restart spawned".into())
 }
 
 /* =========================
-   ENTRY POINT
+   ENTRY
    ========================= */
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_opener::init())
     .plugin(single_instance(|app, _args, _cwd| {
       if let Some((_label, w)) = app.webview_windows().into_iter().next() {
         let _ = w.show();
         let _ = w.unminimize();
         let _ = w.set_focus();
-        let _ = w.set_always_on_top(true);
-        let _ = w.set_always_on_top(false);
       }
     }))
     .invoke_handler(tauri::generate_handler![
       greet,
       run_o2,
-      open_url,
+      radpattern_list_projects,
       port_status,
       kill_port,
       restart_radcontrol_dev,

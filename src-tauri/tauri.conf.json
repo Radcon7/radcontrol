@@ -3,13 +3,16 @@
   "productName": "radcontrol-app",
   "version": "0.1.0",
   "identifier": "com.radcontrol.app.dev",
+
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
+
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "label": "main",
@@ -19,8 +22,6 @@
         "minWidth": 1100,
         "minHeight": 750,
         "resizable": true,
-        "fullscreen": false,
-        "maximized": false,
         "center": true
       }
     ],
@@ -28,6 +29,9 @@
       "csp": null
     }
   },
+
+  "plugins": {},
+
   "bundle": {
     "active": true,
     "targets": "all",

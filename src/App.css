@@ -210,6 +210,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .sectionTitle::after {
@@ -242,6 +243,7 @@ body {
   width: 100%;
   height: 100%;
 }
+
 /* Projects tab wrapper (must exist for inner scrolling to work) */
 .projectsWrap {
   width: 100%;
@@ -254,6 +256,34 @@ body {
 
   overflow: hidden; /* contains the internal scroller */
 }
+
+/* ✅ NEW: inner wrapper (prevents scroll regressions if you add extra header/toolbars) */
+.projectsWrapInner {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ✅ NEW: Projects header row (title left, buttons right) */
+.projectsHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.projectsHeaderRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .placeholderBody {
   margin-top: 10px;
   padding: 13px;
@@ -381,7 +411,7 @@ body {
 
 /* =========================
    Projects table (rows)
-   Layout now: label | buttons | status/url
+   Layout: label | buttons | status/url
    ========================= */
 
 .projectsTable {
@@ -451,7 +481,7 @@ body {
 /* MIDDLE (buttons) */
 .projectRight {
   display: flex;
-  justify-content: center; /* buttons live in the middle column */
+  justify-content: center;
   align-items: center;
   gap: 14px;
   flex-wrap: nowrap;
@@ -470,7 +500,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  justify-content: flex-end; /* status block hugs far right */
+  justify-content: flex-end;
   flex-wrap: wrap;
 }
 
@@ -537,69 +567,17 @@ body {
 }
 
 /* =========================
-   Intervention layout (matches Projects)
-   ========================= */
-
-.interventionTop {
-  margin-top: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 16px;
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.12);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.interventionTopTitle {
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
-
-.interventionTopHint {
-  font-size: 12px;
-  color: var(--muted2);
-  line-height: 1.45;
-}
-
-.interventionTopBtns {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.interventionCard {
-  padding: 18px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.interventionCard:last-child {
-  border-bottom: none;
-}
-
-.interventionCardTitle {
-  font-size: 16px;
-  font-weight: 900;
-  margin-bottom: 8px;
-}
-
-.interventionCardBody {
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.55;
-}
-
-/* =========================
    Bottom-wide Logs strip
+   Layout:
+   footer.logsBar
+     .logsHeader (title left)
+     .logsBoxRow (output left, buttons stacked right)
    ========================= */
 
 .logsBar {
-  display: grid;
-  grid-template-columns: 1fr auto; /* logs | actions */
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 
   padding: 14px 16px;
   border-radius: var(--radius-xl);
@@ -610,10 +588,11 @@ body {
   backdrop-filter: blur(14px);
 }
 
-.logsLeft {
+.logsHeader {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  justify-content: flex-start; /* just the title in header */
+  gap: 12px;
   min-width: 0;
 }
 
@@ -622,6 +601,15 @@ body {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* ✅ Output + actions side-by-side */
+.logsBoxRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: stretch;
+  min-width: 0;
 }
 
 .logsBox {
@@ -641,12 +629,13 @@ body {
   white-space: pre-wrap;
 }
 
-.logsActionsRight {
+.logsActionsStack {
   display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  justify-content: flex-end;
+  flex-direction: column;
   gap: 10px;
+  justify-content: flex-end;
+  align-items: stretch;
+  min-width: 160px; /* keeps buttons from squishing */
 }
 
 /* Scrollbars */
@@ -704,11 +693,119 @@ body {
     justify-content: flex-end;
   }
 
-  .logsBar {
+  .logsBoxRow {
     grid-template-columns: 1fr;
   }
 
-  .logsActionsRight {
+  .logsActionsStack {
+    flex-direction: row;
     justify-content: flex-end;
+    min-width: 0;
+  }
+}
+
+/* =========================
+   Modal (AddProjectModal)
+   ========================= */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.modalCard {
+  width: min(980px, 96vw);
+  max-height: min(86vh, 860px);
+  overflow: hidden;
+
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--stroke2);
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+.modalBody {
+  padding: 16px 18px;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+  min-height: 0;
+}
+
+.modalBody label {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: block;
+}
+
+.modalBody input,
+.modalBody select,
+.modalBody textarea {
+  width: 100%;
+  margin-top: 8px;
+
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text);
+
+  padding: 12px 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.modalBody input:focus,
+.modalBody select:focus,
+.modalBody textarea:focus {
+  border-color: rgba(97, 242, 169, 0.38);
+  box-shadow: 0 0 0 4px rgba(97, 242, 169, 0.12);
+}
+
+/* (kept) helps your inline flex row for Repo Path + Auto button */
+.modalBody > div[style*="display: flex"] {
+  align-items: center;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 14px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Modal: single-column on small screens */
+@media (max-width: 900px) {
+  .modalBody {
+    grid-template-columns: 1fr;
   }
 }
