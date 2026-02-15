@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 
-type TabKey = "chat" | "projects" | "roadmap" | "personal";
+type TabKey =
+  | "projects"
+  | "notes"
+  | "legal"
+  | "templates"
+  | "timeline"
+  | "roadmap";
 
 type PortStatus = {
   port: number;
@@ -24,15 +30,13 @@ type ProjectRow = {
   port?: number;
   url?: string;
 
-  // Existing O2 hooks
+  // O2 hooks (all optional; UI must not assume they exist)
   o2StartKey?: string;
   o2SnapshotKey?: string;
   o2CommitKey?: string;
 
-  // New: per-project tooling map (Codex/O2 resources + constraints)
+  // Map/ProofPack are "read-only truth artifacts"
   o2MapKey?: string;
-
-  // New: empire-only proof pack (system-wide O2+Codex capabilities snapshot)
   o2ProofPackKey?: string;
 };
 
@@ -41,7 +45,7 @@ type ProjectKind = "nextjs" | "tauri" | "python" | "docs" | "static" | "other";
 
 type AddProjectPayload = {
   // Identity
-  key: string; // slug, e.g. "radcrm"
+  key: string; // slug, e.g. "tbis"
   label: string; // display name
   org: ProjectOrg;
 
@@ -63,6 +67,17 @@ type AddProjectPayload = {
 
   // Notes
   notes?: string;
+};
+
+// Minimal inline input style so modal is usable even before App.css tweaks
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 10px",
+  borderRadius: 10,
+  border: "1px solid rgba(255,255,255,0.14)",
+  background: "rgba(255,255,255,0.06)",
+  color: "rgba(255,255,255,0.92)",
+  outline: "none",
 };
 
 function TabButton({
@@ -101,7 +116,6 @@ function fmtErr(e: unknown) {
 
     if (typeof direct === "string" && direct.trim()) return direct;
 
-    // Sometimes: { error: { message: "..." } }
     if (typeof direct === "object" && direct) {
       const nested = direct?.message ?? direct?.error;
       if (typeof nested === "string" && nested.trim()) return nested;
@@ -143,8 +157,124 @@ function asPort(n: string) {
   return Math.trunc(v);
 }
 
+function loadLocalText(key: string, fallback = ""): string {
+  try {
+    const v = localStorage.getItem(key);
+    return v == null ? fallback : v;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveLocalText(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * IMPORTANT: Must be defined OUTSIDE App().
+ * Defining this inside App() causes remounts on every keystroke for controlled
+ * textareas in Tauri/WebView, which manifests as "only types one letter".
+ */
+function PasteAreaTab({
+  title,
+  value,
+  onChange,
+  storageKey,
+  placeholder,
+  busy,
+  onCopy,
+  isBundleTab,
+  onExportBundle,
+  onImportBundle,
+}: {
+  title: string;
+  value: string;
+  onChange: (v: string) => void;
+  storageKey: string;
+  placeholder: string;
+  busy: boolean;
+  onCopy: (text: string) => void;
+  isBundleTab: boolean;
+  onExportBundle: () => void;
+  onImportBundle: () => void;
+}) {
+  return (
+    <div className="placeholderTab">
+      <SectionTitle>{title}</SectionTitle>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <button
+          className="btn btnPrimary"
+          onClick={() => onCopy(value)}
+          disabled={busy}
+          title="Copy to clipboard"
+        >
+          Copy
+        </button>
+
+        <button
+          className="btn btnGhost"
+          onClick={() => onChange("")}
+          disabled={busy}
+          title="Clear this page"
+        >
+          Clear
+        </button>
+
+        {isBundleTab ? (
+          <>
+            <button
+              className="btn btnGhost"
+              onClick={() => onExportBundle()}
+              disabled={busy}
+              title="Copy a JSON bundle containing both Notes + Roadmap"
+            >
+              Export (Notes+Roadmap)
+            </button>
+
+            <button
+              className="btn btnGhost"
+              onClick={() => onImportBundle()}
+              disabled={busy}
+              title="Restore Notes + Roadmap from a JSON bundle in clipboard"
+            >
+              Import (Notes+Roadmap)
+            </button>
+          </>
+        ) : null}
+
+        <div style={{ opacity: 0.7, fontSize: 12 }}>
+          Autosaves locally: <code>{storageKey}</code>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{
+            ...inputStyle,
+            minHeight: "52vh",
+            resize: "vertical",
+            fontFamily:
+              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+            lineHeight: 1.4,
+          }}
+          disabled={busy}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tab, setTab] = useState<TabKey>("projects");
+
   const [_chat, setChat] = useState<LogMsg[]>([
     { who: "o2", text: "RadControl online. Start a session from Projects." },
   ]);
@@ -158,6 +288,154 @@ export default function App() {
 
   function clearLogs() {
     setLog("");
+  }
+
+  // --- Make default window wider (best-effort; never shrinks) ---
+  useEffect(() => {
+    (async () => {
+      try {
+        const win = getCurrentWindow();
+        const size = await win.innerSize();
+        const targetW = 1480;
+        const targetH = 900;
+        if (size.width < targetW || size.height < targetH) {
+          await win.setSize(
+            new LogicalSize(
+              Math.max(size.width, targetW),
+              Math.max(size.height, targetH),
+            ),
+          );
+        }
+      } catch {
+        // ignore (non-tauri context or permission)
+      }
+    })();
+  }, []);
+
+  // --- Paste tabs (localStorage) ---
+  const [notesText, setNotesText] = useState(() =>
+    loadLocalText("radcontrol.notes", ""),
+  );
+  const [legalText, setLegalText] = useState(() =>
+    loadLocalText("radcontrol.legal", ""),
+  );
+  const [templatesText, setTemplatesText] = useState(() =>
+    loadLocalText("radcontrol.templates", ""),
+  );
+  const [timelineText, setTimelineText] = useState(() =>
+    loadLocalText("radcontrol.timeline", ""),
+  );
+  const [roadmapText, setRoadmapText] = useState(() =>
+    loadLocalText("radcontrol.roadmap", ""),
+  );
+
+  useEffect(
+    () => void saveLocalText("radcontrol.notes", notesText),
+    [notesText],
+  );
+  useEffect(
+    () => void saveLocalText("radcontrol.legal", legalText),
+    [legalText],
+  );
+  useEffect(
+    () => void saveLocalText("radcontrol.templates", templatesText),
+    [templatesText],
+  );
+  useEffect(
+    () => void saveLocalText("radcontrol.timeline", timelineText),
+    [timelineText],
+  );
+  useEffect(
+    () => void saveLocalText("radcontrol.roadmap", roadmapText),
+    [roadmapText],
+  );
+
+  async function copyTextToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text || "");
+      setChat((prev) => [...prev, { who: "o2", text: "Copied to clipboard." }]);
+    } catch (e) {
+      appendLog("\n[ui] Clipboard copy failed:\n" + fmtErr(e));
+    }
+  }
+
+  async function exportNotesRoadmapBundle() {
+    try {
+      const bundle = {
+        v: 1,
+        exportedAt: new Date().toISOString(),
+        notes: loadLocalText("radcontrol.notes", ""),
+        roadmap: loadLocalText("radcontrol.roadmap", ""),
+      };
+      await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
+      setChat((prev) => [
+        ...prev,
+        { who: "o2", text: "Exported Notes+Roadmap bundle to clipboard." },
+      ]);
+    } catch (e) {
+      appendLog("\n[ui] Export failed:\n" + fmtErr(e));
+    }
+  }
+
+  async function importNotesRoadmapBundle() {
+    try {
+      const raw = await navigator.clipboard.readText();
+      if (!raw || !raw.trim()) {
+        setChat((prev) => [
+          ...prev,
+          { who: "o2", text: "Clipboard is empty." },
+        ]);
+        return;
+      }
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        appendLog("\n[ui] Import failed: clipboard is not valid JSON.\n");
+        setChat((prev) => [
+          ...prev,
+          { who: "o2", text: "Import failed: clipboard is not valid JSON." },
+        ]);
+        return;
+      }
+
+      const nextNotes =
+        typeof parsed?.notes === "string" ? parsed.notes : undefined;
+      const nextRoadmap =
+        typeof parsed?.roadmap === "string" ? parsed.roadmap : undefined;
+
+      if (nextNotes == null && nextRoadmap == null) {
+        appendLog(
+          "\n[ui] Import failed: JSON did not contain { notes, roadmap } strings.\n",
+        );
+        setChat((prev) => [
+          ...prev,
+          {
+            who: "o2",
+            text: "Import failed: JSON missing notes/roadmap strings.",
+          },
+        ]);
+        return;
+      }
+
+      const finalNotes = nextNotes ?? loadLocalText("radcontrol.notes", "");
+      const finalRoadmap =
+        nextRoadmap ?? loadLocalText("radcontrol.roadmap", "");
+
+      setNotesText(finalNotes);
+      setRoadmapText(finalRoadmap);
+
+      saveLocalText("radcontrol.notes", finalNotes);
+      saveLocalText("radcontrol.roadmap", finalRoadmap);
+
+      setChat((prev) => [
+        ...prev,
+        { who: "o2", text: "Imported Notes+Roadmap bundle from clipboard." },
+      ]);
+    } catch (e) {
+      appendLog("\n[ui] Import failed:\n" + fmtErr(e));
+    }
   }
 
   // --- Projects config (single source of truth) ---
@@ -175,7 +453,6 @@ export default function App() {
         key: "empire-biz",
         label: "Empire Business",
         repoHint: "LLCs / legal / finance / governance (site + docs soon)",
-        // Temporary: same working keys until empire-biz gets its own repo/tooling
         o2SnapshotKey: "empire.snapshot",
         o2MapKey: "empire.map",
         o2ProofPackKey: "empire.proofpack",
@@ -219,17 +496,10 @@ export default function App() {
         repoHint: "TBD",
         o2MapKey: "radstock.map",
       },
-      {
-        key: "radcrm",
-        label: "RadCRM",
-        repoHint:
-          "radcon/dev/radcrm — Companies / People / Interactions / Trips / Campaigns",
-        port: 3011,
-        url: "http://localhost:3011",
-      },
     ],
     [],
   );
+
   const [projects, setProjects] = useState<ProjectRow[]>([]);
 
   function mergeProjects(base: ProjectRow[], reg: any[]): ProjectRow[] {
@@ -240,8 +510,6 @@ export default function App() {
       if (!r || typeof r !== "object") continue;
       const key = typeof r.key === "string" ? r.key : "";
       if (!key) continue;
-
-      // IMPORTANT: base wins for known keys; registry only adds new keys.
       if (byKey.has(key)) continue;
 
       const row: ProjectRow = {
@@ -267,10 +535,8 @@ export default function App() {
   }
 
   useEffect(() => {
-    // Always start from base immediately (so UI isn't empty)
     setProjects(BASE_PROJECTS);
 
-    // Then try to append registry projects
     (async () => {
       try {
         const raw = await invoke<string>("radpattern_list_projects");
@@ -283,12 +549,12 @@ export default function App() {
         );
       } catch (e) {
         appendLog("\n[radpattern] list projects failed:\n" + fmtErr(e));
-        // keep BASE_PROJECTS only
         setProjects(BASE_PROJECTS);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [BASE_PROJECTS]);
+  }, []);
+
   const usedPorts = useMemo(() => {
     const s = new Set<number>();
     for (const p of projects) {
@@ -299,11 +565,9 @@ export default function App() {
   }, [projects]);
 
   function suggestPort() {
-    // Prefer 3010-3099 block for new “internal apps”
     for (let p = 3010; p <= 3099; p++) {
       if (!usedPorts.has(p)) return p;
     }
-    // Fallback: next available above 3000
     for (let p = 3000; p <= 3999; p++) {
       if (!usedPorts.has(p)) return p;
     }
@@ -315,7 +579,8 @@ export default function App() {
   const [addErr, setAddErr] = useState<string | null>(null);
   const [addBusy, setAddBusy] = useState(false);
 
-  const defaultSuggestedPort = useMemo(() => suggestPort(), [usedPorts]); // stable enough
+  const defaultSuggestedPort = useMemo(() => suggestPort(), [usedPorts]);
+
   const defaultPayload = useMemo<AddProjectPayload>(() => {
     const port = defaultSuggestedPort;
     return {
@@ -360,7 +625,6 @@ export default function App() {
   function inferRepoPath(org: ProjectOrg, key: string) {
     const slug = slugify(key);
     if (!slug) return "";
-    // Canonical defaults (you can expand later)
     if (org === "radcon") return `~/dev/rad-empire/radcon/dev/${slug}`;
     if (org === "radwolfe") return `~/dev/rad-empire/radwolfe/dev/${slug}`;
     if (org === "labs") return `~/dev/rad-empire/radcon/dev/${slug}`;
@@ -371,7 +635,7 @@ export default function App() {
     const key = slugify(p.key);
     if (!key) return "Project Key is required.";
     if (!isValidSlug(key))
-      return "Project Key must be lowercase letters/numbers with hyphens only (e.g. radcrm, offroad-croquet).";
+      return "Project Key must be lowercase letters/numbers with hyphens only (e.g. tbis, offroad-croquet).";
     if (!p.label.trim()) return "Display Name is required.";
     if (!p.repoPath.trim()) return "Repo Path is required.";
     if (p.port != null) {
@@ -381,7 +645,6 @@ export default function App() {
         return `Port ${p.port} is already in use by an existing project.`;
     }
     if (p.url && p.port && !p.url.includes(String(p.port))) {
-      // not fatal, but usually a mistake
       return "URL doesn’t appear to match the chosen port.";
     }
     return null;
@@ -418,16 +681,11 @@ export default function App() {
     );
 
     try {
-      // radpattern will:
-      // - scaffold dirs/app (optional)
-      // - reserve/record port
-      // - update O2 project registry
       const out = await invoke<string>("radpattern_add_project", {
         payload: normalized,
       });
       appendLog(out ? out.trimEnd() : "(no output)");
 
-      // Immediately refresh registry-backed projects in the UI
       try {
         const raw = await invoke<string>("radpattern_list_projects");
         const reg = JSON.parse(raw);
@@ -439,7 +697,6 @@ export default function App() {
         );
       } catch (e2) {
         appendLog("\n[radpattern] registry refresh failed:\n" + fmtErr(e2));
-        // keep whatever the UI already has
       }
 
       setChat((prev) => [
@@ -463,21 +720,20 @@ export default function App() {
   // ESC closes Add Project modal
   useEffect(() => {
     if (!addOpen) return;
-
     const onKeyDown = (ev: KeyboardEvent) => {
       if (ev.key === "Escape") closeAddProject();
     };
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addOpen, addBusy]);
 
-  // Auto-helpers: when key changes, suggest defaults if fields are empty
+  // Auto-helpers: suggest defaults when key changes
   useEffect(() => {
     if (!addOpen) return;
+
     const key = slugify(form.key);
-    // Suggest label if blank
+
     if (key && !form.label.trim()) {
       const pretty = key
         .split("-")
@@ -485,10 +741,11 @@ export default function App() {
         .join(" ");
       setForm((prev) => ({ ...prev, label: pretty }));
     }
-    // Suggest repoPath if blank
+
     if (key && !form.repoPath.trim()) {
       setForm((prev) => ({ ...prev, repoPath: inferRepoPath(prev.org, key) }));
     }
+
     // Suggest O2 keys if blank
     if (key && !form.o2MapKey?.trim()) {
       setForm((prev) => ({ ...prev, o2MapKey: `${key}.map` }));
@@ -507,7 +764,7 @@ export default function App() {
       setForm((prev) => ({ ...prev, o2StartKey: `${key}.dev` }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addOpen, form.key]);
+  }, [addOpen, form.key, form.kind, form.org]);
 
   // --- Port status per row ---
   const [portsBusy, setPortsBusy] = useState(false);
@@ -520,7 +777,7 @@ export default function App() {
     for (const p of projects) {
       if (typeof p.port === "number") s.add(p.port);
     }
-    s.add(1420);
+    s.add(1420); // RadControl dev UI
     return Array.from(s.values()).sort((a, b) => a - b);
   }, [projects]);
 
@@ -603,7 +860,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  // --- Logs controls ---
   async function copyLogsToClipboard() {
     try {
       await navigator.clipboard.writeText(log || "");
@@ -616,7 +872,6 @@ export default function App() {
     }
   }
 
-  // --- O2 helpers ---
   async function runO2(title: string, key: string) {
     if (busy) return;
     setBusy(true);
@@ -667,9 +922,7 @@ export default function App() {
   async function openUrl(url?: string) {
     if (!url) return;
 
-    // HARD RULE (A): RadControl should never open itself in a browser.
-    // In Tauri dev, the UI is served from localhost:1420. Opening that in Chrome
-    // breaks invoke() and causes "Command not found" confusion.
+    // HARD RULE: never open RadControl’s own Vite URL in Chrome.
     try {
       const u = new URL(url);
       if (u.hostname === "localhost" && u.port === "1420") {
@@ -679,7 +932,7 @@ export default function App() {
         return;
       }
     } catch {
-      // If it's not a valid URL, just fall through to the normal behavior
+      // fall through
     }
 
     try {
@@ -727,40 +980,96 @@ export default function App() {
 
   const titleText = useMemo(() => {
     if (tab === "projects") return "Start sessions the same way every time";
-    if (tab === "chat") return "Chat";
-    if (tab === "roadmap") return "Roadmap";
-    return "Personal";
+    if (tab === "notes") return "Notes (quick scratchpad)";
+    if (tab === "legal") return "Legal Documents (paste for now)";
+    if (tab === "templates") return "Code Templates (paste for now)";
+    if (tab === "timeline") return "Timeline Notes (paste for now)";
+    if (tab === "roadmap") return "Roadmap (paste the current plan here)";
+    return "";
   }, [tab]);
 
   return (
     <div className="appShell">
-      <header className="header">
-        <div className="headerLeft">
-          <div className="brand">RadControl</div>
-          <div className="tagline">{titleText}</div>
+      <header
+        className="header"
+        style={{
+          // ensure there’s no hidden constraint that forces wrapping
+          maxWidth: "none",
+        }}
+      >
+        {/* tighter left block so tabs start earlier */}
+        <div
+          className="headerLeft"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            minWidth: 220,
+            maxWidth: 320,
+          }}
+        >
+          <div className="brand" style={{ whiteSpace: "nowrap" }}>
+            RadControl
+          </div>
+          <div
+            className="tagline"
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              opacity: 0.85,
+            }}
+            title={titleText}
+          >
+            {titleText}
+          </div>
         </div>
 
-        <div className="tabs">
+        {/* Tabs: single row; when narrow, horizontal scroll (no wrap) */}
+        <div
+          className="tabs"
+          style={{
+            flex: 1,
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            overflowX: "auto",
+            overflowY: "hidden",
+            flexWrap: "nowrap",
+            padding: "0 8px",
+            whiteSpace: "nowrap",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
           <TabButton
             active={tab === "projects"}
             onClick={() => setTab("projects")}
           >
             Projects
           </TabButton>
-          <TabButton active={tab === "chat"} onClick={() => setTab("chat")}>
-            Chat
+          <TabButton active={tab === "notes"} onClick={() => setTab("notes")}>
+            Notes
+          </TabButton>
+          <TabButton active={tab === "legal"} onClick={() => setTab("legal")}>
+            Legal Documents
+          </TabButton>
+          <TabButton
+            active={tab === "templates"}
+            onClick={() => setTab("templates")}
+          >
+            Code Templates
+          </TabButton>
+          <TabButton
+            active={tab === "timeline"}
+            onClick={() => setTab("timeline")}
+          >
+            Timeline Notes
           </TabButton>
           <TabButton
             active={tab === "roadmap"}
             onClick={() => setTab("roadmap")}
           >
             Roadmap
-          </TabButton>
-          <TabButton
-            active={tab === "personal"}
-            onClick={() => setTab("personal")}
-          >
-            Personal
           </TabButton>
         </div>
 
@@ -789,7 +1098,6 @@ export default function App() {
           <div className="projectsWrap">
             <SectionTitle>Projects</SectionTitle>
 
-            {/* Projects actions row */}
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <button
                 className="btn btnPrimary"
@@ -812,7 +1120,6 @@ export default function App() {
                 role="dialog"
                 aria-modal="true"
                 onMouseDown={(e) => {
-                  // click outside to close
                   if (e.target === e.currentTarget) closeAddProject();
                 }}
                 style={{
@@ -1467,19 +1774,71 @@ export default function App() {
               Uses <code>run_o2</code> only. No freeform shell.
             </div>
           </div>
+        ) : tab === "notes" ? (
+          <PasteAreaTab
+            title="Notes"
+            value={notesText}
+            onChange={setNotesText}
+            storageKey="radcontrol.notes"
+            placeholder="Quick scratchpad. Paste anything…"
+            busy={busy}
+            onCopy={(t) => void copyTextToClipboard(t)}
+            isBundleTab
+            onExportBundle={() => void exportNotesRoadmapBundle()}
+            onImportBundle={() => void importNotesRoadmapBundle()}
+          />
+        ) : tab === "legal" ? (
+          <PasteAreaTab
+            title="Legal Documents"
+            value={legalText}
+            onChange={setLegalText}
+            storageKey="radcontrol.legal"
+            placeholder="Paste doc paths, TODOs, and the long-term doc grid plan…"
+            busy={busy}
+            onCopy={(t) => void copyTextToClipboard(t)}
+            isBundleTab={false}
+            onExportBundle={() => void exportNotesRoadmapBundle()}
+            onImportBundle={() => void importNotesRoadmapBundle()}
+          />
+        ) : tab === "templates" ? (
+          <PasteAreaTab
+            title="Code Templates"
+            value={templatesText}
+            onChange={setTemplatesText}
+            storageKey="radcontrol.templates"
+            placeholder="Paste code snippets + template notes + paths…"
+            busy={busy}
+            onCopy={(t) => void copyTextToClipboard(t)}
+            isBundleTab={false}
+            onExportBundle={() => void exportNotesRoadmapBundle()}
+            onImportBundle={() => void importNotesRoadmapBundle()}
+          />
+        ) : tab === "timeline" ? (
+          <PasteAreaTab
+            title="Timeline Notes"
+            value={timelineText}
+            onChange={setTimelineText}
+            storageKey="radcontrol.timeline"
+            placeholder="Quick dated notes (one per line). Example:\n2026-02-10 — fixed o2/codex wiring\n2026-02-11 — launched charliedino v0.1\n…"
+            busy={busy}
+            onCopy={(t) => void copyTextToClipboard(t)}
+            isBundleTab={false}
+            onExportBundle={() => void exportNotesRoadmapBundle()}
+            onImportBundle={() => void importNotesRoadmapBundle()}
+          />
         ) : (
-          <div className="placeholderTab">
-            <SectionTitle>
-              {tab === "chat"
-                ? "Chat"
-                : tab === "roadmap"
-                  ? "Roadmap"
-                  : "Personal"}
-            </SectionTitle>
-            <div className="placeholderBody">
-              This tab is unchanged in this step.
-            </div>
-          </div>
+          <PasteAreaTab
+            title="Roadmap"
+            value={roadmapText}
+            onChange={setRoadmapText}
+            storageKey="radcontrol.roadmap"
+            placeholder="Paste the current plan here (multi-day focus anchor).\n\nWhen you ask Orion for a roadmap, paste the response here so you don’t lose the thread."
+            busy={busy}
+            onCopy={(t) => void copyTextToClipboard(t)}
+            isBundleTab
+            onExportBundle={() => void exportNotesRoadmapBundle()}
+            onImportBundle={() => void importNotesRoadmapBundle()}
+          />
         )}
       </main>
 
@@ -1512,14 +1871,3 @@ export default function App() {
     </div>
   );
 }
-
-// Minimal inline input style so modal is usable even before App.css tweaks
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 10px",
-  borderRadius: 10,
-  border: "1px solid rgba(255,255,255,0.14)",
-  background: "rgba(255,255,255,0.06)",
-  color: "rgba(255,255,255,0.92)",
-  outline: "none",
-};
