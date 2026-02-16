@@ -1,9 +1,11 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::process::{Command, Stdio};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
+use serde_json::{json, Value};
 use tauri::Manager;
 use tauri_plugin_single_instance::init as single_instance;
 
@@ -33,13 +35,106 @@ fn greet(name: &str) -> String {
    Registry (STRUCTURED SOURCE OF TRUTH)
    ========================= */
 
+fn read_json_array(path: &str) -> Result<Vec<Value>, String> {
+  let s = fs::read_to_string(path)
+    .map_err(|e| format!("Failed to read {path}: {e}"))?;
+
+  let v: Value =
+    serde_json::from_str(&s).map_err(|e| format!("Invalid JSON in {path}: {e}"))?;
+
+  match v {
+    Value::Array(arr) => Ok(arr),
+    _ => Err(format!("Registry at {path} is not a JSON array")),
+  }
+}
+
+fn get_key(v: &Value) -> Option<String> {
+  v.get("key")?.as_str().map(|s| s.to_string()).filter(|s| !s.trim().is_empty())
+}
+
+fn merge_registries(o2: Vec<Value>, fallback: Vec<Value>) -> Vec<Value> {
+  // Merge by `key`.
+  //
+  // Policy:
+  // - Start with fallback (so UI always gets the full set of projects)
+  // - Overlay O2 entries on top (so canonical can override fields when present)
+  //
+  // If you want fallback to override O2 instead, swap insertion order.
+  let mut map: BTreeMap<String, Value> = BTreeMap::new();
+
+  for item in fallback {
+    if let Some(k) = get_key(&item) {
+      map.insert(k, item);
+    }
+  }
+
+  for item in o2 {
+    if let Some(k) = get_key(&item) {
+      map.insert(k, item); // O2 overrides same key
+    }
+  }
+
+  map.into_values().collect()
+}
+
 #[tauri::command]
 fn radpattern_list_projects() -> Result<String, String> {
   let home = std::env::var("HOME").map_err(|e| format!("HOME not set: {e}"))?;
-  let path = format!("{home}/dev/rad-empire/radcontrol/projects.json");
 
-  fs::read_to_string(&path)
-    .map_err(|e| format!("Failed to read registry at {path}: {e}"))
+  // Canonical registry is O2. RadControl keeps a fallback registry for resilience.
+  let primary = format!("{home}/dev/o2/registry/projects.json");
+  let fallback = format!("{home}/dev/rad-empire/radcontrol/projects.json");
+
+  let primary_exists = std::path::Path::new(&primary).is_file();
+  let fallback_exists = std::path::Path::new(&fallback).is_file();
+
+  if !primary_exists && !fallback_exists {
+    return Err(format!(
+      "No registry found. Missing:\n- {primary}\n- {fallback}"
+    ));
+  }
+
+  let o2_arr = if primary_exists {
+    match read_json_array(&primary) {
+      Ok(arr) => {
+        println!("[registry] loaded O2: {} entries ({})", arr.len(), primary);
+        arr
+      }
+      Err(e) => {
+        println!("[registry] O2 registry error: {e}");
+        vec![]
+      }
+    }
+  } else {
+    vec![]
+  };
+
+  let fb_arr = if fallback_exists {
+    match read_json_array(&fallback) {
+      Ok(arr) => {
+        println!(
+          "[registry] loaded fallback: {} entries ({})",
+          arr.len(),
+          fallback
+        );
+        arr
+      }
+      Err(e) => {
+        println!("[registry] fallback registry error: {e}");
+        vec![]
+      }
+    }
+  } else {
+    vec![]
+  };
+
+  // Merge so UI gets the complete list.
+  let merged = merge_registries(o2_arr, fb_arr);
+  println!("[registry] merged: {} entries", merged.len());
+
+  // Return as JSON string to the UI.
+  serde_json::to_string_pretty(&Value::Array(merged))
+    .map_err(|e| format!("Failed to serialize merged registry: {e}"))
 }
 
 /* =========================
@@ -112,7 +207,6 @@ fn wait_for_dqotd_url(log_path: &str, timeout: Duration) -> Result<String, Strin
   while start.elapsed() < timeout {
     let content = fs::read_to_string(log_path).unwrap_or_default();
     if let Some(url) = parse_local_url_from_log(&content) {
-      // Optional: quick HEAD probe to ensure it responds
       let _ = run_shell_output(&format!("curl -sS -I {url} >/dev/null || true"));
       return Ok(url);
     }
@@ -146,23 +240,19 @@ fn run_o2_key(key: &str) -> Result<String, String> {
     "dqotd.commit" =>
       run_shell_output("cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_commit.sh"),
     "dqotd.dev" => {
-      // 0) fresh log so parsing is deterministic
       run_shell_output(": > /tmp/dqotd.dev.log || true").ok();
 
-      // 1) kill any existing DQOTD next dev / next-server for this repo (targeted)
       run_shell_output("pkill -f 'radcon/dev/charliedino.*next dev' || true").ok();
       run_shell_output("pkill -f 'radcon/dev/charliedino.*next-server' || true").ok();
+      run_shell_output("pkill -f 'radcon/dev/charliedino.*next' || true").ok();
 
-      // 2) remove turbopack lock
       run_shell_output("rm -f ~/dev/rad-empire/radcon/dev/charliedino/.next/dev/lock || true").ok();
 
-      // 3) start dev (allow Next to choose port; prefer 3000 if free)
       spawn_shell(
         "cd ~/dev/rad-empire/radcon/dev/charliedino \
          && nohup npm run dev >/tmp/dqotd.dev.log 2>&1 &",
       )?;
 
-      // 4) parse the actual Local URL from log
       let url = wait_for_dqotd_url("/tmp/dqotd.dev.log", Duration::from_secs(15))?;
       Ok(format!("DQOTD dev ready → {url}"))
     }
@@ -240,7 +330,7 @@ fn kill_port(port: u16) -> Result<String, String> {
 fn restart_radcontrol_dev() -> Result<String, String> {
   spawn_shell(
     "cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app \
-     && nohup bash -lc 'fuser -k 1420/tcp >/dev/null 2>&1 || true; npm run tauri dev' \
+     && nohup bash -lc 'fuser -k 1420/tcp >/dev/null 2>&1 || true; cargo tauri dev' \
         >/tmp/radcontrol.restart.log 2>&1 &",
   )?;
   Ok("RadControl restart spawned".into())
