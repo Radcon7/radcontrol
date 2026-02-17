@@ -1,5 +1,5 @@
 use std::fs;
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use serde::Serialize;
 use serde_json::Value;
@@ -91,61 +91,70 @@ fn run_shell_output(cmd: &str) -> Result<String, String> {
     }
 }
 
-fn spawn_shell(cmd: &str) -> Result<String, String> {
-    Command::new("bash")
-        .arg("-lc")
-        .arg(cmd)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| format!("Failed to spawn shell: {e}"))?;
-
-    Ok(format!("spawned: {cmd}"))
-}
-
 /* =========================
-O2 SAFE WHITELIST RUNNER (migrating dev to O2; snapshot/commit next)
+O2 PURE PROXY (Phase 1)
+- Parse "<project>.<verb>"
+- Forward to: cd ~/dev/o2 && ./scripts/o2_<verb>.sh <project>
+- No repo paths, no per-project logic
 ========================= */
 
-fn run_o2_key(key: &str) -> Result<String, String> {
-    match key {
-        // ---- TBIS ----
-        "tbis.snapshot" => run_shell_output(
-            "cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/snapshot_repo_state.sh",
-        ),
-        "tbis.commit" => run_shell_output("cd ~/dev/rad-empire/radcon/dev/tbis && ./scripts/o2_commit.sh"),
-        "tbis.dev" => run_shell_output("cd ~/dev/o2 && ./scripts/o2_dev.sh tbis"),
+fn is_safe_token(s: &str) -> bool {
+    // conservative: only allow [a-z0-9_-]
+    !s.is_empty()
+        && s.chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-')
+}
 
-        // ---- DQOTD ----
-        "dqotd.snapshot" => run_shell_output(
-            "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/snapshot_repo_state.sh",
-        ),
-        "dqotd.commit" => run_shell_output(
-            "cd ~/dev/rad-empire/radcon/dev/charliedino && ./scripts/o2_commit.sh",
-        ),
-        "dqotd.dev" => run_shell_output("cd ~/dev/o2 && ./scripts/o2_dev.sh dqotd"),
+fn parse_project_verb(key: &str) -> Result<(String, String), String> {
+    let (project, verb) = key
+        .split_once('.')
+        .ok_or_else(|| format!("Bad key '{key}'. Expected '<project>.<verb>'"))?;
 
-        // ---- OFFROAD ----
-        "offroad.snapshot" => run_shell_output(
-            "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/snapshot_repo_state.sh",
-        ),
-        "offroad.commit" => run_shell_output(
-            "cd ~/dev/rad-empire/radwolfe/dev/offroadcroquet && ./scripts/o2_commit.sh",
-        ),
-        "offroad.dev" => run_shell_output("cd ~/dev/o2 && ./scripts/o2_dev.sh offroad"),
+    let project = project.trim().to_string();
+    let verb = verb.trim().to_string();
 
-        // ---- RADSTOCK / RADCRM (dev migrated; verbs later) ----
-        "radstock.dev" => run_shell_output("cd ~/dev/o2 && ./scripts/o2_dev.sh radstock"),
-        "radcrm.dev" => run_shell_output("cd ~/dev/o2 && ./scripts/o2_dev.sh radcrm"),
-
-        _ => Err(format!("Unknown O2 key: {key}")),
+    if !is_safe_token(&project) {
+        return Err(format!("Unsafe project token: '{project}'"));
     }
+    if !is_safe_token(&verb) {
+        return Err(format!("Unsafe verb token: '{verb}'"));
+    }
+
+    Ok((project, verb))
+}
+
+fn verb_to_script(verb: &str) -> Result<&'static str, String> {
+    match verb {
+        "dev" => Ok("o2_dev.sh"),
+        "snapshot" => Ok("o2_snapshot.sh"),
+        "commit" => Ok("o2_commit.sh"),
+        "map" => Ok("o2_map.sh"),
+        "proofpack" => Ok("o2_proofpack.sh"),
+        "truth_map" => Ok("o2_truth_map.sh"),
+        _ => Err(format!("Verb '{verb}' is not allowed")),
+    }
+}
+
+fn run_o2_proxy(key: &str) -> Result<String, String> {
+    let home = std::env::var("HOME").map_err(|e| format!("HOME not set: {e}"))?;
+    let (project, verb) = parse_project_verb(key)?;
+    let script = verb_to_script(&verb)?;
+
+    let script_path = format!("{home}/dev/o2/scripts/{script}");
+    if !std::path::Path::new(&script_path).is_file() {
+        return Err(format!(
+            "O2 script missing (not wired yet): {script_path}\n\
+             Expected O2 to own this verb. Create it later in O2; RadControl will not implement it."
+        ));
+    }
+
+    let cmd = format!("cd ~/dev/o2 && ./scripts/{script} {project}");
+    run_shell_output(&cmd)
 }
 
 #[tauri::command]
 fn run_o2(key: &str) -> Result<String, String> {
-    run_o2_key(key)
+    run_o2_proxy(key)
 }
 
 /* =========================
@@ -177,8 +186,16 @@ fn port_status(port: u16) -> Result<PortStatus, String> {
         .unwrap_or_default();
 
     let listening = raw.lines().any(|l| !l.trim().is_empty());
-    let pid = if listening { parse_pid_from_ss(&raw) } else { None };
-    let cmd = if listening { parse_prog_from_ss(&raw) } else { None };
+    let pid = if listening {
+        parse_pid_from_ss(&raw)
+    } else {
+        None
+    };
+    let cmd = if listening {
+        parse_prog_from_ss(&raw)
+    } else {
+        None
+    };
 
     Ok(PortStatus {
         port,
@@ -192,16 +209,6 @@ fn port_status(port: u16) -> Result<PortStatus, String> {
 #[tauri::command]
 fn kill_port(port: u16) -> Result<String, String> {
     run_shell_output(&format!("fuser -k {port}/tcp || true"))
-}
-
-#[tauri::command]
-fn restart_radcontrol_dev() -> Result<String, String> {
-    spawn_shell(
-        "cd ~/dev/rad-empire/radcontrol/dev/radcontrol-app \
-     && nohup bash -lc 'fuser -k 1420/tcp >/dev/null 2>&1 || true; cargo tauri dev' \
-        >/tmp/radcontrol.restart.log 2>&1 &",
-    )?;
-    Ok("RadControl restart spawned".into())
 }
 
 /* =========================
@@ -225,7 +232,6 @@ pub fn run() {
             radpattern_list_projects,
             port_status,
             kill_port,
-            restart_radcontrol_dev,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
