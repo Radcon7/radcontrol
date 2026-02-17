@@ -32,47 +32,11 @@ export function ProjectsTab({
     console.log("[RadControl][ProjectsTab] projects:", projects);
   }, [projects]);
 
+  // Control-plane rule: UI does not probe ports, spawn dev servers, or run freeform shell.
+  // "Work on" means: ask O2 to start dev via the canonical key.
   const enhancedOnWorkOn = async (p: ProjectRow) => {
     try {
-      // Call the original O2 handler
       if (onWorkOn) onWorkOn(p);
-
-      if (!p.url || typeof window.__TAURI__ === "undefined") return;
-
-      const port = p.port ?? 3000;
-
-      // Check if port is listening
-      let isListening = false;
-      try {
-        await fetch(`http://localhost:${port}`, { method: "HEAD" });
-        isListening = true;
-      } catch {
-        isListening = false;
-      }
-
-      // If not listening, spawn dev server in DQOTD folder
-      if (!isListening && window.__TAURI__?.shell?.spawn) {
-        const devProcess = window.__TAURI__.shell.spawn(
-          `cd ~/dev/rad-empire/radcon/dev/charliedino && npm run dev`,
-          { detached: true },
-        );
-
-        // Poll until server responds, up to 20s
-        const start = Date.now();
-        while (!isListening && Date.now() - start < 20000) {
-          try {
-            await fetch(`http://localhost:${port}`, { method: "HEAD" });
-            isListening = true;
-          } catch {
-            await new Promise((res) => setTimeout(res, 500));
-          }
-        }
-      }
-
-      // Open the URL in default browser
-      if (isListening && window.__TAURI__?.shell?.open) {
-        await window.__TAURI__.shell.open(p.url);
-      }
     } catch (e) {
       console.error("[RadControl][ProjectsTab] Failed Work On flow:", e);
     }
