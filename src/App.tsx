@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
@@ -69,16 +69,32 @@ async function copyText(text: string) {
   }
 }
 
-function parseRegistryMaybeDoubleEncoded(raw: string): any[] {
-  const first = JSON.parse(raw);
-  const reg = typeof first === "string" ? JSON.parse(first) : first;
+function parseRegistryMaybeDoubleEncoded(raw: string): unknown[] {
+  let first: unknown;
+  try {
+    first = JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`Registry response was not valid JSON: ${String(e)}`);
+  }
+
+  let reg: unknown = first;
+  if (typeof first === "string") {
+    try {
+      reg = JSON.parse(first);
+    } catch (e) {
+      throw new Error(
+        `Registry double-encoded JSON could not be parsed: ${String(e)}`,
+      );
+    }
+  }
 
   if (!Array.isArray(reg)) {
     throw new Error(
       `Registry parsed but was not an array (type=${typeof reg}).`,
     );
   }
-  return reg;
+
+  return reg as unknown[];
 }
 
 function extractFirstHttpUrl(s: string): string | null {
@@ -98,7 +114,6 @@ function openByAnchor(url: string) {
 }
 
 async function tryAutoOpen(url: string) {
-  // Best-effort only (may fail in browser / blocked popups)
   try {
     if (isTauri()) {
       await openUrl(url);
@@ -124,12 +139,11 @@ export default function App() {
   const appendLog = (s: string) =>
     setLog((prev) => (prev ? prev + "\n" + s : s));
 
-  // 🔥 last URL (so user can click Open with a real gesture)
   const [lastUrl, setLastUrl] = useState<string | null>(null);
 
   // --- Window sizing ---
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const win = getCurrentWindow();
         const size = await win.innerSize();
@@ -150,9 +164,8 @@ export default function App() {
   }, []);
 
   // --- Paste tabs persistence ---
-  const storageKey = `radcontrol.${tab}`;
   const [tabValue, setTabValue] = useState<string>(() =>
-    readLS(storageKey, ""),
+    readLS(`radcontrol.${tab}`, ""),
   );
 
   useEffect(() => {
@@ -160,32 +173,46 @@ export default function App() {
   }, [tab]);
 
   useEffect(() => {
-    writeLS(storageKey, tabValue);
-  }, [storageKey, tabValue]);
+    writeLS(`radcontrol.${tab}`, tabValue);
+  }, [tab, tabValue]);
 
   // --- Registry ---
   const [projects, setProjects] = useState<ProjectRow[]>([]);
-  const [rawRegistry, setRawRegistry] = useState<any[]>([]);
+  const [rawRegistry, setRawRegistry] = useState<unknown[]>([]);
   const [showAddProject, setShowAddProject] = useState(false);
 
-  async function loadRegistry() {
-    try {
-      const raw = await invoke<string>("radpattern_list_projects");
-      const reg = parseRegistryMaybeDoubleEncoded(raw);
-      setRawRegistry(reg);
-      const rows = registryToProjects(reg);
-      setProjects(rows);
-      appendLog(`[registry] loaded ${rows.length} project(s)`);
-    } catch (e) {
-      appendLog("\n[registry] failed:\n" + fmtErr(e));
-      setRawRegistry([]);
-      setProjects([]);
-    }
+  const loadRegistryOnceRef = useRef(false);
+  const loadRegistryInFlightRef = useRef<Promise<void> | null>(null);
+
+  async function loadRegistry(): Promise<void> {
+    if (loadRegistryInFlightRef.current) return loadRegistryInFlightRef.current;
+
+    loadRegistryInFlightRef.current = (async () => {
+      try {
+        const raw = await invoke<string>("o2_list_projects");
+        const reg = parseRegistryMaybeDoubleEncoded(raw);
+
+        setRawRegistry(reg);
+        const rows = registryToProjects(reg);
+        setProjects(rows);
+
+        appendLog(`[registry] loaded ${rows.length} project(s)`);
+      } catch (e) {
+        appendLog("\n[registry] failed:\n" + fmtErr(e));
+        setRawRegistry([]);
+        setProjects([]);
+      } finally {
+        loadRegistryInFlightRef.current = null;
+      }
+    })();
+
+    return loadRegistryInFlightRef.current;
   }
 
   useEffect(() => {
+    if (loadRegistryOnceRef.current) return;
+    loadRegistryOnceRef.current = true;
     void loadRegistry();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const usedPorts = useMemo(() => {
@@ -233,7 +260,9 @@ export default function App() {
       );
 
       const next: Record<number, PortStatus> = {};
-      results.forEach((r: any) => (next[r.port] = r));
+      results.forEach((r) => {
+        next[r.port] = r;
+      });
       setPorts(next);
     } finally {
       setPortsBusy(false);
@@ -246,7 +275,8 @@ export default function App() {
   }, [projects]);
 
   function statusForRow(p: ProjectRow) {
-    if (typeof p.port !== "number") return { pill: "pillOff", text: "READY" };
+    if (typeof p.port !== "number")
+      return { pill: "pillWarn", text: "NO PORT" };
 
     const s = ports[p.port];
     if (!s) return { pill: "pillWarn", text: "UNKNOWN" };
@@ -259,6 +289,7 @@ export default function App() {
   // --- O2 ---
   async function runO2(title: string, key?: string): Promise<string | null> {
     if (!key || busy) return null;
+
     setBusy(true);
     appendLog(`\n[o2] ${title} → run_o2("${key}")\n`);
     try {
@@ -275,8 +306,13 @@ export default function App() {
     }
   }
 
+  async function restartRadcontrol() {
+    // IMPORTANT: use underscore token to satisfy the safety guard.
+    void runO2("Restart RadControl", "radcontrol.dev_strict");
+  }
+
   async function workOnProject(p: ProjectRow) {
-    if (!p || !p.o2StartKey) return;
+    if (!p?.o2StartKey) return;
 
     const out = await runO2(`Start ${p.label}`, p.o2StartKey);
 
@@ -290,7 +326,6 @@ export default function App() {
     setLastUrl(finalUrl);
     void copyText(finalUrl);
 
-    // best-effort auto open (may fail depending on context)
     try {
       await tryAutoOpen(finalUrl);
     } catch (e) {
@@ -299,31 +334,14 @@ export default function App() {
     }
   }
 
-  async function freePort(port: number) {
-    if (busy) return;
-    try {
-      await invoke("kill_port", { port });
-    } catch (e) {
-      appendLog(fmtErr(e));
-    }
+  // Proxy purity: UI does NOT directly kill ports.
+  async function freePort(_port: number) {
+    appendLog(
+      `\n[o2] Kill requested — disabled in UI (proxy purity: use O2 start/restart which kills deterministically by port)\n`,
+    );
     void refreshPorts();
   }
 
-  async function restartRadcontrol() {
-    if (busy) return;
-    setBusy(true);
-    appendLog("\n[radcontrol] restart requested…");
-    try {
-      const out = await invoke<string>("restart_radcontrol_dev");
-      appendLog(out ?? "(no output)");
-    } catch (e) {
-      appendLog("\n[radcontrol] restart ERROR:\n" + fmtErr(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // --- Add Project flow (UI-only; does NOT write to disk yet) ---
   async function createProject(payload: AddProjectPayload) {
     const err = validateAdd(payload, usedPorts);
     if (err) {
@@ -331,7 +349,7 @@ export default function App() {
       return;
     }
 
-    const entry: any = {
+    const entry: Record<string, unknown> = {
       key: payload.key,
       label: payload.label,
       repoHint: payload.repoPath,
@@ -354,13 +372,11 @@ export default function App() {
 
     const json = JSON.stringify(entry, null, 2);
     appendLog(
-      "\n[projects] NEW REGISTRY ENTRY (paste into projects.json):\n" + json,
+      "\n[projects] NEW REGISTRY ENTRY (paste into O2 projects.json):\n" + json,
     );
     void copyText(json);
   }
 
-  // --- Logs controls ---
-  const logsLabel = "Logs";
   const logText = (busy ? "Running…" : log || "No logs yet.").toString();
 
   return (
@@ -394,7 +410,6 @@ export default function App() {
             <button
               className="btn btnGhost"
               onClick={() => {
-                // user gesture click -> guaranteed open path
                 try {
                   if (isTauri()) {
                     void openUrl(lastUrl);
@@ -415,7 +430,7 @@ export default function App() {
 
           <button
             className="btn btnGhost"
-            onClick={() => refreshPorts()}
+            onClick={() => void refreshPorts()}
             disabled={portsBusy}
             title="Refresh port status"
           >
@@ -424,7 +439,7 @@ export default function App() {
 
           <button
             className="btn"
-            onClick={() => restartRadcontrol()}
+            onClick={() => void restartRadcontrol()}
             disabled={busy}
             title="Restart RadControl dev (non-blocking)"
           >
@@ -451,7 +466,7 @@ export default function App() {
 
                 <button
                   className="btn btnGhost"
-                  onClick={() => loadRegistry()}
+                  onClick={() => void loadRegistry()}
                   disabled={busy}
                   title="Reload projects registry"
                 >
@@ -476,6 +491,7 @@ export default function App() {
                 void runO2(`${p.label} Proof Pack`, p.o2ProofPackKey)
               }
               statusForRow={statusForRow}
+              killDisabledReason="proxy purity (kill-by-port lives in O2)"
             />
 
             <AddProjectModal
@@ -503,7 +519,7 @@ export default function App() {
 
       <footer className="logsBar">
         <div className="logsHeader">
-          <div className="logsTitle">{logsLabel}</div>
+          <div className="logsTitle">Logs</div>
           <div />
         </div>
 

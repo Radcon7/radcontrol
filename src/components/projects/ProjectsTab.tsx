@@ -32,8 +32,13 @@ export function ProjectsTab({
     console.log("[RadControl][ProjectsTab] projects:", projects);
   }, [projects]);
 
-  // Control-plane rule: UI does not probe ports, spawn dev servers, or run freeform shell.
-  // "Work on" means: ask O2 to start dev via the canonical key.
+  // Proxy purity:
+  // - The UI does NOT kill ports or processes.
+  // - Kill is displayed for clarity, but is ALWAYS disabled.
+  // - Deterministic kill-by-port happens inside O2 start/restart scripts.
+  const killDisabled = true;
+  const killLabel = "Kill (disabled)";
+
   const enhancedOnWorkOn = async (p: ProjectRow) => {
     try {
       if (onWorkOn) onWorkOn(p);
@@ -74,7 +79,6 @@ export function ProjectsTab({
           const s = typeof port === "number" ? ports[port] : undefined;
           const pid = s?.pid ?? null;
           const cmd = s?.cmd ?? null;
-          const canKill = typeof port === "number" && Boolean(s?.listening);
 
           return (
             <div className="projectRow" key={p.key}>
@@ -112,12 +116,14 @@ export function ProjectsTab({
 
                 <button
                   className="btn btnDanger btnIcon"
-                  onClick={() =>
-                    typeof port === "number" ? onKill(port) : null
-                  }
-                  disabled={busy || portsBusy || !canKill}
+                  onClick={() => {
+                    // Intentionally no-op. Keep handler to avoid accidental future enablement.
+                    if (typeof port === "number") onKill(port);
+                  }}
+                  disabled={busy || portsBusy || killDisabled}
+                  title="Disabled: proxy purity (kills happen inside O2 start/restart)"
                 >
-                  Kill
+                  {killLabel}
                 </button>
 
                 <button
@@ -154,6 +160,7 @@ export function ProjectsTab({
                     </span>
                   ) : null}
                 </div>
+
                 {p.url ? (
                   <div className="projectUrlMuted">{p.url}</div>
                 ) : (
@@ -166,7 +173,7 @@ export function ProjectsTab({
       </div>
 
       <div className="projectsFootnote">
-        Uses <code>run_o2</code> only. No freeform shell.
+        Uses <code>run_o2</code> only. No freeform shell. Kill is display-only.
       </div>
     </div>
   );
