@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "noop": "node -e \"process.exit(0)\""
     "vite:dev": "vite --port 1420 --strictPort",
     "vite:build": "tsc && vite build",
     "vite:preview": "vite preview",
