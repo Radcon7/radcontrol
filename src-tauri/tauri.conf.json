@@ -3,14 +3,12 @@
   "productName": "radcontrol-app",
   "version": "0.1.0",
   "identifier": "com.radcontrol.app.dev",
-
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "npm run vite:dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
-
   "app": {
     "withGlobalTauri": true,
     "windows": [
@@ -29,9 +27,7 @@
       "csp": null
     }
   },
-
   "plugins": {},
-
   "bundle": {
     "active": true,
     "targets": "all",
