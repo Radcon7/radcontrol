@@ -149,6 +149,19 @@ function parsePortStatusJson(out: string, port: number): PortStatus {
   }
 }
 
+function registryPortForKey(reg: unknown, key: string): number | null {
+  if (!Array.isArray(reg)) return null;
+
+  const row = reg.find(
+    (r) => r && typeof r === "object" && (r as any).key === key,
+  ) as any | undefined;
+
+  const port = row?.port;
+  return typeof port === "number" && Number.isFinite(port) && port > 0
+    ? port
+    : null;
+}
+
 export default function App() {
   const [tab, setTab] = useState<TabKey>("projects");
   const [busy, setBusy] = useState(false);
@@ -239,9 +252,13 @@ export default function App() {
     projects.forEach((p) => {
       if (typeof p.port === "number") s.add(p.port);
     });
-    s.add(1420);
+
+    // Ensure RadControl's own port is represented without hardcoding 1420.
+    const rcPort = registryPortForKey(rawRegistry, "radcontrol");
+    if (rcPort) s.add(rcPort);
+
     return s;
-  }, [projects]);
+  }, [projects, rawRegistry]);
 
   const suggestedPort = useMemo(
     () => nextPortSuggestion(usedPorts),
@@ -258,9 +275,13 @@ export default function App() {
     projects.forEach((p) => {
       if (typeof p.port === "number") s.add(p.port);
     });
-    s.add(1420);
+
+    // Ensure RadControl's own port is monitored without hardcoding 1420.
+    const rcPort = registryPortForKey(rawRegistry, "radcontrol");
+    if (rcPort) s.add(rcPort);
+
     return Array.from(s.values()).sort((a, b) => a - b);
-  }, [projects]);
+  }, [projects, rawRegistry]);
 
   async function refreshPorts() {
     if (portsBusy) return;
@@ -303,7 +324,7 @@ export default function App() {
   useEffect(() => {
     void refreshPorts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projects]);
+  }, [projects, rawRegistry]);
 
   function statusForRow(p: ProjectRow) {
     if (typeof p.port !== "number")
