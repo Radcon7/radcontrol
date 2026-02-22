@@ -13,20 +13,22 @@ export function ProjectsTab({
   onMap,
   onProofPack,
   statusForRow,
+  killDisabledReason,
 }: {
   projects: ProjectRow[];
   ports: Record<number, PortStatus | undefined>;
   busy: boolean;
   portsBusy: boolean;
+  onWorkOn: (p: ProjectRow) => Promise<void> | void;
+  onSnapshot: (p: ProjectRow) => Promise<void> | void;
+  onCommit: (p: ProjectRow) => Promise<void> | void;
+  onKill: (port: number) => Promise<void> | void;
+  onMap: (p: ProjectRow) => Promise<void> | void;
+  onProofPack: (p: ProjectRow) => Promise<void> | void;
+  statusForRow: (p: ProjectRow) => any;
 
-  onWorkOn: (p: ProjectRow) => void;
-  onSnapshot: (p: ProjectRow) => void;
-  onCommit: (p: ProjectRow) => void;
-  onKill: (port: number) => void;
-  onMap: (p: ProjectRow) => void;
-  onProofPack: (p: ProjectRow) => void;
-
-  statusForRow: (p: ProjectRow) => { pill: string; text: string };
+  // optional UI copy (App may pass this when kill is intentionally disabled)
+  killDisabledReason?: string;
 }) {
   React.useEffect(() => {
     console.log("[RadControl][ProjectsTab] projects:", projects);
@@ -52,6 +54,12 @@ export function ProjectsTab({
 
   return (
     <div className="projectsWrapInner">
+      {killDisabledReason ? (
+        <div style={{ opacity: 0.7, fontSize: 12, marginBottom: 10 }}>
+          Kill disabled: {killDisabledReason}
+        </div>
+      ) : null}
+
       <details style={{ margin: "8px 0 12px 0" }}>
         <summary style={{ cursor: "pointer" }}>
           Debug: ProjectsTab input ({projects.length})
