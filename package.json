@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "tauri:preflight": "node scripts/tauri_preflight.mjs",
-    "vite:dev": "vite --port 1420 --strictPort",
+    "vite:dev": "vite",
     "vite:build": "tsc && vite build",
     "vite:preview": "vite preview",
     "dev": "npm run vite:dev",
