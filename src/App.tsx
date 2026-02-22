@@ -130,6 +130,25 @@ async function tryAutoOpen(url: string) {
   }
 }
 
+// O2 port_status.<port> returns JSON like: {"port":3000,"listening":true}
+type O2PortStatusJson = { port?: number; listening?: boolean };
+
+function parsePortStatusJson(out: string, port: number): PortStatus {
+  try {
+    const obj = JSON.parse((out || "").trim()) as O2PortStatusJson;
+    const listening = Boolean(obj?.listening);
+    return { port, listening, pid: null, cmd: null, err: null };
+  } catch {
+    return {
+      port,
+      listening: false,
+      pid: null,
+      cmd: null,
+      err: "invalid json",
+    };
+  }
+}
+
 export default function App() {
   const [tab, setTab] = useState<TabKey>("projects");
   const [busy, setBusy] = useState(false);
@@ -251,11 +270,13 @@ export default function App() {
       const results = await Promise.all(
         PORTS.map(async (p) => {
           try {
-            const res = await invoke<PortStatus>("port_status", { port: p });
+            // Proxy purity: port status lives in O2; RadControl dispatches via run_o2.
+            const out = await invoke<string>("run_o2", {
+              key: `port_status.${p}`,
+            });
+            const res = parsePortStatusJson(out, p);
             console.log("[port_status ok]", p, res);
-
-            // Ensure `port` is always present, even if Rust doesn't echo it back.
-            return { ...res, port: p } as PortStatus;
+            return res;
           } catch (e) {
             console.warn("[port_status err]", p, e);
             return {
@@ -263,6 +284,7 @@ export default function App() {
               listening: false,
               pid: null,
               cmd: null,
+              err: fmtErr(e),
             } as PortStatus;
           }
         }),

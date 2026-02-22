@@ -68,6 +68,7 @@ fn run_o2_proxy(key: &str) -> Result<String, String> {
         O2Key::ProjectVerb { project, verb } => {
             let script = verb_to_script(&verb)?;
 
+            // O2 remains the authority; RadControl only dispatches.
             let cmd = format!(
                 r#"
 set -euo pipefail
