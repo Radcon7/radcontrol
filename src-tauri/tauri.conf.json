@@ -5,7 +5,7 @@
   "identifier": "com.radcontrol.app.dev",
   "build": {
     "beforeDevCommand": "npm run tauri:preflight",
-    "devUrl": "${RADCONTROL_DEV_URL}",
+    "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
@@ -33,6 +33,7 @@
     "targets": "all",
     "icon": [
       "icons/32x32.png",
+      "icons/128x128.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
