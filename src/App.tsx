@@ -246,22 +246,31 @@ export default function App() {
   async function refreshPorts() {
     if (portsBusy) return;
     setPortsBusy(true);
+
     try {
       const results = await Promise.all(
-        PORTS.map((p) =>
-          invoke<PortStatus>("port_status", { port: p }).catch((e) => ({
-            port: p,
-            listening: false,
-            pid: null,
-            cmd: null,
-            err: fmtErr(e),
-          })),
-        ),
+        PORTS.map(async (p) => {
+          try {
+            const res = await invoke<PortStatus>("port_status", { port: p });
+            console.log("[port_status ok]", p, res);
+
+            // Ensure `port` is always present, even if Rust doesn't echo it back.
+            return { ...res, port: p } as PortStatus;
+          } catch (e) {
+            console.warn("[port_status err]", p, e);
+            return {
+              port: p,
+              listening: false,
+              pid: null,
+              cmd: null,
+            } as PortStatus;
+          }
+        }),
       );
 
       const next: Record<number, PortStatus> = {};
       results.forEach((r) => {
-        next[r.port] = r;
+        if (typeof r.port === "number") next[r.port] = r;
       });
       setPorts(next);
     } finally {

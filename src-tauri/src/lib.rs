@@ -19,7 +19,6 @@ pub fn run() {
             commands::o2::run_o2,
             commands::registry::o2_list_projects,
             commands::ports::port_status,
-            commands::ports::kill_port,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

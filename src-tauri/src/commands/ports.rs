@@ -10,44 +10,64 @@ pub struct PortStatus {
     pub err: Option<String>,
 }
 
-fn parse_pid_from_ss(s: &str) -> Option<u32> {
-    let idx = s.find("pid=")?;
-    let rest = &s[idx + 4..];
-    rest.chars()
-        .take_while(|c| c.is_ascii_digit())
-        .collect::<String>()
-        .parse()
-        .ok()
-}
+fn parse_pid_and_cmd_from_ss(s: &str) -> (Option<u32>, Option<String>) {
+    // Typical snippet: users:(("node",pid=12345,fd=20))
+    let pid = s
+        .split("pid=")
+        .nth(1)
+        .and_then(|rest| {
+            rest.chars()
+                .take_while(|c| c.is_ascii_digit())
+                .collect::<String>()
+                .parse::<u32>()
+                .ok()
+        });
 
-fn parse_prog_from_ss(s: &str) -> Option<String> {
-    let start = s.find("((")?;
-    let rest = &s[start + 2..];
-    let q1 = rest.find('"')?;
-    let rest2 = &rest[q1 + 1..];
-    let q2 = rest2.find('"')?;
-    Some(rest2[..q2].to_string())
+    // Extract first quoted process name if present
+    let cmd = s
+        .split('"')
+        .nth(1)
+        .map(|name| name.trim().to_string())
+        .filter(|name| !name.is_empty());
+
+    (pid, cmd)
 }
 
 #[tauri::command]
 pub fn port_status(port: u16) -> Result<PortStatus, String> {
-    let raw =
-        run_shell_output(&format!("ss -ltnpH 'sport = :{port}' 2>/dev/null || true")).unwrap_or_default();
+    // Read-only probe. No killing.
+    // `ss` is preferred on Linux; keep output bounded.
+    let cmdline = format!("ss -ltnp 'sport = :{port}' 2>/dev/null || true");
+    let out = run_shell_output(&cmdline).unwrap_or_else(|e| format!("ERROR: {e}"));
 
-    let listening = raw.lines().any(|l| !l.trim().is_empty());
-    let pid = if listening { parse_pid_from_ss(&raw) } else { None };
-    let cmd = if listening { parse_prog_from_ss(&raw) } else { None };
+    if out.trim().is_empty() {
+        return Ok(PortStatus {
+            port,
+            listening: false,
+            pid: None,
+            cmd: None,
+            err: None,
+        });
+    }
+
+    if out.contains("not found") || out.contains("ERROR:") {
+        return Ok(PortStatus {
+            port,
+            listening: false,
+            pid: None,
+            cmd: None,
+            err: Some(out.trim().to_string()),
+        });
+    }
+
+    let listening = out.lines().any(|l| l.contains("LISTEN"));
+    let (pid, pname) = parse_pid_and_cmd_from_ss(&out);
 
     Ok(PortStatus {
         port,
         listening,
         pid,
-        cmd,
+        cmd: pname,
         err: None,
     })
-}
-
-#[tauri::command]
-pub fn kill_port(port: u16) -> Result<String, String> {
-    run_shell_output(&format!("fuser -k {port}/tcp || true"))
 }
