@@ -5,7 +5,7 @@
   "identifier": "com.radcontrol.app.dev",
   "build": {
     "beforeDevCommand": "npm run tauri:preflight",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "${RADCONTROL_DEV_URL}",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
