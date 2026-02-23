@@ -162,6 +162,32 @@ function registryPortForKey(reg: unknown, key: string): number | null {
     : null;
 }
 
+async function invokeText(cmd: string, payload?: Record<string, unknown>) {
+  const out = (await invoke(cmd, payload ? payload : undefined)) as unknown;
+
+  // Most commands return plain string. run_o2 returns RunO2Result object.
+  if (typeof out === "string") return out;
+
+  if (out && typeof out === "object") {
+    const o = out as Record<string, unknown>;
+
+    // Prefer stdout when present (RunO2Result)
+    if (typeof o.stdout === "string") return o.stdout;
+
+    // Some commands may return { output: "..." } or similar
+    if (typeof o.output === "string") return o.output;
+
+    // Last resort: stringify objects so callers can parse deterministically
+    try {
+      return JSON.stringify(o);
+    } catch {
+      return "[unstringifiable object]";
+    }
+  }
+
+  return (out ?? "").toString();
+}
+
 export default function App() {
   const [tab, setTab] = useState<TabKey>("projects");
   const [busy, setBusy] = useState(false);
@@ -221,7 +247,7 @@ export default function App() {
 
     loadRegistryInFlightRef.current = (async () => {
       try {
-        const raw = await invoke<string>("o2_list_projects");
+        const raw = await invokeText("o2_list_projects");
         const reg = parseRegistryMaybeDoubleEncoded(raw);
 
         setRawRegistry(reg);
@@ -253,7 +279,6 @@ export default function App() {
       if (typeof p.port === "number") s.add(p.port);
     });
 
-    // Ensure RadControl's own port is represented without hardcoding 1420.
     const rcPort = registryPortForKey(rawRegistry, "radcontrol");
     if (rcPort) s.add(rcPort);
 
@@ -276,49 +301,53 @@ export default function App() {
       if (typeof p.port === "number") s.add(p.port);
     });
 
-    // Ensure RadControl's own port is monitored without hardcoding 1420.
     const rcPort = registryPortForKey(rawRegistry, "radcontrol");
     if (rcPort) s.add(rcPort);
 
     return Array.from(s.values()).sort((a, b) => a - b);
   }, [projects, rawRegistry]);
 
-  async function refreshPorts() {
-    if (portsBusy) return;
-    setPortsBusy(true);
+  // Coalesce refresh calls deterministically.
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
-    try {
-      const results = await Promise.all(
-        PORTS.map(async (p) => {
-          try {
-            // Proxy purity: port status lives in O2; RadControl dispatches via run_o2.
-            const out = await invoke<string>("run_o2", {
-              key: `port_status.${p}`,
-            });
-            const res = parsePortStatusJson(out, p);
-            console.log("[port_status ok]", p, res);
-            return res;
-          } catch (e) {
-            console.warn("[port_status err]", p, e);
-            return {
-              port: p,
-              listening: false,
-              pid: null,
-              cmd: null,
-              err: fmtErr(e),
-            } as PortStatus;
-          }
-        }),
-      );
+  async function refreshPorts(): Promise<void> {
+    if (refreshInFlightRef.current) return refreshInFlightRef.current;
+    if (portsBusy) return Promise.resolve();
 
-      const next: Record<number, PortStatus> = {};
-      results.forEach((r) => {
-        if (typeof r.port === "number") next[r.port] = r;
-      });
-      setPorts(next);
-    } finally {
-      setPortsBusy(false);
-    }
+    refreshInFlightRef.current = (async () => {
+      setPortsBusy(true);
+      try {
+        const results = await Promise.all(
+          PORTS.map(async (p) => {
+            try {
+              const out = await invokeText("run_o2", {
+                verb: `port_status.${p}`,
+              });
+              return parsePortStatusJson(out, p);
+            } catch (e) {
+              return {
+                port: p,
+                listening: false,
+                pid: null,
+                cmd: null,
+                err: fmtErr(e),
+              } as PortStatus;
+            }
+          }),
+        );
+
+        const next: Record<number, PortStatus> = {};
+        results.forEach((r) => {
+          if (typeof r.port === "number") next[r.port] = r;
+        });
+        setPorts(next);
+      } finally {
+        setPortsBusy(false);
+        refreshInFlightRef.current = null;
+      }
+    })();
+
+    return refreshInFlightRef.current;
   }
 
   useEffect(() => {
@@ -345,7 +374,7 @@ export default function App() {
     setBusy(true);
     appendLog(`\n[o2] ${title} → run_o2("${key}")\n`);
     try {
-      const out = await invoke<string>("run_o2", { key });
+      const out = await invokeText("run_o2", { verb: key });
       const text = (out ?? "(no output)").toString();
       appendLog(text);
       return text;
@@ -354,14 +383,27 @@ export default function App() {
       return null;
     } finally {
       setBusy(false);
-      void refreshPorts();
+      try {
+        await refreshPorts();
+      } catch {
+        // ignore
+      }
     }
   }
 
   async function restartRadcontrol() {
-    // IMPORTANT: use underscore token to satisfy the safety guard.
-    void runO2("Restart RadControl", "radcontrol.dev_strict");
+    void runO2("Restart RadControl + Refresh Status", "radcontrol.dev_strict");
   }
+
+  const startRecheckTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (startRecheckTimerRef.current !== null) {
+        window.clearTimeout(startRecheckTimerRef.current);
+      }
+    };
+  }, []);
 
   async function workOnProject(p: ProjectRow) {
     if (!p?.o2StartKey) return;
@@ -378,6 +420,14 @@ export default function App() {
     setLastUrl(finalUrl);
     void copyText(finalUrl);
 
+    // Post-start recheck: the port may begin listening shortly AFTER the start returns.
+    if (startRecheckTimerRef.current !== null) {
+      window.clearTimeout(startRecheckTimerRef.current);
+    }
+    startRecheckTimerRef.current = window.setTimeout(() => {
+      void refreshPorts();
+    }, 1200);
+
     try {
       await tryAutoOpen(finalUrl);
     } catch (e) {
@@ -386,12 +436,8 @@ export default function App() {
     }
   }
 
-  // Proxy purity: UI does NOT directly kill ports.
-  async function freePort(_port: number) {
-    appendLog(
-      `\n[o2] Kill requested — disabled in UI (proxy purity: use O2 start/restart which kills deterministically by port)\n`,
-    );
-    void refreshPorts();
+  async function freePort(port: number) {
+    void runO2("Kill requested", `kill_port.${port}`);
   }
 
   async function createProject(payload: AddProjectPayload) {
@@ -493,9 +539,9 @@ export default function App() {
             className="btn"
             onClick={() => void restartRadcontrol()}
             disabled={busy}
-            title="Restart RadControl dev (non-blocking)"
+            title="Restart RadControl (dev_strict) and refresh project status. Does not start/open projects."
           >
-            Restart RadControl
+            Restart + Refresh Status
           </button>
         </div>
       </header>
@@ -543,7 +589,6 @@ export default function App() {
                 void runO2(`${p.label} Proof Pack`, p.o2ProofPackKey)
               }
               statusForRow={statusForRow}
-              killDisabledReason="proxy purity (kill-by-port lives in O2)"
             />
 
             <AddProjectModal

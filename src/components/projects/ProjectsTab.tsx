@@ -1,6 +1,26 @@
 import React from "react";
 import type { ProjectRow, PortStatus } from "./types";
 
+type StatusLike = {
+  pill: string;
+  text: string;
+};
+
+type Props = {
+  projects: ProjectRow[];
+  ports: Record<number, PortStatus | undefined>;
+  busy: boolean;
+  portsBusy: boolean;
+  onWorkOn: (p: ProjectRow) => Promise<void> | void;
+  onSnapshot: (p: ProjectRow) => Promise<void> | void;
+  onCommit: (p: ProjectRow) => Promise<void> | void;
+  onKill: (port: number) => Promise<void> | void;
+  onMap: (p: ProjectRow) => Promise<void> | void;
+  onProofPack: (p: ProjectRow) => Promise<void> | void;
+  statusForRow: (p: ProjectRow) => StatusLike | unknown;
+  killDisabledReason?: string;
+};
+
 export function ProjectsTab({
   projects,
   ports,
@@ -14,79 +34,41 @@ export function ProjectsTab({
   onProofPack,
   statusForRow,
   killDisabledReason,
-}: {
-  projects: ProjectRow[];
-  ports: Record<number, PortStatus | undefined>;
-  busy: boolean;
-  portsBusy: boolean;
-  onWorkOn: (p: ProjectRow) => Promise<void> | void;
-  onSnapshot: (p: ProjectRow) => Promise<void> | void;
-  onCommit: (p: ProjectRow) => Promise<void> | void;
-  onKill: (port: number) => Promise<void> | void;
-  onMap: (p: ProjectRow) => Promise<void> | void;
-  onProofPack: (p: ProjectRow) => Promise<void> | void;
-  statusForRow: (p: ProjectRow) => any;
-
-  // optional UI copy (App may pass this when kill is intentionally disabled)
-  killDisabledReason?: string;
-}) {
-  React.useEffect(() => {
-    console.log("[RadControl][ProjectsTab] projects:", projects);
-  }, [projects]);
-
-  // Proxy purity:
-  // - The UI does NOT kill ports or processes.
-  // - Kill is displayed for clarity, but is ALWAYS disabled.
-  // - Deterministic kill-by-port happens inside O2 start/restart scripts.
-  const killDisabled = true;
-  const killLabel = "Kill (disabled)";
-
-  const enhancedOnWorkOn = async (p: ProjectRow) => {
-    try {
-      if (onWorkOn) onWorkOn(p);
-    } catch (e) {
-      console.error("[RadControl][ProjectsTab] Failed Work On flow:", e);
-    }
+}: Props) {
+  const safeStatusForRow = (p: ProjectRow): StatusLike => {
+    const st = statusForRow(p) as Partial<StatusLike> | null | undefined;
+    return {
+      pill: typeof st?.pill === "string" ? st.pill : "pillMuted",
+      text: typeof st?.text === "string" ? st.text : "—",
+    };
   };
 
-  const keysLine = projects.map((p) => p.key).join(", ");
-  const labelsLine = projects.map((p) => p.label).join(" | ");
+  const enhancedOnWorkOn = (p: ProjectRow) => {
+    try {
+      void onWorkOn(p);
+    } catch {
+      // no console spam; failures should surface via UI/toast elsewhere if needed
+    }
+  };
 
   return (
     <div className="projectsWrapInner">
       {killDisabledReason ? (
         <div style={{ opacity: 0.7, fontSize: 12, marginBottom: 10 }}>
-          Kill disabled: {killDisabledReason}
+          {killDisabledReason}
         </div>
       ) : null}
 
-      <details style={{ margin: "8px 0 12px 0" }}>
-        <summary style={{ cursor: "pointer" }}>
-          Debug: ProjectsTab input ({projects.length})
-        </summary>
-        <div style={{ fontSize: 12, opacity: 0.9, marginTop: 8 }}>
-          <div>
-            <strong>Keys:</strong> <span>{keysLine || "—"}</span>
-          </div>
-          <div style={{ marginTop: 6 }}>
-            <strong>Labels:</strong> <span>{labelsLine || "—"}</span>
-          </div>
-          <div style={{ marginTop: 6 }}>
-            <strong>Raw (first 2):</strong>
-            <pre style={{ whiteSpace: "pre-wrap", marginTop: 6 }}>
-              {JSON.stringify(projects.slice(0, 2), null, 2)}
-            </pre>
-          </div>
-        </div>
-      </details>
-
       <div className="projectsTable">
         {projects.map((p) => {
-          const st = statusForRow(p);
+          const st = safeStatusForRow(p);
+
           const port = p.port;
           const s = typeof port === "number" ? ports[port] : undefined;
-          const pid = s?.pid ?? null;
-          const cmd = s?.cmd ?? null;
+
+          const isListening = Boolean(s?.listening);
+          const killDisabled =
+            busy || portsBusy || typeof port !== "number" || !isListening;
 
           return (
             <div className="projectRow" key={p.key}>
@@ -125,13 +107,18 @@ export function ProjectsTab({
                 <button
                   className="btn btnDanger btnIcon"
                   onClick={() => {
-                    // Intentionally no-op. Keep handler to avoid accidental future enablement.
-                    if (typeof port === "number") onKill(port);
+                    if (typeof port === "number") void onKill(port);
                   }}
-                  disabled={busy || portsBusy || killDisabled}
-                  title="Disabled: proxy purity (kills happen inside O2 start/restart)"
+                  disabled={killDisabled}
+                  title={
+                    typeof port !== "number"
+                      ? "No port"
+                      : isListening
+                        ? "Kill listener via O2 kill_port.<port>"
+                        : "Not running"
+                  }
                 >
-                  {killLabel}
+                  Kill
                 </button>
 
                 <button
@@ -156,15 +143,17 @@ export function ProjectsTab({
               <div className="projectMid">
                 <div className="projectStatusLine">
                   <span className={`pill ${st.pill}`}>{st.text}</span>
+
                   {typeof port === "number" ? (
                     <span className="portMono">:{port}</span>
                   ) : (
                     <span className="portMono">—</span>
                   )}
-                  {typeof port === "number" && s?.listening && pid ? (
+
+                  {typeof port === "number" && s?.listening && s?.pid ? (
                     <span className="meta">
-                      pid {pid}
-                      {cmd ? ` • ${cmd}` : ""}
+                      pid {s.pid}
+                      {s.cmd ? ` • ${s.cmd}` : ""}
                     </span>
                   ) : null}
                 </div>
@@ -181,7 +170,7 @@ export function ProjectsTab({
       </div>
 
       <div className="projectsFootnote">
-        Uses <code>run_o2</code> only. No freeform shell. Kill is display-only.
+        Uses <code>run_o2</code> only. No freeform shell.
       </div>
     </div>
   );
