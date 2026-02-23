@@ -1,134 +1,56 @@
-use std::path::PathBuf;
+use serde::Serialize;
 use std::process::Command;
 
-fn o2_root() -> Result<PathBuf, String> {
-    // Prefer explicit env if you have one; otherwise default to ~/dev/o2.
-    if let Ok(p) = std::env::var("O2_ROOT") {
-        return Ok(PathBuf::from(p));
-    }
-
-    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
-    Ok(PathBuf::from(home).join("dev").join("o2"))
+#[derive(Serialize)]
+pub struct RunO2Result {
+  pub ok: bool,
+  pub code: i32,
+  pub stdout: String,
+  pub stderr: String,
 }
 
-fn script_path(o2: &PathBuf, name: &str) -> PathBuf {
-    o2.join("scripts").join(name)
+fn o2_root() -> String {
+  std::env::var("O2_ROOT").unwrap_or_else(|_| format!("{}/dev/o2", std::env::var("HOME").unwrap_or_else(|_| "/home/chris".to_string())))
 }
 
-fn run_script(path: &PathBuf, args: &[String]) -> Result<String, String> {
-    let out = Command::new(path)
-        .args(args)
-        .output()
-        .map_err(|e| format!("Failed to execute {:?}: {}", path, e))?;
+fn run_o2_command(arg: &str) -> RunO2Result {
+  // We only ever call: bash <O2_ROOT>/scripts/run_o2.sh "<verb>"
+  // No freeform shell; arg is treated as a single verb string.
+  let root = o2_root();
+  let script = format!("{}/scripts/run_o2.sh", root);
 
-    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+  let out = Command::new("bash")
+    .arg(script)
+    .arg(arg)
+    .output();
 
-    if out.status.success() {
-        // Prefer stdout; if empty, surface stderr for visibility.
-        let t = if stdout.trim().is_empty() {
-            stderr
-        } else {
-            stdout
-        };
-        Ok(t)
-    } else {
-        let code = out.status.code().unwrap_or(-1);
-        let msg = if stderr.trim().is_empty() {
-            stdout
-        } else {
-            stderr
-        };
-        Err(format!(
-            "O2 script failed (code={}): {:?}\n{}",
-            code, path, msg
-        ))
-    }
-}
-
-/// Parse a key like:
-/// - "<verb>.<arg>"        e.g. "port_status.3000", "kill_port.3002"
-/// - "<proj>.<verb>"       e.g. "tbis.map", "tbis.snapshot", "dqotd.dev_strict"
-///
-/// Returns (verb, rest_parts)
-fn parse_key(key: &str) -> Result<(String, Vec<String>), String> {
-    let k = key.trim();
-    if k.is_empty() {
-        return Err("Empty key".to_string());
-    }
-
-    let parts: Vec<&str> = k.split('.').filter(|p| !p.trim().is_empty()).collect();
-    if parts.len() < 2 {
-        return Err(format!(
-            "Invalid key '{k}': expected <verb>.<arg> OR <proj>.<verb>"
-        ));
-    }
-
-    // Keep allowlist explicit and minimal.
-    const VERBS: &[&str] = &[
-        "dev",
-        "dev_strict",
-        "snapshot",
-        "commit",
-        "map",
-        "proofpack",
-        "truth_map",
-        "port_status",
-        "kill_port",
-    ];
-
-    let is_verb = |s: &str| VERBS.iter().any(|v| *v == s);
-
-    let a = parts[0];
-    let b = parts[1];
-
-    // Canonical: <verb>.<arg...>
-    if is_verb(a) {
-        let rest = parts[1..].iter().map(|s| s.to_string()).collect();
-        return Ok((a.to_string(), rest));
-    }
-
-    // Registry/project: <proj>.<verb> (only for exactly 2 segments)
-    if parts.len() == 2 && is_verb(b) {
-        return Ok((b.to_string(), vec![a.to_string()]));
-    }
-
-    Err(format!(
-        "Invalid key '{k}': unknown verb '{a}' (expected one of: {})",
-        VERBS.join(", ")
-    ))
+  match out {
+    Ok(o) => RunO2Result {
+      ok: o.status.success(),
+      code: o.status.code().unwrap_or(1),
+      stdout: String::from_utf8_lossy(&o.stdout).to_string(),
+      stderr: String::from_utf8_lossy(&o.stderr).to_string(),
+    },
+    Err(e) => RunO2Result {
+      ok: false,
+      code: 1,
+      stdout: "".to_string(),
+      stderr: format!("failed to spawn run_o2: {}", e),
+    },
+  }
 }
 
 #[tauri::command]
-pub fn run_o2(key: String) -> Result<String, String> {
-    let (verb, rest) = parse_key(&key)?;
-    let o2 = o2_root()?;
-
-    // Canonical verb map:
-    // - verb determines which O2 script is executed
-    // - rest are passed as args in order
-    let script = match verb.as_str() {
-        // low-level verbs
-        "port_status" => "o2_port_status_verb.sh",
-        "kill_port" => "o2_kill_port_verb.sh",
-
-        // project verbs (registry emits <proj>.<verb> e.g. tbis.map)
-        "dev" => "o2_dev.sh",
-        "dev_strict" => "o2_dev_strict.sh",
-        "snapshot" => "o2_snapshot.sh",
-        "commit" => "o2_commit.sh",
-        "map" => "o2_map.sh",
-        "proofpack" => "o2_proofpack.sh",
-        "truth_map" => "o2_truth_map.sh",
-
-        _ => return Err(format!("Unknown verb '{verb}' (not wired in O2 verb map)")),
+pub fn run_o2(verb: String) -> RunO2Result {
+  // Defensive trim; keep it as one argument.
+  let v = verb.trim().to_string();
+  if v.is_empty() {
+    return RunO2Result {
+      ok: false,
+      code: 1,
+      stdout: "".to_string(),
+      stderr: "empty verb".to_string(),
     };
-
-    let sp = script_path(&o2, script);
-
-    if !sp.exists() {
-        return Err(format!("O2 script missing: {:?}", sp));
-    }
-
-    run_script(&sp, &rest)
+  }
+  run_o2_command(&v)
 }
