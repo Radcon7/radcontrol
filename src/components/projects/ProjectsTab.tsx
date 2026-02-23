@@ -1,9 +1,24 @@
-import React from "react";
 import type { ProjectRow, PortStatus } from "./types";
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="sectionTitle">{children}</div>;
-}
+type StatusLike = {
+  pill: string;
+  text: string;
+};
+
+type Props = {
+  projects: ProjectRow[];
+  ports: Record<number, PortStatus | undefined>;
+  busy: boolean;
+  portsBusy: boolean;
+  onWorkOn: (p: ProjectRow) => Promise<void> | void;
+  onSnapshot: (p: ProjectRow) => Promise<void> | void;
+  onCommit: (p: ProjectRow) => Promise<void> | void;
+  onKill: (port: number) => Promise<void> | void;
+  onMap: (p: ProjectRow) => Promise<void> | void;
+  onProofPack: (p: ProjectRow) => Promise<void> | void;
+  statusForRow: (p: ProjectRow) => StatusLike | unknown;
+  killDisabledReason?: string;
+};
 
 export function ProjectsTab({
   projects,
@@ -17,33 +32,42 @@ export function ProjectsTab({
   onMap,
   onProofPack,
   statusForRow,
-}: {
-  projects: ProjectRow[];
-  ports: Record<number, PortStatus | undefined>;
-  busy: boolean;
-  portsBusy: boolean;
+  killDisabledReason,
+}: Props) {
+  const safeStatusForRow = (p: ProjectRow): StatusLike => {
+    const st = statusForRow(p) as Partial<StatusLike> | null | undefined;
+    return {
+      pill: typeof st?.pill === "string" ? st.pill : "pillMuted",
+      text: typeof st?.text === "string" ? st.text : "—",
+    };
+  };
 
-  onWorkOn: (p: ProjectRow) => void;
-  onSnapshot: (p: ProjectRow) => void;
-  onCommit: (p: ProjectRow) => void;
-  onKill: (port: number) => void;
-  onMap: (p: ProjectRow) => void;
-  onProofPack: (p: ProjectRow) => void;
+  const enhancedOnWorkOn = (p: ProjectRow) => {
+    try {
+      void onWorkOn(p);
+    } catch {
+      // no console spam; failures should surface via UI/toast elsewhere if needed
+    }
+  };
 
-  statusForRow: (p: ProjectRow) => { pill: string; text: string };
-}) {
   return (
-    <div className="projectsWrap">
-      <SectionTitle>Projects</SectionTitle>
+    <div className="projectsWrapInner">
+      {killDisabledReason ? (
+        <div style={{ opacity: 0.7, fontSize: 12, marginBottom: 10 }}>
+          {killDisabledReason}
+        </div>
+      ) : null}
 
       <div className="projectsTable">
         {projects.map((p) => {
-          const st = statusForRow(p);
+          const st = safeStatusForRow(p);
+
           const port = p.port;
           const s = typeof port === "number" ? ports[port] : undefined;
-          const pid = s?.pid ?? null;
-          const cmd = s?.cmd ?? null;
-          const canKill = typeof port === "number" && Boolean(s?.listening);
+
+          const isListening = Boolean(s?.listening);
+          const killDisabled =
+            busy || portsBusy || typeof port !== "number" || !isListening;
 
           return (
             <div className="projectRow" key={p.key}>
@@ -57,7 +81,7 @@ export function ProjectsTab({
               <div className="projectRight">
                 <button
                   className="btn btnPrimary"
-                  onClick={() => onWorkOn(p)}
+                  onClick={() => enhancedOnWorkOn(p)}
                   disabled={busy}
                 >
                   Work on
@@ -81,10 +105,17 @@ export function ProjectsTab({
 
                 <button
                   className="btn btnDanger btnIcon"
-                  onClick={() =>
-                    typeof port === "number" ? onKill(port) : null
+                  onClick={() => {
+                    if (typeof port === "number") void onKill(port);
+                  }}
+                  disabled={killDisabled}
+                  title={
+                    typeof port !== "number"
+                      ? "No port"
+                      : isListening
+                        ? "Kill listener via O2 kill_port.<port>"
+                        : "Not running"
                   }
-                  disabled={busy || portsBusy || !canKill}
                 >
                   Kill
                 </button>
@@ -118,10 +149,10 @@ export function ProjectsTab({
                     <span className="portMono">—</span>
                   )}
 
-                  {typeof port === "number" && s?.listening && pid ? (
+                  {typeof port === "number" && s?.listening && s?.pid ? (
                     <span className="meta">
-                      pid {pid}
-                      {cmd ? ` • ${cmd}` : ""}
+                      pid {s.pid}
+                      {s.cmd ? ` • ${s.cmd}` : ""}
                     </span>
                   ) : null}
                 </div>

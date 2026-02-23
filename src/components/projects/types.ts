@@ -3,7 +3,11 @@ export type ProjectKey = string;
 export type ProjectRow = {
   key: ProjectKey;
   label: string;
+
+  // Display hints
   repoHint?: string;
+
+  // Runtime
   port?: number;
   url?: string;
 
@@ -12,12 +16,13 @@ export type ProjectRow = {
   o2SnapshotKey?: string;
   o2CommitKey?: string;
 
-  // Map/ProofPack are "read-only truth artifacts"
+  // Map / ProofPack
   o2MapKey?: string;
   o2ProofPackKey?: string;
 };
 
 export type ProjectOrg = "radcon" | "radwolfe" | "labs" | "other";
+
 export type ProjectKind =
   | "nextjs"
   | "tauri"
@@ -26,18 +31,24 @@ export type ProjectKind =
   | "static"
   | "other";
 
+/**
+ * What the Add Project modal produces.
+ * This may contain extra structure that is reduced
+ * down to a ProjectRow when saved into projects.json.
+ */
 export type AddProjectPayload = {
-  // Identity
-  key: string; // slug, e.g. "tbis"
+  key: string; // slug (e.g. "tbis")
   label: string; // display name
+
+  // Meta (not necessarily persisted 1:1 to registry)
   org: ProjectOrg;
+  kind: ProjectKind;
 
   // Location
-  repoPath: string; // full path
-  repoHint?: string; // brief hint shown in list
+  repoPath: string; // full path (source of truth)
+  repoHint?: string; // short hint shown in UI
 
   // Runtime
-  kind: ProjectKind;
   port?: number;
   url?: string;
 
@@ -48,7 +59,6 @@ export type AddProjectPayload = {
   o2MapKey?: string;
   o2ProofPackKey?: string;
 
-  // Notes
   notes?: string;
 };
 
