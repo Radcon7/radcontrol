@@ -10,7 +10,6 @@ export function AddProjectModal({
   onClose,
   onCreate,
   defaultSuggestedPort,
-  usedPorts,
 }: {
   open: boolean;
   onClose: () => void;
@@ -48,13 +47,13 @@ export function AddProjectModal({
 
   function autoFillRepo() {
     const slug = slugify(key);
-    const inferred = inferRepoPath(org, slug);
+    const inferred = inferRepoPath({ org, key: slug });
     setRepoPath(inferred);
   }
 
   const parsedPort = useMemo(() => {
     const t = port.trim();
-    return t ? asPort(t) : undefined;
+    return t ? (asPort(t) ?? undefined) : undefined;
   }, [port]);
 
   const payload: AddProjectPayload = useMemo(
@@ -70,10 +69,18 @@ export function AddProjectModal({
     [keySlug, label, org, repoPath, kind, parsedPort, url],
   );
 
-  const validationError = useMemo(() => {
-    const ports = usedPorts ?? new Set<number>();
-    return validateAdd(payload, ports);
-  }, [payload, usedPorts]);
+  const validation = useMemo(
+    () =>
+      validateAdd({
+        org: payload.org,
+        key: payload.key,
+        port: payload.port,
+        url: payload.url,
+        repo: payload.repoPath,
+      }),
+    [payload],
+  );
+  const validationError = validation.ok ? null : validation.errors.join(" ");
 
   if (!open) return null;
 

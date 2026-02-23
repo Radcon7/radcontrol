@@ -1,100 +1,87 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
 
-// JS-ran marker (no DevTools): proves main.tsx executed inside the webview
-try {
-  const el = document.getElementById("paint-marker");
-  if (el)
-    el.textContent = "JS MARKER: main.tsx executed (about to mount React)";
-} catch {}
+function errToString(e: unknown): string {
+  if (e instanceof Error) return `${e.name}: ${e.message}\n${e.stack ?? ""}`;
+  try {
+    return typeof e === "string" ? e : JSON.stringify(e, null, 2);
+  } catch {
+    return String(e);
+  }
+}
 
-type Fatal = {
-  kind: "error" | "rejection";
-  message: string;
-  stack?: string;
-  source?: string;
-};
+function escapeHtml(s: string): string {
+  return (s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
-function FatalScreen({ fatal }: { fatal: Fatal }) {
-  return (
-    <div
-      style={{
-        padding: 16,
-        fontFamily:
-          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-      }}
-    >
-      <h2 style={{ margin: "0 0 12px 0" }}>
-        RadControl crashed during startup
-      </h2>
-      <div style={{ marginBottom: 12 }}>
-        <strong>{fatal.kind.toUpperCase()}</strong>: {fatal.message}
-      </div>
-      {fatal.source ? (
-        <div style={{ marginBottom: 12 }}>Source: {fatal.source}</div>
-      ) : null}
-      {fatal.stack ? (
-        <pre
-          style={{
-            whiteSpace: "pre-wrap",
-            background: "#111",
-            color: "#eee",
-            padding: 12,
-            borderRadius: 8,
-          }}
-        >
-          {fatal.stack}
-        </pre>
-      ) : (
-        <div>No stack available.</div>
-      )}
-      <div style={{ marginTop: 12, opacity: 0.8 }}>
-        Copy this screen text back into chat.
-      </div>
+function showFatal(title: string, e: unknown) {
+  const root = document.getElementById("root");
+  const msg = errToString(e);
+
+  const html = `
+  <div style="
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    padding: 18px;
+    line-height: 1.35;
+    color: #111;
+  ">
+    <div style="font-size: 18px; font-weight: 700; margin-bottom: 10px;">
+      RadControl Fatal Startup Error
     </div>
-  );
+    <div style="font-size: 13px; opacity: 0.9; margin-bottom: 12px;">
+      ${title}
+    </div>
+    <pre style="
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding: 12px;
+      border: 1px solid rgba(0,0,0,0.15);
+      border-radius: 10px;
+      background: rgba(0,0,0,0.04);
+      font-size: 12px;
+      overflow: auto;
+      max-height: 70vh;
+    ">${escapeHtml(msg)}</pre>
+
+    <div style="margin-top: 12px; font-size: 12px; opacity: 0.8;">
+      Copy/paste the text above into the chat. No DevTools needed.
+    </div>
+  </div>
+  `;
+
+  if (root) root.innerHTML = html;
 }
 
-function Boot() {
-  const [fatal, setFatal] = React.useState<Fatal | null>(null);
+window.addEventListener("error", (ev) => {
+  const ee = ev as ErrorEvent;
+  showFatal("window.error", ee.error ?? ee.message ?? ev);
+});
 
-  React.useEffect(() => {
-    const onError = (e: ErrorEvent) => {
-      const err = e.error as Error | undefined;
-      setFatal({
-        kind: "error",
-        message: err?.message || e.message || "Unknown error",
-        stack: err?.stack,
-        source: e.filename ? `${e.filename}:${e.lineno}:${e.colno}` : undefined,
-      });
-    };
+window.addEventListener("unhandledrejection", (ev) => {
+  const re = ev as PromiseRejectionEvent;
+  showFatal("unhandledrejection", re.reason);
+});
 
-    const onRejection = (e: PromiseRejectionEvent) => {
-      const r = e.reason as any;
-      setFatal({
-        kind: "rejection",
-        message:
-          (r && (r.message || String(r))) || "Unhandled promise rejection",
-        stack: r && r.stack ? String(r.stack) : undefined,
-      });
-    };
+(async () => {
+  try {
+    const mod: any = await import("./App");
+    const App = mod?.default ?? mod?.App;
 
-    window.addEventListener("error", onError);
-    window.addEventListener("unhandledrejection", onRejection);
-    return () => {
-      window.removeEventListener("error", onError);
-      window.removeEventListener("unhandledrejection", onRejection);
-    };
-  }, []);
+    if (!App) {
+      throw new Error(
+        'App module loaded but no default export (or named "App") was found.',
+      );
+    }
 
-  if (fatal) return <FatalScreen fatal={fatal} />;
-
-  return (
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")!).render(<Boot />);
+    ReactDOM.createRoot(document.getElementById("root")!).render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>,
+    );
+  } catch (e) {
+    showFatal("main.tsx bootstrap failed", e);
+  }
+})();

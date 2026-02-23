@@ -1,4 +1,3 @@
-import React from "react";
 import type { ProjectRow, PortStatus } from "./types";
 
 type StatusLike = {

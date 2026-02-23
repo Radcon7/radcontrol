@@ -286,7 +286,7 @@ export default function App() {
   }, [projects, rawRegistry]);
 
   const suggestedPort = useMemo(
-    () => nextPortSuggestion(usedPorts),
+    () => nextPortSuggestion(Array.from(usedPorts)),
     [usedPorts],
   );
 
@@ -441,9 +441,15 @@ export default function App() {
   }
 
   async function createProject(payload: AddProjectPayload) {
-    const err = validateAdd(payload, usedPorts);
-    if (err) {
-      appendLog(`[projects] add rejected: ${err}`);
+    const validation = validateAdd({
+      org: payload.org,
+      key: payload.key,
+      port: payload.port,
+      url: payload.url,
+      repo: payload.repoPath,
+    });
+    if (!validation.ok) {
+      appendLog(`[projects] add rejected: ${validation.errors.join(" ")}`);
       return;
     }
 

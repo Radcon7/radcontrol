@@ -3,7 +3,6 @@ export type { ProjectRow, PortStatus, AddProjectPayload } from "./types";
 export {
   fmtErr,
   slugify,
-  isValidSlug,
   asPort,
   inferRepoPath,
   validateAdd,
