@@ -1,5 +1,4 @@
 mod commands;
-mod shell;
 
 use tauri::Manager;
 use tauri_plugin_single_instance::init as single_instance;
@@ -15,10 +14,7 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
-        .invoke_handler(tauri::generate_handler![
-            commands::o2::run_o2,
-            commands::registry::o2_list_projects,
-        ])
+        .invoke_handler(tauri::generate_handler![commands::o2::run_o2,])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
