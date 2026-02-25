@@ -1,8 +1,16 @@
 import type { ProjectRow, PortStatus } from "./types";
 
+export const PROJECT_CREATE_LIMITS = {
+  nameMaxChars: 80,
+  slugMaxChars: 80,
+  essayMaxChars: 8000,
+  templateHintMaxChars: 8000,
+  payloadTokenMaxChars: 20000,
+} as const;
+
 /**
  * AddProjectModal expects these named exports:
- *   slugify, inferRepoPath, asPort, validateAdd
+ *   slugify, validateAdd
  *
  * Keep them deterministic and UI-safe.
  */
@@ -39,12 +47,13 @@ export function fmtErr(e: unknown): string {
  */
 export function registryToProjects(reg: unknown): ProjectRow[] {
   try {
+    const regObj = reg && typeof reg === "object" ? (reg as Record<string, unknown>) : null;
     const arr = Array.isArray(reg)
       ? reg
-      : Array.isArray((reg as any)?.projects)
-        ? (reg as any).projects
-        : Array.isArray((reg as any)?.rows)
-          ? (reg as any).rows
+      : Array.isArray(regObj?.projects)
+        ? regObj.projects
+        : Array.isArray(regObj?.rows)
+          ? regObj.rows
           : [];
 
     const out: ProjectRow[] = [];
@@ -79,33 +88,6 @@ export function nextPortSuggestion(usedPorts: number[], start = 1420): number {
   }
 }
 
-/**
- * Best-effort repo path inference from a key + org.
- * This is UI-only convenience; O2 is still the operational authority.
- */
-export function inferRepoPath(args: { org?: string; key: string }): string {
-  const org = (args.org || "").trim();
-  const key = slugify(args.key);
-  if (org.length > 0 && key.length > 0)
-    return `$HOME/dev/rad-empire/${org}/dev/${key}`;
-  if (key.length > 0) return `$HOME/dev/${key}`;
-  return "";
-}
-
-/**
- * Normalize a port input safely. Returns null when invalid.
- */
-export function asPort(v: unknown): number | null {
-  if (typeof v === "number" && Number.isFinite(v) && v > 0 && v < 65536)
-    return Math.trunc(v);
-  if (typeof v !== "string") return null;
-  const s = v.trim();
-  if (!/^\d+$/.test(s)) return null;
-  const n = Number(s);
-  if (!Number.isFinite(n) || n <= 0 || n >= 65536) return null;
-  return Math.trunc(n);
-}
-
 export type ValidateAddResult = {
   ok: boolean;
   errors: string[];
@@ -116,36 +98,48 @@ export type ValidateAddResult = {
  * Does not hit the filesystem. Does not assume O2. UI-only.
  */
 export function validateAdd(args: {
-  org?: unknown;
-  key?: unknown;
-  port?: unknown;
-  url?: unknown;
-  repo?: unknown;
+  name?: unknown;
+  slug?: unknown;
+  essay?: unknown;
+  templateHint?: unknown;
 }): ValidateAddResult {
   const errors: string[] = [];
+  const name = typeof args.name === "string" ? args.name.trim() : "";
+  const slugRaw = typeof args.slug === "string" ? args.slug.trim() : "";
+  const slug = slugify(slugRaw);
+  const essay = typeof args.essay === "string" ? args.essay.trim() : "";
+  const templateHint =
+    typeof args.templateHint === "string" ? args.templateHint.trim() : "";
 
-  const org = typeof args.org === "string" ? args.org.trim() : "";
-  const keyRaw = typeof args.key === "string" ? args.key.trim() : "";
-  const key = slugify(keyRaw);
-
-  if (keyRaw.length === 0) errors.push("Key is required.");
-  if (keyRaw.length > 0 && key.length === 0) errors.push("Key is invalid.");
-
-  // org is optional, but if present, keep it simple
-  if (org.length > 0 && !/^[a-z0-9_-]+$/i.test(org))
-    errors.push("Org contains invalid characters.");
-
-  const p = asPort(args.port);
-  if (args.port !== undefined && args.port !== null && p === null)
-    errors.push("Port must be a number between 1 and 65535.");
-
-  const url = typeof args.url === "string" ? args.url.trim() : "";
-  if (url.length > 0 && !/^https?:\/\//i.test(url))
-    errors.push("URL must start with http:// or https://");
-
-  const repo = typeof args.repo === "string" ? args.repo.trim() : "";
-  if (repo.length > 0 && !repo.startsWith("$HOME/") && !repo.startsWith("/")) {
-    errors.push("Repo path should be absolute (/...) or start with $HOME/...");
+  if (name.length === 0) errors.push("Name is required.");
+  if (name.length > PROJECT_CREATE_LIMITS.nameMaxChars) {
+    errors.push(
+      `Name must be ${PROJECT_CREATE_LIMITS.nameMaxChars} characters or fewer.`,
+    );
+  }
+  if (slugRaw.length === 0) errors.push("Slug is required.");
+  if (slugRaw.length > PROJECT_CREATE_LIMITS.slugMaxChars) {
+    errors.push(
+      `Slug must be ${PROJECT_CREATE_LIMITS.slugMaxChars} characters or fewer.`,
+    );
+  }
+  if (slugRaw.length > 0 && slug.length === 0) errors.push("Slug is invalid.");
+  if (slugRaw.length > 0 && slug !== slugRaw) {
+    errors.push("Slug must use lowercase letters, numbers, and hyphens only.");
+  }
+  if (essay.length === 0) errors.push("Essay is required.");
+  if (essay.length > PROJECT_CREATE_LIMITS.essayMaxChars) {
+    errors.push(
+      `Essay must be ${PROJECT_CREATE_LIMITS.essayMaxChars} characters or fewer.`,
+    );
+  }
+  if (templateHint.length > PROJECT_CREATE_LIMITS.templateHintMaxChars) {
+    errors.push(
+      `Template hint must be ${PROJECT_CREATE_LIMITS.templateHintMaxChars} characters or fewer.`,
+    );
+  }
+  if (templateHint.length > 0 && !/^[a-z0-9_-]+$/i.test(templateHint)) {
+    errors.push("Template hint contains invalid characters.");
   }
 
   return { ok: errors.length === 0, errors };
@@ -172,12 +166,12 @@ function isFiniteNumber(v: unknown): v is number {
  */
 export function statusForRowBasic(p: ProjectRow): RowStatus {
   // If the registry row itself is missing a port, that's a config issue.
-  if (!isFiniteNumber((p as any).port)) {
+  if (!isFiniteNumber(p.port)) {
     return { pill: "pillMuted", text: "No port" };
   }
 
   // If URL is missing, treat as configured but incomplete.
-  if (!hasNonEmptyString((p as any).url)) {
+  if (!hasNonEmptyString(p.url)) {
     return { pill: "pillWarn", text: "Configured" };
   }
 
@@ -194,7 +188,7 @@ export function makeStatusForRow(
 ): (p: ProjectRow) => RowStatus {
   return (p: ProjectRow) => {
     try {
-      const port = (p as any).port;
+      const port = p.port;
 
       if (!isFiniteNumber(port)) {
         return { pill: "pillMuted", text: "No port" };
@@ -228,7 +222,7 @@ export function makeStatusForRow(
  */
 export function sortProjectsStable(rows: ProjectRow[]): ProjectRow[] {
   const copy = rows.slice();
-  copy.sort((a: any, b: any) => {
+  copy.sort((a, b) => {
     const orgA = hasNonEmptyString(a.org) ? a.org : "";
     const orgB = hasNonEmptyString(b.org) ? b.org : "";
     if (orgA !== orgB) return orgA.localeCompare(orgB);

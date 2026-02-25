@@ -3,6 +3,8 @@ export type ProjectKey = string;
 export type ProjectRow = {
   key: ProjectKey;
   label: string;
+  org?: ProjectOrg;
+  kind?: ProjectKind;
 
   // Display hints
   repoHint?: string;
@@ -33,33 +35,13 @@ export type ProjectKind =
 
 /**
  * What the Add Project modal produces.
- * This may contain extra structure that is reduced
- * down to a ProjectRow when saved into projects.json.
+ * This is forwarded to O2 plan as the only project-create action.
  */
 export type AddProjectPayload = {
-  key: string; // slug (e.g. "tbis")
-  label: string; // display name
-
-  // Meta (not necessarily persisted 1:1 to registry)
-  org: ProjectOrg;
-  kind: ProjectKind;
-
-  // Location
-  repoPath: string; // full path (source of truth)
-  repoHint?: string; // short hint shown in UI
-
-  // Runtime
-  port?: number;
-  url?: string;
-
-  // O2 hooks (optional)
-  o2StartKey?: string;
-  o2SnapshotKey?: string;
-  o2CommitKey?: string;
-  o2MapKey?: string;
-  o2ProofPackKey?: string;
-
-  notes?: string;
+  name: string;
+  slug: string;
+  essay: string;
+  templateHint?: string;
 };
 
 export type PortStatus = {

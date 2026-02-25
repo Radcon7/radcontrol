@@ -16,8 +16,6 @@ import type {
 import {
   fmtErr,
   registryToProjects,
-  validateAdd,
-  nextPortSuggestion,
 } from "./components/projects/helpers";
 
 type TabKey =
@@ -77,10 +75,11 @@ function parseRegistryMaybeDoubleEncoded(raw: string): unknown[] {
     throw new Error(`Registry response was not valid JSON: ${String(e)}`);
   }
 
-  let reg: unknown = first;
+  // Handle double-encoded JSON string.
+  let parsed: unknown = first;
   if (typeof first === "string") {
     try {
-      reg = JSON.parse(first);
+      parsed = JSON.parse(first);
     } catch (e) {
       throw new Error(
         `Registry double-encoded JSON could not be parsed: ${String(e)}`,
@@ -88,13 +87,33 @@ function parseRegistryMaybeDoubleEncoded(raw: string): unknown[] {
     }
   }
 
-  if (!Array.isArray(reg)) {
-    throw new Error(
-      `Registry parsed but was not an array (type=${typeof reg}).`,
-    );
+  // Accept direct array.
+  if (Array.isArray(parsed)) return parsed as unknown[];
+
+  // Accept envelope: { ok:true, projects:[...] } or { ok:false, ... }
+  if (parsed && typeof parsed === "object") {
+    const obj = parsed as Record<string, unknown>;
+    const ok = obj.ok;
+
+    if (ok === false) {
+      const msg =
+        (typeof obj.message === "string" && obj.message) ||
+        (typeof obj.error === "string" && obj.error) ||
+        "list_projects returned error";
+      throw new Error(msg);
+    }
+
+    const projects = obj.projects;
+    if (Array.isArray(projects)) return projects as unknown[];
+
+    if (ok === true) {
+      throw new Error("Registry parsed but had no projects array.");
+    }
   }
 
-  return reg as unknown[];
+  throw new Error(
+    `Registry parsed but was not an array (type=${typeof parsed}).`,
+  );
 }
 
 function extractFirstHttpUrl(s: string): string | null {
@@ -153,9 +172,9 @@ function registryPortForKey(reg: unknown, key: string): number | null {
   if (!Array.isArray(reg)) return null;
 
   const row = reg.find(
-    (r) => r && typeof r === "object" && (r as any).key === key,
-  ) as any | undefined;
-
+    (r): r is { key?: unknown; port?: unknown } =>
+      Boolean(r) && typeof r === "object" && (r as { key?: unknown }).key === key,
+  );
   const port = row?.port;
   return typeof port === "number" && Number.isFinite(port) && port > 0
     ? port
@@ -186,6 +205,48 @@ async function invokeText(cmd: string, payload?: Record<string, unknown>) {
   }
 
   return (out ?? "").toString();
+}
+
+type RunO2Result = {
+  ok: boolean;
+  stdout: string;
+  stderr?: string;
+  code?: number;
+};
+
+async function invokeRunO2(verb: string): Promise<RunO2Result> {
+  const raw = (await invoke("run_o2", { verb })) as unknown;
+  const r = raw as Partial<RunO2Result>;
+
+  if (!r || typeof r.ok !== "boolean" || typeof r.stdout !== "string") {
+    throw new Error(`run_o2 returned unexpected shape for verb=${verb}`);
+  }
+
+  return {
+    ok: r.ok,
+    stdout: r.stdout,
+    stderr: typeof r.stderr === "string" ? r.stderr : "",
+    code: typeof r.code === "number" ? r.code : undefined,
+  };
+}
+
+function encodeBase64UrlJson(value: Record<string, unknown>): string {
+  const json = JSON.stringify(value);
+  const bytes = new TextEncoder().encode(json);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function runO2Text(verb: string): Promise<string> {
+  const r = await invokeRunO2(verb);
+
+  if (!r.ok) {
+    const msg = (r.stderr && r.stderr.trim()) || `run_o2 failed for verb=${verb}`;
+    throw new Error(msg);
+  }
+
+  return r.stdout;
 }
 
 export default function App() {
@@ -247,7 +308,7 @@ export default function App() {
 
     loadRegistryInFlightRef.current = (async () => {
       try {
-        const raw = await invokeText("o2_list_projects");
+        const raw = await runO2Text("list_projects");
         const reg = parseRegistryMaybeDoubleEncoded(raw);
 
         setRawRegistry(reg);
@@ -272,23 +333,6 @@ export default function App() {
     loadRegistryOnceRef.current = true;
     void loadRegistry();
   }, []);
-
-  const usedPorts = useMemo(() => {
-    const s = new Set<number>();
-    projects.forEach((p) => {
-      if (typeof p.port === "number") s.add(p.port);
-    });
-
-    const rcPort = registryPortForKey(rawRegistry, "radcontrol");
-    if (rcPort) s.add(rcPort);
-
-    return s;
-  }, [projects, rawRegistry]);
-
-  const suggestedPort = useMemo(
-    () => nextPortSuggestion(Array.from(usedPorts)),
-    [usedPorts],
-  );
 
   // --- Ports ---
   const [ports, setPorts] = useState<Record<number, PortStatus | undefined>>(
@@ -368,25 +412,36 @@ export default function App() {
   }
 
   // --- O2 ---
-  async function runO2(title: string, key?: string): Promise<string | null> {
+  async function runO2(
+    title: string,
+    key?: string,
+    opts?: { rethrow?: boolean; refreshPorts?: boolean },
+  ): Promise<string | null> {
     if (!key || busy) return null;
 
     setBusy(true);
     appendLog(`\n[o2] ${title} → run_o2("${key}")\n`);
     try {
-      const out = await invokeText("run_o2", { verb: key });
-      const text = (out ?? "(no output)").toString();
-      appendLog(text);
+      const r = await invokeRunO2(key);
+      const text = (r.stdout ?? "").toString();
+      appendLog(text || "(no output)");
+      if (r.stderr) appendLog(r.stderr);
+      if (!r.ok) {
+        throw new Error(r.stderr?.trim() || `run_o2 failed for verb=${key}`);
+      }
       return text;
     } catch (e) {
       appendLog("\n[o2] ERROR:\n" + fmtErr(e));
+      if (opts?.rethrow) throw e;
       return null;
     } finally {
       setBusy(false);
-      try {
-        await refreshPorts();
-      } catch {
-        // ignore
+      if (opts?.refreshPorts !== false) {
+        try {
+          await refreshPorts();
+        } catch {
+          // ignore
+        }
       }
     }
   }
@@ -441,44 +496,19 @@ export default function App() {
   }
 
   async function createProject(payload: AddProjectPayload) {
-    const validation = validateAdd({
-      org: payload.org,
-      key: payload.key,
-      port: payload.port,
-      url: payload.url,
-      repo: payload.repoPath,
-    });
-    if (!validation.ok) {
-      appendLog(`[projects] add rejected: ${validation.errors.join(" ")}`);
-      return;
-    }
-
-    const entry: Record<string, unknown> = {
-      key: payload.key,
-      label: payload.label,
-      repoHint: payload.repoPath,
+    const body: Record<string, unknown> = {
+      name: payload.name,
+      slug: payload.slug,
+      essay: payload.essay,
     };
+    if (payload.templateHint) body.templateHint = payload.templateHint;
 
-    if (typeof payload.port === "number") entry.port = payload.port;
-    if (payload.url) entry.url = payload.url;
-
-    if (payload.o2StartKey) entry.o2StartKey = payload.o2StartKey;
-    if (payload.o2SnapshotKey) entry.o2SnapshotKey = payload.o2SnapshotKey;
-    if (payload.o2CommitKey) entry.o2CommitKey = payload.o2CommitKey;
-    if (payload.o2MapKey) entry.o2MapKey = payload.o2MapKey;
-    if (payload.o2ProofPackKey) entry.o2ProofPackKey = payload.o2ProofPackKey;
-
-    const nextReg = Array.isArray(rawRegistry)
-      ? [...rawRegistry, entry]
-      : [entry];
-    setRawRegistry(nextReg);
-    setProjects(registryToProjects(nextReg));
-
-    const json = JSON.stringify(entry, null, 2);
-    appendLog(
-      "\n[projects] NEW REGISTRY ENTRY (paste into O2 projects.json):\n" + json,
-    );
-    void copyText(json);
+    const token = encodeBase64UrlJson(body);
+    const verb = `project_create.plan.${token}`;
+    await runO2("Project Create Plan", verb, {
+      rethrow: true,
+      refreshPorts: false,
+    });
   }
 
   const logText = (busy ? "Running…" : log || "No logs yet.").toString();
@@ -563,7 +593,7 @@ export default function App() {
                   className="btn btnPrimary"
                   onClick={() => setShowAddProject(true)}
                   disabled={busy}
-                  title="Add a project (UI-only; copies JSON to clipboard)"
+                  title="Send a project-create plan request to O2 (no local writes)"
                 >
                   New Project
                 </button>
@@ -601,7 +631,6 @@ export default function App() {
               open={showAddProject}
               onClose={() => setShowAddProject(false)}
               onCreate={createProject}
-              defaultSuggestedPort={suggestedPort}
             />
           </div>
         ) : (

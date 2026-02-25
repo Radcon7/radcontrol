@@ -1,84 +1,55 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AddProjectPayload } from "./types";
-import { slugify, inferRepoPath, asPort, validateAdd } from "./helpers";
-
-type Org = "radcon" | "radwolfe" | "labs" | "other";
-type Kind = "nextjs" | "tauri" | "python" | "docs" | "static" | "other";
+import { slugify, validateAdd } from "./helpers";
 
 export function AddProjectModal({
   open,
   onClose,
   onCreate,
-  defaultSuggestedPort,
 }: {
   open: boolean;
   onClose: () => void;
   onCreate: (payload: AddProjectPayload) => Promise<void> | void;
-  defaultSuggestedPort?: number;
-  usedPorts?: Set<number>;
 }) {
-  const [key, setKey] = useState("");
-  const [label, setLabel] = useState("");
-  const [org, setOrg] = useState<Org>("radcon");
-  const [repoPath, setRepoPath] = useState("");
-  const [kind, setKind] = useState<Kind>("nextjs");
-  const [port, setPort] = useState<string>(
-    defaultSuggestedPort ? String(defaultSuggestedPort) : "",
-  );
-  const [url, setUrl] = useState("");
+  const [slugInput, setSlugInput] = useState("");
+  const [name, setName] = useState("");
+  const [essay, setEssay] = useState("");
+  const [templateHint, setTemplateHint] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Reset on open so it doesn't get "stuck" between uses.
   useEffect(() => {
     if (!open) return;
-    setKey("");
-    setLabel("");
-    setOrg("radcon");
-    setRepoPath("");
-    setKind("nextjs");
-    setPort(defaultSuggestedPort ? String(defaultSuggestedPort) : "");
-    setUrl("");
+    setSlugInput("");
+    setName("");
+    setEssay("");
+    setTemplateHint("");
     setErr(null);
     setSaving(false);
-  }, [open, defaultSuggestedPort]);
+  }, [open]);
 
-  const keySlug = useMemo(() => slugify(key), [key]);
-
-  function autoFillRepo() {
-    const slug = slugify(key);
-    const inferred = inferRepoPath({ org, key: slug });
-    setRepoPath(inferred);
-  }
-
-  const parsedPort = useMemo(() => {
-    const t = port.trim();
-    return t ? (asPort(t) ?? undefined) : undefined;
-  }, [port]);
+  const slug = useMemo(() => slugify(slugInput), [slugInput]);
 
   const payload: AddProjectPayload = useMemo(
     () => ({
-      key: keySlug,
-      label: label.trim(),
-      org,
-      repoPath: repoPath.trim(),
-      kind,
-      port: parsedPort,
-      url: url.trim() ? url.trim() : undefined,
+      name: name.trim(),
+      slug,
+      essay: essay.trim(),
+      templateHint: templateHint.trim() || undefined,
     }),
-    [keySlug, label, org, repoPath, kind, parsedPort, url],
+    [name, slug, essay, templateHint],
   );
 
   const validation = useMemo(
     () =>
       validateAdd({
-        org: payload.org,
-        key: payload.key,
-        port: payload.port,
-        url: payload.url,
-        repo: payload.repoPath,
+        name: payload.name,
+        slug: slugInput,
+        essay: payload.essay,
+        templateHint: payload.templateHint,
       }),
-    [payload],
+    [payload, slugInput],
   );
   const validationError = validation.ok ? null : validation.errors.join(" ");
 
@@ -95,11 +66,17 @@ export function AddProjectModal({
     try {
       await onCreate(payload);
       onClose();
-    } catch (e: any) {
-      setErr(
-        typeof e?.message === "string" && e.message.trim()
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error
           ? e.message
-          : "Failed to create project.",
+          : e && typeof e === "object" && "message" in e
+            ? String((e as { message: unknown }).message ?? "")
+            : "";
+      setErr(
+        typeof msg === "string" && msg.trim()
+          ? msg
+          : "Failed to send project plan.",
       );
     } finally {
       setSaving(false);
@@ -124,86 +101,46 @@ export function AddProjectModal({
         </div>
 
         <div className="modalBody">
-          <label>Project Key</label>
+          <label>Project Slug</label>
           <input
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
+            value={slugInput}
+            onChange={(e) => setSlugInput(e.target.value)}
             placeholder="tbis"
             disabled={saving}
           />
           <div style={{ fontSize: 12, opacity: 0.85, marginTop: 6 }}>
-            Saved key: <code>{keySlug || "—"}</code>
+            Encoded slug: <code>{slug || "—"}</code>
           </div>
 
-          <label style={{ marginTop: 12 }}>Display Name</label>
+          <label style={{ marginTop: 12 }}>Project Name</label>
           <input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             placeholder="The Biggest Internet Store"
             disabled={saving}
           />
 
-          <label style={{ marginTop: 12 }}>Organization</label>
+          <label style={{ marginTop: 12 }}>Template Hint (optional)</label>
           <select
-            value={org}
-            onChange={(e) => setOrg(e.target.value as Org)}
+            value={templateHint}
+            onChange={(e) => setTemplateHint(e.target.value)}
             disabled={saving}
           >
-            <option value="radcon">radcon</option>
-            <option value="radwolfe">radwolfe</option>
-            <option value="labs">labs</option>
-            <option value="other">other</option>
-          </select>
-
-          <label style={{ marginTop: 12 }}>Repo Path</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              value={repoPath}
-              onChange={(e) => setRepoPath(e.target.value)}
-              placeholder="~/dev/rad-empire/..."
-              disabled={saving}
-              style={{ flex: 1 }}
-            />
-            <button
-              className="btn btnGhost"
-              onClick={autoFillRepo}
-              disabled={saving || !keySlug}
-              title="Infer repo path from org + key"
-              type="button"
-            >
-              Auto
-            </button>
-          </div>
-
-          <label style={{ marginTop: 12 }}>Kind</label>
-          <select
-            value={kind}
-            onChange={(e) => setKind(e.target.value as Kind)}
-            disabled={saving}
-          >
+            <option value="">(none)</option>
             <option value="nextjs">nextjs</option>
             <option value="tauri">tauri</option>
             <option value="python">python</option>
-            <option value="docs">docs</option>
             <option value="static">static</option>
-            <option value="other">other</option>
           </select>
 
-          <label style={{ marginTop: 12 }}>Port</label>
-          <input
-            value={port}
-            onChange={(e) => setPort(e.target.value)}
-            placeholder="3000"
-            inputMode="numeric"
+          <label style={{ marginTop: 12 }}>Project Essay</label>
+          <textarea
+            value={essay}
+            onChange={(e) => setEssay(e.target.value)}
+            placeholder="Describe intent, scope, and constraints for O2 plan..."
             disabled={saving}
-          />
-
-          <label style={{ marginTop: 12 }}>URL</label>
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="http://localhost:3000"
-            disabled={saving}
+            rows={6}
+            style={{ width: "100%", resize: "vertical" }}
           />
 
           {err || validationError ? (
@@ -238,7 +175,7 @@ export function AddProjectModal({
             disabled={saving || Boolean(validationError)}
             type="button"
           >
-            {saving ? "Creating…" : "Create"}
+            {saving ? "Sending…" : "Send Plan to O2"}
           </button>
         </div>
       </div>
