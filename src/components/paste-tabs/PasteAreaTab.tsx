@@ -22,24 +22,20 @@ export function PasteAreaTab({
   title,
   value,
   onChange,
-  storageKey,
   placeholder,
   busy,
   onCopy,
-  isBundleTab,
-  onExportBundle,
-  onImportBundle,
+  onSave,
+  statusText,
 }: {
   title: string;
   value: string;
   onChange: (v: string) => void;
-  storageKey: string;
   placeholder: string;
   busy: boolean;
   onCopy: (text: string) => void;
-  isBundleTab: boolean;
-  onExportBundle: () => void;
-  onImportBundle: () => void;
+  onSave: () => void;
+  statusText?: string;
 }) {
   return (
     <div className="placeholderTab">
@@ -48,6 +44,15 @@ export function PasteAreaTab({
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <button
           className="btn btnPrimary"
+          onClick={onSave}
+          disabled={busy}
+          title="Save via O2 docs_set"
+        >
+          Save
+        </button>
+
+        <button
+          className="btn btnGhost"
           onClick={() => onCopy(value)}
           disabled={busy}
           title="Copy to clipboard"
@@ -64,31 +69,7 @@ export function PasteAreaTab({
           Clear
         </button>
 
-        {isBundleTab ? (
-          <>
-            <button
-              className="btn btnGhost"
-              onClick={() => onExportBundle()}
-              disabled={busy}
-              title="Copy a JSON bundle containing both Notes + Roadmap"
-            >
-              Export (Notes+Roadmap)
-            </button>
-
-            <button
-              className="btn btnGhost"
-              onClick={() => onImportBundle()}
-              disabled={busy}
-              title="Restore Notes + Roadmap from a JSON bundle in clipboard"
-            >
-              Import (Notes+Roadmap)
-            </button>
-          </>
-        ) : null}
-
-        <div style={{ opacity: 0.7, fontSize: 12 }}>
-          Autosaves locally: <code>{storageKey}</code>
-        </div>
+        <div style={{ opacity: 0.7, fontSize: 12 }}>{statusText ?? ""}</div>
       </div>
 
       <div style={{ marginTop: 12 }}>
