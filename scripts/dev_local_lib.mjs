@@ -10,7 +10,8 @@ export const RADCONTROL_PORT = 1420;
 export const RADCONTROL_DEV_URL = `http://${RADCONTROL_HOST}:${RADCONTROL_PORT}`;
 export const DEV_READY_TIMEOUT_MS = 90_000;
 export const HTTP_PROBE_TIMEOUT_MS = 1_500;
-export const RADCONTROL_HTML_FINGERPRINT = 'name="radcontrol-dev-fingerprint" content="radcontrol-app"';
+export const RADCONTROL_HTML_FINGERPRINT =
+  'name="radcontrol-dev-fingerprint" content="radcontrol-app"';
 
 export function repoRootFromMeta(metaUrl) {
   return path.resolve(path.dirname(fileURLToPath(metaUrl)), "..");
@@ -89,7 +90,10 @@ export function detectPackageManager(repoRoot) {
     return {
       name: "pnpm",
       runScript(script, extraArgs = []) {
-        return { cmd: "pnpm", args: ["run", script, ...withDoubleDash(extraArgs)] };
+        return {
+          cmd: "pnpm",
+          args: ["run", script, ...withDoubleDash(extraArgs)],
+        };
       },
     };
   }
@@ -107,7 +111,10 @@ export function detectPackageManager(repoRoot) {
     return {
       name: "npm",
       runScript(script, extraArgs = []) {
-        return { cmd: "npm", args: ["run", script, ...withDoubleDash(extraArgs)] };
+        return {
+          cmd: "npm",
+          args: ["run", script, ...withDoubleDash(extraArgs)],
+        };
       },
     };
   }
@@ -122,19 +129,33 @@ function withDoubleDash(extraArgs) {
   return ["--", ...extraArgs];
 }
 
-export function spawnChild({ cmd, args, cwd, env = process.env, stdio = "inherit" }) {
+export function spawnChild({
+  cmd,
+  args,
+  cwd,
+  env = process.env,
+  stdio = "inherit",
+}) {
   return spawn(cmd, args, { cwd, env, stdio });
 }
 
-export async function maybePrintEpermBindGuidance({ port = RADCONTROL_PORT, host = RADCONTROL_HOST, context = "" } = {}) {
+export async function maybePrintEpermBindGuidance({
+  port = RADCONTROL_PORT,
+  host = RADCONTROL_HOST,
+  context = "",
+} = {}) {
   const diag = await collectPortBindDiagnostics({ port, host });
   if (diag.bindProbe?.code !== "EPERM") {
     return false;
   }
 
   const title = context ? `[local-dev] ${context}` : "[local-dev]";
-  const nodePathLine = diag.nodePath ? `  - node path: ${diag.nodePath}` : "  - node path: (not found)";
-  const nodeRealPathLine = diag.nodeRealPath ? `  - node realpath: ${diag.nodeRealPath}` : "  - node realpath: (unresolved)";
+  const nodePathLine = diag.nodePath
+    ? `  - node path: ${diag.nodePath}`
+    : "  - node path: (not found)";
+  const nodeRealPathLine = diag.nodeRealPath
+    ? `  - node realpath: ${diag.nodeRealPath}`
+    : "  - node realpath: (unresolved)";
   const sandboxHintLine = diag.nodeSandboxHint
     ? `  - node packaging hint: ${diag.nodeSandboxHint}`
     : "  - node packaging hint: none detected (snap/flatpak not obvious)";
@@ -172,7 +193,9 @@ export async function maybePrintEpermBindGuidance({ port = RADCONTROL_PORT, host
       nodePathLine,
       nodeRealPathLine,
       sandboxHintLine,
-      diag.bindProbe?.detail ? `  - bind repro result: ${diag.bindProbe.detail}` : "  - bind repro result: unavailable",
+      diag.bindProbe?.detail
+        ? `  - bind repro result: ${diag.bindProbe.detail}`
+        : "  - bind repro result: unavailable",
       "",
     ].join("\n"),
   );
@@ -183,7 +206,9 @@ export async function maybePrintEpermBindGuidance({ port = RADCONTROL_PORT, host
 export function waitForExit(child, label) {
   return new Promise((resolve, reject) => {
     child.once("error", (err) => {
-      reject(new Error(`${label} failed to start: ${String(err.message || err)}`));
+      reject(
+        new Error(`${label} failed to start: ${String(err.message || err)}`),
+      );
     });
     child.once("exit", (code, signal) => {
       resolve({ code, signal });
@@ -197,89 +222,127 @@ export async function fetchText(url, timeoutMs = HTTP_PROBE_TIMEOUT_MS) {
   try {
     const res = await fetch(url, { signal: controller.signal });
     const text = await res.text();
-    return { ok: true, status: res.status, text, contentType: res.headers.get("content-type") || "" };
+    return {
+      ok: true,
+      status: res.status,
+      text,
+      contentType: res.headers.get("content-type") || "",
+    };
   } finally {
     clearTimeout(timer);
   }
 }
 
-export async function probeRadcontrolDevServer(baseUrl, timeoutMs = HTTP_PROBE_TIMEOUT_MS) {
-  const rootUrl = `${baseUrl}/`;
-  const viteClientUrl = `${baseUrl}/@vite/client`;
-  const mainTsxUrl = `${baseUrl}/src/main.tsx`;
+export async function probeRadcontrolDevServer(
+  baseUrl,
+  timeoutMs = HTTP_PROBE_TIMEOUT_MS,
+) {
+  // What we want to prove:
+  // - The RadControl Vite dev server is serving on baseUrl
+  // - Root is reachable
+  // - Vite client is reachable at /@vite/client
+  // - Your app entry is reachable at /src/main.tsx (dev mode)
+  //
+  // If root is up but Vite client is NOT, it's likely "wrong server" on that port.
 
-  try {
-    const [rootRes, viteRes, mainRes] = await Promise.all([
-      fetchText(rootUrl, timeoutMs),
-      fetchText(viteClientUrl, timeoutMs),
-      fetchText(mainTsxUrl, timeoutMs),
-    ]);
+  const rootUrl = new URL("/", baseUrl).toString();
+  const viteUrl = new URL("/@vite/client", baseUrl).toString();
+  const mainUrl = new URL("/src/main.tsx", baseUrl).toString();
 
-    const rootLooksRight =
-      rootRes.status >= 200 &&
-      rootRes.status < 500 &&
-      rootRes.text.includes('<div id="root"></div>') &&
-      rootRes.text.includes('/src/main.tsx') &&
-      rootRes.text.includes(RADCONTROL_HTML_FINGERPRINT);
-
-    const viteLooksRight =
-      viteRes.status >= 200 &&
-      viteRes.status < 500 &&
-      viteRes.text.includes('/@vite/client');
-
-    const mainLooksRight =
-      mainRes.status >= 200 &&
-      mainRes.status < 500 &&
-      mainRes.text.includes('import') &&
-      mainRes.text.includes('./App');
-
-    if (rootLooksRight && viteLooksRight && mainLooksRight) {
-      return {
-        ok: true,
-        rootStatus: rootRes.status,
-        viteStatus: viteRes.status,
-        mainStatus: mainRes.status,
-      };
+  async function hit(url) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+      return { ok: true, status: res.status };
+    } catch (e) {
+      return { ok: false, status: 0, err: e };
     }
+  }
 
+  const root = await hit(rootUrl);
+  const vite = await hit(viteUrl);
+  const main = await hit(mainUrl);
+
+  const rootStatus = root.ok ? root.status : 0;
+  const viteStatus = vite.ok ? vite.status : 0;
+  const mainStatus = main.ok ? main.status : 0;
+
+  // If nothing answers, it's simply down.
+  if (!root.ok && !vite.ok && !main.ok) {
+    return {
+      ok: false,
+      kind: "down",
+      rootStatus,
+      viteStatus,
+      mainStatus,
+      details: `no endpoints reachable at ${baseUrl}`,
+    };
+  }
+
+  // "Wrong server" means: something is answering on /, but it is NOT a Vite dev server.
+  // Vite dev should serve /@vite/client (200/304 typical).
+  const viteLooksOk = viteStatus === 200 || viteStatus === 304;
+  if (root.ok && !viteLooksOk) {
     return {
       ok: false,
       kind: "wrong-server",
-      details: [
-        `root / -> HTTP ${rootRes.status} (${rootLooksRight ? "radcontrol-like" : "unexpected"})`,
-        `GET /@vite/client -> HTTP ${viteRes.status} (${viteLooksRight ? "vite-like" : "unexpected"})`,
-        `GET /src/main.tsx -> HTTP ${mainRes.status} (${mainLooksRight ? "radcontrol-like" : "unexpected"})`,
-      ].join("\n  - "),
+      rootStatus,
+      viteStatus,
+      mainStatus,
+      details: `root is up but /@vite/client is not (status=${viteStatus || "no response"})`,
     };
-  } catch (err) {
-    const msg = String(err?.message || err);
-    return { ok: false, kind: "unreachable", details: msg };
-  }
-}
-
-export async function waitForRadcontrolDevServer({ baseUrl, timeoutMs = DEV_READY_TIMEOUT_MS, intervalMs = 700 }) {
-  const started = Date.now();
-  let last = null;
-  while (Date.now() - started < timeoutMs) {
-    const r = await probeRadcontrolDevServer(baseUrl);
-    if (r.ok) return r;
-    last = r;
-    await sleep(intervalMs);
   }
 
+  // "OK" means: root + Vite client are live.
+  // main.tsx may be 200 in dev; if it isn't, still allow as OK because some setups
+  // may not expose source entry directly (but root+vite is the key).
+  if (root.ok && viteLooksOk) {
+    return {
+      ok: true,
+      kind: "ok",
+      rootStatus,
+      viteStatus,
+      mainStatus,
+      details: `root=${rootStatus}, vite=${viteStatus}, main=${mainStatus}`,
+    };
+  }
+
+  // Anything else is "degraded" (reachable but not clearly ok/wrong).
   return {
     ok: false,
-    kind: last?.kind || "timeout",
-    details: last?.details || "No response received before timeout",
-    timedOutAfterMs: timeoutMs,
+    kind: "degraded",
+    rootStatus,
+    viteStatus,
+    mainStatus,
+    details: `reachable but not clearly ok: root=${rootStatus}, vite=${viteStatus}, main=${mainStatus}`,
   };
 }
+export async function waitForRadcontrolDevServer(
+  baseUrl,
+  timeoutMs,
+  probeTimeoutMs = 750,
+  pollMs = 250,
+) {
+  const started = Date.now();
 
+  while (Date.now() - started < timeoutMs) {
+    const probe = await probeRadcontrolDevServer(baseUrl, probeTimeoutMs);
+    if (probe.ok) return { ok: true, probe };
+    if (probe.kind === "wrong-server")
+      return { ok: false, kind: "wrong-server", probe };
+    await new Promise((r) => setTimeout(r, pollMs));
+  }
+
+  return { ok: false, kind: "timeout" };
+}
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function commandVersion(cmd, args = ["--version"], timeoutMs = 5_000) {
+export async function commandVersion(
+  cmd,
+  args = ["--version"],
+  timeoutMs = 5_000,
+) {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
@@ -319,13 +382,14 @@ export async function commandVersion(cmd, args = ["--version"], timeoutMs = 5_00
 }
 
 async function collectPortBindDiagnostics({ port, host }) {
-  const [unprivilegedPortStart, nodePath, nodeRealPath, ssCheck, bindProbe] = await Promise.all([
-    readUnprivilegedPortStart(),
-    Promise.resolve(process.execPath || null),
-    resolveNodeRealPath(),
-    checkListeningPortFromProc(port),
-    probeNodeBind({ port, host }),
-  ]);
+  const [unprivilegedPortStart, nodePath, nodeRealPath, ssCheck, bindProbe] =
+    await Promise.all([
+      readUnprivilegedPortStart(),
+      Promise.resolve(process.execPath || null),
+      resolveNodeRealPath(),
+      checkListeningPortFromProc(port),
+      probeNodeBind({ port, host }),
+    ]);
 
   return {
     unprivilegedPortStart,
@@ -346,10 +410,15 @@ async function resolveNodeRealPath() {
 }
 
 function detectNodeSandboxHint(nodePath, nodeRealPath) {
-  const joined = [nodePath, nodeRealPath].filter(Boolean).join(" ").toLowerCase();
+  const joined = [nodePath, nodeRealPath]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
   if (!joined) return "";
-  if (joined.includes("/snap/")) return "node appears to come from Snap; confinement can block local binds";
-  if (joined.includes("flatpak")) return "node path mentions Flatpak; sandboxing can block local binds";
+  if (joined.includes("/snap/"))
+    return "node appears to come from Snap; confinement can block local binds";
+  if (joined.includes("flatpak"))
+    return "node path mentions Flatpak; sandboxing can block local binds";
   return "";
 }
 
@@ -359,7 +428,10 @@ async function readUnprivilegedPortStart() {
     const raw = (await fsp.readFile(procPath, "utf8")).trim();
     const n = Number(raw);
     if (!Number.isFinite(n)) {
-      return { ok: false, detail: `unexpected ${procPath} contents: ${raw || "(empty)"}` };
+      return {
+        ok: false,
+        detail: `unexpected ${procPath} contents: ${raw || "(empty)"}`,
+      };
     }
     return { ok: true, value: Math.trunc(n) };
   } catch (err) {
@@ -387,7 +459,12 @@ async function checkListeningPortFromProc(port) {
         }
       }
     }
-    return { ok: true, detail: listening.length ? listening.join("; ") : `no listener on :${port}` };
+    return {
+      ok: true,
+      detail: listening.length
+        ? listening.join("; ")
+        : `no listener on :${port}`,
+    };
   } catch (err) {
     return { ok: false, detail: String(err?.message || err) };
   }
@@ -415,7 +492,8 @@ async function probeNodeBind({ port, host }) {
       resolve({
         ok: false,
         code: String(err?.code || ""),
-        detail: `${String(err?.code || "ERROR")} ${String(err?.message || err)}`.trim(),
+        detail:
+          `${String(err?.code || "ERROR")} ${String(err?.message || err)}`.trim(),
       });
     });
 

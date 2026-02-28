@@ -16,8 +16,10 @@ const PRECHECK_TIMEOUT_MS = readPositiveIntEnv(
 async function main() {
   const repoRoot = repoRootFromMeta(import.meta.url);
   const { devUrl, tauriConfPath } = await readTauriDevUrl(repoRoot);
-  const relTauriConfPath = path.relative(repoRoot, tauriConfPath) || tauriConfPath;
+  const relTauriConfPath =
+    path.relative(repoRoot, tauriConfPath) || tauriConfPath;
 
+  // 0) Enforce canonical devUrl
   if (devUrl !== RADCONTROL_DEV_URL) {
     die(
       [
@@ -31,7 +33,9 @@ async function main() {
     );
   }
 
+  // 1) Probe only. This script must NOT start Vite.
   const probe = await probeRadcontrolDevServer(devUrl, PRECHECK_TIMEOUT_MS);
+
   if (probe.ok) {
     console.log(
       `[tauri-preflight] OK: RadControl Vite dev server reachable at ${devUrl} (root=${probe.rootStatus}, vite=${probe.viteStatus}, main=${probe.mainStatus})`,
@@ -47,24 +51,24 @@ async function main() {
         `  - probe details:`,
         `  - ${probe.details}`,
         "",
-        `Fix:`,
-        `  1) Stop the process currently using port 1420`,
-        `  2) Run the golden path from repo root: node scripts/tauri_dev.mjs`,
+        `Fix: stop the process currently using port 1420, then run from repo root:`,
+        `  node scripts/tauri_dev.mjs`,
       ].join("\n"),
       4,
     );
   }
 
+  // Down / unreachable / degraded -> fail fast with a deterministic instruction.
   die(
     [
-      `[tauri-preflight] ERROR: RadControl Vite dev server is not reachable at ${devUrl}`,
-      `  - timeout per probe: ${PRECHECK_TIMEOUT_MS}ms`,
+      `[tauri-preflight] ERROR: RadControl Vite dev server not reachable at ${devUrl}`,
+      `  - probe kind: ${probe.kind || "unknown"}`,
+      `  - timeout: ${PRECHECK_TIMEOUT_MS}ms`,
       "",
-      `Fix:`,
-      `  1) Start local dev from repo root with: node scripts/tauri_dev.mjs`,
-      `  2) Or start Vite manually on ${RADCONTROL_DEV_URL} and retry`,
+      `Fix (golden path):`,
+      `  node scripts/tauri_dev.mjs`,
       "",
-      `This check exits fast on purpose to avoid Tauri hanging while waiting for devUrl.`,
+      `Note: this preflight does not start Vite (runner owns startup).`,
     ].join("\n"),
     2,
   );
