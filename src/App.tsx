@@ -8,6 +8,9 @@ import { PasteAreaTab } from "./components/paste-tabs/PasteAreaTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
 import { AddProjectModal } from "./components/projects/AddProjectModal";
 
+import { CodexChatTab } from "./components/codex/CodexChatTab";
+import { CodexBuildTab } from "./components/codex/CodexBuildTab";
+
 import type {
   AddProjectPayload,
   ProjectRow,
@@ -22,11 +25,14 @@ import {
 
 type TabKey =
   | "projects"
+  | "codex_chat"
+  | "codex_build"
   | "notes"
   | "legal"
   | "templates"
   | "timeline"
-  | "roadmap";
+  | "roadmap"
+  | "snapshot";
 
 function readLS(key: string, fallback = ""): string {
   try {
@@ -492,11 +498,14 @@ export default function App() {
           {(
             [
               "projects",
+              "codex_chat",
+              "codex_build",
               "notes",
               "legal",
               "templates",
               "timeline",
               "roadmap",
+              "snapshot",
             ] as TabKey[]
           ).map((t) => (
             <button
@@ -604,6 +613,10 @@ export default function App() {
               defaultSuggestedPort={suggestedPort}
             />
           </div>
+        ) : tab === "codex_chat" ? (
+          <CodexChatTab />
+        ) : tab === "codex_build" ? (
+          <CodexBuildTab />
         ) : (
           <PasteAreaTab
             title={tab}

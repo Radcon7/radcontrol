@@ -15,8 +15,9 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
-        .invoke_handler(tauri::generate_handler![
+                .invoke_handler(tauri::generate_handler![
             commands::o2::run_o2,
+            commands::o2::run_o2_with_input,
             commands::registry::o2_list_projects,
         ])
         .run(tauri::generate_context!())
