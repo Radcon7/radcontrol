@@ -167,10 +167,6 @@ export function ProjectsTab({
           );
         })}
       </div>
-
-      <div className="projectsFootnote">
-        Uses <code>run_o2</code> only. No freeform shell.
-      </div>
     </div>
   );
 }
