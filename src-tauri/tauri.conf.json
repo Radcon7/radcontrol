@@ -15,10 +15,10 @@
       {
         "label": "main",
         "title": "RadControl",
-        "width": 1400,
-        "height": 900,
-        "minWidth": 1100,
-        "minHeight": 750,
+        "width": 1580,
+        "height": 1000,
+        "minWidth": 1250,
+        "minHeight": 820,
         "resizable": true,
         "center": true
       }

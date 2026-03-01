@@ -94,6 +94,17 @@ fn run_o2_command_with_input(arg: &str, input: &str) -> RunO2Result {
   }
 }
 
+// Optional: strict allowlist. If you want this ON, uncomment the check below.
+// fn verb_allowed(v: &str) -> bool {
+//   matches!(
+//     v,
+//     "files.list"
+//       | "list_projects"
+//       | "codex.chat"
+//       | "codex.build"
+//   )
+// }
+
 #[tauri::command]
 pub fn run_o2(verb: String) -> RunO2Result {
   // Defensive trim; keep it as one argument.
@@ -106,6 +117,17 @@ pub fn run_o2(verb: String) -> RunO2Result {
       stderr: "empty verb".to_string(),
     };
   }
+
+  // If you enable allowlisting, enforce it here:
+  // if !verb_allowed(&v) {
+  //   return RunO2Result {
+  //     ok: false,
+  //     code: 1,
+  //     stdout: "".to_string(),
+  //     stderr: format!("verb not allowed: {}", v),
+  //   };
+  // }
+
   run_o2_command(&v)
 }
 
@@ -121,5 +143,16 @@ pub fn run_o2_with_input(verb: String, input: String) -> RunO2Result {
       stderr: "empty verb".to_string(),
     };
   }
+
+  // If you enable allowlisting, enforce it here:
+  // if !verb_allowed(&v) {
+  //   return RunO2Result {
+  //     ok: false,
+  //     code: 1,
+  //     stdout: "".to_string(),
+  //     stderr: format!("verb not allowed: {}", v),
+  //   };
+  // }
+
   run_o2_command_with_input(&v, &input)
 }

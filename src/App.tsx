@@ -34,23 +34,6 @@ type TabKey =
   | "roadmap"
   | "snapshot";
 
-function readLS(key: string, fallback = ""): string {
-  try {
-    const v = localStorage.getItem(key);
-    return typeof v === "string" ? v : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeLS(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // ignore
-  }
-}
-
 async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -226,19 +209,6 @@ export default function App() {
       }
     })();
   }, []);
-
-  // --- Paste tabs persistence ---
-  const [tabValue, setTabValue] = useState<string>(() =>
-    readLS(`radcontrol.${tab}`, ""),
-  );
-
-  useEffect(() => {
-    setTabValue(readLS(`radcontrol.${tab}`, ""));
-  }, [tab]);
-
-  useEffect(() => {
-    writeLS(`radcontrol.${tab}`, tabValue);
-  }, [tab, tabValue]);
 
   // --- Registry ---
   const [projects, setProjects] = useState<ProjectRow[]>([]);
@@ -620,12 +590,12 @@ export default function App() {
         ) : (
           <PasteAreaTab
             title={tab}
-            value={tabValue}
-            onChange={setTabValue}
+            value={""}
+            onChange={() => {}}
             storageKey={`radcontrol.${tab}`}
             placeholder={`Paste ${tab} notes here…`}
             busy={busy}
-            onCopy={() => void copyText(tabValue)}
+            onCopy={() => {}}
             isBundleTab={false}
             onExportBundle={() => {}}
             onImportBundle={() => {}}

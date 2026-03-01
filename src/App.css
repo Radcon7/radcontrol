@@ -76,8 +76,16 @@ body {
 
 /* App shell */
 .appShell {
+  /* Stable vertical fill */
   height: 100vh;
-  padding: 12px;
+  min-height: 100vh;
+
+  /* Wider overall frame, still not edge-to-edge */
+  padding: 8px 12px;
+  width: 100%;
+  max-width: min(1900px, calc(100vw - 24px));
+  margin: 0 auto;
+
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -142,7 +150,8 @@ body {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--stroke);
 
-  max-width: 64vw;
+  /* Remove artificial clamp so header can match widened shell */
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
@@ -448,7 +457,10 @@ body {
 .projectRow {
   width: 100%;
   display: grid;
-  grid-template-columns: 260px 760px 1fr;
+
+  /* Remove the fixed 760px middle bottleneck; let rows breathe on wide screens */
+  grid-template-columns: 280px minmax(640px, 1.6fr) minmax(360px, 1fr);
+
   align-items: center;
   column-gap: 18px;
 
@@ -675,7 +687,7 @@ body {
   }
 
   .tabs {
-    max-width: 56vw;
+    max-width: 100%;
   }
 }
 
