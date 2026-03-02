@@ -33,6 +33,19 @@ type FilesReadJson = {
 type FilesNewJson = {
   ok?: boolean;
   path?: string;
+  mtime?: number;
+  bytes?: number;
+  committed?: boolean;
+  commitMessage?: string | null;
+};
+
+type FilesWriteJson = {
+  ok?: boolean;
+  path?: string;
+  mtime?: number;
+  bytes?: number;
+  committed?: boolean;
+  commitMessage?: string | null;
 };
 
 function fmtBytes(n?: number) {
@@ -82,6 +95,16 @@ function errMsg(res: RunO2Result, fallback: string) {
   return `${fallback} (code=${res.code})`;
 }
 
+function dirForTab(tabKey: string): string {
+  // Canonical radcontrol export dirs
+  return `docs/radcontrol/${tabKey}`;
+}
+
+function defaultCommitMessage(tabKey: string, action: "new" | "write") {
+  const a = action === "new" ? "create" : "update";
+  return `radcontrol: ${tabKey} ${a} autosave`;
+}
+
 export function PasteAreaTab(props: {
   title: string; // tab key, e.g. "notes"
   value: string; // legacy (ignored for canonical behavior)
@@ -112,7 +135,15 @@ export function PasteAreaTab(props: {
     draftRef.current = draft;
   }, [draft]);
 
+  // Dirty tracking (local)
+  const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+
   const docsPrefix = useMemo(() => `docs/radcontrol/${tabKey}/`, [tabKey]);
+  const tabDir = useMemo(() => dirForTab(tabKey), [tabKey]);
 
   const filteredFiles = useMemo(() => {
     const want = docsPrefix.toLowerCase();
@@ -124,7 +155,7 @@ export function PasteAreaTab(props: {
       .sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
   }, [files, docsPrefix]);
 
-  async function refreshList() {
+  async function refreshList(): Promise<FilesListItem[]> {
     setLoading(true);
     setErr("");
     try {
@@ -132,13 +163,16 @@ export function PasteAreaTab(props: {
       if (!res.ok) {
         setFiles([]);
         setErr(errMsg(res, "files.list failed"));
-        return;
+        return [];
       }
       const j = JSON.parse((res.stdout || "").trim()) as FilesListJson;
-      setFiles(Array.isArray(j.items) ? j.items : []);
+      const items = Array.isArray(j.items) ? j.items : [];
+      setFiles(items);
+      return items;
     } catch (e) {
       setFiles([]);
       setErr((e as Error).message);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -160,6 +194,7 @@ export function PasteAreaTab(props: {
       const content = typeof j.content === "string" ? j.content : "";
       setSelectedPath(path);
       setDraft(content);
+      setDirty(false);
       props.onChange(content); // legacy: explicit load event
     } catch (e) {
       setErr((e as Error).message);
@@ -168,9 +203,37 @@ export function PasteAreaTab(props: {
     }
   }
 
-  async function saveToSelectedOrNew() {
+  async function loadLatestForTab() {
+    const items = await refreshList();
+    const want = docsPrefix.toLowerCase();
+    const latest = (items || [])
+      .map((it) =>
+        typeof it?.path === "string" ? normalizeO2Path(it.path) : "",
+      )
+      .filter((p) => p.toLowerCase().startsWith(want))
+      .sort((a, b) => a.localeCompare(b))
+      .pop();
+
+    if (latest) {
+      await openFile(latest);
+      return;
+    }
+
+    // No existing file: start new draft but DO NOT autosave until user types.
+    setSelectedPath(null);
+    setDraft("");
+    setDirty(false);
+    props.onChange("");
+  }
+
+  async function saveToSelectedOrNew(opts?: { silent?: boolean }) {
     const content = (draftRef.current || "").toString();
+
+    // Do not create empty files
     if (content.trim().length === 0) return;
+
+    // If not dirty and silent autosave, skip.
+    if (opts?.silent && !dirtyRef.current) return;
 
     setSaving(true);
     setErr("");
@@ -179,8 +242,16 @@ export function PasteAreaTab(props: {
 
       // Create new file if none selected
       if (!path) {
+        const payload = {
+          dir: tabDir,
+          content,
+          ext: "md",
+          commit: true,
+          commitMessage: defaultCommitMessage(tabKey, "new"),
+        };
+
         const resNew = await runO2(
-          `files.new.${b64urlEncodeUtf8(JSON.stringify({ tab: tabKey, ext: "md" }))}`,
+          `files.new.${b64urlEncodeUtf8(JSON.stringify(payload))}`,
         );
         if (!resNew.ok) {
           setErr(errMsg(resNew, "files.new failed"));
@@ -198,15 +269,26 @@ export function PasteAreaTab(props: {
         setSelectedPath(path);
       } else {
         path = normalizeO2Path(path);
-      }
+        const payload = {
+          path,
+          content,
+          commit: true,
+          commitMessage: defaultCommitMessage(tabKey, "write"),
+        };
 
-      // WRITE
-      const resWrite = await runO2(
-        `files.write.${b64urlEncodeUtf8(JSON.stringify({ path, content }))}`,
-      );
-      if (!resWrite.ok) {
-        setErr(errMsg(resWrite, "files.write failed"));
-        return;
+        const resWrite = await runO2(
+          `files.write.${b64urlEncodeUtf8(JSON.stringify(payload))}`,
+        );
+        if (!resWrite.ok) {
+          setErr(errMsg(resWrite, "files.write failed"));
+          return;
+        }
+        // Optional parse just to validate JSON response shape (not required)
+        try {
+          JSON.parse((resWrite.stdout || "").trim()) as FilesWriteJson;
+        } catch {
+          // ignore
+        }
       }
 
       // VERIFY (read-back)
@@ -229,6 +311,7 @@ export function PasteAreaTab(props: {
       }
 
       setDraft(got);
+      setDirty(false);
       props.onChange(got);
 
       await refreshList();
@@ -243,58 +326,61 @@ export function PasteAreaTab(props: {
   function newDraft() {
     setSelectedPath(null);
     setDraft("");
+    setDirty(false);
     props.onChange(""); // legacy explicit clear event
   }
 
-  // On tab entry: blank editor + list refresh
+  // On tab entry: load latest doc for that tab (no blank resets)
   useEffect(() => {
-    newDraft();
-    void refreshList();
+    void loadLatestForTab();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabKey]);
 
-  // Autosave on tab exit:
-  // - if selectedPath exists → overwrite it
-  // - else → create a new file
+  // Autosave on tab exit (unmount): commit if dirty and non-empty.
   useEffect(() => {
     return () => {
       const content = (draftRef.current || "").toString();
       if (content.trim().length === 0) return;
+      if (!dirtyRef.current) return;
 
       const doAuto = async () => {
         try {
+          // Silent autosave: no UI state flips, but still commit.
           let path = selectedPathRef.current;
 
           if (!path) {
-            const resNew = await runO2(
-              `files.new.${b64urlEncodeUtf8(
-                JSON.stringify({ tab: tabKey, ext: "md" }),
-              )}`,
+            const payload = {
+              dir: tabDir,
+              content,
+              ext: "md",
+              commit: true,
+              commitMessage: defaultCommitMessage(tabKey, "new"),
+            };
+            await runO2(
+              `files.new.${b64urlEncodeUtf8(JSON.stringify(payload))}`,
             );
-            if (!resNew.ok) return;
-
-            const jNew = JSON.parse(
-              (resNew.stdout || "").trim(),
-            ) as FilesNewJson;
-            const rawPath = typeof jNew.path === "string" ? jNew.path : "";
-            path = rawPath ? normalizeO2Path(rawPath) : null;
-            if (!path) return;
-          } else {
-            path = normalizeO2Path(path);
+            return;
           }
 
+          path = normalizeO2Path(path);
+          const payload = {
+            path,
+            content,
+            commit: true,
+            commitMessage: defaultCommitMessage(tabKey, "write"),
+          };
           await runO2(
-            `files.write.${b64urlEncodeUtf8(JSON.stringify({ path, content }))}`,
+            `files.write.${b64urlEncodeUtf8(JSON.stringify(payload))}`,
           );
         } catch {
-          // ignore autosave failures
+          // ignore autosave failures (must never crash app)
         }
       };
 
       void doAuto();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabKey]);
+  }, [tabKey, tabDir]);
 
   return (
     <div style={{ display: "flex", gap: 12, height: "100%", minHeight: 0 }}>
@@ -354,8 +440,8 @@ export function PasteAreaTab(props: {
             disabled={saving || (draft || "").trim().length === 0}
             title={
               selectedPath
-                ? "Save updates the selected file"
-                : "Save creates a new file"
+                ? "Save updates the selected file (commit)"
+                : "Save creates a new file (commit)"
             }
           >
             {saving ? "Saving…" : "Save"}
@@ -377,10 +463,13 @@ export function PasteAreaTab(props: {
             <div style={{ wordBreak: "break-all", marginTop: 2 }}>
               {selectedPath}
             </div>
+            <div style={{ marginTop: 4, opacity: 0.8 }}>
+              {dirty ? "unsaved changes" : "saved"}
+            </div>
           </div>
         ) : (
           <div style={{ marginTop: 10, opacity: 0.6, fontSize: 12 }}>
-            New draft (no file selected)
+            New draft (no file selected){dirty ? " • unsaved changes" : ""}
           </div>
         )}
 
@@ -435,7 +524,10 @@ export function PasteAreaTab(props: {
       >
         <textarea
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setDirty(true);
+          }}
           placeholder={props.placeholder || `Paste ${tabKey} notes here…`}
           disabled={saving}
           style={{
