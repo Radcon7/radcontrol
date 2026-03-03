@@ -3,6 +3,7 @@ import "./App.css";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { EmpireMapTab } from "./components/empire-map/EmpireMapTab";
 
 import { PasteAreaTab } from "./components/paste-tabs/PasteAreaTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
@@ -27,6 +28,7 @@ type TabKey =
   | "projects"
   | "codex_chat"
   | "codex_build"
+  | "empire_map"
   | "notes"
   | "legal"
   | "templates"
@@ -35,6 +37,19 @@ type TabKey =
   | "snapshot";
 
 async function copyText(text: string) {
+  // Prefer Tauri clipboard when available (deterministic in desktop).
+  try {
+    if (isTauri()) {
+      // NOTE: writeText must already exist in your repo context (as it did before).
+      // Keep this exactly as-is to preserve your existing clipboard behavior.
+      await writeText(text);
+      return;
+    }
+  } catch {
+    // fall through
+  }
+
+  // Browser clipboard (may fail depending on context/permissions).
   try {
     await navigator.clipboard.writeText(text);
     return;
@@ -42,6 +57,7 @@ async function copyText(text: string) {
     // fallback
   }
 
+  // Legacy fallback
   try {
     const ta = document.createElement("textarea");
     ta.value = text;
@@ -459,6 +475,11 @@ export default function App() {
 
   const logText = (busy ? "Running…" : log || "No logs yet.").toString();
 
+  const tabPlaceholder = (t: TabKey) => {
+    if (t === "templates") return "Paste templates here…";
+    return `Type ${t} here… (auto-loads latest, autosaves+commits on tab change)`;
+  };
+
   return (
     <div className="appShell">
       <header className="header">
@@ -470,6 +491,7 @@ export default function App() {
               "projects",
               "codex_chat",
               "codex_build",
+              "empire_map",
               "notes",
               "legal",
               "templates",
@@ -483,7 +505,7 @@ export default function App() {
               className={`tab ${tab === t ? "tabActive" : ""}`}
               onClick={() => setTab(t)}
             >
-              {t}
+              {t.replace(/_/g, " ")}
             </button>
           ))}
         </div>
@@ -587,15 +609,25 @@ export default function App() {
           <CodexChatTab />
         ) : tab === "codex_build" ? (
           <CodexBuildTab />
+        ) : tab === "empire_map" ? (
+          <EmpireMapTab />
         ) : (
           <PasteAreaTab
             title={tab}
             value={""}
             onChange={() => {}}
             storageKey={`radcontrol.${tab}`}
-            placeholder={`Paste ${tab} notes here…`}
+            placeholder={tabPlaceholder(tab)}
             busy={busy}
-            onCopy={() => {}}
+            onCopy={() => {
+              // Copy the visible textarea contents (PasteAreaTab renders a textarea).
+              const tas = Array.from(document.querySelectorAll("textarea"));
+              const visible =
+                tas.find((t) => (t as any).offsetParent !== null) ??
+                tas[0] ??
+                null;
+              void copyText(visible?.value ?? "");
+            }}
             isBundleTab={false}
             onExportBundle={() => {}}
             onImportBundle={() => {}}

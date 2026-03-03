@@ -16,6 +16,26 @@ function joinOut(r: RunO2Result): string {
   return a || b || "";
 }
 
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {}
+
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    ta.style.top = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  } catch {}
+}
+
 export function CodexBuildTab() {
   const [prompt, setPrompt] = useState("");
   const [out, setOut] = useState("");
@@ -49,7 +69,7 @@ export function CodexBuildTab() {
       bottomPlaceholder="Command output will appear here…"
       busy={running}
       onRun={run}
-      onCopy={() => void navigator.clipboard.writeText(out)}
+      onCopy={() => void copyText(out)}
       onClear={() => setOut("")}
       runLabel="Run codex.build"
     />

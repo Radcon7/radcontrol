@@ -16,6 +16,32 @@ function joinOut(r: RunO2Result): string {
   return a || b || "";
 }
 
+async function copyText(text: string) {
+  // Try modern clipboard first (may fail depending on permissions/context)
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {
+    // fall through
+  }
+
+  // Reliable fallback for many WebView contexts
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    ta.style.top = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  } catch {
+    // ignore
+  }
+}
+
 export function SnapshotTab() {
   const [verb, setVerb] = useState("snapshot");
   const [out, setOut] = useState("");
@@ -46,7 +72,7 @@ export function SnapshotTab() {
       bottomPlaceholder="Output will appear here…"
       busy={running}
       onRun={run}
-      onCopy={() => void navigator.clipboard.writeText(out)}
+      onCopy={() => void copyText(out)}
       onClear={() => setOut("")}
       runLabel="Run"
     />
