@@ -86,9 +86,10 @@ export function SplitTextPanel(props: Props) {
             border: "1px solid rgba(255,255,255,0.12)",
             background: "rgba(0,0,0,0.25)",
             color: "inherit",
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            fontSize: 13,
-            lineHeight: 1.35,
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: 18,
+            lineHeight: 1.55,
           }}
         />
       </div>
@@ -108,9 +109,10 @@ export function SplitTextPanel(props: Props) {
             border: "1px solid rgba(255,255,255,0.12)",
             background: "rgba(0,0,0,0.35)",
             color: "inherit",
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            fontSize: 13,
-            lineHeight: 1.35,
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: 18,
+            lineHeight: 1.55,
             whiteSpace: "pre",
           }}
         />

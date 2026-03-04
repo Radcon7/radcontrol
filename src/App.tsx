@@ -3,7 +3,10 @@ import "./App.css";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+
 import { EmpireMapTab } from "./components/empire-map/EmpireMapTab";
+import { EmpireSweepTab } from "./components/empire-sweep/EmpireSweepTab";
 
 import { PasteAreaTab } from "./components/paste-tabs/PasteAreaTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
@@ -29,6 +32,7 @@ type TabKey =
   | "codex_chat"
   | "codex_build"
   | "empire_map"
+  | "empire_sweep"
   | "notes"
   | "legal"
   | "templates"
@@ -36,12 +40,28 @@ type TabKey =
   | "roadmap"
   | "snapshot";
 
+function tabLabel(t: TabKey): string {
+  // Keep keys stable; only change labels here.
+  const m: Record<TabKey, string> = {
+    projects: "Projects",
+    codex_chat: "O2 Chat", // requested rename (label only)
+    codex_build: "Codex Build",
+    empire_map: "Empire Map",
+    empire_sweep: "Empire Sweep",
+    notes: "Notes",
+    legal: "Legal",
+    templates: "Templates",
+    timeline: "Timeline",
+    roadmap: "Roadmap",
+    snapshot: "Snapshot",
+  };
+  return m[t] ?? t.replace(/_/g, " ");
+}
+
 async function copyText(text: string) {
   // Prefer Tauri clipboard when available (deterministic in desktop).
   try {
     if (isTauri()) {
-      // NOTE: writeText must already exist in your repo context (as it did before).
-      // Keep this exactly as-is to preserve your existing clipboard behavior.
       await writeText(text);
       return;
     }
@@ -204,26 +224,53 @@ export default function App() {
 
   const [lastUrl, setLastUrl] = useState<string | null>(null);
 
-  // --- Window sizing ---
+  // --- Window sizing (2-pass: immediate + delayed; AUTHORITATIVE snap) ---
   useEffect(() => {
-    void (async () => {
+    let cancelled = false;
+
+    async function ensureSize() {
       try {
         const win = getCurrentWindow();
-        const size = await win.innerSize();
-        const targetW = 1480;
-        const targetH = 900;
-        if (size.width < targetW || size.height < targetH) {
-          await win.setSize(
-            new LogicalSize(
-              Math.max(size.width, targetW),
-              Math.max(size.height, targetH),
-            ),
-          );
+
+        // Match your tauri.conf.json intention (logical px)
+        const targetW = 1630;
+        const targetH = 1000;
+
+        // Keep aligned with tauri.conf.json
+        await win.setMinSize(new LogicalSize(1500, 820));
+
+        // innerSize() is PhysicalSize; convert to logical using scaleFactor()
+        const scale = await win.scaleFactor();
+        const phys = await win.innerSize();
+        const curW = phys.width / scale;
+        const curH = phys.height / scale;
+
+        // Don't fight the user if they're already "close enough"
+        const near =
+          Math.abs(curW - targetW) < 24 && Math.abs(curH - targetH) < 24;
+
+        if (!near) {
+          // Snap to target (allows both grow + shrink)
+          await win.setSize(new LogicalSize(targetW, targetH));
         }
       } catch {
         // ignore
       }
-    })();
+    }
+
+    // Pass 1
+    void ensureSize();
+
+    // Pass 2 (dev-mode attach timing fix)
+    const t = window.setTimeout(() => {
+      if (cancelled) return;
+      void ensureSize();
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
   }, []);
 
   // --- Registry ---
@@ -485,13 +532,14 @@ export default function App() {
       <header className="header">
         <div className="brand">RadControl</div>
 
-        <div className="tabs">
+        <div className="tabs" style={{ flex: 1, minWidth: 0 }}>
           {(
             [
               "projects",
               "codex_chat",
               "codex_build",
               "empire_map",
+              "empire_sweep",
               "notes",
               "legal",
               "templates",
@@ -504,8 +552,9 @@ export default function App() {
               key={t}
               className={`tab ${tab === t ? "tabActive" : ""}`}
               onClick={() => setTab(t)}
+              title={t}
             >
-              {t.replace(/_/g, " ")}
+              {tabLabel(t)}
             </button>
           ))}
         </div>
@@ -532,15 +581,6 @@ export default function App() {
               Open Last URL
             </button>
           ) : null}
-
-          <button
-            className="btn btnGhost"
-            onClick={() => void refreshPorts()}
-            disabled={portsBusy}
-            title="Refresh port status"
-          >
-            Refresh
-          </button>
 
           <button
             className="btn"
@@ -577,6 +617,14 @@ export default function App() {
                 >
                   Reload Projects
                 </button>
+                <button
+                  className="btn btnGhost"
+                  onClick={() => void refreshPorts()}
+                  disabled={portsBusy}
+                  title="Refresh port status"
+                >
+                  Refresh Ports
+                </button>
               </div>
             </div>
 
@@ -611,9 +659,11 @@ export default function App() {
           <CodexBuildTab />
         ) : tab === "empire_map" ? (
           <EmpireMapTab />
+        ) : tab === "empire_sweep" ? (
+          <EmpireSweepTab />
         ) : (
           <PasteAreaTab
-            title={tab}
+            title={tabLabel(tab)}
             value={""}
             onChange={() => {}}
             storageKey={`radcontrol.${tab}`}

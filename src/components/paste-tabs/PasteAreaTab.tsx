@@ -384,132 +384,153 @@ export function PasteAreaTab(props: {
 
   return (
     <div style={{ display: "flex", gap: 12, height: "100%", minHeight: 0 }}>
-      {/* Left: file list */}
+      {/* Left: file list (buttons fixed; list scrolls) */}
       <div
         style={{
           width: 360,
           borderRight: "1px solid rgba(255,255,255,0.08)",
           paddingRight: 12,
-          overflow: "auto",
           minHeight: 0,
+
+          // ✅ key: do NOT scroll the whole left column
+          overflow: "hidden",
+
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{tabKey}</div>
-          <div style={{ flex: 1 }} />
-          <button
-            className="btn btnGhost"
-            onClick={() => void refreshList()}
-            disabled={loading || saving}
-            title="Refresh list"
-          >
-            Refresh
-          </button>
+        {/* Header/actions (fixed, non-scrolling) */}
+        <div style={{ flex: "0 0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{tabKey}</div>
+            <div style={{ flex: 1 }} />
+            <button
+              className="btn btnGhost"
+              onClick={() => void refreshList()}
+              disabled={loading || saving}
+              title="Refresh list"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {err ? (
+            <div
+              style={{
+                marginTop: 10,
+                padding: 10,
+                borderRadius: 10,
+                border: "1px solid rgba(255,0,0,0.25)",
+                background: "rgba(255,0,0,0.08)",
+                color: "rgba(255,255,255,0.95)",
+                whiteSpace: "pre-wrap",
+                fontSize: 12,
+              }}
+            >
+              {err}
+            </div>
+          ) : null}
+
+          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+            <button
+              className="btn btnPrimary"
+              onClick={() => newDraft()}
+              disabled={saving}
+              title="Start a new note (blank editor)"
+            >
+              New
+            </button>
+
+            <button
+              className="btn"
+              onClick={() => void saveToSelectedOrNew()}
+              disabled={saving || (draft || "").trim().length === 0}
+              title={
+                selectedPath
+                  ? "Save updates the selected file (commit)"
+                  : "Save creates a new file (commit)"
+              }
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+
+            <button
+              className="btn btnGhost"
+              onClick={() => props.onCopy?.()}
+              disabled={(draft || "").trim().length === 0}
+              title="Copy editor text"
+            >
+              Copy
+            </button>
+          </div>
+
+          {selectedPath ? (
+            <div style={{ marginTop: 10, opacity: 0.85, fontSize: 12 }}>
+              Editing:
+              <div style={{ wordBreak: "break-all", marginTop: 2 }}>
+                {selectedPath}
+              </div>
+              <div style={{ marginTop: 4, opacity: 0.8 }}>
+                {dirty ? "unsaved changes" : "saved"}
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginTop: 10, opacity: 0.6, fontSize: 12 }}>
+              New draft (no file selected){dirty ? " • unsaved changes" : ""}
+            </div>
+          )}
+
+          <div style={{ marginTop: 12, opacity: 0.8, fontSize: 12 }}>
+            {loading ? "Loading…" : `${filteredFiles.length} file(s)`}
+          </div>
         </div>
 
-        {err ? (
+        {/* ✅ Only the list scrolls */}
+        <div
+          style={{
+            flex: "1 1 auto",
+            minHeight: 0,
+            overflow: "auto",
+            paddingTop: 4,
+          }}
+        >
           <div
-            style={{
-              marginTop: 10,
-              padding: 10,
-              borderRadius: 10,
-              border: "1px solid rgba(255,0,0,0.25)",
-              background: "rgba(255,0,0,0.08)",
-              color: "rgba(255,255,255,0.95)",
-              whiteSpace: "pre-wrap",
-              fontSize: 12,
-            }}
+            style={{ marginTop: 8, display: "flex", flexDirection: "column" }}
           >
-            {err}
-          </div>
-        ) : null}
+            {filteredFiles.map((f) => {
+              const p = normalizeO2Path(f.path || "");
+              const active = selectedPath === p;
+              const label = p.toLowerCase().startsWith(docsPrefix.toLowerCase())
+                ? p.slice(docsPrefix.length)
+                : p;
 
-        <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-          <button
-            className="btn btnPrimary"
-            onClick={() => newDraft()}
-            disabled={saving}
-            title="Start a new note (blank editor)"
-          >
-            New
-          </button>
-
-          <button
-            className="btn"
-            onClick={() => void saveToSelectedOrNew()}
-            disabled={saving || (draft || "").trim().length === 0}
-            title={
-              selectedPath
-                ? "Save updates the selected file (commit)"
-                : "Save creates a new file (commit)"
-            }
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-
-          <button
-            className="btn btnGhost"
-            onClick={() => props.onCopy?.()}
-            disabled={(draft || "").trim().length === 0}
-            title="Copy editor text"
-          >
-            Copy
-          </button>
-        </div>
-
-        {selectedPath ? (
-          <div style={{ marginTop: 10, opacity: 0.85, fontSize: 12 }}>
-            Editing:
-            <div style={{ wordBreak: "break-all", marginTop: 2 }}>
-              {selectedPath}
-            </div>
-            <div style={{ marginTop: 4, opacity: 0.8 }}>
-              {dirty ? "unsaved changes" : "saved"}
-            </div>
-          </div>
-        ) : (
-          <div style={{ marginTop: 10, opacity: 0.6, fontSize: 12 }}>
-            New draft (no file selected){dirty ? " • unsaved changes" : ""}
-          </div>
-        )}
-
-        <div style={{ marginTop: 12, opacity: 0.8, fontSize: 12 }}>
-          {loading ? "Loading…" : `${filteredFiles.length} file(s)`}
-        </div>
-
-        <div style={{ marginTop: 8, display: "flex", flexDirection: "column" }}>
-          {filteredFiles.map((f) => {
-            const p = normalizeO2Path(f.path || "");
-            const active = selectedPath === p;
-            const label = p.toLowerCase().startsWith(docsPrefix.toLowerCase())
-              ? p.slice(docsPrefix.length)
-              : p;
-
-            return (
-              <button
-                key={p}
-                className={`btn ${active ? "btnPrimary" : "btnGhost"}`}
-                style={{
-                  justifyContent: "flex-start",
-                  textAlign: "left",
-                  marginBottom: 8,
-                  whiteSpace: "normal",
-                }}
-                onClick={() => void openFile(p)}
-                disabled={loading || saving}
-                title={p}
-              >
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 2 }}
+              return (
+                <button
+                  key={p}
+                  className={`btn ${active ? "btnPrimary" : "btnGhost"}`}
+                  style={{
+                    justifyContent: "flex-start",
+                    textAlign: "left",
+                    marginBottom: 8,
+                    whiteSpace: "normal",
+                  }}
+                  onClick={() => void openFile(p)}
+                  disabled={loading || saving}
+                  title={p}
                 >
-                  <div style={{ fontWeight: 700 }}>{label}</div>
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>
-                    {fmtTime(f.mtime)} • {fmtBytes(f.bytes)}
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 2 }}
+                  >
+                    <div style={{ fontWeight: 700 }}>{label}</div>
+                    <div style={{ fontSize: 12, opacity: 0.75 }}>
+                      {fmtTime(f.mtime)} • {fmtBytes(f.bytes)}
+                    </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -541,8 +562,8 @@ export function PasteAreaTab(props: {
             color: "white",
             fontFamily:
               'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            fontSize: 13,
-            lineHeight: 1.4,
+            fontSize: 18,
+            lineHeight: 1.55,
           }}
         />
       </div>
