@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { EmpireMapTab } from "./components/empire-map/EmpireMapTab";
@@ -212,55 +211,6 @@ export default function App() {
     setLog((prev) => (prev ? prev + "\n" + s : s));
 
   const [lastUrl, setLastUrl] = useState<string | null>(null);
-
-  // --- Window sizing (2-pass: immediate + delayed; AUTHORITATIVE snap) ---
-  useEffect(() => {
-    let cancelled = false;
-
-    async function ensureSize() {
-      try {
-        const win = getCurrentWindow();
-
-        // Match your tauri.conf.json intention (logical px)
-        const targetW = 1630;
-        const targetH = 1000;
-
-        // Keep aligned with tauri.conf.json
-        await win.setMinSize(new LogicalSize(1500, 820));
-
-        // innerSize() is PhysicalSize; convert to logical using scaleFactor()
-        const scale = await win.scaleFactor();
-        const phys = await win.innerSize();
-        const curW = phys.width / scale;
-        const curH = phys.height / scale;
-
-        // Don't fight the user if they're already "close enough"
-        const near =
-          Math.abs(curW - targetW) < 24 && Math.abs(curH - targetH) < 24;
-
-        if (!near) {
-          // Snap to target (allows both grow + shrink)
-          await win.setSize(new LogicalSize(targetW, targetH));
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    // Pass 1
-    void ensureSize();
-
-    // Pass 2 (dev-mode attach timing fix)
-    const t = window.setTimeout(() => {
-      if (cancelled) return;
-      void ensureSize();
-    }, 450);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t);
-    };
-  }, []);
 
   // --- Registry ---
   const [projects, setProjects] = useState<ProjectRow[]>([]);
