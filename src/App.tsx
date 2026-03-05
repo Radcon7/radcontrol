@@ -276,7 +276,14 @@ export default function App() {
     loadRegistryInFlightRef.current = (async () => {
       try {
         const res = (await invoke("run_o2", { verb: "list_projects" })) as any;
-        const raw = res?.stdout ?? "";
+        let raw = res?.stdout ?? "";
+
+        // extract first JSON array from stdout
+        const start = raw.indexOf("[");
+        const end = raw.lastIndexOf("]");
+        if (start !== -1 && end !== -1) {
+          raw = raw.slice(start, end + 1);
+        }
         const reg = parseRegistryMaybeDoubleEncoded(raw);
 
         setRawRegistry(reg);
