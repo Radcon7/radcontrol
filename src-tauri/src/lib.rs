@@ -8,6 +8,7 @@ use tauri_plugin_single_instance::init as single_instance;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(single_instance(|app, _args, _cwd| {
             if let Some((_label, w)) = app.webview_windows().into_iter().next() {
                 let _ = w.show();
@@ -15,12 +16,12 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
-                .invoke_handler(tauri::generate_handler![
-  commands::o2::run_o2,
-  commands::o2::run_o2_with_input,
-  commands::registry::o2_list_projects,
-  commands::notes::notes_archive,
-])
+        .invoke_handler(tauri::generate_handler![
+            commands::o2::run_o2,
+            commands::o2::run_o2_with_input,
+            commands::registry::o2_list_projects,
+            commands::notes::notes_archive,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

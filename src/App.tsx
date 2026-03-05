@@ -3,7 +3,6 @@ import "./App.css";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 
 import { EmpireMapTab } from "./components/empire-map/EmpireMapTab";
 import { EmpireSweepTab } from "./components/empire-sweep/EmpireSweepTab";
@@ -59,25 +58,15 @@ function tabLabel(t: TabKey): string {
 }
 
 async function copyText(text: string) {
-  // Prefer Tauri clipboard when available (deterministic in desktop).
-  try {
-    if (isTauri()) {
-      await writeText(text);
-      return;
-    }
-  } catch {
-    // fall through
-  }
-
-  // Browser clipboard (may fail depending on context/permissions).
+  // Browser clipboard first (may fail depending on context/permissions)
   try {
     await navigator.clipboard.writeText(text);
     return;
   } catch {
-    // fallback
+    // fall through
   }
 
-  // Legacy fallback
+  // Deterministic DOM fallback
   try {
     const ta = document.createElement("textarea");
     ta.value = text;
