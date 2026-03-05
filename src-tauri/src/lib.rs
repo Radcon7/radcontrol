@@ -1,5 +1,4 @@
 mod commands;
-mod shell;
 
 use std::time::Duration;
 use tauri::{LogicalSize, Manager, Size};
