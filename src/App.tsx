@@ -275,7 +275,7 @@ export default function App() {
 
     loadRegistryInFlightRef.current = (async () => {
       try {
-        const raw = await invokeText("o2_list_projects");
+        const raw = await invokeText("run_o2", { verb: "list_projects" });
         const reg = parseRegistryMaybeDoubleEncoded(raw);
 
         setRawRegistry(reg);
