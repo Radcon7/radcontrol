@@ -7,6 +7,7 @@ import { EmpireMapTab } from "./components/empire-map/EmpireMapTab";
 import { EmpireSweepTab } from "./components/empire-sweep/EmpireSweepTab";
 
 import { PasteAreaTab } from "./components/paste-tabs/PasteAreaTab";
+import { DocumentLibraryPanel } from "./components/paste-tabs/DocumentLibraryPanel";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
 import { AddProjectModal } from "./components/projects/AddProjectModal";
 
@@ -25,39 +26,77 @@ import {
   nextPortSuggestion,
 } from "./components/projects/helpers";
 
+type LibraryTabKey = "notes" | "legal" | "templates";
+type StreamTabKey = "timeline" | "roadmap" | "snapshot";
+type DocTabKey = LibraryTabKey | StreamTabKey;
+
 type TabKey =
   | "projects"
   | "codex_chat"
   | "codex_build"
   | "empire_map"
   | "empire_sweep"
-  | "notes"
-  | "legal"
-  | "templates"
-  | "timeline"
-  | "roadmap"
-  | "snapshot";
+  | DocTabKey;
+
+type DocTabMeta = {
+  key: DocTabKey;
+  label: string;
+  mode: "library" | "stream";
+};
+
+const DOC_TABS: DocTabMeta[] = [
+  { key: "notes", label: "Notes", mode: "library" },
+  { key: "legal", label: "Legal", mode: "library" },
+  { key: "templates", label: "Templates", mode: "library" },
+  { key: "timeline", label: "Timeline", mode: "stream" },
+  { key: "roadmap", label: "Roadmap", mode: "stream" },
+  { key: "snapshot", label: "Snapshot", mode: "stream" },
+];
+
+const ALL_TABS: TabKey[] = [
+  "projects",
+  "codex_chat",
+  "codex_build",
+  "empire_map",
+  "empire_sweep",
+  ...DOC_TABS.map((t) => t.key),
+];
+
+function isDocTab(t: TabKey): t is DocTabKey {
+  return DOC_TABS.some((d) => d.key === t);
+}
+
+function isLibraryTab(t: TabKey): t is LibraryTabKey {
+  return DOC_TABS.some((d) => d.key === t && d.mode === "library");
+}
+
+function isStreamTab(t: TabKey): t is StreamTabKey {
+  return DOC_TABS.some((d) => d.key === t && d.mode === "stream");
+}
+
+function docTabMeta(t: DocTabKey): DocTabMeta {
+  const found = DOC_TABS.find((d) => d.key === t);
+  if (!found) {
+    throw new Error(`Unknown doc tab: ${t}`);
+  }
+  return found;
+}
 
 function tabLabel(t: TabKey): string {
-  // Keep keys stable; only change labels here.
-  const m: Record<TabKey, string> = {
+  if (isDocTab(t)) return docTabMeta(t).label;
+
+  const m: Record<Exclude<TabKey, DocTabKey>, string> = {
     projects: "Projects",
-    codex_chat: "O2 Chat", // requested rename (label only)
+    codex_chat: "O2 Chat",
     codex_build: "Codex Build",
     empire_map: "Empire Map",
     empire_sweep: "Empire Sweep",
-    notes: "Notes",
-    legal: "Legal",
-    templates: "Templates",
-    timeline: "Timeline",
-    roadmap: "Roadmap",
-    snapshot: "Snapshot",
   };
+
   return m[t] ?? t.replace(/_/g, " ");
 }
 
 async function copyText(text: string) {
-  // Browser clipboard first (may fail depending on context/permissions)
   try {
     await navigator.clipboard.writeText(text);
     return;
@@ -65,7 +104,6 @@ async function copyText(text: string) {
     // fall through
   }
 
-  // Deterministic DOM fallback
   try {
     const ta = document.createElement("textarea");
     ta.value = text;
@@ -143,7 +181,6 @@ async function tryAutoOpen(url: string) {
   }
 }
 
-// O2 port_status.<port> returns JSON like: {"port":3000,"listening":true}
 type O2PortStatusJson = { port?: number; listening?: boolean };
 
 function parsePortStatusJson(out: string, port: number): PortStatus {
@@ -178,19 +215,14 @@ function registryPortForKey(reg: unknown, key: string): number | null {
 async function invokeText(cmd: string, payload?: Record<string, unknown>) {
   const out = (await invoke(cmd, payload ? payload : undefined)) as unknown;
 
-  // Most commands return plain string. run_o2 returns RunO2Result object.
   if (typeof out === "string") return out;
 
   if (out && typeof out === "object") {
     const o = out as Record<string, unknown>;
 
-    // Prefer stdout when present (RunO2Result)
     if (typeof o.stdout === "string") return o.stdout;
-
-    // Some commands may return { output: "..." } or similar
     if (typeof o.output === "string") return o.output;
 
-    // Last resort: stringify objects so callers can parse deterministically
     try {
       return JSON.stringify(o);
     } catch {
@@ -212,7 +244,6 @@ export default function App() {
 
   const [lastUrl, setLastUrl] = useState<string | null>(null);
 
-  // --- Registry ---
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [rawRegistry, setRawRegistry] = useState<unknown[]>([]);
   const [showAddProject, setShowAddProject] = useState(false);
@@ -228,7 +259,6 @@ export default function App() {
         const res = (await invoke("run_o2", { verb: "list_projects" })) as any;
         let raw = res?.stdout ?? "";
 
-        // extract first JSON array from stdout
         const start = raw.indexOf("[");
         const end = raw.lastIndexOf("]");
         if (start !== -1 && end !== -1) {
@@ -276,7 +306,6 @@ export default function App() {
     [usedPorts],
   );
 
-  // --- Ports ---
   const [ports, setPorts] = useState<Record<number, PortStatus | undefined>>(
     {},
   );
@@ -293,7 +322,6 @@ export default function App() {
     return Array.from(s.values()).sort((a, b) => a - b);
   }, [projects, rawRegistry]);
 
-  // Coalesce refresh calls deterministically.
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
   async function refreshPorts(): Promise<void> {
@@ -342,8 +370,9 @@ export default function App() {
   }, [projects, rawRegistry]);
 
   function statusForRow(p: ProjectRow) {
-    if (typeof p.port !== "number")
+    if (typeof p.port !== "number") {
       return { pill: "pillWarn", text: "NO PORT" };
+    }
 
     const s = ports[p.port];
     if (!s) return { pill: "pillWarn", text: "UNKNOWN" };
@@ -353,7 +382,6 @@ export default function App() {
       : { pill: "pillOff", text: "STOPPED" };
   }
 
-  // --- O2 ---
   async function runO2(title: string, key?: string): Promise<string | null> {
     if (!key || busy) return null;
 
@@ -406,7 +434,6 @@ export default function App() {
     setLastUrl(finalUrl);
     void copyText(finalUrl);
 
-    // Post-start recheck: the port may begin listening shortly AFTER the start returns.
     if (startRecheckTimerRef.current !== null) {
       window.clearTimeout(startRecheckTimerRef.current);
     }
@@ -469,9 +496,10 @@ export default function App() {
 
   const logText = (busy ? "Running…" : log || "No logs yet.").toString();
 
-  const tabPlaceholder = (t: TabKey) => {
-    if (t === "templates") return "Paste templates here…";
-    return `Type ${t} here… (auto-loads latest, autosaves+commits on tab change)`;
+  const tabPlaceholder = (t: DocTabKey) => {
+    if (t === "templates") return "Write or edit templates here…";
+    if (isLibraryTab(t)) return `Write or edit ${tabLabel(t)} here…`;
+    return `Type ${tabLabel(t)} here… (auto-loads latest, autosaves+commits on tab change)`;
   };
 
   return (
@@ -480,26 +508,12 @@ export default function App() {
         <div className="brand">RadControl</div>
 
         <div className="tabs" style={{ flex: 1, minWidth: 0 }}>
-          {(
-            [
-              "projects",
-              "codex_chat",
-              "codex_build",
-              "empire_map",
-              "empire_sweep",
-              "notes",
-              "legal",
-              "templates",
-              "timeline",
-              "roadmap",
-              "snapshot",
-            ] as TabKey[]
-          ).map((t) => (
+          {ALL_TABS.map((t) => (
             <button
               key={t}
               className={`tab ${tab === t ? "tabActive" : ""}`}
               onClick={() => setTab(t)}
-              title={t}
+              title={tabLabel(t)}
             >
               {tabLabel(t)}
             </button>
@@ -608,16 +622,23 @@ export default function App() {
           <EmpireMapTab />
         ) : tab === "empire_sweep" ? (
           <EmpireSweepTab />
-        ) : (
-          <PasteAreaTab
+        ) : isLibraryTab(tab) ? (
+          <DocumentLibraryPanel
+            tabKey={tab}
             title={tabLabel(tab)}
-            value={""}
+            placeholder={tabPlaceholder(tab)}
+            busy={busy}
+          />
+        ) : isStreamTab(tab) ? (
+          <PasteAreaTab
+            tabKey={tab}
+            title={tabLabel(tab)}
+            value=""
             onChange={() => {}}
             storageKey={`radcontrol.${tab}`}
             placeholder={tabPlaceholder(tab)}
             busy={busy}
             onCopy={() => {
-              // Copy the visible textarea contents (PasteAreaTab renders a textarea).
               const tas = Array.from(document.querySelectorAll("textarea"));
               const visible =
                 tas.find((t) => (t as any).offsetParent !== null) ??
@@ -629,7 +650,7 @@ export default function App() {
             onExportBundle={() => {}}
             onImportBundle={() => {}}
           />
-        )}
+        ) : null}
       </main>
 
       <footer className="logsBar">

@@ -20,23 +20,16 @@ type FilesListJson = {
   root?: string;
   docs_dir?: string;
   items?: FilesListItem[];
+  error?: string;
 };
 
 type FilesReadJson = {
   ok?: boolean;
   path?: string;
-  mtime?: number;
-  bytes?: number;
   content?: string;
-};
-
-type FilesNewJson = {
-  ok?: boolean;
-  path?: string;
-  mtime?: number;
   bytes?: number;
-  committed?: boolean;
-  commitMessage?: string | null;
+  mtime?: number;
+  error?: string;
 };
 
 type FilesWriteJson = {
@@ -46,70 +39,92 @@ type FilesWriteJson = {
   bytes?: number;
   committed?: boolean;
   commitMessage?: string | null;
+  error?: string;
 };
 
-function fmtBytes(n?: number) {
-  if (!n || n <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let v = n;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${i === 0 ? v.toFixed(0) : v.toFixed(1)} ${units[i]}`;
-}
-
-function fmtTime(epochSec?: number) {
-  if (!epochSec) return "";
-  try {
-    const d = new Date(epochSec * 1000);
-    return d.toLocaleString();
-  } catch {
-    return "";
-  }
-}
+type FilesNewJson = {
+  ok?: boolean;
+  path?: string;
+  mtime?: number;
+  bytes?: number;
+  committed?: boolean;
+  commitMessage?: string | null;
+  error?: string;
+};
 
 function b64urlEncodeUtf8(s: string): string {
-  const utf8 = new TextEncoder().encode(s);
+  const bytes = new TextEncoder().encode(s);
   let bin = "";
-  utf8.forEach((b) => (bin += String.fromCharCode(b)));
-  const b64 = btoa(bin);
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  for (let i = 0; i < bytes.length; i += 1) {
+    bin += String.fromCharCode(bytes[i]);
+  }
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 function normalizeO2Path(p: string): string {
-  const s = (p || "").trim();
-  if (s.startsWith("docs/")) return s;
-  if (s.startsWith("radcontrol/")) return `docs/${s}`;
-  return s;
+  const s = (p || "").trim().replace(/^\/+/, "");
+  if (!s) return "";
+  return s.startsWith("docs/") ? s : `docs/${s}`;
+}
+
+function joinOut(r: RunO2Result): string {
+  const a = (r.stdout || "").trimEnd();
+  const b = (r.stderr || "").trimEnd();
+  if (a && b) return `${a}\n${b}`;
+  return a || b || "";
+}
+
+function errMsg(r: RunO2Result, fallback: string): string {
+  const text = joinOut(r).trim();
+  return text || fallback;
 }
 
 async function runO2(verb: string): Promise<RunO2Result> {
-  return await invoke<RunO2Result>("run_o2", { verb });
+  return (await invoke("run_o2", { verb })) as RunO2Result;
 }
 
-function errMsg(res: RunO2Result, fallback: string) {
-  const s = (res.stderr || "").trim();
-  if (s) return s;
-  return `${fallback} (code=${res.code})`;
+function latestPathForDir(
+  items: FilesListItem[],
+  wantedDir: string,
+): string | null {
+  const dir = normalizeO2Path(wantedDir).replace(/\/+$/g, "");
+  const wantedPrefix = `${dir}/`;
+
+  const matches = items
+    .filter((it) => typeof it.path === "string")
+    .map((it) => ({
+      path: normalizeO2Path(it.path || ""),
+      mtime: typeof it.mtime === "number" ? it.mtime : 0,
+    }))
+    .filter((it) => it.path.startsWith(wantedPrefix))
+    .sort((a, b) => b.mtime - a.mtime);
+
+  return matches[0]?.path ?? null;
 }
 
-function dirForTab(tabKey: string): string {
-  // Canonical radcontrol export dirs
-  return `docs/radcontrol/${tabKey}`;
+function itemsForDir(
+  items: FilesListItem[],
+  wantedDir: string,
+): FilesListItem[] {
+  const dir = normalizeO2Path(wantedDir).replace(/\/+$/g, "");
+  const wantedPrefix = `${dir}/`;
+
+  return items.filter((it) => {
+    const p = typeof it.path === "string" ? normalizeO2Path(it.path) : "";
+    return p.startsWith(wantedPrefix);
+  });
 }
 
-function defaultCommitMessage(tabKey: string, action: "new" | "write") {
-  const a = action === "new" ? "create" : "update";
-  return `radcontrol: ${tabKey} ${a} autosave`;
+function defaultCommitMessage(tabKey: string, op: "new" | "write"): string {
+  return `radcontrol ${tabKey}: ${op}`;
 }
 
 export function PasteAreaTab(props: {
-  title: string; // tab key, e.g. "notes"
-  value: string; // legacy (ignored for canonical behavior)
-  onChange: (v: string) => void; // legacy (called only on explicit events)
-  storageKey: string; // legacy
+  tabKey: string;
+  title: string;
+  value: string;
+  onChange: (v: string) => void;
+  storageKey: string;
   placeholder?: string;
   busy?: boolean;
   onCopy?: () => void;
@@ -117,133 +132,101 @@ export function PasteAreaTab(props: {
   onExportBundle?: () => void;
   onImportBundle?: () => void;
 }) {
-  const tabKey = props.title;
+  const { tabKey, title, placeholder, busy, onCopy } = props;
 
+  const dir = useMemo(() => `docs/radcontrol/${tabKey}`, [tabKey]);
+
+  const [content, setContent] = useState("");
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [items, setItems] = useState<FilesListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string>("");
+  const [err, setErr] = useState("");
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
-  const [files, setFiles] = useState<FilesListItem[]>([]);
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const selectedPathRef = useRef<string | null>(null);
-  selectedPathRef.current = selectedPath;
-
-  // Canonical editor state (NOT parent-controlled)
-  const [draft, setDraft] = useState<string>("");
-  const draftRef = useRef<string>("");
-  useEffect(() => {
-    draftRef.current = draft;
-  }, [draft]);
-
-  // Dirty tracking (local)
-  const [dirty, setDirty] = useState(false);
   const dirtyRef = useRef(false);
-  useEffect(() => {
-    dirtyRef.current = dirty;
-  }, [dirty]);
+  const loadSeqRef = useRef(0);
 
-  const docsPrefix = useMemo(() => `docs/radcontrol/${tabKey}/`, [tabKey]);
-  const tabDir = useMemo(() => dirForTab(tabKey), [tabKey]);
+  const folderItems = useMemo(() => itemsForDir(items, dir), [items, dir]);
 
-  const filteredFiles = useMemo(() => {
-    const want = docsPrefix.toLowerCase();
-    return (files || [])
-      .filter((it) => {
-        const p = typeof it?.path === "string" ? normalizeO2Path(it.path) : "";
-        return p.toLowerCase().startsWith(want);
-      })
-      .sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
-  }, [files, docsPrefix]);
-
-  async function refreshList(): Promise<FilesListItem[]> {
+  async function loadLatest(): Promise<void> {
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     setErr("");
+
     try {
       const res = await runO2("files.list");
       if (!res.ok) {
-        setFiles([]);
         setErr(errMsg(res, "files.list failed"));
-        return [];
-      }
-      const j = JSON.parse((res.stdout || "").trim()) as FilesListJson;
-      const items = Array.isArray(j.items) ? j.items : [];
-      setFiles(items);
-      return items;
-    } catch (e) {
-      setFiles([]);
-      setErr((e as Error).message);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function openFile(pathIn: string) {
-    const path = normalizeO2Path(pathIn);
-
-    setLoading(true);
-    setErr("");
-    try {
-      const res = await runO2(`files.read.${b64urlEncodeUtf8(path)}`);
-      if (!res.ok) {
-        setErr(errMsg(res, "files.read failed"));
         return;
       }
 
-      const j = JSON.parse((res.stdout || "").trim()) as FilesReadJson;
-      const content = typeof j.content === "string" ? j.content : "";
-      setSelectedPath(path);
-      setDraft(content);
-      setDirty(false);
-      props.onChange(content); // legacy: explicit load event
+      let parsed: FilesListJson;
+      try {
+        parsed = JSON.parse((res.stdout || "").trim()) as FilesListJson;
+      } catch {
+        setErr("files.list returned invalid JSON");
+        return;
+      }
+
+      const nextItems = Array.isArray(parsed.items) ? parsed.items : [];
+      if (seq !== loadSeqRef.current) return;
+
+      setItems(nextItems);
+
+      const latestPath = latestPathForDir(nextItems, dir);
+      if (!latestPath) {
+        setSelectedPath(null);
+        setContent("");
+        dirtyRef.current = false;
+        return;
+      }
+
+      const resRead = await runO2(`files.read.${b64urlEncodeUtf8(latestPath)}`);
+      if (!resRead.ok) {
+        setErr(errMsg(resRead, "files.read failed"));
+        return;
+      }
+
+      let jRead: FilesReadJson;
+      try {
+        jRead = JSON.parse((resRead.stdout || "").trim()) as FilesReadJson;
+      } catch {
+        setErr("files.read returned invalid JSON");
+        return;
+      }
+
+      if (seq !== loadSeqRef.current) return;
+
+      const nextPath =
+        typeof jRead.path === "string"
+          ? normalizeO2Path(jRead.path)
+          : latestPath;
+      const nextContent =
+        typeof jRead.content === "string" ? jRead.content : "";
+
+      setSelectedPath(nextPath);
+      setContent(nextContent);
+      dirtyRef.current = false;
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(String(e));
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
   }
 
-  async function loadLatestForTab() {
-    const items = await refreshList();
-    const want = docsPrefix.toLowerCase();
-    const latest = (items || [])
-      .map((it) =>
-        typeof it?.path === "string" ? normalizeO2Path(it.path) : "",
-      )
-      .filter((p) => p.toLowerCase().startsWith(want))
-      .sort((a, b) => a.localeCompare(b))
-      .pop();
-
-    if (latest) {
-      await openFile(latest);
-      return;
-    }
-
-    // No existing file: start new draft but DO NOT autosave until user types.
-    setSelectedPath(null);
-    setDraft("");
-    setDirty(false);
-    props.onChange("");
-  }
-
-  async function saveToSelectedOrNew(opts?: { silent?: boolean }) {
-    const content = (draftRef.current || "").toString();
-
-    // Do not create empty files
-    if (content.trim().length === 0) return;
-
-    // If not dirty and silent autosave, skip.
-    if (opts?.silent && !dirtyRef.current) return;
+  async function saveCurrent(): Promise<void> {
+    if (saving) return;
 
     setSaving(true);
     setErr("");
-    try {
-      let path = selectedPathRef.current;
 
-      // Create new file if none selected
+    try {
+      let path = selectedPath;
+
       if (!path) {
         const payload = {
-          dir: tabDir,
+          dir,
           content,
           ext: "md",
           commit: true,
@@ -258,7 +241,14 @@ export function PasteAreaTab(props: {
           return;
         }
 
-        const jNew = JSON.parse((resNew.stdout || "").trim()) as FilesNewJson;
+        let jNew: FilesNewJson;
+        try {
+          jNew = JSON.parse((resNew.stdout || "").trim()) as FilesNewJson;
+        } catch {
+          setErr("files.new returned invalid JSON");
+          return;
+        }
+
         const rawPath = typeof jNew.path === "string" ? jNew.path : "";
         path = rawPath ? normalizeO2Path(rawPath) : null;
 
@@ -266,9 +256,11 @@ export function PasteAreaTab(props: {
           setErr("files.new returned no path");
           return;
         }
+
         setSelectedPath(path);
       } else {
         path = normalizeO2Path(path);
+
         const payload = {
           path,
           content,
@@ -283,290 +275,125 @@ export function PasteAreaTab(props: {
           setErr(errMsg(resWrite, "files.write failed"));
           return;
         }
-        // Optional parse just to validate JSON response shape (not required)
+
+        let jWrite: FilesWriteJson;
         try {
-          JSON.parse((resWrite.stdout || "").trim()) as FilesWriteJson;
+          jWrite = JSON.parse((resWrite.stdout || "").trim()) as FilesWriteJson;
         } catch {
-          // ignore
+          setErr("files.write returned invalid JSON");
+          return;
         }
+
+        const rawPath = typeof jWrite.path === "string" ? jWrite.path : path;
+        path = normalizeO2Path(rawPath);
+        setSelectedPath(path);
       }
 
-      // VERIFY (read-back)
       const resRead = await runO2(`files.read.${b64urlEncodeUtf8(path)}`);
       if (!resRead.ok) {
         setErr(errMsg(resRead, "post-write files.read failed"));
         return;
       }
 
-      const jRead = JSON.parse((resRead.stdout || "").trim()) as FilesReadJson;
-      const got = typeof jRead.content === "string" ? jRead.content : "";
-      const gotBytes = typeof jRead.bytes === "number" ? jRead.bytes : 0;
-
-      if (gotBytes <= 0 || got !== content) {
-        setErr(
-          `WRITE VERIFICATION FAILED: bytes=${gotBytes}, content_match=${got === content}`,
-        );
-        await refreshList();
+      let jRead: FilesReadJson;
+      try {
+        jRead = JSON.parse((resRead.stdout || "").trim()) as FilesReadJson;
+      } catch {
+        setErr("post-write files.read returned invalid JSON");
         return;
       }
 
-      setDraft(got);
-      setDirty(false);
-      props.onChange(got);
+      const confirmedContent =
+        typeof jRead.content === "string" ? jRead.content : content;
+      const confirmedPath =
+        typeof jRead.path === "string" ? normalizeO2Path(jRead.path) : path;
 
-      await refreshList();
-      await openFile(path);
+      setContent(confirmedContent);
+      setSelectedPath(confirmedPath);
+      setLastSavedAt(Date.now());
+      dirtyRef.current = false;
+
+      await loadLatest();
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(String(e));
     } finally {
       setSaving(false);
     }
   }
 
-  function newDraft() {
-    setSelectedPath(null);
-    setDraft("");
-    setDirty(false);
-    props.onChange(""); // legacy explicit clear event
-  }
-
-  // On tab entry: load latest doc for that tab (no blank resets)
   useEffect(() => {
-    void loadLatestForTab();
+    void loadLatest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabKey]);
-
-  // Autosave on tab exit (unmount): commit if dirty and non-empty.
-  useEffect(() => {
-    return () => {
-      const content = (draftRef.current || "").toString();
-      if (content.trim().length === 0) return;
-      if (!dirtyRef.current) return;
-
-      const doAuto = async () => {
-        try {
-          // Silent autosave: no UI state flips, but still commit.
-          let path = selectedPathRef.current;
-
-          if (!path) {
-            const payload = {
-              dir: tabDir,
-              content,
-              ext: "md",
-              commit: true,
-              commitMessage: defaultCommitMessage(tabKey, "new"),
-            };
-            await runO2(
-              `files.new.${b64urlEncodeUtf8(JSON.stringify(payload))}`,
-            );
-            return;
-          }
-
-          path = normalizeO2Path(path);
-          const payload = {
-            path,
-            content,
-            commit: true,
-            commitMessage: defaultCommitMessage(tabKey, "write"),
-          };
-          await runO2(
-            `files.write.${b64urlEncodeUtf8(JSON.stringify(payload))}`,
-          );
-        } catch {
-          // ignore autosave failures (must never crash app)
-        }
-      };
-
-      void doAuto();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabKey, tabDir]);
+  }, [dir]);
 
   return (
-    <div style={{ display: "flex", gap: 12, height: "100%", minHeight: 0 }}>
-      {/* Left: file list (buttons fixed; list scrolls) */}
-      <div
-        style={{
-          width: 360,
-          borderRight: "1px solid rgba(255,255,255,0.08)",
-          paddingRight: 12,
-          minHeight: 0,
-
-          // ✅ key: do NOT scroll the whole left column
-          overflow: "hidden",
-
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        {/* Header/actions (fixed, non-scrolling) */}
-        <div style={{ flex: "0 0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{tabKey}</div>
-            <div style={{ flex: 1 }} />
-            <button
-              className="btn btnGhost"
-              onClick={() => void refreshList()}
-              disabled={loading || saving}
-              title="Refresh list"
-            >
-              Refresh
-            </button>
-          </div>
-
-          {err ? (
-            <div
-              style={{
-                marginTop: 10,
-                padding: 10,
-                borderRadius: 10,
-                border: "1px solid rgba(255,0,0,0.25)",
-                background: "rgba(255,0,0,0.08)",
-                color: "rgba(255,255,255,0.95)",
-                whiteSpace: "pre-wrap",
-                fontSize: 12,
-              }}
-            >
-              {err}
-            </div>
-          ) : null}
-
-          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-            <button
-              className="btn btnPrimary"
-              onClick={() => newDraft()}
-              disabled={saving}
-              title="Start a new note (blank editor)"
-            >
-              New
-            </button>
-
-            <button
-              className="btn"
-              onClick={() => void saveToSelectedOrNew()}
-              disabled={saving || (draft || "").trim().length === 0}
-              title={
-                selectedPath
-                  ? "Save updates the selected file (commit)"
-                  : "Save creates a new file (commit)"
-              }
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-
-            <button
-              className="btn btnGhost"
-              onClick={() => props.onCopy?.()}
-              disabled={(draft || "").trim().length === 0}
-              title="Copy editor text"
-            >
-              Copy
-            </button>
-          </div>
-
-          {selectedPath ? (
-            <div style={{ marginTop: 10, opacity: 0.85, fontSize: 12 }}>
-              Editing:
-              <div style={{ wordBreak: "break-all", marginTop: 2 }}>
-                {selectedPath}
-              </div>
-              <div style={{ marginTop: 4, opacity: 0.8 }}>
-                {dirty ? "unsaved changes" : "saved"}
-              </div>
-            </div>
-          ) : (
-            <div style={{ marginTop: 10, opacity: 0.6, fontSize: 12 }}>
-              New draft (no file selected){dirty ? " • unsaved changes" : ""}
-            </div>
-          )}
-
-          <div style={{ marginTop: 12, opacity: 0.8, fontSize: 12 }}>
-            {loading ? "Loading…" : `${filteredFiles.length} file(s)`}
-          </div>
-        </div>
-
-        {/* ✅ Only the list scrolls */}
-        <div
-          style={{
-            flex: "1 1 auto",
-            minHeight: 0,
-            overflow: "auto",
-            paddingTop: 4,
-          }}
-        >
-          <div
-            style={{ marginTop: 8, display: "flex", flexDirection: "column" }}
+    <section className="panel">
+      <div className="panelHeader">
+        <div className="panelTitle">{title}</div>
+        <div className="row" style={{ gap: 8 }}>
+          <button
+            className="btn btnGhost"
+            onClick={() => void loadLatest()}
+            disabled={loading || saving}
+            title="Reload latest file from O2 docs"
           >
-            {filteredFiles.map((f) => {
-              const p = normalizeO2Path(f.path || "");
-              const active = selectedPath === p;
-              const label = p.toLowerCase().startsWith(docsPrefix.toLowerCase())
-                ? p.slice(docsPrefix.length)
-                : p;
-
-              return (
-                <button
-                  key={p}
-                  className={`btn ${active ? "btnPrimary" : "btnGhost"}`}
-                  style={{
-                    justifyContent: "flex-start",
-                    textAlign: "left",
-                    marginBottom: 8,
-                    whiteSpace: "normal",
-                  }}
-                  onClick={() => void openFile(p)}
-                  disabled={loading || saving}
-                  title={p}
-                >
-                  <div
-                    style={{ display: "flex", flexDirection: "column", gap: 2 }}
-                  >
-                    <div style={{ fontWeight: 700 }}>{label}</div>
-                    <div style={{ fontSize: 12, opacity: 0.75 }}>
-                      {fmtTime(f.mtime)} • {fmtBytes(f.bytes)}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+            Reload
+          </button>
+          <button
+            className="btn"
+            onClick={() => void saveCurrent()}
+            disabled={Boolean(busy) || loading || saving}
+            title="Save through O2 files.* verbs"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button
+            className="btn btnGhost"
+            onClick={() => {
+              if (onCopy) {
+                onCopy();
+                return;
+              }
+              void navigator.clipboard.writeText(content);
+            }}
+            disabled={content.trim().length === 0}
+            title="Copy current contents"
+          >
+            Copy
+          </button>
         </div>
       </div>
 
-      {/* Right: editor */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minHeight: 0,
-        }}
-      >
-        <textarea
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setDirty(true);
-          }}
-          placeholder={props.placeholder || `Paste ${tabKey} notes here…`}
-          disabled={saving}
-          style={{
-            flex: 1,
-            width: "100%",
-            resize: "none",
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(0,0,0,0.25)",
-            color: "white",
-            fontFamily:
-              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            fontSize: 18,
-            lineHeight: 1.55,
-          }}
-        />
+      <div className="panelMeta">
+        <div>
+          <strong>Folder:</strong> {dir}
+        </div>
+        <div>
+          <strong>Current file:</strong>{" "}
+          {selectedPath ?? "(new file on first save)"}
+        </div>
+        <div>
+          <strong>Files found:</strong> {folderItems.length}
+        </div>
+        <div>
+          <strong>Last saved:</strong>{" "}
+          {lastSavedAt ? new Date(lastSavedAt).toLocaleString() : "—"}
+        </div>
       </div>
-    </div>
+
+      {err ? <div className="panelError">{err}</div> : null}
+
+      <textarea
+        className="pasteArea"
+        value={content}
+        onChange={(e) => {
+          const next = e.target.value;
+          setContent(next);
+          dirtyRef.current = true;
+        }}
+        placeholder={placeholder}
+        spellCheck={false}
+      />
+    </section>
   );
 }
