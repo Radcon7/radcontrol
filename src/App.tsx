@@ -8,6 +8,7 @@ import { EmpireSweepTab } from "./components/empire-sweep/EmpireSweepTab";
 
 import { PasteAreaTab } from "./components/paste-tabs/PasteAreaTab";
 import { DocumentLibraryPanel } from "./components/paste-tabs/DocumentLibraryPanel";
+import { TimelineTab } from "./components/paste-tabs/TimelineTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
 import { AddProjectModal } from "./components/projects/AddProjectModal";
 
@@ -68,10 +69,6 @@ function isDocTab(t: TabKey): t is DocTabKey {
 
 function isLibraryTab(t: TabKey): t is LibraryTabKey {
   return DOC_TABS.some((d) => d.key === t && d.mode === "library");
-}
-
-function isStreamTab(t: TabKey): t is StreamTabKey {
-  return DOC_TABS.some((d) => d.key === t && d.mode === "stream");
 }
 
 function docTabMeta(t: DocTabKey): DocTabMeta {
@@ -502,6 +499,8 @@ export default function App() {
 
   const tabPlaceholder = (t: DocTabKey) => {
     if (t === "templates") return "Write or edit templates here…";
+    if (t === "snapshot") return "Generated system snapshot surface...";
+    if (t === "timeline") return "Timeline milestones surface...";
     if (isLibraryTab(t)) return `Write or edit ${tabLabel(t)} here…`;
     return `Type ${tabLabel(t)} here… (auto-loads latest, autosaves+commits on tab change)`;
   };
@@ -526,6 +525,50 @@ export default function App() {
     }
 
     setTab(nextTab);
+  }
+
+  function renderDocTab(activeTab: DocTabKey) {
+    if (isLibraryTab(activeTab)) {
+      return (
+        <DocumentLibraryPanel
+          tabKey={activeTab}
+          title={tabLabel(activeTab)}
+          placeholder={tabPlaceholder(activeTab)}
+          busy={busy}
+          registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
+        />
+      );
+    }
+
+    if (activeTab === "timeline") {
+      return <TimelineTab />;
+    }
+
+    if (activeTab === "snapshot") {
+      return (
+        <PasteAreaTab
+          tabKey={activeTab}
+          title={tabLabel(activeTab)}
+          placeholder={tabPlaceholder(activeTab)}
+          busy={busy}
+          onCopy={() => {
+            const tas = Array.from(document.querySelectorAll("textarea"));
+            const visible =
+              tas.find(
+                (t) => (t as HTMLTextAreaElement).offsetParent !== null,
+              ) ??
+              tas[0] ??
+              null;
+            void copyText(visible?.value ?? "");
+          }}
+          isBundleTab={false}
+          onExportBundle={() => {}}
+          onImportBundle={() => {}}
+        />
+      );
+    }
+
+    return null;
   }
 
   return (
@@ -648,37 +691,8 @@ export default function App() {
           <EmpireMapTab />
         ) : tab === "empire_sweep" ? (
           <EmpireSweepTab />
-        ) : isLibraryTab(tab) ? (
-          <DocumentLibraryPanel
-            tabKey={tab}
-            title={tabLabel(tab)}
-            placeholder={tabPlaceholder(tab)}
-            busy={busy}
-            registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
-          />
-        ) : isStreamTab(tab) ? (
-          <PasteAreaTab
-            tabKey={tab}
-            title={tabLabel(tab)}
-            value=""
-            onChange={() => {}}
-            storageKey={`radcontrol.${tab}`}
-            placeholder={tabPlaceholder(tab)}
-            busy={busy}
-            onCopy={() => {
-              const tas = Array.from(document.querySelectorAll("textarea"));
-              const visible =
-                tas.find(
-                  (t) => (t as HTMLTextAreaElement).offsetParent !== null,
-                ) ??
-                tas[0] ??
-                null;
-              void copyText(visible?.value ?? "");
-            }}
-            isBundleTab={false}
-            onExportBundle={() => {}}
-            onImportBundle={() => {}}
-          />
+        ) : isDocTab(tab) ? (
+          renderDocTab(tab)
         ) : null}
       </main>
 
