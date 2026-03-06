@@ -26,8 +26,8 @@ import {
   nextPortSuggestion,
 } from "./components/projects/helpers";
 
-type LibraryTabKey = "notes" | "legal" | "templates";
-type StreamTabKey = "timeline" | "roadmap" | "snapshot";
+type LibraryTabKey = "notes" | "legal" | "templates" | "roadmap";
+type StreamTabKey = "timeline" | "snapshot";
 type DocTabKey = LibraryTabKey | StreamTabKey;
 
 type TabKey =
@@ -48,8 +48,8 @@ const DOC_TABS: DocTabMeta[] = [
   { key: "notes", label: "Notes", mode: "library" },
   { key: "legal", label: "Legal", mode: "library" },
   { key: "templates", label: "Templates", mode: "library" },
+  { key: "roadmap", label: "Orion Handoff", mode: "library" },
   { key: "timeline", label: "Timeline", mode: "stream" },
-  { key: "roadmap", label: "Roadmap", mode: "stream" },
   { key: "snapshot", label: "Snapshot", mode: "stream" },
 ];
 
@@ -203,8 +203,9 @@ function registryPortForKey(reg: unknown, key: string): number | null {
   if (!Array.isArray(reg)) return null;
 
   const row = reg.find(
-    (r) => r && typeof r === "object" && (r as any).key === key,
-  ) as any | undefined;
+    (r) =>
+      r && typeof r === "object" && (r as Record<string, unknown>).key === key,
+  ) as Record<string, unknown> | undefined;
 
   const port = row?.port;
   return typeof port === "number" && Number.isFinite(port) && port > 0
@@ -257,7 +258,9 @@ export default function App() {
 
     loadRegistryInFlightRef.current = (async () => {
       try {
-        const res = (await invoke("run_o2", { verb: "list_projects" })) as any;
+        const res = (await invoke("run_o2", { verb: "list_projects" })) as {
+          stdout?: string;
+        };
         let raw = res?.stdout ?? "";
 
         const start = raw.indexOf("[");
@@ -665,7 +668,9 @@ export default function App() {
             onCopy={() => {
               const tas = Array.from(document.querySelectorAll("textarea"));
               const visible =
-                tas.find((t) => (t as any).offsetParent !== null) ??
+                tas.find(
+                  (t) => (t as HTMLTextAreaElement).offsetParent !== null,
+                ) ??
                 tas[0] ??
                 null;
               void copyText(visible?.value ?? "");

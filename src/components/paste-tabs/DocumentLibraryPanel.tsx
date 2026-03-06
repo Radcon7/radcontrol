@@ -53,6 +53,30 @@ type FilesRenameJson = {
   error?: string;
 };
 
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {
+    // fall through
+  }
+
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    ta.style.top = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  } catch {
+    // ignore
+  }
+}
+
 function b64urlEncodeUtf8(s: string): string {
   const bytes = new TextEncoder().encode(s);
   let bin = "";
@@ -166,13 +190,8 @@ export function DocumentLibraryPanel(props: {
   busy?: boolean;
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
 }) {
-  const {
-    tabKey,
-    title,
-    placeholder,
-    busy,
-    registerBeforeTabChangeSaver,
-  } = props;
+  const { tabKey, title, placeholder, busy, registerBeforeTabChangeSaver } =
+    props;
 
   const dir = useMemo(() => `docs/radcontrol/${tabKey}`, [tabKey]);
   const dirPrefix = useMemo(() => `${dir}/`, [dir]);
@@ -222,6 +241,10 @@ export function DocumentLibraryPanel(props: {
     } catch {
       // Ignore localStorage failures; in-memory state still works for this mount.
     }
+  }
+
+  async function handleCopyCurrent(): Promise<void> {
+    await copyText(draftText ?? "");
   }
 
   useEffect(() => {
@@ -531,8 +554,10 @@ export function DocumentLibraryPanel(props: {
         return false;
       }
 
-      // Avoid creating empty new files on tab switch.
-      if (!currentPathRef.current && !hasMeaningfulContent(draftTextRef.current)) {
+      if (
+        !currentPathRef.current &&
+        !hasMeaningfulContent(draftTextRef.current)
+      ) {
         return true;
       }
 
@@ -617,6 +642,7 @@ export function DocumentLibraryPanel(props: {
   });
 
   const canSave = !busy && !loading && !saving && !renaming;
+  const canCopy = draftText.trim().length > 0;
 
   return (
     <section
@@ -655,6 +681,15 @@ export function DocumentLibraryPanel(props: {
             title="Save document through O2 files.write"
           >
             {saving ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            className="btn btnGhost"
+            onClick={() => void handleCopyCurrent()}
+            disabled={!canCopy}
+            title="Copy current editor text"
+          >
+            Copy
           </button>
         </div>
       </div>
