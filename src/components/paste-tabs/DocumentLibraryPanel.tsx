@@ -179,16 +179,30 @@ function legacyLastActivePathStorageKey(tabKey: string): string | null {
 }
 
 function migrateLegacyPathToCanonical(tabKey: string, path: string): string {
-  const normalized = normalizeO2Path(path);
+  let normalized = normalizeO2Path(path);
   if (!normalized) return "";
 
   if (
     tabKey === "orion_handoff" &&
     normalized.startsWith("docs/radcontrol/roadmap/")
   ) {
-    return normalized.replace(
+    normalized = normalized.replace(
       "docs/radcontrol/roadmap/",
       "docs/radcontrol/orion_handoff/",
+    );
+  }
+
+  if (normalized.startsWith("docs/radcontrol/Notes/")) {
+    normalized = normalized.replace(
+      "docs/radcontrol/Notes/",
+      "docs/radcontrol/notes/",
+    );
+  }
+
+  if (normalized.startsWith("docs/radcontrol/Snapshot/")) {
+    normalized = normalized.replace(
+      "docs/radcontrol/Snapshot/",
+      "docs/radcontrol/snapshot/",
     );
   }
 

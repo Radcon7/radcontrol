@@ -119,19 +119,15 @@ function defaultCommitMessage(tabKey: string, op: "new" | "write"): string {
   return `radcontrol ${tabKey}: ${op}`;
 }
 
-export function PasteAreaTab(props: {
+type Props = {
   tabKey: string;
   title: string;
-  value: string;
-  onChange: (v: string) => void;
-  storageKey: string;
   placeholder?: string;
   busy?: boolean;
   onCopy?: () => void;
-  isBundleTab?: boolean;
-  onExportBundle?: () => void;
-  onImportBundle?: () => void;
-}) {
+};
+
+export function PasteAreaTab(props: Props) {
   const { tabKey, title, placeholder, busy, onCopy } = props;
 
   const dir = useMemo(() => `docs/radcontrol/${tabKey}`, [tabKey]);

@@ -561,9 +561,6 @@ export default function App() {
               null;
             void copyText(visible?.value ?? "");
           }}
-          isBundleTab={false}
-          onExportBundle={() => {}}
-          onImportBundle={() => {}}
         />
       );
     }
