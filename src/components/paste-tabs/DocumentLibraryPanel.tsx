@@ -164,8 +164,15 @@ export function DocumentLibraryPanel(props: {
   title: string;
   placeholder?: string;
   busy?: boolean;
+  registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
 }) {
-  const { tabKey, title, placeholder, busy } = props;
+  const {
+    tabKey,
+    title,
+    placeholder,
+    busy,
+    registerBeforeTabChangeSaver,
+  } = props;
 
   const dir = useMemo(() => `docs/radcontrol/${tabKey}`, [tabKey]);
   const dirPrefix = useMemo(() => `${dir}/`, [dir]);
@@ -512,6 +519,30 @@ export function DocumentLibraryPanel(props: {
     }
   }
 
+  async function saveIfDirtyBeforeTabChange(): Promise<boolean> {
+    try {
+      if (!isDirtyRef.current) return true;
+      if (
+        busyRef.current ||
+        loadingRef.current ||
+        savingRef.current ||
+        renamingRef.current
+      ) {
+        return false;
+      }
+
+      // Avoid creating empty new files on tab switch.
+      if (!currentPathRef.current && !hasMeaningfulContent(draftTextRef.current)) {
+        return true;
+      }
+
+      await saveCurrent(false);
+      return !isDirtyRef.current;
+    } catch {
+      return false;
+    }
+  }
+
   useEffect(() => {
     hasAutoOpenedRef.current = false;
     setLastActivePath(loadLastActivePath(tabKey));
@@ -576,6 +607,14 @@ export function DocumentLibraryPanel(props: {
       void autosaveRef.current();
     };
   }, []);
+
+  useEffect(() => {
+    if (!registerBeforeTabChangeSaver) return;
+    registerBeforeTabChangeSaver(saveIfDirtyBeforeTabChange);
+    return () => {
+      registerBeforeTabChangeSaver(null);
+    };
+  });
 
   const canSave = !busy && !loading && !saving && !renaming;
 

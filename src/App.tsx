@@ -247,6 +247,7 @@ export default function App() {
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [rawRegistry, setRawRegistry] = useState<unknown[]>([]);
   const [showAddProject, setShowAddProject] = useState(false);
+  const beforeTabChangeSaverRef = useRef<(() => Promise<boolean>) | null>(null);
 
   const loadRegistryOnceRef = useRef(false);
   const loadRegistryInFlightRef = useRef<Promise<void> | null>(null);
@@ -502,6 +503,28 @@ export default function App() {
     return `Type ${tabLabel(t)} here… (auto-loads latest, autosaves+commits on tab change)`;
   };
 
+  function registerBeforeTabChangeSaver(fn: (() => Promise<boolean>) | null) {
+    beforeTabChangeSaverRef.current = fn;
+  }
+
+  async function requestTabChange(nextTab: TabKey): Promise<void> {
+    if (nextTab === tab) return;
+
+    if (isLibraryTab(tab)) {
+      const saver = beforeTabChangeSaverRef.current;
+      if (saver) {
+        try {
+          const ok = await saver();
+          if (!ok) return;
+        } catch {
+          return;
+        }
+      }
+    }
+
+    setTab(nextTab);
+  }
+
   return (
     <div className="appShell">
       <header className="header">
@@ -512,7 +535,7 @@ export default function App() {
             <button
               key={t}
               className={`tab ${tab === t ? "tabActive" : ""}`}
-              onClick={() => setTab(t)}
+              onClick={() => void requestTabChange(t)}
               title={tabLabel(t)}
             >
               {tabLabel(t)}
@@ -628,6 +651,7 @@ export default function App() {
             title={tabLabel(tab)}
             placeholder={tabPlaceholder(tab)}
             busy={busy}
+            registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
           />
         ) : isStreamTab(tab) ? (
           <PasteAreaTab
