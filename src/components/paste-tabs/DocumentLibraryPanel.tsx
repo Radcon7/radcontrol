@@ -139,24 +139,24 @@ function formatTimestampPart(value: number): string {
 
 function defaultDocStem(tabKey: string): string {
   const normalized = tabKey
+    .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  if (!normalized) return "doc";
-  if (normalized.length > 1 && normalized.endsWith("s")) {
+    .replace(/[^a-z0-9]+/g, "_");
+  if (normalized.endsWith("s") && normalized.length > 1) {
     return normalized.slice(0, -1);
   }
-  return normalized;
+  return normalized || "document";
 }
 
 function makeTimestampFilename(tabKey: string, now = new Date()): string {
-  const yyyy = now.getFullYear();
+  const yyyy = String(now.getFullYear());
   const mm = formatTimestampPart(now.getMonth() + 1);
   const dd = formatTimestampPart(now.getDate());
   const hh = formatTimestampPart(now.getHours());
   const mi = formatTimestampPart(now.getMinutes());
   const ss = formatTimestampPart(now.getSeconds());
-  return `${defaultDocStem(tabKey)}_${yyyy}-${mm}-${dd}_${hh}-${mi}-${ss}.md`;
+
+  return `${defaultDocStem(tabKey)}_${yyyy}${mm}${dd}_${hh}${mi}${ss}.md`;
 }
 
 function hasMeaningfulContent(text: string): boolean {
@@ -171,13 +171,57 @@ function lastActivePathStorageKey(tabKey: string): string {
   return `radcontrol.library.lastActivePath.${tabKey}`;
 }
 
+function legacyLastActivePathStorageKey(tabKey: string): string | null {
+  if (tabKey === "orion_handoff") {
+    return "radcontrol.library.lastActivePath.roadmap";
+  }
+  return null;
+}
+
+function migrateLegacyPathToCanonical(tabKey: string, path: string): string {
+  const normalized = normalizeO2Path(path);
+  if (!normalized) return "";
+
+  if (
+    tabKey === "orion_handoff" &&
+    normalized.startsWith("docs/radcontrol/roadmap/")
+  ) {
+    return normalized.replace(
+      "docs/radcontrol/roadmap/",
+      "docs/radcontrol/orion_handoff/",
+    );
+  }
+
+  return normalized;
+}
+
 function loadLastActivePath(tabKey: string): string | null {
   if (typeof window === "undefined") return null;
+
   try {
-    const raw = window.localStorage.getItem(lastActivePathStorageKey(tabKey));
-    if (!raw) return null;
-    const normalized = normalizeO2Path(raw);
-    return normalized || null;
+    const canonicalKey = lastActivePathStorageKey(tabKey);
+    const canonicalRaw = window.localStorage.getItem(canonicalKey);
+    if (canonicalRaw) {
+      const normalized = migrateLegacyPathToCanonical(tabKey, canonicalRaw);
+      if (normalized && normalized !== canonicalRaw) {
+        window.localStorage.setItem(canonicalKey, normalized);
+      }
+      return normalized || null;
+    }
+
+    const legacyKey = legacyLastActivePathStorageKey(tabKey);
+    if (!legacyKey) return null;
+
+    const legacyRaw = window.localStorage.getItem(legacyKey);
+    if (!legacyRaw) return null;
+
+    const migrated = migrateLegacyPathToCanonical(tabKey, legacyRaw);
+    if (migrated) {
+      window.localStorage.setItem(canonicalKey, migrated);
+    }
+    window.localStorage.removeItem(legacyKey);
+
+    return migrated || null;
   } catch {
     return null;
   }
@@ -799,7 +843,7 @@ export function DocumentLibraryPanel(props: {
                 setCurrentName(e.target.value);
                 setIsDirty(true);
               }}
-              placeholder={`${defaultDocStem(tabKey)}_YYYY-MM-DD_HH-MM-SS.md`}
+              placeholder={`${defaultDocStem(tabKey)}_YYYYMMDD_HHMMSS.md`}
               style={{
                 width: "100%",
                 padding: "10px 12px",

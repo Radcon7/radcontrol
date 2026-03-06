@@ -26,7 +26,7 @@ import {
   nextPortSuggestion,
 } from "./components/projects/helpers";
 
-type LibraryTabKey = "notes" | "legal" | "templates" | "roadmap";
+type LibraryTabKey = "notes" | "legal" | "templates" | "orion_handoff";
 type StreamTabKey = "timeline" | "snapshot";
 type DocTabKey = LibraryTabKey | StreamTabKey;
 
@@ -48,7 +48,7 @@ const DOC_TABS: DocTabMeta[] = [
   { key: "notes", label: "Notes", mode: "library" },
   { key: "legal", label: "Legal", mode: "library" },
   { key: "templates", label: "Templates", mode: "library" },
-  { key: "roadmap", label: "Orion Handoff", mode: "library" },
+  { key: "orion_handoff", label: "Orion Handoff", mode: "library" },
   { key: "timeline", label: "Timeline", mode: "stream" },
   { key: "snapshot", label: "Snapshot", mode: "stream" },
 ];
