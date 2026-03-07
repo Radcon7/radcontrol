@@ -6,7 +6,6 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { EmpireMapTab } from "./components/empire-map/EmpireMapTab";
 import { EmpireSweepTab } from "./components/empire-sweep/EmpireSweepTab";
 
-import { PasteAreaTab } from "./components/paste-tabs/PasteAreaTab";
 import { DocumentLibraryPanel } from "./components/paste-tabs/DocumentLibraryPanel";
 import { TimelineTab } from "./components/paste-tabs/TimelineTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
@@ -14,6 +13,8 @@ import { AddProjectModal } from "./components/projects/AddProjectModal";
 
 import { CodexChatTab } from "./components/codex/CodexChatTab";
 import { CodexBuildTab } from "./components/codex/CodexBuildTab";
+
+import { SnapshotTab } from "./components/snapshot/SnapshotTab";
 
 import type {
   AddProjectPayload,
@@ -499,7 +500,6 @@ export default function App() {
 
   const tabPlaceholder = (t: DocTabKey) => {
     if (t === "templates") return "Write or edit templates here…";
-    if (t === "snapshot") return "Generated system snapshot surface...";
     if (t === "timeline") return "Timeline milestones surface...";
     if (isLibraryTab(t)) return `Write or edit ${tabLabel(t)} here…`;
     return `Type ${tabLabel(t)} here… (auto-loads latest, autosaves+commits on tab change)`;
@@ -545,24 +545,7 @@ export default function App() {
     }
 
     if (activeTab === "snapshot") {
-      return (
-        <PasteAreaTab
-          tabKey={activeTab}
-          title={tabLabel(activeTab)}
-          placeholder={tabPlaceholder(activeTab)}
-          busy={busy}
-          onCopy={() => {
-            const tas = Array.from(document.querySelectorAll("textarea"));
-            const visible =
-              tas.find(
-                (t) => (t as HTMLTextAreaElement).offsetParent !== null,
-              ) ??
-              tas[0] ??
-              null;
-            void copyText(visible?.value ?? "");
-          }}
-        />
-      );
+      return <SnapshotTab title={tabLabel(activeTab)} />;
     }
 
     return null;
