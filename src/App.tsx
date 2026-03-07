@@ -4,7 +4,6 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { EmpireMapTab } from "./components/empire-map/EmpireMapTab";
-import { EmpireSweepTab } from "./components/empire-sweep/EmpireSweepTab";
 
 import { DocumentLibraryPanel } from "./components/paste-tabs/DocumentLibraryPanel";
 import { TimelineTab } from "./components/paste-tabs/TimelineTab";
@@ -15,6 +14,8 @@ import { CodexChatTab } from "./components/codex/CodexChatTab";
 import { CodexBuildTab } from "./components/codex/CodexBuildTab";
 
 import { SnapshotTab } from "./components/snapshot/SnapshotTab";
+import { EmpireSweepTab } from "./components/empire-sweep/EmpireSweepTab";
+import GovernanceInventoryInspector from "./components/dev/GovernanceInventoryInspector";
 
 import type {
   AddProjectPayload,
@@ -38,6 +39,7 @@ type TabKey =
   | "codex_build"
   | "empire_map"
   | "empire_sweep"
+  | "governance"
   | DocTabKey;
 
 type DocTabMeta = {
@@ -62,6 +64,7 @@ const ALL_TABS: TabKey[] = [
   "empire_map",
   "snapshot",
   "empire_sweep",
+  "governance",
   ...DOC_TABS.filter((t) => t.key !== "snapshot").map((t) => t.key),
 ];
 
@@ -90,6 +93,7 @@ function tabLabel(t: TabKey): string {
     codex_build: "Codex Build",
     empire_map: "Empire Map",
     empire_sweep: "Empire Sweep",
+    governance: "Governance",
   };
 
   return m[t] ?? t.replace(/_/g, " ");
@@ -672,6 +676,8 @@ export default function App() {
           <EmpireMapTab />
         ) : tab === "empire_sweep" ? (
           <EmpireSweepTab />
+        ) : tab === "governance" ? (
+          <GovernanceInventoryInspector />
         ) : isDocTab(tab) ? (
           renderDocTab(tab)
         ) : null}

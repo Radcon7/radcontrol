@@ -1,82 +1,160 @@
-import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { SplitTextPanel } from "../common/SplitTextPanel";
+import { useEffect } from "react";
 import { SystemStateShell } from "../common/SystemStateShell";
 import { copyText } from "../common/copyText";
-
-type RunO2Result = {
-  ok: boolean;
-  code?: number;
-  stdout: string;
-  stderr: string;
-};
+import { ArtifactListPanel } from "../common/ArtifactListPanel";
+import {
+  formatMaybeUnixTime,
+  useArtifactStore,
+} from "../common/useArtifactStore";
 
 export function EmpireSweepTab() {
-  const [out, setOut] = useState("");
-  const [busy, setBusy] = useState(false);
+  const verb = "empire.sweep";
 
-  async function run() {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const res = await invoke<RunO2Result>("run_o2", { verb: "empire.sweep" });
-      setOut(res?.stdout ?? "");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const {
+    dir,
+    docsInFolder,
+    currentPath,
+    currentText,
+    loading,
+    saving,
+    running,
+    err,
+    lastSavedAt,
+    setCurrentText,
+    readPath,
+    refreshList,
+    runProducer,
+    saveCurrent,
+  } = useArtifactStore({
+    dir: "docs/radcontrol/empire_sweep",
+    latestFileName: "latest.txt",
+    timestampStem: "empire_sweep",
+    extension: "txt",
+    producerVerb: verb,
+    producerErrorFallback: "empire.sweep failed",
+  });
+
+  useEffect(() => {
+    void (async () => {
+      await refreshList({ autoReadPreferred: false });
+      await runProducer({ refreshArtifacts: false });
+    })();
+  }, [refreshList, runProducer]);
+
+  const actions = (
+    <>
+      <button
+        className="btn btnGhost"
+        onClick={() => void runProducer({ refreshArtifacts: false })}
+        disabled={running}
+      >
+        {running ? "Running…" : "Rerun"}
+      </button>
+      <button
+        className="btn btnGhost"
+        onClick={() =>
+          void saveCurrent({
+            timestampCommitMessage:
+              "radcontrol empire_sweep: save timestamped artifact",
+            latestCommitMessage:
+              "radcontrol empire_sweep: update latest artifact",
+          })
+        }
+        disabled={saving || running}
+      >
+        {saving ? "Saving…" : "Save"}
+      </button>
+      <button
+        className="btn btnGhost"
+        onClick={() => void copyText(currentText)}
+        disabled={!currentText.trim()}
+      >
+        Copy
+      </button>
+    </>
+  );
+
+  const meta = (
+    <div className="panelMeta">
+      <div>
+        <strong>Source:</strong> run_o2(verb={verb})
+      </div>
+      <div>
+        <strong>Folder:</strong> {dir}
+      </div>
+      <div>
+        <strong>Files found:</strong> {docsInFolder.length}
+      </div>
+      <div>
+        <strong>Current file:</strong> {currentPath ?? "(unsaved output)"}
+      </div>
+      <div>
+        <strong>Last saved:</strong>{" "}
+        {lastSavedAt ? formatMaybeUnixTime(lastSavedAt) : "—"}
+      </div>
+      {loading ? (
+        <div>
+          <strong>Status:</strong> loading list…
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <SystemStateShell
       title="Empire Sweep"
-      actions={
-        <>
-          <button
-            className="btn btnPrimary"
-            onClick={() => void run()}
-            disabled={busy}
-            title="Run empire.sweep"
-          >
-            {busy ? "Running…" : "Run empire.sweep"}
-          </button>
+      actions={actions}
+      meta={meta}
+      error={err ? <>{err}</> : null}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "260px 1fr",
+          gap: 12,
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        <ArtifactListPanel
+          title="Artifacts"
+          items={docsInFolder}
+          currentPath={currentPath}
+          emptyText="No saved artifacts yet."
+          onSelect={(path) => void readPath(path)}
+        />
 
-          <button
-            className="btn btnGhost"
-            onClick={() => void copyText(out)}
-            disabled={out.trim().length === 0}
+        <div
+          style={{
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              border: "1px solid rgba(255,255,255,0.14)",
+              borderRadius: 12,
+              background: "rgba(255,255,255,0.03)",
+              padding: 10,
+              fontSize: 13,
+              opacity: 0.86,
+            }}
           >
-            Copy
-          </button>
-
-          <button
-            className="btn btnGhost"
-            onClick={() => setOut("")}
-            disabled={busy}
-          >
-            Clear
-          </button>
-        </>
-      }
-      meta={
-        <>
-          <div>
             <strong>Command:</strong> run_o2(verb=empire.sweep)
           </div>
-          <div>
-            <strong>Mode:</strong> Read-only stdout surface
-          </div>
-        </>
-      }
-    >
-      <SplitTextPanel
-        topLabel="Command"
-        topValue="run_o2(verb=empire.sweep)"
-        onTopChange={() => {}}
-        bottomLabel="stdout (verbatim)"
-        bottomValue={out}
-        bottomPlaceholder="(run empire.sweep to populate output)"
-        busy={busy}
-      />
+
+          <textarea
+            className="pasteArea"
+            value={currentText}
+            onChange={(e) => setCurrentText(e.target.value)}
+            placeholder="Empire sweep report will appear here…"
+            spellCheck={false}
+            style={{ flex: 1, minHeight: 0 }}
+          />
+        </div>
+      </div>
     </SystemStateShell>
   );
 }

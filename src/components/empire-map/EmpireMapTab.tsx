@@ -1,91 +1,160 @@
-import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { SplitTextPanel } from "../common/SplitTextPanel";
+import { useEffect } from "react";
 import { SystemStateShell } from "../common/SystemStateShell";
 import { copyText } from "../common/copyText";
-
-type RunO2Result = {
-  ok: boolean;
-  code?: number;
-  stdout: string;
-  stderr: string;
-};
+import { ArtifactListPanel } from "../common/ArtifactListPanel";
+import {
+  formatMaybeUnixTime,
+  useArtifactStore,
+} from "../common/useArtifactStore";
 
 export function EmpireMapTab() {
-  const [verb] = useState<string>("empire.map");
-  const [out, setOut] = useState<string>("");
-  const [busy, setBusy] = useState<boolean>(false);
+  const verb = "empire.map";
 
-  async function run() {
-    setBusy(true);
-    try {
-      const res = await invoke<RunO2Result>("run_o2", { verb });
-      setOut(res?.stdout ?? "");
-    } catch (e) {
-      const msg =
-        e instanceof Error
-          ? `${e.name}: ${e.message}\n${e.stack ?? ""}`
-          : String(e);
-      setOut(msg);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const {
+    dir,
+    docsInFolder,
+    currentPath,
+    currentText,
+    loading,
+    saving,
+    running,
+    err,
+    lastSavedAt,
+    setCurrentText,
+    readPath,
+    refreshList,
+    runProducer,
+    saveCurrent,
+  } = useArtifactStore({
+    dir: "docs/radcontrol/empire_map",
+    latestFileName: "latest.txt",
+    timestampStem: "empire_map",
+    extension: "txt",
+    producerVerb: verb,
+    producerErrorFallback: "empire.map failed",
+  });
+
+  useEffect(() => {
+    void (async () => {
+      await refreshList({ autoReadPreferred: false });
+      await runProducer({ refreshArtifacts: false });
+    })();
+  }, [refreshList, runProducer]);
+
+  const actions = (
+    <>
+      <button
+        className="btn btnGhost"
+        onClick={() => void runProducer({ refreshArtifacts: false })}
+        disabled={running}
+      >
+        {running ? "Running…" : "Rerun"}
+      </button>
+      <button
+        className="btn btnGhost"
+        onClick={() =>
+          void saveCurrent({
+            timestampCommitMessage:
+              "radcontrol empire_map: save timestamped artifact",
+            latestCommitMessage:
+              "radcontrol empire_map: update latest artifact",
+          })
+        }
+        disabled={saving || running}
+      >
+        {saving ? "Saving…" : "Save"}
+      </button>
+      <button
+        className="btn btnGhost"
+        onClick={() => void copyText(currentText)}
+        disabled={!currentText.trim()}
+      >
+        Copy
+      </button>
+    </>
+  );
+
+  const meta = (
+    <div className="panelMeta">
+      <div>
+        <strong>Source:</strong> run_o2(verb={verb})
+      </div>
+      <div>
+        <strong>Folder:</strong> {dir}
+      </div>
+      <div>
+        <strong>Files found:</strong> {docsInFolder.length}
+      </div>
+      <div>
+        <strong>Current file:</strong> {currentPath ?? "(unsaved output)"}
+      </div>
+      <div>
+        <strong>Last saved:</strong>{" "}
+        {lastSavedAt ? formatMaybeUnixTime(lastSavedAt) : "—"}
+      </div>
+      {loading ? (
+        <div>
+          <strong>Status:</strong> loading list…
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <SystemStateShell
       title="Empire Map"
-      actions={
-        <>
-          <button
-            className="btn btnPrimary"
-            onClick={() => void run()}
-            disabled={busy}
-            title="Run empire.map"
-          >
-            {busy ? "Running…" : "Run empire.map"}
-          </button>
-
-          <button
-            className="btn btnGhost"
-            onClick={() => void copyText(out)}
-            disabled={out.trim().length === 0}
-          >
-            Copy
-          </button>
-
-          <button
-            className="btn btnGhost"
-            onClick={() => setOut("")}
-            disabled={busy}
-          >
-            Clear
-          </button>
-        </>
-      }
-      meta={
-        <>
-          <div>
-            <strong>Verb:</strong> {verb}
-          </div>
-          <div>
-            <strong>Mode:</strong> Read-only stdout surface
-          </div>
-        </>
-      }
+      actions={actions}
+      meta={meta}
+      error={err ? <>{err}</> : null}
     >
-      <SplitTextPanel
-        topLabel="Verb"
-        topValue={verb}
-        onTopChange={() => {
-          // verb is fixed by governance: no-op
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "260px 1fr",
+          gap: 12,
+          flex: 1,
+          minHeight: 0,
         }}
-        topPlaceholder="empire.map"
-        bottomLabel="stdout"
-        bottomValue={out}
-        bottomPlaceholder="(run empire.map to populate output)"
-        busy={busy}
-      />
+      >
+        <ArtifactListPanel
+          title="Artifacts"
+          items={docsInFolder}
+          currentPath={currentPath}
+          emptyText="No saved artifacts yet."
+          onSelect={(path) => void readPath(path)}
+        />
+
+        <div
+          style={{
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              border: "1px solid rgba(255,255,255,0.14)",
+              borderRadius: 12,
+              background: "rgba(255,255,255,0.03)",
+              padding: 10,
+              fontSize: 13,
+              opacity: 0.86,
+            }}
+          >
+            <strong>Command:</strong> run_o2(verb=empire.map)
+          </div>
+
+          <textarea
+            className="pasteArea"
+            value={currentText}
+            onChange={(e) => setCurrentText(e.target.value)}
+            placeholder="Empire map output will appear here…"
+            spellCheck={false}
+            style={{ flex: 1, minHeight: 0 }}
+          />
+        </div>
+      </div>
     </SystemStateShell>
   );
 }

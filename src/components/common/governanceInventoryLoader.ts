@@ -29,6 +29,7 @@ type FilesListJson = {
 export type GovernanceInventoryResolvedItem = GovernanceInventoryItem & {
   resolvedPath: string;
   exists: boolean;
+  expectedByPolicy: boolean;
 };
 
 const REPO_PRIMARY_DOCS = new Set<string>([
@@ -68,6 +69,10 @@ async function listO2Files(): Promise<FilesListItem[]> {
     throw new Error("files.list returned invalid JSON");
   }
 
+  if (!parsed.ok) {
+    throw new Error(parsed.error || "files.list returned error");
+  }
+
   return Array.isArray(parsed.items) ? parsed.items : [];
 }
 
@@ -82,6 +87,14 @@ function buildPathSet(items: FilesListItem[]): Set<string> {
   return paths;
 }
 
+function isExpectedByPolicy(item: GovernanceInventoryItem): boolean {
+  if (!isRepoRelativePath(item.path)) {
+    return false;
+  }
+
+  return REPO_PRIMARY_DOCS.has(normalizeRepoRelativePath(item.path));
+}
+
 function itemExists(
   item: GovernanceInventoryItem,
   repoPaths: Set<string>,
@@ -91,11 +104,6 @@ function itemExists(
   }
 
   const normalized = normalizeRepoRelativePath(item.path);
-
-  if (REPO_PRIMARY_DOCS.has(normalized)) {
-    return true;
-  }
-
   return repoPaths.has(normalized);
 }
 
@@ -113,5 +121,6 @@ export async function loadGovernanceInventory(): Promise<
         ? normalizeRepoRelativePath(item.path)
         : expandHomePath(item.path),
       exists: itemExists(item, repoPaths),
+      expectedByPolicy: isExpectedByPolicy(item),
     }));
 }
