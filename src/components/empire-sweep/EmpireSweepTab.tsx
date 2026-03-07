@@ -2,6 +2,7 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SplitTextPanel } from "../common/SplitTextPanel";
 import { SystemStateShell } from "../common/SystemStateShell";
+import { copyText } from "../common/copyText";
 
 type RunO2Result = {
   ok: boolean;
@@ -9,30 +10,6 @@ type RunO2Result = {
   stdout: string;
   stderr: string;
 };
-
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    // fallback
-  }
-
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    ta.style.top = "-9999px";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-  } catch {
-    // ignore
-  }
-}
 
 export function EmpireSweepTab() {
   const [out, setOut] = useState("");

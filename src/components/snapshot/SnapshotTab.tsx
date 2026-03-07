@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SystemStateShell } from "../common/SystemStateShell";
+import { copyText } from "../common/copyText";
 
 type RunO2Result = {
   ok: boolean;
@@ -81,30 +82,6 @@ function latestPathForDir(
     .sort((a, b) => b.mtime - a.mtime);
 
   return matches[0]?.path ?? null;
-}
-
-async function copyText(text: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    // fall through
-  }
-
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    ta.style.top = "-9999px";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-  } catch {
-    // ignore
-  }
 }
 
 type Props = {
@@ -196,6 +173,7 @@ export function SnapshotTab({ title }: Props) {
           >
             {loading ? "Loading…" : "Reload"}
           </button>
+
           <button
             className="btn btnGhost"
             onClick={() => void copyText(content)}
@@ -211,12 +189,15 @@ export function SnapshotTab({ title }: Props) {
           <div>
             <strong>Folder:</strong> {dir}
           </div>
+
           <div>
             <strong>Current file:</strong> {selectedPath ?? "(none found)"}
           </div>
+
           <div>
             <strong>Mode:</strong> Read-only generated-state surface
           </div>
+
           <div>
             <strong>Last loaded:</strong>{" "}
             {lastLoadedAt ? new Date(lastLoadedAt).toLocaleString() : "—"}
