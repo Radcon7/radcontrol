@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SplitTextPanel } from "../common/SplitTextPanel";
+import { SystemStateShell } from "../common/SystemStateShell";
 
 type RunO2Result = {
   ok: boolean;
@@ -42,7 +43,6 @@ export function EmpireSweepTab() {
     setBusy(true);
     try {
       const res = await invoke<RunO2Result>("run_o2", { verb: "empire.sweep" });
-      // stdout verbatim (no parsing, no joining stderr)
       setOut(res?.stdout ?? "");
     } finally {
       setBusy(false);
@@ -50,18 +50,56 @@ export function EmpireSweepTab() {
   }
 
   return (
-    <SplitTextPanel
+    <SystemStateShell
       title="Empire Sweep"
-      topLabel="Command"
-      topValue="run_o2(verb=empire.sweep)"
-      onTopChange={() => {}}
-      bottomLabel="stdout (verbatim)"
-      bottomValue={out}
-      busy={busy}
-      onRun={() => void run()}
-      runLabel="Run empire.sweep"
-      onCopy={() => void copyText(out)}
-      onClear={() => setOut("")}
-    />
+      actions={
+        <>
+          <button
+            className="btn btnPrimary"
+            onClick={() => void run()}
+            disabled={busy}
+            title="Run empire.sweep"
+          >
+            {busy ? "Running…" : "Run empire.sweep"}
+          </button>
+
+          <button
+            className="btn btnGhost"
+            onClick={() => void copyText(out)}
+            disabled={out.trim().length === 0}
+          >
+            Copy
+          </button>
+
+          <button
+            className="btn btnGhost"
+            onClick={() => setOut("")}
+            disabled={busy}
+          >
+            Clear
+          </button>
+        </>
+      }
+      meta={
+        <>
+          <div>
+            <strong>Command:</strong> run_o2(verb=empire.sweep)
+          </div>
+          <div>
+            <strong>Mode:</strong> Read-only stdout surface
+          </div>
+        </>
+      }
+    >
+      <SplitTextPanel
+        topLabel="Command"
+        topValue="run_o2(verb=empire.sweep)"
+        onTopChange={() => {}}
+        bottomLabel="stdout (verbatim)"
+        bottomValue={out}
+        bottomPlaceholder="(run empire.sweep to populate output)"
+        busy={busy}
+      />
+    </SystemStateShell>
   );
 }

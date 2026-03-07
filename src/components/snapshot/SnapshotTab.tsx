@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { SystemStateShell } from "../common/SystemStateShell";
 
 type RunO2Result = {
   ok: boolean;
@@ -183,25 +184,10 @@ export function SnapshotTab({ title }: Props) {
   }, []);
 
   return (
-    <section
-      className="panel"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        minHeight: 0,
-        height: "100%",
-      }}
-    >
-      <div className="panelHeader">
-        <div className="panelTitle">{title}</div>
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
+    <SystemStateShell
+      title={title}
+      actions={
+        <>
           <button
             className="btn btnGhost"
             onClick={() => void loadLatest()}
@@ -218,29 +204,28 @@ export function SnapshotTab({ title }: Props) {
           >
             Copy
           </button>
-        </div>
-      </div>
-
-      <div className="panelMeta" style={{ marginBottom: 12 }}>
-        <div>
-          <strong>Folder:</strong> {dir}
-        </div>
-        <div>
-          <strong>Current file:</strong> {selectedPath ?? "(none found)"}
-        </div>
-        <div>
-          <strong>Mode:</strong> Read-only generated-state surface
-        </div>
-        <div>
-          <strong>Last loaded:</strong>{" "}
-          {lastLoadedAt ? new Date(lastLoadedAt).toLocaleString() : "—"}
-        </div>
-      </div>
-
-      {err ? <div className="panelError">{err}</div> : null}
-
+        </>
+      }
+      meta={
+        <>
+          <div>
+            <strong>Folder:</strong> {dir}
+          </div>
+          <div>
+            <strong>Current file:</strong> {selectedPath ?? "(none found)"}
+          </div>
+          <div>
+            <strong>Mode:</strong> Read-only generated-state surface
+          </div>
+          <div>
+            <strong>Last loaded:</strong>{" "}
+            {lastLoadedAt ? new Date(lastLoadedAt).toLocaleString() : "—"}
+          </div>
+        </>
+      }
+      error={err ? err : undefined}
+    >
       <textarea
-        className="pasteArea"
         value={content}
         readOnly
         placeholder="No snapshot file found yet."
@@ -251,8 +236,18 @@ export function SnapshotTab({ title }: Props) {
           width: "100%",
           resize: "none",
           boxSizing: "border-box",
+          padding: 10,
+          borderRadius: 8,
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(0,0,0,0.35)",
+          color: "inherit",
+          fontFamily:
+            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          fontSize: 18,
+          lineHeight: 1.55,
+          whiteSpace: "pre",
         }}
       />
-    </section>
+    </SystemStateShell>
   );
 }

@@ -1,5 +1,5 @@
 type Props = {
-  title: string;
+  title?: string;
 
   topLabel: string;
   topValue: string;
@@ -36,10 +36,106 @@ export function SplitTextPanel(props: Props) {
     onClear,
   } = props;
 
+  const body = (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        flex: 1,
+        minHeight: 0,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          minHeight: 0,
+        }}
+      >
+        <div style={{ fontSize: 12, opacity: 0.85 }}>{topLabel}</div>
+        <textarea
+          value={topValue}
+          onChange={(e) => onTopChange(e.target.value)}
+          placeholder={topPlaceholder}
+          disabled={Boolean(busy)}
+          spellCheck={false}
+          style={{
+            width: "100%",
+            minHeight: 180,
+            resize: "vertical",
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(0,0,0,0.25)",
+            color: "inherit",
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: 18,
+            lineHeight: 1.55,
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        <div style={{ fontSize: 12, opacity: 0.85 }}>{bottomLabel}</div>
+        <textarea
+          readOnly
+          value={bottomValue}
+          placeholder={bottomPlaceholder}
+          spellCheck={false}
+          style={{
+            width: "100%",
+            minHeight: 260,
+            flex: 1,
+            resize: "none",
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(0,0,0,0.35)",
+            color: "inherit",
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: 18,
+            lineHeight: 1.55,
+            whiteSpace: "pre",
+            boxSizing: "border-box",
+          }}
+        />
+      </div>
+    </div>
+  );
+
+  const hasStandaloneHeader =
+    Boolean(title) || Boolean(onRun) || Boolean(onCopy) || Boolean(onClear);
+
+  if (!hasStandaloneHeader) {
+    return body;
+  }
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        flex: 1,
+        minHeight: 0,
+      }}
+    >
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>{title}</div>
+        {title ? (
+          <div style={{ fontSize: 18, fontWeight: 700 }}>{title}</div>
+        ) : null}
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           {onRun ? (
@@ -71,52 +167,7 @@ export function SplitTextPanel(props: Props) {
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ fontSize: 12, opacity: 0.85 }}>{topLabel}</div>
-        <textarea
-          value={topValue}
-          onChange={(e) => onTopChange(e.target.value)}
-          placeholder={topPlaceholder}
-          style={{
-            width: "100%",
-            minHeight: 220,
-            resize: "vertical",
-            padding: 10,
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(0,0,0,0.25)",
-            color: "inherit",
-            fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            fontSize: 18,
-            lineHeight: 1.55,
-          }}
-        />
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ fontSize: 12, opacity: 0.85 }}>{bottomLabel}</div>
-        <textarea
-          readOnly
-          value={bottomValue}
-          placeholder={bottomPlaceholder}
-          style={{
-            width: "100%",
-            minHeight: 260,
-            resize: "vertical",
-            padding: 10,
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(0,0,0,0.35)",
-            color: "inherit",
-            fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            fontSize: 18,
-            lineHeight: 1.55,
-            whiteSpace: "pre",
-          }}
-        />
-      </div>
+      {body}
     </div>
   );
 }
