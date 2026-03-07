@@ -60,8 +60,9 @@ const ALL_TABS: TabKey[] = [
   "codex_chat",
   "codex_build",
   "empire_map",
+  "snapshot",
   "empire_sweep",
-  ...DOC_TABS.map((t) => t.key),
+  ...DOC_TABS.filter((t) => t.key !== "snapshot").map((t) => t.key),
 ];
 
 function isDocTab(t: TabKey): t is DocTabKey {
