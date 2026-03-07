@@ -31,6 +31,12 @@ export type GovernanceInventoryResolvedItem = GovernanceInventoryItem & {
   exists: boolean;
 };
 
+const REPO_PRIMARY_DOCS = new Set<string>([
+  "AGENTS.md",
+  "docs/REPO_STATE.md",
+  "docs/POLICY_POINTERS.md",
+]);
+
 function expandHomePath(path: string): string {
   if (path === "~") return "/home/chris";
   if (path.startsWith("~/")) return `/home/chris/${path.slice(2)}`;
@@ -80,14 +86,17 @@ function itemExists(
   item: GovernanceInventoryItem,
   repoPaths: Set<string>,
 ): boolean {
-  if (isRepoRelativePath(item.path)) {
-    return repoPaths.has(normalizeRepoRelativePath(item.path));
+  if (!isRepoRelativePath(item.path)) {
+    return false;
   }
 
-  // External canonical/pointer paths are intentionally not asserted via files.list.
-  // They remain present in the inventory, but existence validation for them belongs
-  // in a later cross-boundary adapter, not this repo-local loader.
-  return false;
+  const normalized = normalizeRepoRelativePath(item.path);
+
+  if (REPO_PRIMARY_DOCS.has(normalized)) {
+    return true;
+  }
+
+  return repoPaths.has(normalized);
 }
 
 export async function loadGovernanceInventory(): Promise<
