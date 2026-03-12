@@ -148,6 +148,7 @@ export function useArtifactStore({
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
   const loadSeqRef = useRef(0);
+  const producerInFlightRef = useRef(false);
 
   const docsInFolder = useMemo(
     () => sortArtifactItems(items, dirPrefix),
@@ -240,8 +241,9 @@ export function useArtifactStore({
         throw new Error("No producer verb configured.");
       }
 
-      if (running) return;
+      if (producerInFlightRef.current) return;
 
+      producerInFlightRef.current = true;
       setRunning(true);
       setErr("");
 
@@ -265,10 +267,11 @@ export function useArtifactStore({
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
       } finally {
+        producerInFlightRef.current = false;
         setRunning(false);
       }
     },
-    [producerVerb, producerErrorFallback, refreshList, running],
+    [producerVerb, producerErrorFallback, refreshList],
   );
 
   const saveCurrent = useCallback(
