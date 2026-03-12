@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { copyText } from "../common/copyText";
 
 type RunO2Result = {
   ok: boolean;
@@ -53,37 +54,11 @@ type FilesRenameJson = {
   error?: string;
 };
 
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    // fall through
-  }
-
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    ta.style.top = "-9999px";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-  } catch {
-    // ignore
-  }
-}
-
-function b64urlEncodeUtf8(s: string): string {
-  const bytes = new TextEncoder().encode(s);
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 1) {
-    bin += String.fromCharCode(bytes[i]);
-  }
-  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+function b64urlEncodeUtf8(text: string): string {
+  return btoa(unescape(encodeURIComponent(text)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
 }
 
 function normalizeO2Path(p: string): string {

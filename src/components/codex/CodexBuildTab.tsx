@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SplitTextPanel } from "../common/SplitTextPanel";
+import { copyText } from "../common/copyText";
 
 type RunO2Result = {
   ok: boolean;
@@ -14,26 +15,6 @@ function joinOut(r: RunO2Result): string {
   const b = (r.stderr || "").trimEnd();
   if (a && b) return `${a}\n${b}`;
   return a || b || "";
-}
-
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {}
-
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    ta.style.top = "-9999px";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-  } catch {}
 }
 
 export function CodexBuildTab() {

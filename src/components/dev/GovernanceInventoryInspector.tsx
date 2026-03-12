@@ -27,7 +27,7 @@ function buildCopyText(items: GovernanceInventoryResolvedItem[]): string {
         item.category,
         item.authority,
         item.display_mode,
-        item.exists ? "✔" : "—",
+        item.foundViaFilesList ? "✔" : "—",
         item.expectedByPolicy ? "✔" : "—",
         item.resolvedPath,
       ].join("\t"),
@@ -169,7 +169,9 @@ export default function GovernanceInventoryInspector() {
                     <td style={{ padding: 8 }}>{item.category}</td>
                     <td style={{ padding: 8 }}>{item.authority}</td>
                     <td style={{ padding: 8 }}>{item.display_mode}</td>
-                    <td style={{ padding: 8 }}>{item.exists ? "✔" : "—"}</td>
+                    <td style={{ padding: 8 }}>
+                      {item.foundViaFilesList ? "✔" : "—"}
+                    </td>
                     <td style={{ padding: 8 }}>
                       {item.expectedByPolicy ? "✔" : "—"}
                     </td>

@@ -89,7 +89,7 @@ function tabLabel(t: TabKey): string {
 
   const m: Record<Exclude<TabKey, DocTabKey>, string> = {
     projects: "Projects",
-    codex_chat: "O2 Chat",
+    codex_chat: "Codex Chat",
     codex_build: "Codex Build",
     empire_map: "Empire Map",
     empire_sweep: "Empire Sweep",
@@ -245,8 +245,6 @@ export default function App() {
   const [log, setLog] = useState("");
   const appendLog = (s: string) =>
     setLog((prev) => (prev ? prev + "\n" + s : s));
-
-  const [lastUrl, setLastUrl] = useState<string | null>(null);
 
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [rawRegistry, setRawRegistry] = useState<unknown[]>([]);
@@ -438,7 +436,6 @@ export default function App() {
     const finalUrl = urlFromOut ?? fallbackUrl;
     if (!finalUrl) return;
 
-    setLastUrl(finalUrl);
     void copyText(finalUrl);
 
     if (startRecheckTimerRef.current !== null) {
@@ -452,7 +449,7 @@ export default function App() {
       await tryAutoOpen(finalUrl);
     } catch (e) {
       appendLog(`\n[opener] failed: ${fmtErr(e)}\n`);
-      appendLog(`[opener] URL copied. Use "Open Last URL" button.`);
+      appendLog(`[opener] URL copied: ${finalUrl}`);
     }
   }
 
@@ -575,35 +572,13 @@ export default function App() {
         </div>
 
         <div className="headerRight">
-          {lastUrl ? (
-            <button
-              className="btn btnGhost"
-              onClick={() => {
-                try {
-                  if (isTauri()) {
-                    void openUrl(lastUrl);
-                  } else {
-                    openByAnchor(lastUrl);
-                  }
-                } catch (e) {
-                  appendLog(`\n[opener] failed: ${fmtErr(e)}\n`);
-                  appendLog(`[opener] URL copied: ${lastUrl}`);
-                  void copyText(lastUrl);
-                }
-              }}
-              title={lastUrl}
-            >
-              Open Last URL
-            </button>
-          ) : null}
-
           <button
             className="btn"
             onClick={() => void restartRadcontrol()}
             disabled={busy}
             title="Restart RadControl (dev_strict) and refresh project status. Does not start/open projects."
           >
-            Restart + Refresh Status
+            Restart RadControl
           </button>
         </div>
       </header>

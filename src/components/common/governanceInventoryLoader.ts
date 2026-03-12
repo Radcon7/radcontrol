@@ -28,7 +28,7 @@ type FilesListJson = {
 
 export type GovernanceInventoryResolvedItem = GovernanceInventoryItem & {
   resolvedPath: string;
-  exists: boolean;
+  foundViaFilesList: boolean;
   expectedByPolicy: boolean;
 };
 
@@ -120,7 +120,7 @@ export async function loadGovernanceInventory(): Promise<
       resolvedPath: isRepoRelativePath(item.path)
         ? normalizeRepoRelativePath(item.path)
         : expandHomePath(item.path),
-      exists: itemExists(item, repoPaths),
+      foundViaFilesList: itemExists(item, repoPaths),
       expectedByPolicy: isExpectedByPolicy(item),
     }));
 }
