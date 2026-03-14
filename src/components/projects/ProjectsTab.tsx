@@ -66,6 +66,10 @@ export function ProjectsTab({
 
           const port = p.port;
           const s = typeof port === "number" ? ports[port] : undefined;
+          const startDisabled = busy || !p.o2StartKey;
+          const startUnavailableTitle = p.o2StartKey
+            ? "Start project"
+            : "Start unavailable: no O2 start key is configured for this project.";
 
           const isListening = Boolean(s?.listening);
           const killDisabled =
@@ -84,7 +88,8 @@ export function ProjectsTab({
                 <button
                   className="btn btnPrimary"
                   onClick={() => enhancedOnStart(p)}
-                  disabled={busy}
+                  disabled={startDisabled}
+                  title={startUnavailableTitle}
                 >
                   Start
                 </button>

@@ -425,7 +425,12 @@ export default function App() {
   }, []);
 
   async function startProject(p: ProjectRow) {
-    if (!p?.o2StartKey) return;
+    if (!p?.o2StartKey) {
+      appendLog(
+        `[projects] Start unavailable for "${p?.label ?? "unknown"}": no O2 start key configured.`,
+      );
+      return;
+    }
 
     const out = await runO2(`Start ${p.label}`, p.o2StartKey);
 
