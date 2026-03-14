@@ -10,9 +10,10 @@ type Props = {
   ports: Record<number, PortStatus | undefined>;
   busy: boolean;
   portsBusy: boolean;
-  onWorkOn: (p: ProjectRow) => Promise<void> | void;
+  onStart: (p: ProjectRow) => Promise<void> | void;
   onSnapshot: (p: ProjectRow) => Promise<void> | void;
   onCommit: (p: ProjectRow) => Promise<void> | void;
+  onLab: (p: ProjectRow) => Promise<void> | void;
   onKill: (port: number) => Promise<void> | void;
   onMap: (p: ProjectRow) => Promise<void> | void;
   onProofPack: (p: ProjectRow) => Promise<void> | void;
@@ -25,9 +26,10 @@ export function ProjectsTab({
   ports,
   busy,
   portsBusy,
-  onWorkOn,
+  onStart,
   onSnapshot,
   onCommit,
+  onLab,
   onKill,
   onMap,
   onProofPack,
@@ -42,9 +44,9 @@ export function ProjectsTab({
     };
   };
 
-  const enhancedOnWorkOn = (p: ProjectRow) => {
+  const enhancedOnStart = (p: ProjectRow) => {
     try {
-      void onWorkOn(p);
+      void onStart(p);
     } catch {
       // no console spam; failures should surface via UI/toast elsewhere if needed
     }
@@ -81,10 +83,10 @@ export function ProjectsTab({
               <div className="projectRight">
                 <button
                   className="btn btnPrimary"
-                  onClick={() => enhancedOnWorkOn(p)}
+                  onClick={() => enhancedOnStart(p)}
                   disabled={busy}
                 >
-                  Work on
+                  Start
                 </button>
 
                 <button
@@ -102,6 +104,16 @@ export function ProjectsTab({
                 >
                   Commit
                 </button>
+
+                {p.o2LabKey ? (
+                  <button
+                    className="btn"
+                    onClick={() => onLab(p)}
+                    disabled={busy}
+                  >
+                    Lab
+                  </button>
+                ) : null}
 
                 <button
                   className="btn btnDanger btnIcon"

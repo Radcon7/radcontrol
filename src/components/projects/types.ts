@@ -15,6 +15,7 @@ export type ProjectRow = {
   o2StartKey?: string;
   o2SnapshotKey?: string;
   o2CommitKey?: string;
+  o2LabKey?: string;
 
   // Map / ProofPack
   o2MapKey?: string;
@@ -56,6 +57,7 @@ export type AddProjectPayload = {
   o2StartKey?: string;
   o2SnapshotKey?: string;
   o2CommitKey?: string;
+  o2LabKey?: string;
   o2MapKey?: string;
   o2ProofPackKey?: string;
 

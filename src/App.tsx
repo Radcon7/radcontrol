@@ -29,7 +29,7 @@ import {
   nextPortSuggestion,
 } from "./components/projects/helpers";
 
-type LibraryTabKey = "notes" | "legal" | "templates" | "orion_handoff";
+type LibraryTabKey = "notes" | "legal" | "labs" | "orion_handoff";
 type StreamTabKey = "timeline" | "snapshot";
 type DocTabKey = LibraryTabKey | StreamTabKey;
 
@@ -51,7 +51,7 @@ type DocTabMeta = {
 const DOC_TABS: DocTabMeta[] = [
   { key: "notes", label: "Notes", mode: "library" },
   { key: "legal", label: "Legal", mode: "library" },
-  { key: "templates", label: "Templates", mode: "library" },
+  { key: "labs", label: "Labs", mode: "library" },
   { key: "orion_handoff", label: "Orion Handoff", mode: "library" },
   { key: "timeline", label: "Timeline", mode: "stream" },
   { key: "snapshot", label: "Snapshot", mode: "stream" },
@@ -424,7 +424,7 @@ export default function App() {
     };
   }, []);
 
-  async function workOnProject(p: ProjectRow) {
+  async function startProject(p: ProjectRow) {
     if (!p?.o2StartKey) return;
 
     const out = await runO2(`Start ${p.label}`, p.o2StartKey);
@@ -482,6 +482,7 @@ export default function App() {
     if (payload.o2StartKey) entry.o2StartKey = payload.o2StartKey;
     if (payload.o2SnapshotKey) entry.o2SnapshotKey = payload.o2SnapshotKey;
     if (payload.o2CommitKey) entry.o2CommitKey = payload.o2CommitKey;
+    if (payload.o2LabKey) entry.o2LabKey = payload.o2LabKey;
     if (payload.o2MapKey) entry.o2MapKey = payload.o2MapKey;
     if (payload.o2ProofPackKey) entry.o2ProofPackKey = payload.o2ProofPackKey;
 
@@ -501,7 +502,7 @@ export default function App() {
   const logText = (busy ? "Running…" : log || "No logs yet.").toString();
 
   const tabPlaceholder = (t: DocTabKey) => {
-    if (t === "templates") return "Write or edit templates here…";
+    if (t === "labs") return "Write or edit labs here…";
     if (t === "timeline") return "Timeline milestones surface...";
     if (isLibraryTab(t)) return `Write or edit ${tabLabel(t)} here…`;
     return `Type ${tabLabel(t)} here… (auto-loads latest, autosaves+commits on tab change)`;
@@ -623,11 +624,12 @@ export default function App() {
               ports={ports}
               busy={busy}
               portsBusy={portsBusy}
-              onWorkOn={workOnProject}
+              onStart={startProject}
               onSnapshot={(p) =>
                 void runO2(`Snapshot ${p.label}`, p.o2SnapshotKey)
               }
               onCommit={(p) => void runO2(`Commit ${p.label}`, p.o2CommitKey)}
+              onLab={(p) => void runO2(`${p.label} Lab`, p.o2LabKey)}
               onKill={freePort}
               onMap={(p) => void runO2(`${p.label} Map`, p.o2MapKey)}
               onProofPack={(p) =>
