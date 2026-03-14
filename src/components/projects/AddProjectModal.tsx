@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AddProjectPayload } from "./types";
-import { slugify, inferRepoPath, asPort, validateAdd } from "./helpers";
-
-type Org = "radcon" | "radwolfe" | "labs" | "other";
-type Kind = "nextjs" | "tauri" | "python" | "docs" | "static" | "other";
+import type { AddProjectPayload, ProjectKind, ProjectOrg } from "./types";
+import { validateAdd } from "./helpers";
 
 export function AddProjectModal({
   open,
@@ -15,58 +12,94 @@ export function AddProjectModal({
   onClose: () => void;
   onCreate: (payload: AddProjectPayload) => Promise<void> | void;
   defaultSuggestedPort?: number;
-  usedPorts?: Set<number>;
 }) {
   const [key, setKey] = useState("");
   const [label, setLabel] = useState("");
-  const [org, setOrg] = useState<Org>("radcon");
+  const [org, setOrg] = useState<ProjectOrg>("radcon");
+  const [kind, setKind] = useState<ProjectKind>("nextjs");
   const [repoPath, setRepoPath] = useState("");
-  const [kind, setKind] = useState<Kind>("nextjs");
-  const [port, setPort] = useState<string>(
-    defaultSuggestedPort ? String(defaultSuggestedPort) : "",
-  );
+  const [repoHint, setRepoHint] = useState("");
+  const [portInput, setPortInput] = useState("");
   const [url, setUrl] = useState("");
+  const [o2StartKey, setO2StartKey] = useState("");
+  const [o2SnapshotKey, setO2SnapshotKey] = useState("");
+  const [o2CommitKey, setO2CommitKey] = useState("");
+  const [o2LabKey, setO2LabKey] = useState("");
+  const [o2MapKey, setO2MapKey] = useState("");
+  const [o2ProofPackKey, setO2ProofPackKey] = useState("");
+  const [notes, setNotes] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Reset on open so it doesn't get "stuck" between uses.
   useEffect(() => {
     if (!open) return;
+
     setKey("");
     setLabel("");
     setOrg("radcon");
-    setRepoPath("");
     setKind("nextjs");
-    setPort(defaultSuggestedPort ? String(defaultSuggestedPort) : "");
+    setRepoPath("");
+    setRepoHint("");
+    setPortInput(
+      typeof defaultSuggestedPort === "number"
+        ? String(defaultSuggestedPort)
+        : "",
+    );
     setUrl("");
+    setO2StartKey("");
+    setO2SnapshotKey("");
+    setO2CommitKey("");
+    setO2LabKey("");
+    setO2MapKey("");
+    setO2ProofPackKey("");
+    setNotes("");
     setErr(null);
     setSaving(false);
   }, [open, defaultSuggestedPort]);
 
-  const keySlug = useMemo(() => slugify(key), [key]);
-
-  function autoFillRepo() {
-    const slug = slugify(key);
-    const inferred = inferRepoPath({ org, key: slug });
-    setRepoPath(inferred);
-  }
-
   const parsedPort = useMemo(() => {
-    const t = port.trim();
-    return t ? (asPort(t) ?? undefined) : undefined;
-  }, [port]);
+    const trimmed = portInput.trim();
+    if (!trimmed) return undefined;
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) return undefined;
+    return Math.trunc(n);
+  }, [portInput]);
 
   const payload: AddProjectPayload = useMemo(
     () => ({
-      key: keySlug,
+      key: key.trim(),
       label: label.trim(),
       org,
-      repoPath: repoPath.trim(),
       kind,
+      repoPath: repoPath.trim(),
+      repoHint: repoHint.trim() || undefined,
       port: parsedPort,
-      url: url.trim() ? url.trim() : undefined,
+      url: url.trim() || undefined,
+      o2StartKey: o2StartKey.trim() || undefined,
+      o2SnapshotKey: o2SnapshotKey.trim() || undefined,
+      o2CommitKey: o2CommitKey.trim() || undefined,
+      o2LabKey: o2LabKey.trim() || undefined,
+      o2MapKey: o2MapKey.trim() || undefined,
+      o2ProofPackKey: o2ProofPackKey.trim() || undefined,
+      notes: notes.trim() || undefined,
     }),
-    [keySlug, label, org, repoPath, kind, parsedPort, url],
+    [
+      key,
+      label,
+      org,
+      kind,
+      repoPath,
+      repoHint,
+      parsedPort,
+      url,
+      o2StartKey,
+      o2SnapshotKey,
+      o2CommitKey,
+      o2LabKey,
+      o2MapKey,
+      o2ProofPackKey,
+      notes,
+    ],
   );
 
   const validation = useMemo(
@@ -80,26 +113,34 @@ export function AddProjectModal({
       }),
     [payload],
   );
+
   const validationError = validation.ok ? null : validation.errors.join(" ");
 
   if (!open) return null;
 
   async function submit() {
-    const vErr = validationError;
-    if (vErr) {
-      setErr(vErr);
+    if (validationError) {
+      setErr(validationError);
       return;
     }
+
     setErr(null);
     setSaving(true);
     try {
       await onCreate(payload);
       onClose();
-    } catch (e: any) {
-      setErr(
-        typeof e?.message === "string" && e.message.trim()
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error
           ? e.message
-          : "Failed to create project.",
+          : e && typeof e === "object" && "message" in e
+            ? String((e as { message: unknown }).message ?? "")
+            : "";
+
+      setErr(
+        typeof msg === "string" && msg.trim()
+          ? msg
+          : "Failed to create project payload.",
       );
     } finally {
       setSaving(false);
@@ -124,18 +165,15 @@ export function AddProjectModal({
         </div>
 
         <div className="modalBody">
-          <label>Project Key</label>
+          <label>Key</label>
           <input
             value={key}
             onChange={(e) => setKey(e.target.value)}
             placeholder="tbis"
             disabled={saving}
           />
-          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 6 }}>
-            Saved key: <code>{keySlug || "—"}</code>
-          </div>
 
-          <label style={{ marginTop: 12 }}>Display Name</label>
+          <label style={{ marginTop: 12 }}>Label</label>
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -143,10 +181,10 @@ export function AddProjectModal({
             disabled={saving}
           />
 
-          <label style={{ marginTop: 12 }}>Organization</label>
+          <label style={{ marginTop: 12 }}>Org</label>
           <select
             value={org}
-            onChange={(e) => setOrg(e.target.value as Org)}
+            onChange={(e) => setOrg(e.target.value as ProjectOrg)}
             disabled={saving}
           >
             <option value="radcon">radcon</option>
@@ -155,30 +193,10 @@ export function AddProjectModal({
             <option value="other">other</option>
           </select>
 
-          <label style={{ marginTop: 12 }}>Repo Path</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              value={repoPath}
-              onChange={(e) => setRepoPath(e.target.value)}
-              placeholder="~/dev/rad-empire/..."
-              disabled={saving}
-              style={{ flex: 1 }}
-            />
-            <button
-              className="btn btnGhost"
-              onClick={autoFillRepo}
-              disabled={saving || !keySlug}
-              title="Infer repo path from org + key"
-              type="button"
-            >
-              Auto
-            </button>
-          </div>
-
           <label style={{ marginTop: 12 }}>Kind</label>
           <select
             value={kind}
-            onChange={(e) => setKind(e.target.value as Kind)}
+            onChange={(e) => setKind(e.target.value as ProjectKind)}
             disabled={saving}
           >
             <option value="nextjs">nextjs</option>
@@ -189,21 +207,98 @@ export function AddProjectModal({
             <option value="other">other</option>
           </select>
 
-          <label style={{ marginTop: 12 }}>Port</label>
+          <label style={{ marginTop: 12 }}>Repo Path</label>
           <input
-            value={port}
-            onChange={(e) => setPort(e.target.value)}
-            placeholder="3000"
-            inputMode="numeric"
+            value={repoPath}
+            onChange={(e) => setRepoPath(e.target.value)}
+            placeholder="/home/chris/dev/rad-empire/radcon/dev/tbis"
             disabled={saving}
           />
 
-          <label style={{ marginTop: 12 }}>URL</label>
+          <label style={{ marginTop: 12 }}>Repo Hint (optional)</label>
+          <input
+            value={repoHint}
+            onChange={(e) => setRepoHint(e.target.value)}
+            placeholder="radcon/dev/tbis"
+            disabled={saving}
+          />
+
+          <label style={{ marginTop: 12 }}>Port (optional)</label>
+          <input
+            value={portInput}
+            onChange={(e) => setPortInput(e.target.value)}
+            placeholder={
+              typeof defaultSuggestedPort === "number"
+                ? String(defaultSuggestedPort)
+                : "1420"
+            }
+            disabled={saving}
+          />
+
+          <label style={{ marginTop: 12 }}>URL (optional)</label>
           <input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="http://localhost:3000"
             disabled={saving}
+          />
+
+          <label style={{ marginTop: 12 }}>O2 Start Key (optional)</label>
+          <input
+            value={o2StartKey}
+            onChange={(e) => setO2StartKey(e.target.value)}
+            placeholder="tbis.dev"
+            disabled={saving}
+          />
+
+          <label style={{ marginTop: 12 }}>O2 Snapshot Key (optional)</label>
+          <input
+            value={o2SnapshotKey}
+            onChange={(e) => setO2SnapshotKey(e.target.value)}
+            placeholder="tbis.snapshot"
+            disabled={saving}
+          />
+
+          <label style={{ marginTop: 12 }}>O2 Commit Key (optional)</label>
+          <input
+            value={o2CommitKey}
+            onChange={(e) => setO2CommitKey(e.target.value)}
+            placeholder="tbis.commit"
+            disabled={saving}
+          />
+
+          <label style={{ marginTop: 12 }}>O2 Lab Key (optional)</label>
+          <input
+            value={o2LabKey}
+            onChange={(e) => setO2LabKey(e.target.value)}
+            placeholder="tbis.lab"
+            disabled={saving}
+          />
+
+          <label style={{ marginTop: 12 }}>O2 Map Key (optional)</label>
+          <input
+            value={o2MapKey}
+            onChange={(e) => setO2MapKey(e.target.value)}
+            placeholder="tbis.map"
+            disabled={saving}
+          />
+
+          <label style={{ marginTop: 12 }}>O2 Proof Pack Key (optional)</label>
+          <input
+            value={o2ProofPackKey}
+            onChange={(e) => setO2ProofPackKey(e.target.value)}
+            placeholder="tbis.proofpack"
+            disabled={saving}
+          />
+
+          <label style={{ marginTop: 12 }}>Notes (optional)</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Notes about this project..."
+            disabled={saving}
+            rows={5}
+            style={{ width: "100%", resize: "vertical" }}
           />
 
           {err || validationError ? (
@@ -238,7 +333,7 @@ export function AddProjectModal({
             disabled={saving || Boolean(validationError)}
             type="button"
           >
-            {saving ? "Creating…" : "Create"}
+            {saving ? "Creating…" : "Create Project"}
           </button>
         </div>
       </div>

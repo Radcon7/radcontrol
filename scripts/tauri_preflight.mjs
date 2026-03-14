@@ -1,168 +1,79 @@
-// scripts/tauri_preflight.mjs
-// Fail-fast check for Tauri dev attach mode.
-// Purpose:
-//   1) Resolve RadControl devUrl from O2 registry (canonical truth).
-//   2) Assert src-tauri/tauri.conf.json devUrl matches registry (no parallel truth).
-//   3) Probe the devUrl and exit non-zero if unreachable.
-//
-// This script does NOT start Vite.
-
-import fs from "node:fs/promises";
 import path from "node:path";
+import {
+  RADCONTROL_DEV_URL,
+  die,
+  probeRadcontrolDevServer,
+  readPositiveIntEnv,
+  readTauriDevUrl,
+  repoRootFromMeta,
+} from "./dev_local_lib.mjs";
 
-const TIMEOUT_MS = Number(process.env.RADCONTROL_PREFLIGHT_TIMEOUT_MS || 1200);
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function probeOnce(url, timeoutMs) {
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch(url, { method: "GET", signal: controller.signal });
-    // Any HTTP response means "server is up" for our purposes.
-    return { ok: true, status: res.status };
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-async function probe(url, timeoutMs) {
-  // Quick retry helps when Vite is in the last moments of boot.
-  try {
-    return await probeOnce(url, timeoutMs);
-  } catch {
-    await sleep(120);
-    return await probeOnce(url, timeoutMs);
-  }
-}
-
-function die(msg, code = 2) {
-  console.error(msg);
-  process.exit(code);
-}
-
-function isNonEmptyString(v) {
-  return typeof v === "string" && v.trim().length > 0;
-}
-
-async function readJsonFile(fp) {
-  const raw = await fs.readFile(fp, "utf8");
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    throw new Error(`Invalid JSON in ${fp}: ${String(e)}`);
-  }
-}
-
-async function resolveRegistryRadcontrolUrl(homeDir) {
-  const registryPath = path.join(
-    homeDir,
-    "dev",
-    "o2",
-    "registry",
-    "projects.json",
-  );
-  const v = await readJsonFile(registryPath);
-  if (!Array.isArray(v)) {
-    throw new Error(`Registry is not an array: ${registryPath}`);
-  }
-
-  const row = v.find(
-    (r) => r && typeof r === "object" && r.key === "radcontrol",
-  );
-
-  const url = row?.url;
-  if (!isNonEmptyString(url)) {
-    throw new Error(
-      `Registry row for key="radcontrol" missing valid "url" (${registryPath})`,
-    );
-  }
-  return { url: url.trim(), registryPath };
-}
-
-async function readTauriDevUrl() {
-  const tauriConfPath = path.join("src-tauri", "tauri.conf.json");
-  const v = await readJsonFile(tauriConfPath);
-
-  const devUrl = v?.build?.devUrl;
-  if (!isNonEmptyString(devUrl)) {
-    throw new Error(`Missing build.devUrl in ${tauriConfPath}`);
-  }
-
-  return { devUrl: devUrl.trim(), tauriConfPath };
-}
+const PRECHECK_TIMEOUT_MS = readPositiveIntEnv(
+  "RADCONTROL_PREFLIGHT_TIMEOUT_MS",
+  1_500,
+);
 
 async function main() {
-  const home = process.env.HOME;
-  if (!isNonEmptyString(home)) {
-    die("[tauri-preflight] ERROR: HOME not set", 2);
-  }
+  const repoRoot = repoRootFromMeta(import.meta.url);
+  const { devUrl, tauriConfPath } = await readTauriDevUrl(repoRoot);
+  const relTauriConfPath =
+    path.relative(repoRoot, tauriConfPath) || tauriConfPath;
 
-  const { url: registryUrl, registryPath } =
-    await resolveRegistryRadcontrolUrl(home);
-  const { devUrl: tauriDevUrl, tauriConfPath } = await readTauriDevUrl();
-
-  // Optional override for emergencies only.
-  const override = process.env.RADCONTROL_DEV_URL;
-  const resolvedUrl = isNonEmptyString(override)
-    ? override.trim()
-    : registryUrl;
-
-  // Assert wiring matches canonical truth (registry).
-  // If you REALLY need an override, you should update the registry and config together.
-  if (tauriDevUrl !== registryUrl) {
+  // 0) Enforce canonical devUrl
+  if (devUrl !== RADCONTROL_DEV_URL) {
     die(
       [
-        `[tauri-preflight] ERROR: tauri.conf.json devUrl does not match O2 registry`,
-        `  - ${tauriConfPath}: build.devUrl = ${tauriDevUrl}`,
-        `  - ${registryPath}: radcontrol.url = ${registryUrl}`,
-        ``,
-        `Fix: make these match (registry is canonical).`,
+        `[tauri-preflight] ERROR: non-canonical Tauri devUrl`,
+        `  - ${relTauriConfPath}: build.devUrl = ${devUrl}`,
+        `  - expected: ${RADCONTROL_DEV_URL}`,
+        "",
+        `Fix: set build.devUrl to ${RADCONTROL_DEV_URL} and keep Vite on port 1420 (strictPort).`,
       ].join("\n"),
       3,
     );
   }
 
-  if (isNonEmptyString(override) && resolvedUrl !== registryUrl) {
+  // 1) Probe only. This script must NOT start Vite.
+  const probe = await probeRadcontrolDevServer(devUrl, PRECHECK_TIMEOUT_MS);
+
+  if (probe.ok) {
+    console.log(
+      `[tauri-preflight] OK: RadControl Vite dev server reachable at ${devUrl} (root=${probe.rootStatus}, vite=${probe.viteStatus}, main=${probe.mainStatus})`,
+    );
+    return;
+  }
+
+  if (probe.kind === "wrong-server") {
     die(
       [
-        `[tauri-preflight] ERROR: RADCONTROL_DEV_URL override conflicts with O2 registry`,
-        `  - RADCONTROL_DEV_URL = ${resolvedUrl}`,
-        `  - ${registryPath}: radcontrol.url = ${registryUrl}`,
-        ``,
-        `Fix: unset RADCONTROL_DEV_URL, or update registry + tauri.conf.json together.`,
+        `[tauri-preflight] ERROR: port 1420 is serving the wrong app`,
+        `  - expected RadControl Vite at ${devUrl}`,
+        `  - probe details:`,
+        `  - ${probe.details}`,
+        "",
+        `Fix: stop the process currently using port 1420, then run from repo root:`,
+        `  node scripts/tauri_dev.mjs`,
       ].join("\n"),
       4,
     );
   }
 
-  // Probe reachability.
-  try {
-    const r = await probe(resolvedUrl, TIMEOUT_MS);
-    console.log(
-      `[tauri-preflight] OK: frontend reachable at ${resolvedUrl} (HTTP ${r.status})`,
-    );
-  } catch {
-    die(
-      [
-        `[tauri-preflight] ERROR: frontend dev server is NOT reachable at ${resolvedUrl}`,
-        ``,
-        `Expected dev attach model:`,
-        `  - Start Vite on the registry-defined url (typically via O2 'radcontrol.dev')`,
-        `  - Then run Tauri dev attach`,
-        ``,
-        `Why you saw the hang previously:`,
-        `  - Tauri devUrl is hard-set in tauri.conf.json`,
-        `  - beforeDevCommand was a no-op, so Tauri waited indefinitely`,
-      ].join("\n"),
-      2,
-    );
-  }
+  // Down / unreachable / degraded -> fail fast with a deterministic instruction.
+  die(
+    [
+      `[tauri-preflight] ERROR: RadControl Vite dev server not reachable at ${devUrl}`,
+      `  - probe kind: ${probe.kind || "unknown"}`,
+      `  - timeout: ${PRECHECK_TIMEOUT_MS}ms`,
+      "",
+      `Fix (golden path):`,
+      `  node scripts/tauri_dev.mjs`,
+      "",
+      `Note: this preflight does not start Vite (runner owns startup).`,
+    ].join("\n"),
+    2,
+  );
 }
 
-main().catch((e) => {
-  die(`[tauri-preflight] ERROR: ${String(e?.message || e)}`, 2);
+main().catch((err) => {
+  die(`[tauri-preflight] ERROR: ${String(err?.message || err)}`, 2);
 });
