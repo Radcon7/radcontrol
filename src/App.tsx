@@ -67,6 +67,23 @@ const ALL_TABS: TabKey[] = [
   ...DOC_TABS.filter((t) => t.key !== "snapshot").map((t) => t.key),
 ];
 
+type CanonicalProjectType =
+  | "new_website"
+  | "lab_from_existing"
+  | "website_successor";
+
+const canonicalProjectTypeMap: Record<string, CanonicalProjectType> = {
+  website: "new_website",
+  new_website: "new_website",
+
+  lab: "lab_from_existing",
+  lab_from_existing: "lab_from_existing",
+
+  successor: "website_successor",
+  website_successor: "website_successor",
+  "v.x.x website from existing website": "website_successor",
+};
+
 function isDocTab(t: TabKey): t is DocTabKey {
   return DOC_TABS.some((d) => d.key === t);
 }
@@ -235,8 +252,9 @@ async function invokeText(cmd: string, payload?: Record<string, unknown>) {
 
   return (out ?? "").toString();
 }
+
 type FormationStartPayload = {
-  projectType: string;
+  projectType: CanonicalProjectType;
   name: string;
   label: string;
   key: string;
@@ -281,12 +299,32 @@ function encodeBase64UrlJson(value: unknown): string {
     .replace(/=+$/g, "");
 }
 
+function normalizeProjectType(
+  payload: AddProjectPayload,
+): CanonicalProjectType {
+  const rawProjectType = payload.projectType?.trim().toLowerCase() || "";
+  const rawKind = payload.kind?.trim().toLowerCase() || "";
+
+  if (rawProjectType in canonicalProjectTypeMap) {
+    return canonicalProjectTypeMap[rawProjectType];
+  }
+
+  if (rawKind in canonicalProjectTypeMap) {
+    return canonicalProjectTypeMap[rawKind];
+  }
+
+  if (payload.parentProjectKey?.trim()) {
+    return "website_successor";
+  }
+
+  return "new_website";
+}
+
 function normalizeFormationStartPayload(
   payload: AddProjectPayload,
 ): FormationStartPayload {
-  const projectType = (payload.projectType || payload.kind || "other").trim();
+  const projectType = normalizeProjectType(payload);
   const relationship = (payload.relationship || "new").trim();
-
   const technicalKind = (payload.kind || "other").trim();
 
   const name = (payload.label || payload.key).trim();
@@ -299,15 +337,16 @@ function normalizeFormationStartPayload(
     "No mission provided yet.";
 
   const baseProjectKey = payload.parentProjectKey?.trim() || "";
-
   const patternHint =
     payload.patternHint?.trim() || payload.repoHint?.trim() || "";
-
   const intent = (
     payload.intent || (payload.o2LabKey ? "lab" : "production")
   ).trim();
 
-  const track = intent === "lab" ? "lab" : "production";
+  const track =
+    projectType === "lab_from_existing" || intent === "lab"
+      ? "lab"
+      : "production";
 
   const versionTag = "";
   const notes = payload.notes?.trim() || "";
@@ -328,6 +367,7 @@ function normalizeFormationStartPayload(
     notes,
   };
 }
+
 export default function App() {
   const [tab, setTab] = useState<TabKey>("projects");
   const [busy, setBusy] = useState(false);
