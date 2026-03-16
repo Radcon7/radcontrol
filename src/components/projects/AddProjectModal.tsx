@@ -10,8 +10,8 @@ import type {
 import { validateAdd } from "./helpers";
 
 type NewProjectType =
-  | "website"
-  | "lab_existing"
+  | "new_website"
+  | "lab_from_existing"
   | "website_successor"
   | "standalone_app"
   | "internal_tool"
@@ -26,8 +26,8 @@ const NEW_PROJECT_TYPE_OPTIONS: Array<{
   value: NewProjectType;
   label: string;
 }> = [
-  { value: "website", label: "new website" },
-  { value: "lab_existing", label: "lab based on existing project" },
+  { value: "new_website", label: "new website" },
+  { value: "lab_from_existing", label: "lab based on existing project" },
   {
     value: "website_successor",
     label: "V.x.x website from existing website",
@@ -68,9 +68,9 @@ function normalizePort(value: string): number | undefined {
 
 function projectTypeLabel(projectType: NewProjectType): string {
   switch (projectType) {
-    case "website":
+    case "new_website":
       return "New website";
-    case "lab_existing":
+    case "lab_from_existing":
       return "Lab based on existing project";
     case "website_successor":
       return "V.x.x website from existing website";
@@ -98,7 +98,7 @@ function deriveDefaultsFromProjectType(projectType: NewProjectType): {
   requiresRelatedProject: boolean;
 } {
   switch (projectType) {
-    case "website":
+    case "new_website":
       return {
         org: "radcon",
         kind: "nextjs",
@@ -108,7 +108,7 @@ function deriveDefaultsFromProjectType(projectType: NewProjectType): {
         shouldSuggestUrl: true,
         requiresRelatedProject: false,
       };
-    case "lab_existing":
+    case "lab_from_existing":
       return {
         org: "labs",
         kind: "other",
@@ -189,7 +189,7 @@ function buildDefaultRepoPath(
 ): string {
   if (!key) return "";
 
-  if (projectType === "lab_existing") {
+  if (projectType === "lab_from_existing") {
     return `/home/chris/dev/rad-empire/labs/projects/${key}`;
   }
 
@@ -213,7 +213,7 @@ function buildDefaultRepoHint(
 ): string {
   if (!key) return "";
 
-  if (projectType === "lab_existing") {
+  if (projectType === "lab_from_existing") {
     return `labs/projects/${key}`;
   }
 
@@ -242,9 +242,9 @@ function buildDefaultUrl(
 
 function buildMissionPlaceholder(projectType: NewProjectType): string {
   switch (projectType) {
-    case "lab_existing":
+    case "lab_from_existing":
       return "Describe the experiment, what base project it depends on, what you want to test safely, and what should be learned before anything is promoted back into a live repo.";
-    case "website":
+    case "new_website":
       return "Describe the site mission, users, core surface, what makes it worth building, and what should happen next before scaffolding.";
     case "website_successor":
       return "Describe what this new website version is improving, what existing website it comes from, what should carry forward, and what should change before scaffolding.";
@@ -264,7 +264,7 @@ function buildMissionPlaceholder(projectType: NewProjectType): string {
 
 function buildConstraintsPlaceholder(projectType: NewProjectType): string {
   switch (projectType) {
-    case "lab_existing":
+    case "lab_from_existing":
       return "List constraints, related repo paths, experiment boundaries, non-goals, risks, pattern hints, or what Codex should inspect next.";
     case "website_successor":
       return "List constraints, what must remain compatible, migration concerns, risks, versioning notes, inherited dependencies, and what Codex should inspect next.";
@@ -300,7 +300,7 @@ export function AddProjectModal({
     label?: string;
   }>;
 }) {
-  const [projectType, setProjectType] = useState<NewProjectType>("website");
+  const [projectType, setProjectType] = useState<NewProjectType>("new_website");
   const [projectName, setProjectName] = useState("");
   const [mission, setMission] = useState("");
   const [constraints, setConstraints] = useState("");
@@ -359,7 +359,7 @@ export function AddProjectModal({
   useEffect(() => {
     if (!open) return;
 
-    setProjectType("website");
+    setProjectType("new_website");
     setProjectName("");
     setMission("");
     setConstraints("");
@@ -615,15 +615,16 @@ export function AddProjectModal({
       errors.push("Related project is required for this formation path.");
     }
 
-    if (projectType === "lab_existing" && track !== "lab") {
+    if (projectType === "lab_from_existing" && track !== "lab") {
       errors.push("Lab-based formation must stay on the lab track.");
     }
 
-    if (projectType === "lab_existing" && org !== "labs") {
+    if (projectType === "lab_from_existing" && org !== "labs") {
       errors.push(
         "Lab-based formation should live under the labs org by default.",
       );
     }
+
     if (projectType === "website_successor" && relationship !== "successor") {
       errors.push(
         "Website successor formation must stay on successor relationship.",
@@ -641,6 +642,7 @@ export function AddProjectModal({
         "Website successor formation should stay on nextjs kind by default.",
       );
     }
+
     if (shouldShowPort && !parsedPort) {
       errors.push("Port is required for this project type.");
     }
@@ -731,7 +733,7 @@ export function AddProjectModal({
       shouldShowUrl
         ? computedUrl.trim()
           ? `url: ${computedUrl.trim()}`
-          : "url: (auto when port exists)"
+          : "url: (auto from port)"
         : "url: (not needed for this type)",
       computedRepoPath.trim()
         ? `repoPath: ${computedRepoPath.trim()}`
@@ -793,7 +795,9 @@ export function AddProjectModal({
     mission,
     constraints,
   ]);
+
   if (!open) return null;
+
   const modalNode = (
     <div
       className="modalOverlay"
@@ -831,7 +835,7 @@ export function AddProjectModal({
               whether a base project is required.
             </div>
 
-            {(projectType === "lab_existing" ||
+            {(projectType === "lab_from_existing" ||
               projectType === "website_successor") && (
               <div className="modalRelatedProjectBlock">
                 <label className="modalRelatedLabel">
@@ -852,7 +856,7 @@ export function AddProjectModal({
                 </select>
 
                 <div className="fieldHelp">
-                  {projectType === "lab_existing"
+                  {projectType === "lab_from_existing"
                     ? "Choose the existing project this lab effort is based on."
                     : "Choose the existing website this new version is based on."}
                 </div>
@@ -916,7 +920,7 @@ export function AddProjectModal({
                 placeholder={
                   projectType === "website_successor"
                     ? "What existing site/version should this inherit from?"
-                    : projectType === "lab_existing"
+                    : projectType === "lab_from_existing"
                       ? "What existing repo/pattern is this experiment based on?"
                       : "Optional pattern, reference repo, or starting point"
                 }
@@ -929,7 +933,7 @@ export function AddProjectModal({
               </div>
 
               <label className="fieldLabelTop">
-                {projectType === "lab_existing"
+                {projectType === "lab_from_existing"
                   ? "What is being tested / learned?"
                   : projectType === "website_successor"
                     ? "What should carry forward or improve?"
