@@ -19,14 +19,12 @@ import GovernanceInventoryInspector from "./components/dev/GovernanceInventoryIn
 
 import type {
   AddProjectPayload,
-  NewProjectIntakePayload,
   PortStatus,
   ProjectRow,
 } from "./components/projects/types";
 import {
   fmtErr,
   registryToProjects,
-  validateAdd,
   nextPortSuggestion,
 } from "./components/projects/helpers";
 
@@ -237,7 +235,99 @@ async function invokeText(cmd: string, payload?: Record<string, unknown>) {
 
   return (out ?? "").toString();
 }
+type FormationStartPayload = {
+  projectType: string;
+  name: string;
+  label: string;
+  key: string;
+  mission: string;
+  track: string;
+  relationship: string;
+  technicalKind: string;
+  baseProjectKey: string;
+  versionTag: string;
+  patternHint: string;
+  intent: string;
+  notes: string;
+};
 
+type FormationStartResult = {
+  ok?: boolean;
+  action?: string;
+  state?: string;
+  projectKey?: string;
+  artifactPath?: string;
+  summary?: string;
+  openQuestions?: string[];
+  error?: string;
+  details?: string[];
+};
+
+function encodeBase64UrlJson(value: unknown): string {
+  const json = JSON.stringify(value);
+  const bytes = new TextEncoder().encode(json);
+
+  let binary = "";
+  const chunkSize = 0x8000;
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function normalizeFormationStartPayload(
+  payload: AddProjectPayload,
+): FormationStartPayload {
+  const projectType = (payload.projectType || payload.kind || "other").trim();
+  const relationship = (payload.relationship || "new").trim();
+
+  const technicalKind = (payload.kind || "other").trim();
+
+  const name = (payload.label || payload.key).trim();
+  const label = (payload.label || payload.key).trim();
+  const key = payload.key.trim();
+
+  const mission =
+    payload.mission?.trim() ||
+    payload.notes?.trim() ||
+    "No mission provided yet.";
+
+  const baseProjectKey = payload.parentProjectKey?.trim() || "";
+
+  const patternHint =
+    payload.patternHint?.trim() || payload.repoHint?.trim() || "";
+
+  const intent = (
+    payload.intent || (payload.o2LabKey ? "lab" : "production")
+  ).trim();
+
+  const track = intent === "lab" ? "lab" : "production";
+
+  const versionTag = "";
+  const notes = payload.notes?.trim() || "";
+
+  return {
+    projectType,
+    name,
+    label,
+    key,
+    mission,
+    track,
+    relationship,
+    technicalKind,
+    baseProjectKey,
+    versionTag,
+    patternHint,
+    intent,
+    notes,
+  };
+}
 export default function App() {
   const [tab, setTab] = useState<TabKey>("projects");
   const [busy, setBusy] = useState(false);
@@ -462,70 +552,62 @@ export default function App() {
   async function freePort(port: number) {
     void runO2("Kill requested", `kill_port.${port}`);
   }
-  function toNewProjectIntakePayload(
-    payload: AddProjectPayload,
-  ): NewProjectIntakePayload {
-    const patternHint = payload.patternHint?.trim() || payload.repoHint?.trim();
-    const initialConstraints = payload.initialConstraints?.trim();
-    const openQuestions = payload.openQuestions?.trim();
-    const parentProjectKey = payload.parentProjectKey?.trim();
-    return {
-      key: payload.key,
-      displayName: payload.label,
-      mission: payload.mission?.trim() || payload.notes?.trim() || "",
-      projectType: payload.projectType || payload.kind,
-      intent: payload.intent || (payload.o2LabKey ? "lab" : "production"),
-      relationship: payload.relationship || "new",
-      parentProjectKey: parentProjectKey || undefined,
-      patternHint: patternHint || undefined,
-      initialConstraints: initialConstraints || undefined,
-      openQuestions: openQuestions || undefined,
-    };
-  }
+
   async function createProject(payload: AddProjectPayload) {
-    const intakePayload = toNewProjectIntakePayload(payload);
-    const validation = validateAdd({
-      org: payload.org,
-      key: payload.key,
-      port: payload.port,
-      url: payload.url,
-      repo: payload.repoPath,
-    });
-    if (!validation.ok) {
-      appendLog(`[projects] add rejected: ${validation.errors.join(" ")}`);
-      return;
+    const formationPayload = normalizeFormationStartPayload(payload);
+    const verb = `project_create.start.${encodeBase64UrlJson(formationPayload)}`;
+
+    setBusy(true);
+    appendLog(
+      `[new-project:intake]\n${JSON.stringify(formationPayload, null, 2)}`,
+    );
+    appendLog(`\n[o2] Start Formation → run_o2("${verb}")\n`);
+
+    try {
+      const out = await invokeText("run_o2", { verb });
+      appendLog(out || "(no output)");
+
+      let parsed: FormationStartResult | null = null;
+      try {
+        parsed = JSON.parse(out) as FormationStartResult;
+      } catch {
+        parsed = null;
+      }
+
+      if (parsed?.ok) {
+        setShowAddProject(false);
+
+        if (parsed.artifactPath) {
+          void copyText(parsed.artifactPath);
+          appendLog(
+            `[new-project] artifact path copied: ${parsed.artifactPath}`,
+          );
+        }
+
+        await loadRegistry();
+        return;
+      }
+
+      if (parsed?.error) {
+        appendLog(
+          `[new-project] formation rejected: ${parsed.error}${
+            parsed.details?.length ? ` :: ${parsed.details.join(" | ")}` : ""
+          }`,
+        );
+        return;
+      }
+
+      appendLog("[new-project] unexpected non-JSON or non-contract response");
+    } catch (e) {
+      appendLog("\n[new-project] ERROR:\n" + fmtErr(e));
+    } finally {
+      setBusy(false);
+      try {
+        await refreshPorts();
+      } catch {
+        // ignore
+      }
     }
-
-    const entry: Record<string, unknown> = {
-      key: payload.key,
-      label: payload.label,
-      repoHint: payload.repoPath,
-    };
-
-    if (typeof payload.port === "number") entry.port = payload.port;
-    if (payload.url) entry.url = payload.url;
-
-    if (payload.o2StartKey) entry.o2StartKey = payload.o2StartKey;
-    if (payload.o2SnapshotKey) entry.o2SnapshotKey = payload.o2SnapshotKey;
-    if (payload.o2CommitKey) entry.o2CommitKey = payload.o2CommitKey;
-    if (payload.o2LabKey) entry.o2LabKey = payload.o2LabKey;
-    if (payload.o2MapKey) entry.o2MapKey = payload.o2MapKey;
-    if (payload.o2ProofPackKey) entry.o2ProofPackKey = payload.o2ProofPackKey;
-
-    const nextReg = Array.isArray(rawRegistry)
-      ? [...rawRegistry, entry]
-      : [entry];
-    setRawRegistry(nextReg);
-    setProjects(registryToProjects(nextReg));
-
-    const json = JSON.stringify(entry, null, 2);
-    appendLog(
-      `[new-project:intake]\n${JSON.stringify(intakePayload, null, 2)}`,
-    );
-    appendLog(
-      "\n[projects] NEW REGISTRY ENTRY (paste into O2 projects.json):\n" + json,
-    );
-    void copyText(json);
   }
 
   const logText = (busy ? "Running…" : log || "No logs yet.").toString();
@@ -624,7 +706,7 @@ export default function App() {
                   className="btn btnPrimary"
                   onClick={() => setShowAddProject(true)}
                   disabled={busy}
-                  title="Add a project (UI-only; copies JSON to clipboard)"
+                  title="Start a governed project formation flow under O2 authority"
                 >
                   New Project
                 </button>
