@@ -19,8 +19,9 @@ import GovernanceInventoryInspector from "./components/dev/GovernanceInventoryIn
 
 import type {
   AddProjectPayload,
-  ProjectRow,
+  NewProjectIntakePayload,
   PortStatus,
+  ProjectRow,
 } from "./components/projects/types";
 import {
   fmtErr,
@@ -461,8 +462,28 @@ export default function App() {
   async function freePort(port: number) {
     void runO2("Kill requested", `kill_port.${port}`);
   }
-
+  function toNewProjectIntakePayload(
+    payload: AddProjectPayload,
+  ): NewProjectIntakePayload {
+    const patternHint = payload.patternHint?.trim() || payload.repoHint?.trim();
+    const initialConstraints = payload.initialConstraints?.trim();
+    const openQuestions = payload.openQuestions?.trim();
+    const parentProjectKey = payload.parentProjectKey?.trim();
+    return {
+      key: payload.key,
+      displayName: payload.label,
+      mission: payload.mission?.trim() || payload.notes?.trim() || "",
+      projectType: payload.projectType || payload.kind,
+      intent: payload.intent || (payload.o2LabKey ? "lab" : "production"),
+      relationship: payload.relationship || "new",
+      parentProjectKey: parentProjectKey || undefined,
+      patternHint: patternHint || undefined,
+      initialConstraints: initialConstraints || undefined,
+      openQuestions: openQuestions || undefined,
+    };
+  }
   async function createProject(payload: AddProjectPayload) {
+    const intakePayload = toNewProjectIntakePayload(payload);
     const validation = validateAdd({
       org: payload.org,
       key: payload.key,
@@ -498,6 +519,9 @@ export default function App() {
     setProjects(registryToProjects(nextReg));
 
     const json = JSON.stringify(entry, null, 2);
+    appendLog(
+      `[new-project:intake]\n${JSON.stringify(intakePayload, null, 2)}`,
+    );
     appendLog(
       "\n[projects] NEW REGISTRY ENTRY (paste into O2 projects.json):\n" + json,
     );
@@ -648,6 +672,7 @@ export default function App() {
               onClose={() => setShowAddProject(false)}
               onCreate={createProject}
               defaultSuggestedPort={suggestedPort}
+              existingProjects={projects}
             />
           </div>
         ) : tab === "codex_chat" ? (

@@ -61,7 +61,36 @@ export type AddProjectPayload = {
   o2MapKey?: string;
   o2ProofPackKey?: string;
 
+  // Formation intake metadata
+  projectType?: string;
+  intent?: NewProjectIntent;
+  relationship?: NewProjectRelationship;
+  parentProjectKey?: string;
+  patternHint?: string;
+  mission?: string;
+  initialConstraints?: string;
+  openQuestions?: string;
+
   notes?: string;
+};
+export type NewProjectIntent = "production" | "lab";
+
+export type NewProjectRelationship =
+  | "new"
+  | "version_successor"
+  | "lab_variant";
+
+export type NewProjectIntakePayload = {
+  key: string;
+  displayName: string;
+  mission: string;
+  projectType: string;
+  intent: NewProjectIntent;
+  relationship: NewProjectRelationship;
+  parentProjectKey?: string;
+  patternHint?: string;
+  initialConstraints?: string;
+  openQuestions?: string;
 };
 
 export type PortStatus = {
