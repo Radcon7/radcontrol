@@ -72,8 +72,6 @@ body {
     linear-gradient(160deg, var(--bg0), var(--bg1));
 
   overflow: hidden;
-
-  /* ✅ Global typography baseline (bigger everywhere) */
   font-size: 18px;
   line-height: 1.35;
 }
@@ -82,13 +80,9 @@ body {
 .appShell {
   height: 100vh;
   min-height: 100vh;
-
-  /* Fill the Tauri window (remove centering + max-width cap) */
   width: 100%;
   max-width: none;
   margin: 0;
-
-  /* Keep a small safe gutter, but reclaim space for tabs */
   padding: 8px 8px;
 
   display: flex;
@@ -96,14 +90,12 @@ body {
   gap: 14px;
 }
 
-/* HEADER (matches App.tsx .header) */
+/* HEADER */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-
-  /* ✅ keep header single-row; tabs take pressure, not buttons */
   flex-wrap: nowrap;
 
   padding: 16px 18px;
@@ -147,8 +139,6 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-
-  /* ✅ don't let headerRight shrink/wrap */
   flex: 0 0 auto;
   white-space: nowrap;
 }
@@ -162,7 +152,6 @@ body {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--stroke);
 
-  /* ✅ IMPORTANT: let tabs consume available header width */
   flex: 1 1 auto;
   min-width: 0;
 
@@ -170,12 +159,11 @@ body {
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-
-  /* ✅ hide scrollbar while keeping scroll */
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: none;
 }
+
 .tabs::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/Edge */
+  display: none;
 }
 
 .tab {
@@ -184,9 +172,7 @@ body {
   background: transparent;
   color: var(--muted);
 
-  /* ✅ bigger and readable */
   font-size: 15px;
-
   padding: 11px 16px;
   border-radius: 999px;
   cursor: pointer;
@@ -257,7 +243,6 @@ body {
   padding: 20px;
   gap: 14px;
 
-  /* ✅ keep baseline for all tab bodies (match global bump) */
   font-size: 18px;
   line-height: 1.35;
 }
@@ -279,7 +264,6 @@ body {
   overflow: hidden;
 }
 
-/* ✅ inner wrapper */
 .projectsWrapInner {
   width: 100%;
   height: 100%;
@@ -288,7 +272,6 @@ body {
   flex-direction: column;
 }
 
-/* ✅ Projects header row */
 .projectsHeaderRow {
   display: flex;
   align-items: center;
@@ -460,9 +443,7 @@ body {
 .projectRow {
   width: 100%;
   display: grid;
-
   grid-template-columns: 280px minmax(640px, 1.6fr) minmax(360px, 1fr);
-
   align-items: center;
   column-gap: 18px;
 
@@ -644,7 +625,6 @@ body {
   min-width: 160px;
 }
 
-/* Scrollbars */
 .logsBox::-webkit-scrollbar {
   width: 10px;
 }
@@ -659,7 +639,7 @@ body {
   background: rgba(255, 255, 255, 0.26);
 }
 
-/* Global controls (Snapshot/Paste tabs, inputs, buttons) — slightly larger */
+/* Global controls */
 textarea,
 input,
 select,
@@ -668,7 +648,7 @@ button {
   line-height: 1.5;
 }
 
-/* Monospace surfaces (logs, code blocks) — readable but not oversized */
+/* Monospace surfaces */
 pre,
 code {
   font-size: 16px;
@@ -737,31 +717,37 @@ pre {
   }
 }
 
-/* Modal (AddProjectModal) */
+/* Modal (Start Formation / AddProjectModal) */
 .modalOverlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
-  background: rgba(0, 0, 0, 0.62);
+  z-index: 10000;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 18px;
+  padding: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
 }
 
 .modalCard {
-  width: min(980px, 96vw);
-  max-height: min(86vh, 860px);
+  width: min(1480px, calc(100vw - 40px));
+  max-height: calc(100vh - 40px);
+  margin: 0;
   overflow: hidden;
-
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--stroke2);
-  background: linear-gradient(180deg, var(--panel2), var(--panel));
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
 
   display: flex;
   flex-direction: column;
+
+  border-radius: 26px;
+  border: 1px solid var(--stroke2);
+  background: linear-gradient(180deg, var(--panel3), var(--panel));
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.72),
+    0 10px 30px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
 }
 
 .modalHeader {
@@ -769,73 +755,345 @@ pre {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex: 0 0 auto;
 
-  padding: 16px 18px;
+  padding: 20px 26px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .modalTitle {
-  font-size: 16px;
+  font-size: 24px;
   font-weight: 900;
   letter-spacing: 0.2px;
+  line-height: 1.15;
 }
 
 .modalBody {
-  padding: 16px 18px;
-  overflow: auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px 14px;
+  flex: 1 1 auto;
   min-height: 0;
+  overflow: auto;
+
+  padding: 24px 26px;
+
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(520px, 1.25fr);
+  gap: 22px 24px;
+  align-items: start;
+  align-content: start;
+
+  scrollbar-width: thin;
+}
+
+.modalBody::-webkit-scrollbar {
+  width: 12px;
+}
+
+.modalBody::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  border: 2px solid rgba(0, 0, 0, 0.22);
+}
+
+.modalBody::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
 }
 
 .modalBody label {
-  font-size: 14px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
   display: block;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.modalColumn {
+  min-width: 0;
+}
+
+.fieldLabelTop {
+  margin-top: 14px;
+}
+
+.fieldLabelTopLg {
+  margin-top: 16px;
+}
+
+.fieldHelp {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.fieldHelpStrong {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.modalRelatedProjectBlock {
+  margin-top: 14px;
+}
+
+.modalRelatedLabel {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.modalRelatedSelect {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(8, 12, 24, 0.9);
+  color: rgba(255, 255, 255, 0.96);
+  opacity: 1;
+  font-size: 16px;
+  font-weight: 700;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.96);
+}
+
+.modalArtifact {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.modalArtifactTitle {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.82;
+  margin-bottom: 10px;
+  font-weight: 800;
+}
+
+.modalArtifact pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.55;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+.modalErrorBox {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 0, 0, 0.25);
+  background: rgba(255, 0, 0, 0.1);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.modalBodySingle {
+  display: block;
+}
+
+.modalGuidedBlock {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.modalDetailsSummary {
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.94);
+  list-style: none;
+}
+
+.modalDetailsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.modalGeneratedGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  margin-top: 16px;
+}
+
+.modalGeneratedLabel {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+  margin-bottom: 6px;
+}
+
+.modalGeneratedValue {
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 16px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.modalArtifactPreview {
+  margin-top: 18px;
 }
 
 .modalBody input,
 .modalBody select,
 .modalBody textarea {
   width: 100%;
-  margin-top: 8px;
+  margin-top: 10px;
 
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.22);
-  color: var(--text);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(8, 12, 24, 0.9);
+  color: rgba(255, 255, 255, 0.96);
 
-  padding: 12px 12px;
-  font-size: 15px;
+  padding: 14px 15px;
+  font-size: 18px;
+  line-height: 1.55;
   outline: none;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.96);
+  opacity: 1;
+
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.modalBody select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+
+.modalBody select option {
+  color: rgba(255, 255, 255, 0.96);
+  background: #101827;
+}
+
+.modalBody textarea {
+  min-height: 240px;
+  resize: vertical;
+}
+
+.modalBody input::placeholder,
+.modalBody textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.5);
+}
+
+.modalBody input:disabled,
+.modalBody select:disabled,
+.modalBody textarea:disabled {
+  color: rgba(255, 255, 255, 0.72);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: not-allowed;
 }
 
 .modalBody input:focus,
 .modalBody select:focus,
 .modalBody textarea:focus {
-  border-color: rgba(97, 242, 169, 0.38);
+  border-color: rgba(97, 242, 169, 0.5);
   box-shadow: 0 0 0 4px rgba(97, 242, 169, 0.12);
+  background: rgba(10, 16, 30, 0.96);
+  color: rgba(255, 255, 255, 0.98);
 }
 
-/* (kept) helps your inline flex row for Repo Path + Auto button */
-.modalBody > div[style*="display: flex"] {
-  align-items: center;
+.modalBody pre {
+  color: rgba(255, 255, 255, 0.94);
 }
 
 .modalFooter {
+  flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 14px 18px;
+
+  padding: 18px 26px 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.025);
 }
 
-/* Modal: single-column on small screens */
-@media (max-width: 900px) {
+/* Modal: keep it dominant but usable on narrower screens */
+@media (max-width: 1280px) {
+  .modalOverlay {
+    padding: 18px;
+  }
+
+  .modalCard {
+    width: min(1240px, calc(100vw - 36px));
+    max-height: calc(100vh - 36px);
+  }
+
+  .modalBody {
+    grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.1fr);
+  }
+}
+
+@media (max-width: 1100px) {
+  .modalOverlay {
+    padding: 16px;
+  }
+
+  .modalCard {
+    width: min(1080px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+  }
+
   .modalBody {
     grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
+@media (max-width: 700px) {
+  .modalOverlay {
+    padding: 10px;
+  }
+
+  .modalCard {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+    border-radius: 18px;
+  }
+
+  .modalHeader,
+  .modalBody,
+  .modalFooter {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .modalTitle {
+    font-size: 20px;
+  }
+
+  .modalBody label {
+    font-size: 14px;
+  }
+
+  .fieldHelp,
+  .modalGeneratedValue,
+  .modalArtifact pre,
+  .modalErrorBox {
+    font-size: 14px;
+  }
+
+  .modalBody input,
+  .modalBody select,
+  .modalBody textarea {
+    font-size: 16px;
   }
 }
