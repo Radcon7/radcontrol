@@ -62,7 +62,10 @@ export function ProjectsTab({
 
       <div className="projectsTable">
         {projects.map((p) => {
-          const st = safeStatusForRow(p);
+          const isForming = p.state === "forming";
+          const st = isForming
+            ? { pill: "pillMuted", text: "FORMING" }
+            : safeStatusForRow(p);
 
           const port = p.port;
           const s = typeof port === "number" ? ports[port] : undefined;
@@ -85,75 +88,79 @@ export function ProjectsTab({
               </div>
 
               <div className="projectRight">
-                <button
-                  className="btn btnPrimary"
-                  onClick={() => enhancedOnStart(p)}
-                  disabled={startDisabled}
-                  title={startUnavailableTitle}
-                >
-                  Start
-                </button>
+                {isForming ? null : (
+                  <>
+                    <button
+                      className="btn btnPrimary"
+                      onClick={() => enhancedOnStart(p)}
+                      disabled={startDisabled}
+                      title={startUnavailableTitle}
+                    >
+                      Start
+                    </button>
 
-                <button
-                  className="btn"
-                  onClick={() => onSnapshot(p)}
-                  disabled={busy}
-                >
-                  Snapshot
-                </button>
+                    <button
+                      className="btn"
+                      onClick={() => onSnapshot(p)}
+                      disabled={busy}
+                    >
+                      Snapshot
+                    </button>
 
-                <button
-                  className="btn"
-                  onClick={() => onCommit(p)}
-                  disabled={busy}
-                >
-                  Commit
-                </button>
+                    <button
+                      className="btn"
+                      onClick={() => onCommit(p)}
+                      disabled={busy}
+                    >
+                      Commit
+                    </button>
 
-                {p.o2LabKey ? (
-                  <button
-                    className="btn"
-                    onClick={() => onLab(p)}
-                    disabled={busy}
-                  >
-                    Lab
-                  </button>
-                ) : null}
+                    {p.o2LabKey ? (
+                      <button
+                        className="btn"
+                        onClick={() => onLab(p)}
+                        disabled={busy}
+                      >
+                        Lab
+                      </button>
+                    ) : null}
 
-                <button
-                  className="btn btnDanger btnIcon"
-                  onClick={() => {
-                    if (typeof port === "number") void onKill(port);
-                  }}
-                  disabled={killDisabled}
-                  title={
-                    typeof port !== "number"
-                      ? "No port"
-                      : isListening
-                        ? "Kill listener via O2 kill_port.<port>"
-                        : "Not running"
-                  }
-                >
-                  Kill
-                </button>
+                    <button
+                      className="btn btnDanger btnIcon"
+                      onClick={() => {
+                        if (typeof port === "number") void onKill(port);
+                      }}
+                      disabled={killDisabled}
+                      title={
+                        typeof port !== "number"
+                          ? "No port"
+                          : isListening
+                            ? "Kill listener via O2 kill_port.<port>"
+                            : "Not running"
+                      }
+                    >
+                      Kill
+                    </button>
 
-                <button
-                  className="btn btnGhost"
-                  onClick={() => onMap(p)}
-                  disabled={busy}
-                >
-                  Map
-                </button>
+                    <button
+                      className="btn btnGhost"
+                      onClick={() => onMap(p)}
+                      disabled={busy}
+                    >
+                      Map
+                    </button>
 
-                {p.o2ProofPackKey ? (
-                  <button
-                    className="btn btnGhost"
-                    onClick={() => onProofPack(p)}
-                    disabled={busy}
-                  >
-                    Proof Pack
-                  </button>
-                ) : null}
+                    {p.o2ProofPackKey ? (
+                      <button
+                        className="btn btnGhost"
+                        onClick={() => onProofPack(p)}
+                        disabled={busy}
+                      >
+                        Proof Pack
+                      </button>
+                    ) : null}
+                  </>
+                )}
               </div>
 
               <div className="projectMid">

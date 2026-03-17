@@ -3,6 +3,7 @@ export type ProjectKey = string;
 export type ProjectRow = {
   key: ProjectKey;
   label: string;
+  state?: string;
 
   // Display hints
   repoHint?: string;

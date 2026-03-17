@@ -54,6 +54,7 @@ export function registryToProjects(reg: unknown): ProjectRow[] {
       out.push({
         key,
         label,
+        state: asNonEmptyString(r.state),
         repoHint: asNonEmptyString(r.repoHint),
         port: asFiniteNumber(r.port),
         url: asNonEmptyString(r.url),
