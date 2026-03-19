@@ -21,6 +21,10 @@ type NewProjectType =
 
 type ProjectTrack = NewProjectIntent;
 type ProjectRelationship = "new" | "successor" | "variant";
+export type AddProjectModalPrefill = {
+  projectType?: NewProjectType;
+  relatedProjectKey?: string;
+};
 
 const NEW_PROJECT_TYPE_OPTIONS: Array<{
   value: NewProjectType;
@@ -290,6 +294,7 @@ export function AddProjectModal({
   onCreate,
   defaultSuggestedPort,
   existingProjects,
+  prefill,
 }: {
   open: boolean;
   onClose: () => void;
@@ -299,13 +304,13 @@ export function AddProjectModal({
     key: string;
     label?: string;
   }>;
+  prefill?: AddProjectModalPrefill | null;
 }) {
   const [projectType, setProjectType] = useState<NewProjectType>("new_website");
   const [projectName, setProjectName] = useState("");
   const [mission, setMission] = useState("");
   const [constraints, setConstraints] = useState("");
 
-  const [key, setKey] = useState("");
   const [label, setLabel] = useState("");
   const [org, setOrg] = useState<ProjectOrg>("radcon");
   const [kind, setKind] = useState<ProjectKind>("nextjs");
@@ -359,18 +364,17 @@ export function AddProjectModal({
   useEffect(() => {
     if (!open) return;
 
-    setProjectType("new_website");
+    setProjectType(prefill?.projectType ?? "new_website");
     setProjectName("");
     setMission("");
     setConstraints("");
 
-    setKey("");
     setLabel("");
     setOrg("radcon");
     setKind("nextjs");
     setTrack("production");
     setRelationship("new");
-    setRelatedProject("");
+    setRelatedProject(prefill?.relatedProjectKey ?? "");
     setPatternHint("");
     setPortInput(
       typeof defaultSuggestedPort === "number"
@@ -405,15 +409,9 @@ export function AddProjectModal({
 
     setErr(null);
     setSaving(false);
-  }, [open, defaultSuggestedPort]);
+  }, [open, defaultSuggestedPort, prefill]);
 
-  useEffect(() => {
-    if (!open) return;
-    if (key.trim()) return;
-
-    const nextKey = toProjectKey(projectName);
-    if (nextKey) setKey(nextKey);
-  }, [open, projectName, key]);
+  const key = useMemo(() => toProjectKey(projectName), [projectName]);
 
   useEffect(() => {
     if (!open) return;
@@ -886,19 +884,6 @@ export function AddProjectModal({
 
             <div className="fieldHelp">
               Display label used in the UI. Auto-derived until you override it.
-            </div>
-
-            <label className="fieldLabelTop">Key</label>
-            <input
-              value={key}
-              onChange={(e) => setKey(toProjectKey(e.target.value))}
-              placeholder="tbis"
-              disabled={saving}
-            />
-
-            <div className="fieldHelp">
-              Short machine key used for repo paths, O2 verbs, and registry
-              identity.
             </div>
 
             <label className="fieldLabelTop">Project Concept / Mission</label>

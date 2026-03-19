@@ -10,6 +10,16 @@ type RunO2Result = {
   stderr: string;
 };
 
+function b64urlEncodeUtf8(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
 function joinOut(r: RunO2Result): string {
   const a = (r.stdout || "").trimEnd();
   const b = (r.stderr || "").trimEnd();
@@ -25,12 +35,20 @@ export function CodexBuildTab() {
   async function run() {
     setRunning(true);
     try {
-      const res = await invoke<RunO2Result>("run_o2_with_input", {
-        verb: "codex.build",
-        input: prompt,
+      const payload = {
+        requestClass: "casual_build_request",
+        intent: "codex_build_freeform",
+        rawInput: prompt,
+        target: {},
+        requestedMode: "auto",
+        source: "radcontrol.codex_build",
+      };
+      const encodedPayload = b64urlEncodeUtf8(JSON.stringify(payload));
+      const res = await invoke<RunO2Result>("run_o2", {
+        verb: `codex.request.${encodedPayload}`,
       });
       const text = joinOut(res);
-      setOut(text || (res.ok ? "(no output)" : "codex.build failed"));
+      setOut(text || (res.ok ? "(no output)" : "codex request failed"));
     } catch (e: any) {
       setOut(String(e?.message ?? e));
     } finally {
@@ -41,7 +59,7 @@ export function CodexBuildTab() {
   return (
     <SplitTextPanel
       title="Codex Build"
-      topLabel="Build prompt (sent to O2 codex.build stdin)"
+      topLabel="Build prompt (sent to O2 governed request path)"
       topValue={prompt}
       onTopChange={setPrompt}
       topPlaceholder="Paste your Codex build instructions here…"
@@ -52,7 +70,7 @@ export function CodexBuildTab() {
       onRun={run}
       onCopy={() => void copyText(out)}
       onClear={() => setOut("")}
-      runLabel="Run codex.build"
+      runLabel="Run Codex request"
     />
   );
 }

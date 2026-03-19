@@ -387,15 +387,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin-top: 10px;
+  margin-top: 12px;
 
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 16px;
-  background: rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.18);
 
   overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 6px;
+  overflow-x: auto;
+  padding-right: 0;
 }
 
 .projectsTable::-webkit-scrollbar {
@@ -412,14 +412,73 @@ body {
   background: rgba(255, 255, 255, 0.26);
 }
 
+.projectsTableHeader {
+  width: 100%;
+  min-width: 1320px;
+  display: grid;
+  grid-template-columns: minmax(180px, 0.9fr) 130px 100px 170px 80px minmax(640px, 2fr);
+  align-items: center;
+  column-gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(9, 13, 24, 0.96);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+
+.projectHeaderBtn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  font-weight: 850;
+  text-align: left;
+  padding: 4px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.projectHeaderBtn:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.projectHeaderBtnActive {
+  color: rgba(97, 242, 169, 0.95);
+  border-color: rgba(97, 242, 169, 0.45);
+  background: rgba(97, 242, 169, 0.14);
+}
+
+.projectHeaderCell {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  font-weight: 850;
+  color: var(--muted);
+  padding: 4px 6px;
+}
+
+.projectHeaderCellActions {
+  padding: 0;
+}
+
 .projectRow {
   width: 100%;
   display: grid;
-  grid-template-columns: 280px minmax(640px, 1.6fr) minmax(360px, 1fr);
+  min-width: 1320px;
+  grid-template-columns: minmax(180px, 0.9fr) 130px 100px 170px 80px minmax(640px, 2fr);
   align-items: center;
-  column-gap: 18px;
+  column-gap: 12px;
 
-  padding: 18px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
@@ -427,48 +486,89 @@ body {
   border-bottom: none;
 }
 
-.projectLeft {
+.projectCell {
+  min-width: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+}
+
+.projectCellName {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  min-width: 0;
+  gap: 4px;
+}
+
+.projectLifecycleBtn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.projectLifecycleBtn:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.projectLifecycleBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .projectLabel {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 900;
   letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .projectHint {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--muted2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* MIDDLE (buttons) */
 .projectRight {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   flex-wrap: nowrap;
   min-width: 0;
 }
 
-/* RIGHT (status/url) */
-.projectMid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
+.projectRight .btn {
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.2;
 }
 
-.projectStatusLine {
+.projectCellRunning {
   display: flex;
   align-items: center;
-  gap: 12px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.projectCellPort {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .portMono {
@@ -486,33 +586,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 560px;
-}
-
-.metaWarn {
-  color: rgba(255, 215, 170, 0.9);
-}
-
-.linkBtn {
-  width: 100%;
-  text-align: right;
-  font-size: 14px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.9);
-  opacity: 0.92;
-}
-
-.linkBtn:hover {
-  opacity: 1;
-  text-decoration: underline;
-}
-
-.projectUrlMuted {
-  text-align: right;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.45);
 }
 
 .projectsFootnote {
@@ -636,23 +709,10 @@ pre {
 
 /* Responsive */
 @media (max-width: 1200px) {
+  .projectsTableHeader,
   .projectRow {
-    grid-template-columns: 240px 1fr;
-    grid-template-rows: auto auto;
-    row-gap: 12px;
-  }
-
-  .projectRight {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-
-  .projectStatusLine,
-  .linkBtn,
-  .projectUrlMuted {
-    justify-content: flex-end;
-    text-align: right;
+    min-width: 1240px;
+    grid-template-columns: minmax(170px, 0.85fr) 124px 100px 160px 70px minmax(600px, 1.9fr);
   }
 
   .tabs {
@@ -716,6 +776,58 @@ pre {
     0 30px 90px rgba(0, 0, 0, 0.72),
     0 10px 30px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(18px);
+}
+
+.notesModalCard {
+  width: min(620px, calc(100vw - 40px));
+  border-radius: 18px;
+  border: 1px solid var(--stroke2);
+  background: linear-gradient(180deg, var(--panel3), var(--panel));
+  box-shadow:
+    0 22px 52px rgba(0, 0, 0, 0.68),
+    0 10px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.notesModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.notesModalTitle {
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.notesModalBody {
+  padding: 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notesSingleMeta {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 700;
+}
+
+.notesSingleArea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 10px 12px;
+  word-break: break-word;
 }
 
 .modalHeader {
@@ -862,6 +974,33 @@ pre {
 
 .modalBodySingle {
   display: block;
+}
+
+.projectLabsModalCard {
+  width: min(760px, calc(100vw - 40px));
+}
+
+.projectLabsModalSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.projectLabsModalMeta {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.projectLabsModalTruth {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.projectLabsModalActions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .modalGuidedBlock {

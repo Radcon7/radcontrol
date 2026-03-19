@@ -4,6 +4,10 @@ export type ProjectRow = {
   key: ProjectKey;
   label: string;
   state?: string;
+  startDate?: string;
+  retired?: boolean;
+  notesPath?: string;
+  notesAvailable?: boolean;
 
   // Display hints
   repoHint?: string;

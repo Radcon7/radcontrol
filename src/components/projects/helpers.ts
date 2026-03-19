@@ -29,6 +29,10 @@ function asFiniteNumber(v: unknown): number | undefined {
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
 
+function asBoolean(v: unknown): boolean | undefined {
+  return typeof v === "boolean" ? v : undefined;
+}
+
 export function registryToProjects(reg: unknown): ProjectRow[] {
   try {
     const regObj = asRecord(reg);
@@ -55,6 +59,10 @@ export function registryToProjects(reg: unknown): ProjectRow[] {
         key,
         label,
         state: asNonEmptyString(r.state),
+        startDate: asNonEmptyString(r.startDate),
+        retired: asBoolean(r.retired),
+        notesPath: asNonEmptyString(r.notesPath),
+        notesAvailable: asBoolean(r.notesAvailable),
         repoHint: asNonEmptyString(r.repoHint),
         port: asFiniteNumber(r.port),
         url: asNonEmptyString(r.url),
