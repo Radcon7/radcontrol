@@ -7,12 +7,6 @@ type Props = {
   project: ProjectRow | null;
   busy: boolean;
   message: string;
-  hasCurrentLab: boolean;
-  recommendedAction:
-    | "launch_existing_lab"
-    | "start_first_lab_flow"
-    | "blocked"
-    | null;
   onClose: () => void;
   onPrimaryAction: () => void;
   onDelete: () => void;
@@ -23,8 +17,6 @@ export function ProjectLabsModal({
   project,
   busy,
   message,
-  hasCurrentLab,
-  recommendedAction,
   onClose,
   onPrimaryAction,
   onDelete,
@@ -33,16 +25,11 @@ export function ProjectLabsModal({
 
   useEffect(() => {
     setDeleteConfirmClick(false);
-  }, [open, project?.key, recommendedAction]);
+  }, [open, project?.key]);
 
   if (!open || !project) return null;
 
-  const isHasLabState =
-    recommendedAction === "launch_existing_lab" || hasCurrentLab;
-  const isNoLabState = recommendedAction === "start_first_lab_flow";
-  const primaryLabel = isHasLabState ? "Launch Lab" : "Start Formation";
-  const primaryDisabled = busy || (!isHasLabState && !isNoLabState);
-  const deleteEnabled = isHasLabState && !busy;
+  const deleteEnabled = !busy;
 
   return createPortal(
     <div
@@ -69,36 +56,32 @@ export function ProjectLabsModal({
             <div className="projectLabsModalTruth">{message}</div>
           </div>
 
-          {(isHasLabState || isNoLabState) && (
-            <div className="projectLabsModalActions">
-              <button
-                className="btn btnPrimary"
-                type="button"
-                onClick={onPrimaryAction}
-                disabled={primaryDisabled}
-              >
-                {primaryLabel}
-              </button>
+          <div className="projectLabsModalActions">
+            <button
+              className="btn btnPrimary"
+              type="button"
+              onClick={onPrimaryAction}
+              disabled={busy}
+            >
+              Launch Lab
+            </button>
 
-              {isHasLabState && (
-                <button
-                  className="btn btnDanger"
-                  type="button"
-                  onClick={() => {
-                    if (!deleteConfirmClick) {
-                      setDeleteConfirmClick(true);
-                      return;
-                    }
-                    onDelete();
-                  }}
-                  disabled={!deleteEnabled}
-                  title="Delete current lab"
-                >
-                  {deleteConfirmClick ? "Confirm Delete Lab" : "Delete Lab"}
-                </button>
-              )}
-            </div>
-          )}
+            <button
+              className="btn btnDanger"
+              type="button"
+              onClick={() => {
+                if (!deleteConfirmClick) {
+                  setDeleteConfirmClick(true);
+                  return;
+                }
+                onDelete();
+              }}
+              disabled={!deleteEnabled}
+              title="Delete current lab"
+            >
+              {deleteConfirmClick ? "Confirm Delete Lab" : "Delete Lab"}
+            </button>
+          </div>
         </div>
       </div>
     </div>,
