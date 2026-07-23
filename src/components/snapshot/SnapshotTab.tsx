@@ -19,17 +19,21 @@ export function SnapshotTab({ title }: Props) {
     currentText,
     loading,
     saving,
+    running,
     err,
     lastSavedAt,
     setCurrentText,
     readPath,
     refreshList,
+    runProducer,
     saveCurrent,
   } = useArtifactStore({
     dir: "docs/radcontrol/snapshot",
     latestFileName: "latest.md",
     timestampStem: "snapshot",
     extension: "md",
+    producerVerb: "radcontrol.snapshot",
+    producerErrorFallback: "radcontrol.snapshot failed",
   });
 
   useEffect(() => {
@@ -40,8 +44,20 @@ export function SnapshotTab({ title }: Props) {
     <>
       <button
         className="btn btnGhost"
+        onClick={() =>
+          void runProducer({
+            refreshArtifacts: true,
+            autoReadPreferred: true,
+          })
+        }
+        disabled={running || loading}
+      >
+        {running ? "Running…" : "Run Snapshot"}
+      </button>
+      <button
+        className="btn btnGhost"
         onClick={() => void refreshList({ autoReadPreferred: true })}
-        disabled={loading}
+        disabled={loading || running}
       >
         {loading ? "Refreshing…" : "Refresh"}
       </button>
@@ -52,9 +68,10 @@ export function SnapshotTab({ title }: Props) {
             timestampCommitMessage:
               "radcontrol snapshot: save timestamped artifact",
             latestCommitMessage: "radcontrol snapshot: update latest artifact",
+            preferSavedTimestamp: true,
           })
         }
-        disabled={saving || loading}
+        disabled={saving || loading || running}
       >
         {saving ? "Saving…" : "Save"}
       </button>
@@ -71,7 +88,7 @@ export function SnapshotTab({ title }: Props) {
   const meta = (
     <div className="panelMeta">
       <div>
-        <strong>Source:</strong> saved artifacts in {dir}
+        <strong>Source:</strong> run_o2(verb=radcontrol.snapshot)
       </div>
       <div>
         <strong>Folder:</strong> {dir}
@@ -111,7 +128,7 @@ export function SnapshotTab({ title }: Props) {
         }}
       >
         <ArtifactListPanel
-          title="Artifacts"
+          title="Snapshots"
           items={docsInFolder}
           currentPath={currentPath}
           emptyText="No snapshot artifacts found."

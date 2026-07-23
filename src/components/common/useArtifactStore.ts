@@ -48,12 +48,15 @@ type RefreshListOptions = {
 
 type RunProducerOptions = {
   refreshArtifacts?: boolean;
+  autoReadPreferred?: boolean;
 };
 
 type SaveCurrentOptions = {
   latestFileName?: string;
   timestampCommitMessage: string;
   latestCommitMessage: string;
+  autoReadPreferred?: boolean;
+  preferSavedTimestamp?: boolean;
 };
 
 type UseArtifactStoreArgs = {
@@ -137,6 +140,11 @@ export function useArtifactStore({
   producerErrorFallback,
 }: UseArtifactStoreArgs) {
   const dirPrefix = useMemo(() => `${dir}/`, [dir]);
+  const latestArtifactPath = useMemo(
+    () => `${dir}/${latestFileName}`.toLowerCase(),
+    [dir, latestFileName],
+  );
+  const listVerb = useMemo(() => `files.list.${b64urlEncodeUtf8(dir)}`, [dir]);
 
   const [items, setItems] = useState<FilesListItem[]>([]);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
@@ -151,8 +159,11 @@ export function useArtifactStore({
   const producerInFlightRef = useRef(false);
 
   const docsInFolder = useMemo(
-    () => sortArtifactItems(items, dirPrefix),
-    [dirPrefix, items],
+    () =>
+      sortArtifactItems(items, dirPrefix).filter(
+        (item) => (item.path || "").toLowerCase() !== latestArtifactPath,
+      ),
+    [dirPrefix, items, latestArtifactPath],
   );
 
   const readPath = useCallback(async (path: string) => {
@@ -190,7 +201,7 @@ export function useArtifactStore({
 
       try {
         const res = (await invoke("run_o2", {
-          verb: "files.list",
+          verb: listVerb,
         })) as RunO2Result;
 
         if (!res.ok) {
@@ -226,22 +237,23 @@ export function useArtifactStore({
         }
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
+        return null;
       } finally {
         if (seq === loadSeqRef.current) {
           setLoading(false);
         }
       }
     },
-    [dir, dirPrefix, latestFileName, readPath],
+    [dir, dirPrefix, latestFileName, listVerb, readPath],
   );
 
   const runProducer = useCallback(
-    async (options?: RunProducerOptions) => {
+    async (options?: RunProducerOptions): Promise<string | null> => {
       if (!producerVerb) {
         throw new Error("No producer verb configured.");
       }
 
-      if (producerInFlightRef.current) return;
+      if (producerInFlightRef.current) return null;
 
       producerInFlightRef.current = true;
       setRunning(true);
@@ -262,10 +274,15 @@ export function useArtifactStore({
         setCurrentPath(null);
 
         if (options?.refreshArtifacts) {
-          await refreshList({ autoReadPreferred: false });
+          await refreshList({
+            autoReadPreferred: options.autoReadPreferred ?? false,
+          });
         }
+
+        return res.stdout || "";
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
+        return null;
       } finally {
         producerInFlightRef.current = false;
         setRunning(false);
@@ -279,6 +296,8 @@ export function useArtifactStore({
       latestFileName: latestOverride,
       timestampCommitMessage,
       latestCommitMessage,
+      autoReadPreferred = false,
+      preferSavedTimestamp = false,
     }: SaveCurrentOptions) => {
       if (saving) return;
 
@@ -294,6 +313,8 @@ export function useArtifactStore({
 
       try {
         const timestampName = makeTimestampFilename(timestampStem, extension);
+
+        let timestampSavedPath: string | null = null;
 
         const writes = [
           {
@@ -331,15 +352,28 @@ export function useArtifactStore({
             throw new Error(parsed.error || "files.write returned error");
           }
 
+          const resolvedPath = parsed.path || payload.path;
+
+          if (payload.path.endsWith(`/${timestampName}`)) {
+            timestampSavedPath = resolvedPath;
+          }
+
           if (payload.path.endsWith(`/${finalLatestFileName}`)) {
-            setCurrentPath(parsed.path || payload.path);
+            setCurrentPath(resolvedPath);
             setLastSavedAt(parsed.mtime || Date.now());
           }
         }
 
-        await refreshList({ autoReadPreferred: false });
+        await refreshList({
+          autoReadPreferred: autoReadPreferred && !preferSavedTimestamp,
+        });
+
+        if (preferSavedTimestamp && timestampSavedPath) {
+          await readPath(timestampSavedPath);
+        }
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e));
+        return null;
       } finally {
         setSaving(false);
       }
@@ -349,10 +383,24 @@ export function useArtifactStore({
       dir,
       extension,
       latestFileName,
+      readPath,
       refreshList,
       saving,
       timestampStem,
     ],
+  );
+
+  const runProducerAndSave = useCallback(
+    async (options: SaveCurrentOptions) => {
+      const out = await runProducer({ refreshArtifacts: false });
+      if (!out || !out.trim()) return;
+
+      await saveCurrent({
+        ...options,
+        preferSavedTimestamp: true,
+      });
+    },
+    [runProducer, saveCurrent],
   );
 
   return {
@@ -373,6 +421,7 @@ export function useArtifactStore({
     readPath,
     refreshList,
     runProducer,
+    runProducerAndSave,
     saveCurrent,
   };
 }

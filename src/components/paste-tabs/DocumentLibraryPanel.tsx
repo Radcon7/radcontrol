@@ -228,6 +228,7 @@ export function DocumentLibraryPanel(props: {
 
   const dir = useMemo(() => `docs/radcontrol/${tabKey}`, [tabKey]);
   const dirPrefix = useMemo(() => `${dir}/`, [dir]);
+  const listVerb = useMemo(() => `files.list.${b64urlEncodeUtf8(dir)}`, [dir]);
 
   const [items, setItems] = useState<FilesListItem[]>([]);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
@@ -330,7 +331,7 @@ export function DocumentLibraryPanel(props: {
     setErr("");
 
     try {
-      const res = await runO2("files.list");
+      const res = await runO2(listVerb);
       if (!res.ok) {
         setErr(errMsg(res, "files.list failed"));
         return;

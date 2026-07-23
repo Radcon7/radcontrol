@@ -23,7 +23,7 @@ export function EmpireSweepTab() {
     setCurrentText,
     readPath,
     refreshList,
-    runProducer,
+    runProducerAndSave,
     saveCurrent,
   } = useArtifactStore({
     dir: "docs/radcontrol/empire_sweep",
@@ -35,20 +35,31 @@ export function EmpireSweepTab() {
   });
 
   useEffect(() => {
-    void (async () => {
-      await refreshList({ autoReadPreferred: false });
-      await runProducer({ refreshArtifacts: false });
-    })();
-  }, [refreshList, runProducer]);
+    void refreshList({ autoReadPreferred: true });
+  }, [refreshList]);
 
   const actions = (
     <>
       <button
         className="btn btnGhost"
-        onClick={() => void runProducer({ refreshArtifacts: false })}
-        disabled={running}
+        onClick={() =>
+          void runProducerAndSave({
+            timestampCommitMessage:
+              "radcontrol empire_sweep: save timestamped artifact",
+            latestCommitMessage:
+              "radcontrol empire_sweep: update latest artifact",
+          })
+        }
+        disabled={running || saving || loading}
       >
-        {running ? "Running…" : "Rerun"}
+        {running ? "Running…" : "Run Sweep"}
+      </button>
+      <button
+        className="btn btnGhost"
+        onClick={() => void refreshList({ autoReadPreferred: true })}
+        disabled={loading || running}
+      >
+        {loading ? "Refreshing…" : "Refresh"}
       </button>
       <button
         className="btn btnGhost"
@@ -58,6 +69,7 @@ export function EmpireSweepTab() {
               "radcontrol empire_sweep: save timestamped artifact",
             latestCommitMessage:
               "radcontrol empire_sweep: update latest artifact",
+            preferSavedTimestamp: true,
           })
         }
         disabled={saving || running}
@@ -86,7 +98,7 @@ export function EmpireSweepTab() {
         <strong>Files found:</strong> {docsInFolder.length}
       </div>
       <div>
-        <strong>Current file:</strong> {currentPath ?? "(unsaved output)"}
+        <strong>Current file:</strong> {currentPath ?? "(none loaded)"}
       </div>
       <div>
         <strong>Last saved:</strong>{" "}
@@ -117,10 +129,10 @@ export function EmpireSweepTab() {
         }}
       >
         <ArtifactListPanel
-          title="Artifacts"
+          title="Runs"
           items={docsInFolder}
           currentPath={currentPath}
-          emptyText="No saved artifacts yet."
+          emptyText="No saved runs yet."
           onSelect={(path) => void readPath(path)}
         />
 

@@ -60,6 +60,7 @@ export type NewMilestoneInput = {
 };
 
 const TIMELINE_DIR = "docs/radcontrol/timeline";
+const TIMELINE_LIST_VERB = `files.list.${b64urlEncodeUtf8(TIMELINE_DIR)}`;
 
 function normalizeO2Path(path: string): string {
   return (path || "").replace(/\\/g, "/").trim();
@@ -207,7 +208,7 @@ function buildMilestoneFileContent(
 }
 
 export async function listTimelineMilestones(): Promise<TimelineMilestone[]> {
-  const listRes = await runO2("files.list");
+  const listRes = await runO2(TIMELINE_LIST_VERB);
   if (!listRes.ok) {
     throw new Error(errMsg(listRes, "files.list failed"));
   }
