@@ -12,13 +12,11 @@ import { AddProjectModal } from "./components/projects/AddProjectModal";
 import type { AddProjectModalPrefill } from "./components/projects/AddProjectModal";
 import { ProjectLabsModal } from "./components/projects/ProjectLabsModal";
 
-import { CodexChatTab } from "./components/codex/CodexChatTab";
-import { CodexBuildTab } from "./components/codex/CodexBuildTab";
+import { AgentRunsTab } from "./components/agents/AgentRunsTab";
+import { InfrastructureTab } from "./components/agents/InfrastructureTab";
 
 import { SnapshotTab } from "./components/snapshot/SnapshotTab";
 import { EmpireSweepTab } from "./components/empire-sweep/EmpireSweepTab";
-import GovernanceInventoryInspector from "./components/dev/GovernanceInventoryInspector";
-
 import type {
   AddProjectPayload,
   PortStatus,
@@ -36,11 +34,10 @@ type DocTabKey = LibraryTabKey | StreamTabKey;
 
 type TabKey =
   | "projects"
-  | "codex_chat"
-  | "codex_build"
+  | "infrastructure"
+  | "agents"
   | "empire_map"
   | "empire_sweep"
-  | "governance"
   | DocTabKey;
 
 type DocTabMeta = {
@@ -53,19 +50,18 @@ const DOC_TABS: DocTabMeta[] = [
   { key: "notes", label: "Notes", mode: "library" },
   { key: "legal", label: "Legal", mode: "library" },
   { key: "labs", label: "Patterns", mode: "library" },
-  { key: "orion_handoff", label: "Orion Handoff", mode: "library" },
+  { key: "orion_handoff", label: "Dev Updates", mode: "library" },
   { key: "timeline", label: "Timeline", mode: "stream" },
   { key: "snapshot", label: "Snapshot", mode: "stream" },
 ];
 
 const ALL_TABS: TabKey[] = [
   "projects",
-  "codex_chat",
-  "codex_build",
+  "infrastructure",
+  "agents",
   "empire_map",
   "snapshot",
   "empire_sweep",
-  "governance",
   ...DOC_TABS.filter((t) => t.key !== "snapshot").map((t) => t.key),
 ];
 
@@ -107,11 +103,10 @@ function tabLabel(t: TabKey): string {
 
   const m: Record<Exclude<TabKey, DocTabKey>, string> = {
     projects: "Projects",
-    codex_chat: "Codex Chat",
-    codex_build: "Codex Build",
+    infrastructure: "Infrastructure",
+    agents: "Agents",
     empire_map: "Empire Map",
     empire_sweep: "Empire Sweep",
-    governance: "Governance",
   };
 
   return m[t] ?? t.replace(/_/g, " ");
@@ -1143,16 +1138,14 @@ export default function App() {
               onDelete={() => void deleteProjectLab()}
             />
           </div>
-        ) : tab === "codex_chat" ? (
-          <CodexChatTab />
-        ) : tab === "codex_build" ? (
-          <CodexBuildTab />
+        ) : tab === "infrastructure" ? (
+          <InfrastructureTab projects={projects} />
+        ) : tab === "agents" ? (
+          <AgentRunsTab projects={projects} />
         ) : tab === "empire_map" ? (
           <EmpireMapTab />
         ) : tab === "empire_sweep" ? (
           <EmpireSweepTab />
-        ) : tab === "governance" ? (
-          <GovernanceInventoryInspector />
         ) : isDocTab(tab) ? (
           renderDocTab(tab)
         ) : null}

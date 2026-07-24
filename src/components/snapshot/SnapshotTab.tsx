@@ -52,14 +52,7 @@ export function SnapshotTab({ title }: Props) {
         }
         disabled={running || loading}
       >
-        {running ? "Running…" : "Run Snapshot"}
-      </button>
-      <button
-        className="btn btnGhost"
-        onClick={() => void refreshList({ autoReadPreferred: true })}
-        disabled={loading || running}
-      >
-        {loading ? "Refreshing…" : "Refresh"}
+        {running ? "Running…" : "Run"}
       </button>
       <button
         className="btn btnGhost"
@@ -94,10 +87,10 @@ export function SnapshotTab({ title }: Props) {
         <strong>Folder:</strong> {dir}
       </div>
       <div>
-        <strong>Files found:</strong> {docsInFolder.length}
+        <strong>Saved entries:</strong> {docsInFolder.length}
       </div>
       <div>
-        <strong>Current file:</strong> {currentPath ?? "(none loaded)"}
+        <strong>Selected file:</strong> {currentPath ?? "(none loaded)"}
       </div>
       <div>
         <strong>Last saved:</strong>{" "}
@@ -105,7 +98,7 @@ export function SnapshotTab({ title }: Props) {
       </div>
       {loading ? (
         <div>
-          <strong>Status:</strong> loading list…
+          <strong>Status:</strong> loading…
         </div>
       ) : null}
     </div>

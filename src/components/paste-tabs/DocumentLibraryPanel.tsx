@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { copyText } from "../common/copyText";
+import { formatMaybeUnixTime } from "../common/useArtifactStore";
 
 type RunO2Result = {
   ok: boolean;
@@ -113,6 +114,14 @@ function formatTimestampPart(value: number): string {
 }
 
 function defaultDocStem(tabKey: string): string {
+  const special: Record<string, string> = {
+    notes: "note",
+    legal: "legal_note",
+    labs: "pattern",
+    orion_handoff: "dev_update",
+  };
+  if (special[tabKey]) return special[tabKey];
+
   const normalized = tabKey
     .trim()
     .toLowerCase()
@@ -694,19 +703,11 @@ export function DocumentLibraryPanel(props: {
         <div className="row" style={{ gap: 8 }}>
           <button
             className="btn btnGhost"
-            onClick={() => void refreshList()}
-            disabled={loading || saving || renaming}
-            title="Reload file list from O2 docs"
-          >
-            Refresh
-          </button>
-          <button
-            className="btn btnGhost"
             onClick={startNewDoc}
             disabled={loading || saving || renaming}
             title="Start a new named document"
           >
-            New
+            New Entry
           </button>
           <button
             className="btn"
@@ -733,15 +734,15 @@ export function DocumentLibraryPanel(props: {
           <strong>Folder:</strong> {dir}
         </div>
         <div>
-          <strong>Current file:</strong>{" "}
-          {currentPath ?? "(new unsaved document)"}
+          <strong>Selected file:</strong>{" "}
+          {currentPath ?? "(new unsaved entry)"}
         </div>
         <div>
-          <strong>Files found:</strong> {docsInFolder.length}
+          <strong>Entries:</strong> {docsInFolder.length}
         </div>
         <div>
           <strong>Last saved:</strong>{" "}
-          {lastSavedAt ? new Date(lastSavedAt).toLocaleString() : "—"}
+          {lastSavedAt ? formatMaybeUnixTime(lastSavedAt) : "—"}
         </div>
       </div>
 
@@ -796,9 +797,7 @@ export function DocumentLibraryPanel(props: {
                     {baseNameFromPath(it.path)}
                   </div>
                   <div style={{ fontSize: 12, opacity: 0.75 }}>
-                    {it.mtime
-                      ? new Date(it.mtime * 1000).toLocaleString()
-                      : "—"}
+                    {it.mtime ? formatMaybeUnixTime(it.mtime) : "—"}
                   </div>
                 </button>
               );
