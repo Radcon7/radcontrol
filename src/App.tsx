@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-import { EmpireMapTab } from "./components/empire-map/EmpireMapTab";
+import { EmpireUtilityTab } from "./components/empire-utility/EmpireUtilityTab";
 
 import { DocumentLibraryPanel } from "./components/paste-tabs/DocumentLibraryPanel";
-import { TimelineTab } from "./components/paste-tabs/TimelineTab";
+import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
+import { LegalHubTab } from "./components/paste-tabs/LegalHubTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
 import { AddProjectModal } from "./components/projects/AddProjectModal";
 import type { AddProjectModalPrefill } from "./components/projects/AddProjectModal";
@@ -15,8 +16,6 @@ import { ProjectLabsModal } from "./components/projects/ProjectLabsModal";
 import { AgentRunsTab } from "./components/agents/AgentRunsTab";
 import { InfrastructureTab } from "./components/agents/InfrastructureTab";
 
-import { SnapshotTab } from "./components/snapshot/SnapshotTab";
-import { EmpireSweepTab } from "./components/empire-sweep/EmpireSweepTab";
 import type {
   AddProjectPayload,
   PortStatus,
@@ -27,17 +26,16 @@ import {
   registryToProjects,
   nextPortSuggestion,
 } from "./components/projects/helpers";
+import { encodeO2JsonPayload, runO2Text } from "./components/common/o2Files";
 
-type LibraryTabKey = "notes" | "legal" | "labs" | "orion_handoff";
-type StreamTabKey = "timeline" | "snapshot";
-type DocTabKey = LibraryTabKey | StreamTabKey;
+type LibraryTabKey = "notes" | "legal" | "labs";
+type DocTabKey = LibraryTabKey;
 
 type TabKey =
   | "projects"
   | "infrastructure"
   | "agents"
-  | "empire_map"
-  | "empire_sweep"
+  | "empire_utility"
   | DocTabKey;
 
 type DocTabMeta = {
@@ -50,19 +48,14 @@ const DOC_TABS: DocTabMeta[] = [
   { key: "notes", label: "Notes", mode: "library" },
   { key: "legal", label: "Legal", mode: "library" },
   { key: "labs", label: "Patterns", mode: "library" },
-  { key: "orion_handoff", label: "Dev Updates", mode: "library" },
-  { key: "timeline", label: "Timeline", mode: "stream" },
-  { key: "snapshot", label: "Snapshot", mode: "stream" },
 ];
 
 const ALL_TABS: TabKey[] = [
   "projects",
   "infrastructure",
   "agents",
-  "empire_map",
-  "snapshot",
-  "empire_sweep",
-  ...DOC_TABS.filter((t) => t.key !== "snapshot").map((t) => t.key),
+  "empire_utility",
+  ...DOC_TABS.map((t) => t.key),
 ];
 
 type CanonicalProjectType =
@@ -105,8 +98,7 @@ function tabLabel(t: TabKey): string {
     projects: "Projects",
     infrastructure: "Infrastructure",
     agents: "Agents",
-    empire_map: "Empire Map",
-    empire_sweep: "Empire Sweep",
+    empire_utility: "Empire Utility",
   };
 
   return m[t] ?? t.replace(/_/g, " ");
@@ -253,27 +245,6 @@ function registryPortForKey(reg: unknown, key: string): number | null {
     : null;
 }
 
-async function invokeText(cmd: string, payload?: Record<string, unknown>) {
-  const out = (await invoke(cmd, payload ? payload : undefined)) as unknown;
-
-  if (typeof out === "string") return out;
-
-  if (out && typeof out === "object") {
-    const o = out as Record<string, unknown>;
-
-    if (typeof o.stdout === "string") return o.stdout;
-    if (typeof o.output === "string") return o.output;
-
-    try {
-      return JSON.stringify(o);
-    } catch {
-      return "[unstringifiable object]";
-    }
-  }
-
-  return (out ?? "").toString();
-}
-
 type FormationStartPayload = {
   projectType: CanonicalProjectType;
   name: string;
@@ -306,24 +277,6 @@ type ProjectLabRecommendedAction =
   | "launch_existing_lab"
   | "start_first_lab_flow"
   | "blocked";
-
-function encodeBase64UrlJson(value: unknown): string {
-  const json = JSON.stringify(value);
-  const bytes = new TextEncoder().encode(json);
-
-  let binary = "";
-  const chunkSize = 0x8000;
-
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
 
 function parseMaybeDoubleEncodedJson(raw: string): unknown | null {
   if (!raw.trim()) return null;
@@ -511,7 +464,7 @@ export default function App() {
 
     loadRegistryInFlightRef.current = (async () => {
       try {
-        const out = await invokeText("run_o2", { verb: "list_projects" });
+        const out = await runO2Text("list_projects");
         const parsed = parseRegistryMaybeDoubleEncoded(out ?? "");
         const reg = parsed.projects ?? [];
 
@@ -585,9 +538,7 @@ export default function App() {
         const results = await Promise.all(
           PORTS.map(async (p) => {
             try {
-              const out = await invokeText("run_o2", {
-                verb: `port_status.${p}`,
-              });
+              const out = await runO2Text(`port_status.${p}`);
               return parsePortStatusJson(out, p);
             } catch (e) {
               return {
@@ -639,7 +590,7 @@ export default function App() {
     setBusy(true);
     appendLog(`\n[o2] ${title} → run_o2("${key}")\n`);
     try {
-      const out = await invokeText("run_o2", { verb: key });
+      const out = await runO2Text(key);
       const text = (out ?? "(no output)").toString();
       appendLog(text);
       return text;
@@ -711,7 +662,7 @@ export default function App() {
   async function setProjectRetired(project: ProjectRow, retired: boolean) {
     if (busy) return;
 
-    const payload = encodeBase64UrlJson({
+    const payload = encodeO2JsonPayload({
       projectKey: project.key,
       retired,
     });
@@ -722,7 +673,7 @@ export default function App() {
       `\n[o2] Set lifecycle for ${project.label} → run_o2("${verb}")\n`,
     );
     try {
-      const out = await invokeText("run_o2", { verb });
+      const out = await runO2Text(verb);
       appendLog(out || "(no output)");
       await loadRegistry();
     } catch (e) {
@@ -742,7 +693,7 @@ export default function App() {
 
     const shouldEnsure = !project.notesAvailable;
     if (shouldEnsure) {
-      const payload = encodeBase64UrlJson({ projectKey: project.key });
+      const payload = encodeO2JsonPayload({ projectKey: project.key });
       const verb = `project_note.ensure.${payload}`;
 
       setBusy(true);
@@ -750,7 +701,7 @@ export default function App() {
         `\n[o2] Ensure notes for ${project.label} → run_o2("${verb}")\n`,
       );
       try {
-        const out = await invokeText("run_o2", { verb });
+        const out = await runO2Text(verb);
         appendLog(out || "(no output)");
       } catch (e) {
         appendLog("\n[o2] ERROR:\n" + fmtErr(e));
@@ -782,7 +733,7 @@ export default function App() {
       }
     }
 
-    const verb = `project_create.start.${encodeBase64UrlJson(formationPayload)}`;
+    const verb = `project_create.start.${encodeO2JsonPayload(formationPayload)}`;
 
     setBusy(true);
     appendLog(
@@ -791,7 +742,7 @@ export default function App() {
     appendLog(`\n[o2] Start Formation → run_o2("${verb}")\n`);
 
     try {
-      const out = await invokeText("run_o2", { verb });
+      const out = await runO2Text(verb);
       appendLog(out || "(no output)");
 
       let parsed: FormationStartResult | null = null;
@@ -867,7 +818,7 @@ export default function App() {
     setProjectLabsMessage(`Checking lab access for ${project.label}...`);
 
     try {
-      const payload = encodeBase64UrlJson({ projectKey: project.key });
+      const payload = encodeO2JsonPayload({ projectKey: project.key });
       const verb = `project_lab.open_or_create.${payload}`;
       const out = await runO2(`${project.label} Lab Doorway`, verb);
       if (!didO2VerbSucceed(out)) {
@@ -941,7 +892,7 @@ export default function App() {
     setProjectLabsActionBusy(true);
     try {
       const project = projectLabsProject;
-      const payload = encodeBase64UrlJson({ projectKey: project.key });
+      const payload = encodeO2JsonPayload({ projectKey: project.key });
       const verb = `project_lab.delete.${payload}`;
       const out = await runO2(`Delete ${project.label} Lab`, verb);
       if (!didO2VerbSucceed(out)) return;
@@ -980,7 +931,6 @@ export default function App() {
 
   const tabPlaceholder = (t: DocTabKey) => {
     if (t === "labs") return "Write or edit patterns here…";
-    if (t === "timeline") return "Timeline milestones surface...";
     if (isLibraryTab(t)) return `Write or edit ${tabLabel(t)} here…`;
     return `Type ${tabLabel(t)} here… (auto-loads latest, autosaves+commits on tab change)`;
   };
@@ -1008,6 +958,24 @@ export default function App() {
   }
 
   function renderDocTab(activeTab: DocTabKey) {
+    if (activeTab === "notes") {
+      return (
+        <NotesHubTab
+          busy={busy}
+          registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
+        />
+      );
+    }
+
+    if (activeTab === "legal") {
+      return (
+        <LegalHubTab
+          busy={busy}
+          registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
+        />
+      );
+    }
+
     if (isLibraryTab(activeTab)) {
       return (
         <DocumentLibraryPanel
@@ -1020,14 +988,6 @@ export default function App() {
       );
     }
 
-    if (activeTab === "timeline") {
-      return <TimelineTab />;
-    }
-
-    if (activeTab === "snapshot") {
-      return <SnapshotTab title={tabLabel(activeTab)} />;
-    }
-
     return null;
   }
 
@@ -1036,7 +996,7 @@ export default function App() {
       <header className="header">
         <div className="brand">RadControl</div>
 
-        <div className="tabs" style={{ flex: 1, minWidth: 0 }}>
+        <div className="tabs tabsFill">
           {ALL_TABS.map((t) => (
             <button
               key={t}
@@ -1063,44 +1023,15 @@ export default function App() {
 
       <main className="mainArea">
         {tab === "projects" ? (
-          <div className="projectsWrap">
-            <div className="projectsHeaderRow">
-              <div className="sectionTitle">Projects</div>
-
-              <div className="projectsHeaderRight">
-                <button
-                  className="btn btnPrimary"
-                  onClick={openAddProjectModal}
-                  disabled={busy}
-                  title="Start a governed project formation flow under O2 authority"
-                >
-                  New Project
-                </button>
-
-                <button
-                  className="btn btnGhost"
-                  onClick={() => void loadRegistry()}
-                  disabled={busy}
-                  title="Reload projects registry"
-                >
-                  Reload Projects
-                </button>
-                <button
-                  className="btn btnGhost"
-                  onClick={() => void refreshPorts()}
-                  disabled={portsBusy}
-                  title="Refresh port status"
-                >
-                  Refresh Ports
-                </button>
-              </div>
-            </div>
-
+          <>
             <ProjectsTab
               projects={projects}
               ports={ports}
               busy={busy}
               portsBusy={portsBusy}
+              onOpenAddProject={openAddProjectModal}
+              onReloadProjects={loadRegistry}
+              onRefreshPorts={refreshPorts}
               onStart={startProject}
               onSnapshot={(p) =>
                 void runO2(`Snapshot ${p.label}`, p.o2SnapshotKey)
@@ -1137,15 +1068,14 @@ export default function App() {
               }}
               onDelete={() => void deleteProjectLab()}
             />
-          </div>
+          </>
         ) : tab === "infrastructure" ? (
+
           <InfrastructureTab projects={projects} />
         ) : tab === "agents" ? (
           <AgentRunsTab projects={projects} />
-        ) : tab === "empire_map" ? (
-          <EmpireMapTab />
-        ) : tab === "empire_sweep" ? (
-          <EmpireSweepTab />
+        ) : tab === "empire_utility" ? (
+          <EmpireUtilityTab />
         ) : isDocTab(tab) ? (
           renderDocTab(tab)
         ) : null}

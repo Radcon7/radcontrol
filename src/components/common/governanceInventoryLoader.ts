@@ -1,30 +1,8 @@
-import { invoke } from "@tauri-apps/api/core";
+import { type FilesListItem, listO2Files } from "./o2Files";
 import {
   GOVERNANCE_INVENTORY,
   type GovernanceInventoryItem,
 } from "./governanceInventory";
-
-type RunO2Result = {
-  ok: boolean;
-  code: number;
-  stdout: string;
-  stderr: string;
-};
-
-type FilesListItem = {
-  kind?: string;
-  path?: string;
-  mtime?: number;
-  bytes?: number;
-};
-
-type FilesListJson = {
-  ok?: boolean;
-  root?: string;
-  docs_dir?: string;
-  items?: FilesListItem[];
-  error?: string;
-};
 
 export type GovernanceInventoryResolvedItem = GovernanceInventoryItem & {
   resolvedPath: string;
@@ -50,30 +28,6 @@ function normalizeRepoRelativePath(path: string): string {
 
 function isRepoRelativePath(path: string): boolean {
   return !path.startsWith("~/") && !path.startsWith("/") && path !== "~";
-}
-
-async function runO2(verb: string): Promise<RunO2Result> {
-  return (await invoke("run_o2", { verb })) as RunO2Result;
-}
-
-async function listO2Files(): Promise<FilesListItem[]> {
-  const res = await runO2("files.list");
-  if (!res.ok) {
-    throw new Error((res.stderr || res.stdout || "files.list failed").trim());
-  }
-
-  let parsed: FilesListJson;
-  try {
-    parsed = JSON.parse((res.stdout || "").trim()) as FilesListJson;
-  } catch {
-    throw new Error("files.list returned invalid JSON");
-  }
-
-  if (!parsed.ok) {
-    throw new Error(parsed.error || "files.list returned error");
-  }
-
-  return Array.isArray(parsed.items) ? parsed.items : [];
 }
 
 function buildPathSet(items: FilesListItem[]): Set<string> {
@@ -110,7 +64,8 @@ function itemExists(
 export async function loadGovernanceInventory(): Promise<
   GovernanceInventoryResolvedItem[]
 > {
-  const repoItems = await listO2Files();
+  const parsed = await listO2Files("");
+  const repoItems = Array.isArray(parsed.items) ? parsed.items : [];
   const repoPaths = buildPathSet(repoItems);
 
   return [...GOVERNANCE_INVENTORY]

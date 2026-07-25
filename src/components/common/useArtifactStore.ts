@@ -1,46 +1,14 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import {
+  type FilesListItem,
+  errMsg,
+  listO2Files,
+  readO2File,
+  runO2,
+  writeO2File,
+} from "./o2Files";
 
-export type RunO2Result = {
-  ok?: boolean;
-  code?: number;
-  stdout?: string;
-  stderr?: string;
-};
-
-export type FilesListItem = {
-  kind?: string;
-  path?: string;
-  mtime?: number;
-  bytes?: number;
-};
-
-type FilesListJson = {
-  ok?: boolean;
-  root?: string;
-  docs_dir?: string;
-  items?: FilesListItem[];
-  error?: string;
-};
-
-type FilesReadJson = {
-  ok?: boolean;
-  path?: string;
-  content?: string;
-  bytes?: number;
-  mtime?: number;
-  error?: string;
-};
-
-type FilesWriteJson = {
-  ok?: boolean;
-  path?: string;
-  mtime?: number;
-  bytes?: number;
-  committed?: boolean;
-  commitMessage?: string | null;
-  error?: string;
-};
+export type { FilesListItem } from "./o2Files";
 
 type RefreshListOptions = {
   autoReadPreferred?: boolean;
@@ -67,22 +35,6 @@ type UseArtifactStoreArgs = {
   producerVerb?: string;
   producerErrorFallback?: string;
 };
-
-function errMsg(res: RunO2Result, fallback: string): string {
-  return (res.stderr || "").trim() || fallback;
-}
-
-function b64urlEncodeUtf8(value: string): string {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-  bytes.forEach((b) => {
-    binary += String.fromCharCode(b);
-  });
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
 
 function formatTimestampPart(value: number): string {
   return String(value).padStart(2, "0");
@@ -122,10 +74,18 @@ function getPreferredArtifactPath(
   dir: string,
   latestFileName: string,
 ): string | null {
+  const latestPath = `${dir}/${latestFileName}`.toLowerCase();
+
+  const newestSavedRun = items.find(
+    (item) => (item.path || "").toLowerCase() !== latestPath,
+  );
+
+  if (newestSavedRun?.path) {
+    return newestSavedRun.path;
+  }
+
   const preferredLatest = items.find(
-    (item) =>
-      (item.path || "").toLowerCase() ===
-      `${dir}/${latestFileName}`.toLowerCase(),
+    (item) => (item.path || "").toLowerCase() === latestPath,
   );
 
   return preferredLatest?.path || items[0]?.path || null;
@@ -144,8 +104,6 @@ export function useArtifactStore({
     () => `${dir}/${latestFileName}`.toLowerCase(),
     [dir, latestFileName],
   );
-  const listVerb = useMemo(() => `files.list.${b64urlEncodeUtf8(dir)}`, [dir]);
-
   const [items, setItems] = useState<FilesListItem[]>([]);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [currentText, setCurrentText] = useState("");
@@ -167,25 +125,7 @@ export function useArtifactStore({
   );
 
   const readPath = useCallback(async (path: string) => {
-    const encoded = b64urlEncodeUtf8(path);
-    const res = (await invoke("run_o2", {
-      verb: `files.read.${encoded}`,
-    })) as RunO2Result;
-
-    if (!res.ok) {
-      throw new Error(errMsg(res, "files.read failed"));
-    }
-
-    let parsed: FilesReadJson;
-    try {
-      parsed = JSON.parse((res.stdout || "").trim()) as FilesReadJson;
-    } catch {
-      throw new Error("files.read returned invalid JSON");
-    }
-
-    if (!parsed.ok) {
-      throw new Error(parsed.error || "files.read returned error");
-    }
+    const parsed = await readO2File(path);
 
     setCurrentPath(path);
     setCurrentText(parsed.content || "");
@@ -200,24 +140,7 @@ export function useArtifactStore({
       setErr("");
 
       try {
-        const res = (await invoke("run_o2", {
-          verb: listVerb,
-        })) as RunO2Result;
-
-        if (!res.ok) {
-          throw new Error(errMsg(res, "files.list failed"));
-        }
-
-        let parsed: FilesListJson;
-        try {
-          parsed = JSON.parse((res.stdout || "").trim()) as FilesListJson;
-        } catch {
-          throw new Error("files.list returned invalid JSON");
-        }
-
-        if (!parsed.ok) {
-          throw new Error(parsed.error || "files.list returned error");
-        }
+        const parsed = await listO2Files(dir);
 
         if (seq !== loadSeqRef.current) return;
 
@@ -244,7 +167,7 @@ export function useArtifactStore({
         }
       }
     },
-    [dir, dirPrefix, latestFileName, listVerb, readPath],
+    [dir, dirPrefix, latestFileName, readPath],
   );
 
   const runProducer = useCallback(
@@ -260,9 +183,7 @@ export function useArtifactStore({
       setErr("");
 
       try {
-        const res = (await invoke("run_o2", {
-          verb: producerVerb,
-        })) as RunO2Result;
+        const res = await runO2(producerVerb);
 
         if (!res.ok) {
           throw new Error(
@@ -332,25 +253,7 @@ export function useArtifactStore({
         ];
 
         for (const payload of writes) {
-          const encoded = b64urlEncodeUtf8(JSON.stringify(payload));
-          const res = (await invoke("run_o2", {
-            verb: `files.write.${encoded}`,
-          })) as RunO2Result;
-
-          if (!res.ok) {
-            throw new Error(errMsg(res, "files.write failed"));
-          }
-
-          let parsed: FilesWriteJson;
-          try {
-            parsed = JSON.parse((res.stdout || "").trim()) as FilesWriteJson;
-          } catch {
-            throw new Error("files.write returned invalid JSON");
-          }
-
-          if (!parsed.ok) {
-            throw new Error(parsed.error || "files.write returned error");
-          }
+          const parsed = await writeO2File(payload);
 
           const resolvedPath = parsed.path || payload.path;
 

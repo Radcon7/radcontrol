@@ -88,101 +88,53 @@ export default function GovernanceInventoryInspector() {
       meta={meta}
       error={err ? <>{err}</> : null}
     >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
-        <div
-          style={{
-            border: "1px solid rgba(255,255,255,0.14)",
-            borderRadius: 12,
-            background: "rgba(255,255,255,0.03)",
-            padding: 10,
-            fontSize: 13,
-            opacity: 0.86,
-          }}
-        >
-          <div>
-            <strong>Purpose:</strong> Inventory of governance authority
-            documents across Empire, O2, and this repository.
+      <div className="governanceInspectorStack">
+        <div className="surfaceCard">
+          <div className="surfaceCardTitle">Purpose</div>
+          <div className="surfaceCardLead">
+            Inventory of governance authority documents across Empire, O2, and
+            this repository.
           </div>
-          <div style={{ marginTop: 6 }}>
-            <strong>Legend:</strong> “Found via O2 files.list” reflects the
-            current O2 docs inventory surface. “Expected by Policy” reflects
-            canonical governance expectations even when an item is outside that
-            surface.
+          <div className="surfaceInlineNotice">
+            Legend: “Found via O2 files.list” reflects the current O2 docs
+            inventory surface. “Expected by Policy” reflects canonical
+            governance expectations even when an item is outside that surface.
           </div>
         </div>
 
         {loading ? (
-          <div style={{ padding: 12, opacity: 0.8 }}>
+          <div className="surfaceCard governanceInspectorLoading">
             Loading governance inventory…
           </div>
         ) : (
-          <div
-            style={{
-              minHeight: 0,
-              overflow: "auto",
-              border: "1px solid rgba(255,255,255,0.14)",
-              borderRadius: 12,
-              background: "rgba(255,255,255,0.03)",
-            }}
-          >
-            <table
-              style={{
-                borderCollapse: "collapse",
-                width: "100%",
-                fontSize: 13,
-              }}
-            >
+          <div className="surfaceCard surfaceScrollCard governanceInspectorTableWrap">
+            <table className="governanceInspectorTable">
               <thead>
                 <tr>
-                  <th style={{ textAlign: "left", padding: 8 }}>Order</th>
-                  <th style={{ textAlign: "left", padding: 8 }}>Title</th>
-                  <th style={{ textAlign: "left", padding: 8 }}>Scope</th>
-                  <th style={{ textAlign: "left", padding: 8 }}>Category</th>
-                  <th style={{ textAlign: "left", padding: 8 }}>Authority</th>
-                  <th style={{ textAlign: "left", padding: 8 }}>Display</th>
-                  <th style={{ textAlign: "left", padding: 8 }}>
-                    Found via O2 files.list
-                  </th>
-                  <th style={{ textAlign: "left", padding: 8 }}>
-                    Expected by Policy
-                  </th>
-                  <th style={{ textAlign: "left", padding: 8 }}>
-                    Resolved Path
-                  </th>
+                  <th>Order</th>
+                  <th>Title</th>
+                  <th>Scope</th>
+                  <th>Category</th>
+                  <th>Authority</th>
+                  <th>Display</th>
+                  <th>Found via O2 files.list</th>
+                  <th>Expected by Policy</th>
+                  <th>Resolved Path</th>
                 </tr>
               </thead>
 
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id}>
-                    <td style={{ padding: 8 }}>{item.order}</td>
-                    <td style={{ padding: 8 }}>{item.title}</td>
-                    <td style={{ padding: 8 }}>{item.scope}</td>
-                    <td style={{ padding: 8 }}>{item.category}</td>
-                    <td style={{ padding: 8 }}>{item.authority}</td>
-                    <td style={{ padding: 8 }}>{item.display_mode}</td>
-                    <td style={{ padding: 8 }}>
-                      {item.foundViaFilesList ? "✔" : "—"}
-                    </td>
-                    <td style={{ padding: 8 }}>
-                      {item.expectedByPolicy ? "✔" : "—"}
-                    </td>
-                    <td
-                      style={{
-                        padding: 8,
-                        fontFamily: "monospace",
-                        fontSize: 12,
-                        opacity: 0.85,
-                      }}
-                    >
+                    <td>{item.order}</td>
+                    <td>{item.title}</td>
+                    <td>{item.scope}</td>
+                    <td>{item.category}</td>
+                    <td>{item.authority}</td>
+                    <td>{item.display_mode}</td>
+                    <td>{item.foundViaFilesList ? "✔" : "—"}</td>
+                    <td>{item.expectedByPolicy ? "✔" : "—"}</td>
+                    <td className="governanceInspectorPathCell">
                       {item.resolvedPath}
                     </td>
                   </tr>

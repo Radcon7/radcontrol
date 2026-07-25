@@ -1,88 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { copyText } from "../common/copyText";
-import { formatMaybeUnixTime } from "../common/useArtifactStore";
-
-type RunO2Result = {
-  ok: boolean;
-  code: number;
-  stdout: string;
-  stderr: string;
-};
-
-type FilesListItem = {
-  kind?: string;
-  path?: string;
-  mtime?: number;
-  bytes?: number;
-};
-
-type FilesListJson = {
-  ok?: boolean;
-  root?: string;
-  docs_dir?: string;
-  items?: FilesListItem[];
-  error?: string;
-};
-
-type FilesReadJson = {
-  ok?: boolean;
-  path?: string;
-  content?: string;
-  bytes?: number;
-  mtime?: number;
-  error?: string;
-};
-
-type FilesWriteJson = {
-  ok?: boolean;
-  path?: string;
-  mtime?: number;
-  bytes?: number;
-  committed?: boolean;
-  commitMessage?: string | null;
-  error?: string;
-};
-
-type FilesRenameJson = {
-  ok?: boolean;
-  fromPath?: string;
-  toPath?: string;
-  mtime?: number;
-  bytes?: number;
-  committed?: boolean;
-  commitMessage?: string | null;
-  error?: string;
-};
-
-function b64urlEncodeUtf8(text: string): string {
-  return btoa(unescape(encodeURIComponent(text)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
-
-function normalizeO2Path(p: string): string {
-  const s = (p || "").trim().replace(/^\/+/, "");
-  if (!s) return "";
-  return s.startsWith("docs/") ? s : `docs/${s}`;
-}
-
-function joinOut(r: RunO2Result): string {
-  const a = (r.stdout || "").trimEnd();
-  const b = (r.stderr || "").trimEnd();
-  if (a && b) return `${a}\n${b}`;
-  return a || b || "";
-}
-
-function errMsg(r: RunO2Result, fallback: string): string {
-  const text = joinOut(r).trim();
-  return text || fallback;
-}
-
-async function runO2(verb: string): Promise<RunO2Result> {
-  return (await invoke("run_o2", { verb })) as RunO2Result;
-}
+import { ArtifactListPanel } from "../common/ArtifactListPanel";
+import {
+  type FilesListItem,
+  listO2Files,
+  normalizeO2Path,
+  readO2File,
+  renameO2File,
+  writeO2File,
+} from "../common/o2Files";
 
 function ensureMdFilename(name: string): string {
   const trimmed = name.trim();
@@ -225,20 +151,23 @@ function loadLastActivePath(tabKey: string): string | null {
   }
 }
 
-export function DocumentLibraryPanel(props: {
+type Props = {
   tabKey: string;
   title: string;
   placeholder?: string;
   busy?: boolean;
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
-}) {
-  const { tabKey, title, placeholder, busy, registerBeforeTabChangeSaver } =
-    props;
+};
 
+export function DocumentLibraryPanel({
+  tabKey,
+  title,
+  placeholder,
+  busy,
+  registerBeforeTabChangeSaver,
+}: Props) {
   const dir = useMemo(() => `docs/radcontrol/${tabKey}`, [tabKey]);
   const dirPrefix = useMemo(() => `${dir}/`, [dir]);
-  const listVerb = useMemo(() => `files.list.${b64urlEncodeUtf8(dir)}`, [dir]);
-
   const [items, setItems] = useState<FilesListItem[]>([]);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [currentName, setCurrentName] = useState("");
@@ -247,7 +176,6 @@ export function DocumentLibraryPanel(props: {
   const [saving, setSaving] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [err, setErr] = useState("");
-  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [lastActivePath, setLastActivePath] = useState<string | null>(() =>
@@ -256,9 +184,7 @@ export function DocumentLibraryPanel(props: {
 
   const loadSeqRef = useRef(0);
   const hasAutoOpenedRef = useRef(false);
-  const filenameInputRef = useRef<HTMLInputElement | null>(null);
   const currentPathRef = useRef<string | null>(null);
-  const currentNameRef = useRef("");
   const draftTextRef = useRef("");
   const isDirtyRef = useRef(false);
   const busyRef = useRef(false);
@@ -293,10 +219,6 @@ export function DocumentLibraryPanel(props: {
   useEffect(() => {
     currentPathRef.current = currentPath;
   }, [currentPath]);
-
-  useEffect(() => {
-    currentNameRef.current = currentName;
-  }, [currentName]);
 
   useEffect(() => {
     draftTextRef.current = draftText;
@@ -340,20 +262,7 @@ export function DocumentLibraryPanel(props: {
     setErr("");
 
     try {
-      const res = await runO2(listVerb);
-      if (!res.ok) {
-        setErr(errMsg(res, "files.list failed"));
-        return;
-      }
-
-      let parsed: FilesListJson;
-      try {
-        parsed = JSON.parse((res.stdout || "").trim()) as FilesListJson;
-      } catch {
-        setErr("files.list returned invalid JSON");
-        return;
-      }
-
+      const parsed = await listO2Files(dir);
       if (seq !== loadSeqRef.current) return;
       setItems(Array.isArray(parsed.items) ? parsed.items : []);
     } catch (e) {
@@ -371,20 +280,7 @@ export function DocumentLibraryPanel(props: {
     setErr("");
 
     try {
-      const res = await runO2(`files.read.${b64urlEncodeUtf8(normalized)}`);
-      if (!res.ok) {
-        setErr(errMsg(res, "files.read failed"));
-        return;
-      }
-
-      let parsed: FilesReadJson;
-      try {
-        parsed = JSON.parse((res.stdout || "").trim()) as FilesReadJson;
-      } catch {
-        setErr("files.read returned invalid JSON");
-        return;
-      }
-
+      const parsed = await readO2File(normalized);
       const nextPath =
         typeof parsed.path === "string"
           ? normalizeO2Path(parsed.path)
@@ -410,10 +306,6 @@ export function DocumentLibraryPanel(props: {
     setErr("");
     setIsCreatingNew(true);
     setIsDirty(false);
-
-    window.setTimeout(() => {
-      filenameInputRef.current?.focus();
-    }, 0);
   }
 
   async function writePath(
@@ -428,32 +320,17 @@ export function DocumentLibraryPanel(props: {
       commitMessage: defaultCommitMessage(tabKey, "write"),
     };
 
-    const res = await runO2(
-      `files.write.${b64urlEncodeUtf8(JSON.stringify(payload))}`,
-    );
-    if (!res.ok) {
-      if (reportError) {
-        setErr(errMsg(res, "files.write failed"));
-      }
-      return null;
-    }
-
-    let parsed: FilesWriteJson;
     try {
-      parsed = JSON.parse((res.stdout || "").trim()) as FilesWriteJson;
-    } catch {
-      if (reportError) {
-        setErr("files.write returned invalid JSON");
-      }
-      return null;
-    }
-
-    const confirmedPath =
-      typeof parsed.path === "string"
+      const parsed = await writeO2File(payload);
+      return typeof parsed.path === "string"
         ? normalizeO2Path(parsed.path)
         : normalizeO2Path(path);
-
-    return confirmedPath;
+    } catch (error) {
+      if (reportError) {
+        setErr(error instanceof Error ? error.message : String(error));
+      }
+      return null;
+    }
   }
 
   async function renamePath(
@@ -468,58 +345,37 @@ export function DocumentLibraryPanel(props: {
       commitMessage: defaultCommitMessage(tabKey, "rename"),
     };
 
-    const res = await runO2(
-      `files.rename.${b64urlEncodeUtf8(JSON.stringify(payload))}`,
-    );
-    if (!res.ok) {
-      if (reportError) {
-        setErr(errMsg(res, "files.rename failed"));
-      }
-      return null;
-    }
-
-    let parsed: FilesRenameJson;
     try {
-      parsed = JSON.parse((res.stdout || "").trim()) as FilesRenameJson;
-    } catch {
-      if (reportError) {
-        setErr("files.rename returned invalid JSON");
-      }
-      return null;
-    }
-
-    const confirmedPath =
-      typeof parsed.toPath === "string"
+      const parsed = await renameO2File(payload);
+      return typeof parsed.toPath === "string"
         ? normalizeO2Path(parsed.toPath)
         : normalizeO2Path(toPath);
-
-    return confirmedPath;
+    } catch (error) {
+      if (reportError) {
+        setErr(error instanceof Error ? error.message : String(error));
+      }
+      return null;
+    }
   }
 
   async function saveCurrent(autosave = false): Promise<void> {
     if (saving || renaming) return;
 
     let nameCandidate = currentName;
-    if (autosave) {
-      const maybeSafe = ensureMdFilename(nameCandidate);
-      if (
-        !isSafeLibraryFilename(maybeSafe) ||
-        isLegacyPlaceholderName(maybeSafe)
-      ) {
-        nameCandidate = makeTimestampFilename(tabKey);
-      }
+    const maybeSafe = ensureMdFilename(nameCandidate);
+    if (!isSafeLibraryFilename(maybeSafe) || isLegacyPlaceholderName(maybeSafe)) {
+      nameCandidate = makeTimestampFilename(tabKey);
     }
 
     const safeName = ensureMdFilename(nameCandidate);
     if (!isSafeLibraryFilename(safeName)) {
       if (!autosave) {
-        setErr("Enter a valid filename, for example: my-note.md");
-        filenameInputRef.current?.focus();
+        setErr("Unable to derive a valid filename for this entry.");
       }
       return;
     }
 
-    if (!autosave || currentName !== safeName) {
+    if (currentName !== safeName) {
       setCurrentName(safeName);
     }
 
@@ -532,7 +388,7 @@ export function DocumentLibraryPanel(props: {
       let finalPath: string;
 
       if (!currentPath) {
-        const createdPath = await writePath(`${dir}/${safeName}`, draftText);
+        const createdPath = await writePath(`${dir}/${safeName}`, draftText, !autosave);
         if (!createdPath) return;
         finalPath = createdPath;
       } else {
@@ -566,7 +422,6 @@ export function DocumentLibraryPanel(props: {
       setCurrentPath(finalPath);
       setCurrentName(finalName);
       rememberLastActivePath(finalPath);
-      setLastSavedAt(Date.now());
       setIsCreatingNew(false);
       setIsDirty(false);
 
@@ -597,10 +452,7 @@ export function DocumentLibraryPanel(props: {
         return false;
       }
 
-      if (
-        !currentPathRef.current &&
-        !hasMeaningfulContent(draftTextRef.current)
-      ) {
+      if (!currentPathRef.current && !hasMeaningfulContent(draftTextRef.current)) {
         return true;
       }
 
@@ -643,11 +495,6 @@ export function DocumentLibraryPanel(props: {
   }, [docsInFolder, currentPath, isCreatingNew, lastActivePath]);
 
   useEffect(() => {
-    if (!isCreatingNew) return;
-    filenameInputRef.current?.focus();
-  }, [isCreatingNew]);
-
-  useEffect(() => {
     autosaveRef.current = async () => {
       if (autosaveInFlightRef.current) return;
       if (!isDirtyRef.current) return;
@@ -688,178 +535,57 @@ export function DocumentLibraryPanel(props: {
   const canCopy = draftText.trim().length > 0;
 
   return (
-    <section
-      className="panel"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
-        overflow: "hidden",
-      }}
-    >
-      <div className="panelHeader">
-        <div className="panelTitle">{title}</div>
-        <div className="row" style={{ gap: 8 }}>
-          <button
-            className="btn btnGhost"
-            onClick={startNewDoc}
-            disabled={loading || saving || renaming}
-            title="Start a new named document"
-          >
-            New Entry
-          </button>
-          <button
-            className="btn"
-            onClick={() => void saveCurrent()}
-            disabled={!canSave}
-            title="Save document through O2 files.write"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button
-            type="button"
-            className="btn btnGhost"
-            onClick={() => void handleCopyCurrent()}
-            disabled={!canCopy}
-            title="Copy current editor text"
-          >
-            Copy
-          </button>
-        </div>
-      </div>
-
-      <div className="panelMeta">
-        <div>
-          <strong>Folder:</strong> {dir}
-        </div>
-        <div>
-          <strong>Selected file:</strong>{" "}
-          {currentPath ?? "(new unsaved entry)"}
-        </div>
-        <div>
-          <strong>Entries:</strong> {docsInFolder.length}
-        </div>
-        <div>
-          <strong>Last saved:</strong>{" "}
-          {lastSavedAt ? formatMaybeUnixTime(lastSavedAt) : "—"}
-        </div>
+    <section className="workspaceShell workspacePanelShell">
+      <div className="workspaceActionRow">
+        <button
+          className="btn btnGhost btnCompact"
+          onClick={startNewDoc}
+          disabled={loading || saving || renaming}
+          title="Start a new named document"
+        >
+          New Entry
+        </button>
+        <button
+          className="btn btnCompact"
+          onClick={() => void saveCurrent()}
+          disabled={!canSave}
+          title="Save document through O2 files.write"
+        >
+          {saving ? "Saving..." : "Save"}
+        </button>
+        <button
+          type="button"
+          className="btn btnGhost btnCompact"
+          onClick={() => void handleCopyCurrent()}
+          disabled={!canCopy}
+          title="Copy current editor text"
+        >
+          Copy
+        </button>
       </div>
 
       {err ? <div className="panelError">{err}</div> : null}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "260px 1fr",
-          gap: 12,
-          flex: 1,
-          minHeight: 0,
-          height: "100%",
-        }}
-      >
-        <div
-          style={{
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 10,
-            overflowY: "auto",
-            overflowX: "hidden",
-            minHeight: 0,
-            height: "100%",
-          }}
-        >
-          {docsInFolder.length === 0 ? (
-            <div style={{ padding: 12, opacity: 0.8 }}>No documents yet.</div>
-          ) : (
-            docsInFolder.map((it) => {
-              const selected = currentPath === it.path;
-              return (
-                <button
-                  key={it.path}
-                  type="button"
-                  onClick={() => void openPath(it.path)}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "10px 12px",
-                    border: "none",
-                    borderBottom: "1px solid rgba(255,255,255,0.08)",
-                    background: selected
-                      ? "rgba(255,255,255,0.08)"
-                      : "transparent",
-                    color: "inherit",
-                    cursor: "pointer",
-                  }}
-                  title={it.path}
-                >
-                  <div style={{ fontWeight: 600, wordBreak: "break-word" }}>
-                    {baseNameFromPath(it.path)}
-                  </div>
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>
-                    {it.mtime ? formatMaybeUnixTime(it.mtime) : "—"}
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
+      <div className="workspaceContentGrid">
+        <ArtifactListPanel
+          title={title}
+          items={docsInFolder}
+          currentPath={currentPath}
+          emptyText="No entries yet."
+          onSelect={(path) => void openPath(path)}
+        />
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            minHeight: 0,
-          }}
-        >
-          <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 12,
-                fontWeight: 600,
-                marginBottom: 6,
-              }}
-            >
-              Filename
-            </label>
-            <input
-              ref={filenameInputRef}
-              type="text"
-              value={currentName}
-              onChange={(e) => {
-                setCurrentName(e.target.value);
-                setIsDirty(true);
-              }}
-              placeholder={`${defaultDocStem(tabKey)}_YYYYMMDD_HHMMSS.md`}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "transparent",
-                color: "inherit",
-              }}
-            />
-          </div>
-
-          <div style={{ flex: 1, minHeight: 0 }}>
+        <div className="workspaceEditorColumn">
+          <div className="workspaceEditorFill">
             <textarea
-              className="pasteArea"
               value={draftText}
               onChange={(e) => {
                 setDraftText(e.target.value);
                 setIsDirty(true);
               }}
-              placeholder={placeholder ?? "Write here…"}
+              placeholder={placeholder ?? "Write here..."}
               spellCheck={false}
-              style={{
-                width: "100%",
-                height: "100%",
-                resize: "none",
-                overflow: "auto",
-              }}
+              className="pasteArea workspaceTextAreaFill"
             />
           </div>
         </div>

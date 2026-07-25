@@ -1,21 +1,7 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { SplitTextPanel } from "../common/SplitTextPanel";
 import { copyText } from "../common/copyText";
-
-type RunO2Result = {
-  ok: boolean;
-  code?: number;
-  stdout: string;
-  stderr: string;
-};
-
-function joinOut(r: RunO2Result): string {
-  const a = (r.stdout || "").trimEnd();
-  const b = (r.stderr || "").trimEnd();
-  if (a && b) return `${a}\n${b}`;
-  return a || b || "";
-}
+import { joinO2ResultOutput, runO2WithInput } from "../common/o2Files";
 
 export function CodexChatTab() {
   const [prompt, setPrompt] = useState("");
@@ -25,14 +11,11 @@ export function CodexChatTab() {
   async function run() {
     setRunning(true);
     try {
-      const res = await invoke<RunO2Result>("run_o2_with_input", {
-        verb: "codex.chat",
-        input: prompt,
-      });
-      const text = joinOut(res);
+      const res = await runO2WithInput("codex.chat", prompt);
+      const text = joinO2ResultOutput(res);
       setOut(text || (res.ok ? "(no output)" : "codex.chat failed"));
-    } catch (e: any) {
-      setOut(String(e?.message ?? e));
+    } catch (e) {
+      setOut(String(e instanceof Error ? e.message : e));
     } finally {
       setRunning(false);
     }

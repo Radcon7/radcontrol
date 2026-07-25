@@ -36,138 +36,77 @@ export function SplitTextPanel(props: Props) {
     onClear,
   } = props;
 
-  const body = (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        flex: 1,
-        minHeight: 0,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          minHeight: 0,
-        }}
-      >
-        <div style={{ fontSize: 12, opacity: 0.85 }}>{topLabel}</div>
-        <textarea
-          value={topValue}
-          onChange={(e) => onTopChange(e.target.value)}
-          placeholder={topPlaceholder}
-          disabled={Boolean(busy)}
-          spellCheck={false}
-          style={{
-            width: "100%",
-            minHeight: 180,
-            resize: "vertical",
-            padding: 10,
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(0,0,0,0.25)",
-            color: "inherit",
-            fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            fontSize: 18,
-            lineHeight: 1.55,
-          }}
-        />
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
-        <div style={{ fontSize: 12, opacity: 0.85 }}>{bottomLabel}</div>
-        <textarea
-          readOnly
-          value={bottomValue}
-          placeholder={bottomPlaceholder}
-          spellCheck={false}
-          style={{
-            width: "100%",
-            minHeight: 260,
-            flex: 1,
-            resize: "none",
-            padding: 10,
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(0,0,0,0.35)",
-            color: "inherit",
-            fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            fontSize: 18,
-            lineHeight: 1.55,
-            whiteSpace: "pre",
-            boxSizing: "border-box",
-          }}
-        />
-      </div>
-    </div>
-  );
-
   const hasStandaloneHeader =
     Boolean(title) || Boolean(onRun) || Boolean(onCopy) || Boolean(onClear);
-
-  if (!hasStandaloneHeader) {
-    return body;
-  }
+  const hasActions = Boolean(onRun) || Boolean(onCopy) || Boolean(onClear);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        flex: 1,
-        minHeight: 0,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        {title ? (
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{title}</div>
-        ) : null}
+    <div className="splitTextPanel">
+      {hasStandaloneHeader ? (
+        <div className="splitTextPanelHeader">
+          {title ? <div className="splitTextPanelTitle">{title}</div> : null}
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          {onRun ? (
-            <button
-              className="btn btnPrimary"
-              onClick={() => void onRun()}
-              disabled={Boolean(busy)}
-              title={runLabel || "Run"}
-            >
-              {busy ? "Running…" : runLabel || "Run"}
-            </button>
+          {hasActions ? (
+            <div className="splitTextPanelActions">
+              {onRun ? (
+                <button
+                  className="btn btnPrimary"
+                  onClick={() => void onRun()}
+                  disabled={Boolean(busy)}
+                  title={runLabel || "Run"}
+                >
+                  {busy ? "Running…" : runLabel || "Run"}
+                </button>
+              ) : null}
+
+              {onCopy ? (
+                <button
+                  className="btn btnGhost"
+                  onClick={onCopy}
+                  disabled={(bottomValue || "").trim().length === 0}
+                >
+                  Copy
+                </button>
+              ) : null}
+
+              {onClear ? (
+                <button
+                  className="btn btnGhost"
+                  onClick={onClear}
+                  disabled={Boolean(busy)}
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
           ) : null}
+        </div>
+      ) : null}
 
-          <button
-            className="btn btnGhost"
-            onClick={onCopy}
-            disabled={!onCopy || (bottomValue || "").trim().length === 0}
-          >
-            Copy
-          </button>
+      <div className="splitTextPanelBody">
+        <div className="splitTextPanelSection">
+          <div className="splitTextPanelLabel">{topLabel}</div>
+          <textarea
+            value={topValue}
+            onChange={(e) => onTopChange(e.target.value)}
+            placeholder={topPlaceholder}
+            disabled={Boolean(busy)}
+            spellCheck={false}
+            className="pasteArea splitTextPanelTopArea"
+          />
+        </div>
 
-          <button
-            className="btn btnGhost"
-            onClick={onClear}
-            disabled={!onClear || Boolean(busy)}
-          >
-            Clear
-          </button>
+        <div className="splitTextPanelSection splitTextPanelSectionFill">
+          <div className="splitTextPanelLabel">{bottomLabel}</div>
+          <textarea
+            readOnly
+            value={bottomValue}
+            placeholder={bottomPlaceholder}
+            spellCheck={false}
+            className="pasteArea splitTextPanelBottomArea"
+          />
         </div>
       </div>
-
-      {body}
     </div>
   );
 }

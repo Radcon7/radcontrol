@@ -6,6 +6,7 @@
   "scripts": {
     "tauri:preflight": "node scripts/tauri_preflight.mjs",
     "dev:sanity": "node scripts/dev_sanity_check.mjs",
+    "lint": "tsc --noEmit",
     "vite:dev": "vite",
     "vite:build": "tsc && vite build",
     "vite:preview": "vite preview",

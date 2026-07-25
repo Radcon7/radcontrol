@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import { formatMaybeUnixTime, type FilesListItem } from "./useArtifactStore";
 
 type Props = {
@@ -17,44 +16,28 @@ export function ArtifactListPanel({
   onSelect,
 }: Props) {
   return (
-    <div
-      style={{
-        minHeight: 0,
-        overflow: "auto",
-        border: "1px solid rgba(255,255,255,0.14)",
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.03)",
-        padding: 10,
-      }}
-    >
-      <div style={{ fontWeight: 800, marginBottom: 10 }}>{title}</div>
+    <div className="artifactListPanel">
+      <div className="artifactListTitle">{title}</div>
 
-      <div style={{ display: "grid", gap: 8 }}>
+      <div className="artifactListItems">
         {items.length === 0 ? (
-          <div style={{ opacity: 0.72 }}>{emptyText}</div>
+          <div className="artifactListEmpty">{emptyText}</div>
         ) : (
           items.map((item) => {
             const path = item.path || "";
             const active = currentPath === path;
             const name = path.split("/").pop() || path;
 
-            const buttonStyle: CSSProperties = {
-              justifyContent: "flex-start",
-              textAlign: "left",
-              borderColor: active ? "rgba(255,255,255,0.32)" : undefined,
-            };
-
             return (
               <button
                 key={path}
-                className="btn btnGhost"
-                style={buttonStyle}
+                className={`btn btnGhost artifactListItem ${active ? "artifactListItemActive" : ""}`}
                 onClick={() => onSelect(path)}
                 title={path}
               >
-                <span style={{ display: "grid", gap: 2 }}>
+                <span className="artifactListItemBody">
                   <span>{name}</span>
-                  <span style={{ fontSize: 12, opacity: 0.68 }}>
+                  <span className="artifactListItemMeta">
                     {item.mtime ? formatMaybeUnixTime(item.mtime) : "—"}
                   </span>
                 </span>

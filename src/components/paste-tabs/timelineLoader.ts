@@ -1,45 +1,9 @@
-import { invoke } from "@tauri-apps/api/core";
-
-type RunO2Result = {
-  ok: boolean;
-  code: number;
-  stdout: string;
-  stderr: string;
-};
-
-type FilesListItem = {
-  kind?: string;
-  path?: string;
-  mtime?: number;
-  bytes?: number;
-};
-
-type FilesListJson = {
-  ok?: boolean;
-  root?: string;
-  docs_dir?: string;
-  items?: FilesListItem[];
-  error?: string;
-};
-
-type FilesReadJson = {
-  ok?: boolean;
-  path?: string;
-  content?: string;
-  bytes?: number;
-  mtime?: number;
-  error?: string;
-};
-
-type FilesWriteJson = {
-  ok?: boolean;
-  path?: string;
-  mtime?: number;
-  bytes?: number;
-  committed?: boolean;
-  commitMessage?: string | null;
-  error?: string;
-};
+import {
+  listO2Files,
+  normalizeO2Path,
+  readO2File,
+  writeO2File,
+} from "../common/o2Files";
 
 export type TimelineMilestone = {
   path: string;
@@ -60,40 +24,14 @@ export type NewMilestoneInput = {
 };
 
 const TIMELINE_DIR = "docs/radcontrol/timeline";
-const TIMELINE_LIST_VERB = `files.list.${b64urlEncodeUtf8(TIMELINE_DIR)}`;
-
-function normalizeO2Path(path: string): string {
-  return (path || "").replace(/\\/g, "/").trim();
+function normalizeTimelinePath(path: string): string {
+  return normalizeO2Path(path).replace(/\\/g, "/").trim();
 }
 
 function fileNameFromPath(path: string): string {
-  const normalized = normalizeO2Path(path);
+  const normalized = normalizeTimelinePath(path);
   const parts = normalized.split("/");
   return parts[parts.length - 1] || normalized;
-}
-
-function b64urlEncodeUtf8(value: string): string {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
-
-async function runO2(verb: string): Promise<RunO2Result> {
-  return (await invoke("run_o2", { verb })) as RunO2Result;
-}
-
-function errMsg(res: RunO2Result, fallback: string): string {
-  const stderr = (res.stderr || "").trim();
-  const stdout = (res.stdout || "").trim();
-  return stderr || stdout || fallback;
-}
-
-function parseJson<T>(text: string): T {
-  return JSON.parse(text) as T;
 }
 
 function stripQuotes(value: string): string {
@@ -208,26 +146,12 @@ function buildMilestoneFileContent(
 }
 
 export async function listTimelineMilestones(): Promise<TimelineMilestone[]> {
-  const listRes = await runO2(TIMELINE_LIST_VERB);
-  if (!listRes.ok) {
-    throw new Error(errMsg(listRes, "files.list failed"));
-  }
-
-  let listJson: FilesListJson;
-  try {
-    listJson = parseJson<FilesListJson>(listRes.stdout);
-  } catch {
-    throw new Error("files.list returned invalid JSON");
-  }
-
-  if (!listJson.ok) {
-    throw new Error(listJson.error || "files.list returned error");
-  }
+  const listJson = await listO2Files(TIMELINE_DIR);
 
   const items = (listJson.items || [])
     .filter((item) => typeof item.path === "string")
     .map((item) => ({
-      path: normalizeO2Path(item.path || ""),
+      path: normalizeTimelinePath(item.path || ""),
       mtime: typeof item.mtime === "number" ? item.mtime : undefined,
     }))
     .filter(
@@ -238,23 +162,7 @@ export async function listTimelineMilestones(): Promise<TimelineMilestone[]> {
 
   const milestones = await Promise.all(
     items.map(async (item) => {
-      const readRes = await runO2(`files.read.${b64urlEncodeUtf8(item.path)}`);
-      if (!readRes.ok) {
-        throw new Error(errMsg(readRes, `files.read failed for ${item.path}`));
-      }
-
-      let readJson: FilesReadJson;
-      try {
-        readJson = parseJson<FilesReadJson>(readRes.stdout);
-      } catch {
-        throw new Error("files.read returned invalid JSON");
-      }
-
-      if (!readJson.ok) {
-        throw new Error(
-          readJson.error || `files.read returned error for ${item.path}`,
-        );
-      }
+      const readJson = await readO2File(item.path);
 
       return buildMilestoneFromContent(
         item.path,
@@ -294,41 +202,11 @@ export async function createTimelineMilestone(
     commitMessage: `timeline: add milestone ${title}`,
   };
 
-  const writeRes = await runO2(
-    `files.write.${b64urlEncodeUtf8(JSON.stringify(payload))}`,
-  );
-  if (!writeRes.ok) {
-    throw new Error(errMsg(writeRes, "files.write failed"));
-  }
+  const writeJson = await writeO2File(payload);
 
-  let writeJson: FilesWriteJson;
-  try {
-    writeJson = parseJson<FilesWriteJson>(writeRes.stdout);
-  } catch {
-    throw new Error("files.write returned invalid JSON");
-  }
+  const canonicalPath = normalizeTimelinePath(writeJson.path || path);
 
-  if (!writeJson.ok) {
-    throw new Error(writeJson.error || "files.write returned error");
-  }
-
-  const canonicalPath = normalizeO2Path(writeJson.path || path);
-
-  const readRes = await runO2(`files.read.${b64urlEncodeUtf8(canonicalPath)}`);
-  if (!readRes.ok) {
-    throw new Error(errMsg(readRes, "post-write files.read failed"));
-  }
-
-  let readJson: FilesReadJson;
-  try {
-    readJson = parseJson<FilesReadJson>(readRes.stdout);
-  } catch {
-    throw new Error("post-write files.read returned invalid JSON");
-  }
-
-  if (!readJson.ok) {
-    throw new Error(readJson.error || "post-write files.read returned error");
-  }
+  const readJson = await readO2File(canonicalPath);
 
   return buildMilestoneFromContent(
     canonicalPath,

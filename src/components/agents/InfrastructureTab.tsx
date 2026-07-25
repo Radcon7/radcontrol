@@ -1,33 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { ArtifactListPanel } from "../common/ArtifactListPanel";
-import { SystemStateShell } from "../common/SystemStateShell";
 import {
-  formatMaybeUnixTime,
   type FilesListItem,
-} from "../common/useArtifactStore";
+  listO2Files,
+  readO2File,
+  runO2PayloadParsedJson,
+} from "../common/o2Files";
+import { SystemStateShell } from "../common/SystemStateShell";
 import type { ProjectRow } from "../projects/types";
-
-type RunO2Result = {
-  ok?: boolean;
-  code?: number;
-  stdout?: string;
-  stderr?: string;
-};
-
-type FilesListJson = {
-  ok?: boolean;
-  items?: FilesListItem[];
-  error?: string;
-};
-
-type FilesReadJson = {
-  ok?: boolean;
-  content?: string;
-  path?: string;
-  error?: string;
-  mtime?: number;
-};
 
 type CreateInfrastructureJson = {
   ok?: boolean;
@@ -40,23 +20,21 @@ type Props = {
   projects: ProjectRow[];
 };
 
+type InfrastructureTemplate = {
+  id: string;
+  label: string;
+  assetType: string;
+  provider: string;
+  owningOrg: string;
+  environmentScope: string;
+  relatedProjectKeys: string;
+  role: string;
+  canonicalDomain: string;
+  primaryConsoleUrl: string;
+  statusSummary: string;
+};
+
 const RECORDS_DIR = "docs/infrastructure/records";
-
-function b64urlEncodeUtf8(value: string): string {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-  bytes.forEach((b) => {
-    binary += String.fromCharCode(b);
-  });
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
-
-function errMsg(res: RunO2Result, fallback: string): string {
-  return (res.stderr || "").trim() || fallback;
-}
 
 function isOriginArtifact(item: FilesListItem): boolean {
   const path = item.path || "";
@@ -71,17 +49,79 @@ export function InfrastructureTab({ projects }: Props) {
   const [items, setItems] = useState<FilesListItem[]>([]);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [currentText, setCurrentText] = useState("");
-  const [currentMtime, setCurrentMtime] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [err, setErr] = useState("");
+
+  const firstProjectKey = projects[0]?.key || "dqotd";
+  const dqotdProjectKey = projects.find((project) => project.key === "dqotd")?.key || firstProjectKey;
+  const radcontrolProjectKey =
+    projects.find((project) => project.key === "radcontrol")?.key || firstProjectKey;
+
+  const templates = useMemo<InfrastructureTemplate[]>(
+    () => [
+      {
+        id: "domain-public",
+        label: "Public Domain",
+        assetType: "domain",
+        provider: "cloudflare",
+        owningOrg: "radcon",
+        environmentScope: "production",
+        relatedProjectKeys: dqotdProjectKey,
+        role: "Public-facing canonical domain used by a launched or launch-ready website.",
+        canonicalDomain: "dinosaurquestionoftheday.com",
+        primaryConsoleUrl: "",
+        statusSummary: "Record the owner, DNS authority, and launch readiness for this public domain.",
+      },
+      {
+        id: "vercel-runtime",
+        label: "Vercel Runtime",
+        assetType: "vercel_project",
+        provider: "vercel",
+        owningOrg: "radcon",
+        environmentScope: "preview",
+        relatedProjectKeys: dqotdProjectKey,
+        role: "Deployment runtime and preview surface for a governed web property.",
+        canonicalDomain: "",
+        primaryConsoleUrl: "https://vercel.com/dashboard",
+        statusSummary: "Track deploy ownership, environment variables, and preview stability.",
+      },
+      {
+        id: "supabase-stack",
+        label: "Supabase Stack",
+        assetType: "supabase_project",
+        provider: "supabase",
+        owningOrg: "radcon",
+        environmentScope: "mixed",
+        relatedProjectKeys: dqotdProjectKey,
+        role: "Backend data and auth surface supporting a governed application.",
+        canonicalDomain: "",
+        primaryConsoleUrl: "https://supabase.com/dashboard/projects",
+        statusSummary: "Capture auth, storage, and migration responsibility under one governed record.",
+      },
+      {
+        id: "radcontrol-ops",
+        label: "RadControl Runtime",
+        assetType: "uptime_target",
+        provider: "local",
+        owningOrg: "radcon",
+        environmentScope: "local",
+        relatedProjectKeys: radcontrolProjectKey,
+        role: "Operational surface for the desktop command center itself.",
+        canonicalDomain: "",
+        primaryConsoleUrl: "http://localhost:1420",
+        statusSummary: "Use this to track local runtime expectations, launch flow, and restart doctrine.",
+      },
+    ],
+    [dqotdProjectKey, radcontrolProjectKey],
+  );
 
   const [label, setLabel] = useState("DQOTD Domain");
   const [assetType, setAssetType] = useState("domain");
   const [provider, setProvider] = useState("cloudflare");
   const [owningOrg, setOwningOrg] = useState("radcon");
   const [environmentScope, setEnvironmentScope] = useState("production");
-  const [relatedProjectKeys, setRelatedProjectKeys] = useState("dqotd");
+  const [relatedProjectKeys, setRelatedProjectKeys] = useState(dqotdProjectKey);
   const [role, setRole] = useState(
     "Primary public-facing domain asset for the first launched website.",
   );
@@ -97,49 +137,23 @@ export function InfrastructureTab({ projects }: Props) {
     "- Which provider-side health or status checks should be automated first?",
   );
 
-  const listVerb = useMemo(
-    () => `files.list.${b64urlEncodeUtf8(RECORDS_DIR)}`,
-    [],
-  );
-
   const originRecords = useMemo(
     () => sortNewest(items.filter(isOriginArtifact)),
     [items],
   );
 
   async function readPath(path: string): Promise<void> {
-    const res = (await invoke("run_o2", {
-      verb: `files.read.${b64urlEncodeUtf8(path)}`,
-    })) as RunO2Result;
-    if (!res.ok) throw new Error(errMsg(res, "files.read failed"));
-
-    let parsed: FilesReadJson;
-    try {
-      parsed = JSON.parse((res.stdout || "").trim()) as FilesReadJson;
-    } catch {
-      throw new Error("files.read returned invalid JSON");
-    }
-    if (!parsed.ok) throw new Error(parsed.error || "files.read returned error");
+    const parsed = await readO2File(path);
 
     setCurrentPath(path);
     setCurrentText(parsed.content || "");
-    setCurrentMtime(parsed.mtime || null);
   }
 
   async function refreshList(preferredPath?: string | null): Promise<void> {
     setLoading(true);
     setErr("");
     try {
-      const res = (await invoke("run_o2", { verb: listVerb })) as RunO2Result;
-      if (!res.ok) throw new Error(errMsg(res, "files.list failed"));
-
-      let parsed: FilesListJson;
-      try {
-        parsed = JSON.parse((res.stdout || "").trim()) as FilesListJson;
-      } catch {
-        throw new Error("files.list returned invalid JSON");
-      }
-      if (!parsed.ok) throw new Error(parsed.error || "files.list returned error");
+      const parsed = await listO2Files(RECORDS_DIR);
 
       const nextItems = parsed.items || [];
       const nextOrigins = sortNewest(nextItems.filter(isOriginArtifact));
@@ -157,7 +171,6 @@ export function InfrastructureTab({ projects }: Props) {
       } else {
         setCurrentPath(null);
         setCurrentText("");
-        setCurrentMtime(null);
       }
     } catch (error) {
       setErr(error instanceof Error ? error.message : String(error));
@@ -170,6 +183,19 @@ export function InfrastructureTab({ projects }: Props) {
     void refreshList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function applyTemplate(template: InfrastructureTemplate): void {
+    setLabel(template.label);
+    setAssetType(template.assetType);
+    setProvider(template.provider);
+    setOwningOrg(template.owningOrg);
+    setEnvironmentScope(template.environmentScope);
+    setRelatedProjectKeys(template.relatedProjectKeys);
+    setRole(template.role);
+    setCanonicalDomain(template.canonicalDomain);
+    setPrimaryConsoleUrl(template.primaryConsoleUrl);
+    setStatusSummary(template.statusSummary);
+  }
 
   async function createAsset(): Promise<void> {
     if (!label.trim() || !assetType.trim() || !provider.trim() || !role.trim()) {
@@ -198,16 +224,12 @@ export function InfrastructureTab({ projects }: Props) {
         openQuestions,
       };
 
-      const verb = `infrastructure_asset.create.${b64urlEncodeUtf8(JSON.stringify(payload))}`;
-      const res = (await invoke("run_o2", { verb })) as RunO2Result;
-      if (!res.ok) throw new Error(errMsg(res, "infrastructure_asset.create failed"));
-
-      let parsed: CreateInfrastructureJson;
-      try {
-        parsed = JSON.parse((res.stdout || "").trim()) as CreateInfrastructureJson;
-      } catch {
-        throw new Error("infrastructure_asset.create returned invalid JSON");
-      }
+      const parsed = await runO2PayloadParsedJson<CreateInfrastructureJson>(
+        "infrastructure_asset.create",
+        payload,
+        "infrastructure_asset.create failed",
+        "infrastructure_asset.create returned invalid JSON",
+      );
       if (!parsed.ok || !parsed.originArtifactPath) {
         throw new Error(parsed.error || "infrastructure_asset.create returned error");
       }
@@ -221,137 +243,47 @@ export function InfrastructureTab({ projects }: Props) {
   }
 
   const actions = (
-    <button
-      className="btn btnGhost"
-      onClick={() => void refreshList()}
-      disabled={loading || creating}
-    >
-      {loading ? "Loading…" : "Load"}
-    </button>
+    <>
+      <button className="btn btnGhost" onClick={() => applyTemplate(templates[0])}>
+        Apply Domain Template
+      </button>
+      <button
+        className="btn btnGhost"
+        onClick={() => void refreshList()}
+        disabled={loading || creating}
+      >
+        {loading ? "Loading…" : "Refresh"}
+      </button>
+    </>
   );
 
-  const meta = (
-    <div className="panelMeta">
-      <div>
-        <strong>Record root:</strong> {RECORDS_DIR}
-      </div>
-      <div>
-        <strong>Assets found:</strong> {originRecords.length}
-      </div>
-      <div>
-        <strong>Selected file:</strong> {currentPath ?? "(none loaded)"}
-      </div>
-      <div>
-        <strong>Last updated:</strong>{" "}
-        {currentMtime ? formatMaybeUnixTime(currentMtime) : "—"}
-      </div>
-    </div>
-  );
 
   return (
-    <SystemStateShell title="Infrastructure" actions={actions} meta={meta} error={err ? <>{err}</> : null}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "340px 1fr",
-          gap: 12,
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
-        <div style={{ display: "grid", gap: 12, minHeight: 0 }}>
-          <div
-            style={{
-              border: "1px solid rgba(255,255,255,0.14)",
-              borderRadius: 12,
-              background: "rgba(255,255,255,0.03)",
-              padding: 12,
-              display: "grid",
-              gap: 10,
-            }}
-          >
-            <div style={{ fontWeight: 800 }}>Create Infrastructure Asset</div>
-
-            <label style={{ display: "grid", gap: 4 }}>
-              <span style={{ fontSize: 12, opacity: 0.76 }}>Label</span>
-              <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} />
-            </label>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={{ fontSize: 12, opacity: 0.76 }}>Asset Type</span>
-                <select className="input" value={assetType} onChange={(e) => setAssetType(e.target.value)}>
-                  <option value="domain">domain</option>
-                  <option value="dns_zone">dns_zone</option>
-                  <option value="vercel_project">vercel_project</option>
-                  <option value="supabase_project">supabase_project</option>
-                  <option value="google_workspace">google_workspace</option>
-                  <option value="uptime_target">uptime_target</option>
-                  <option value="analytics_property">analytics_property</option>
-                  <option value="other">other</option>
-                </select>
-              </label>
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={{ fontSize: 12, opacity: 0.76 }}>Provider</span>
-                <input className="input" value={provider} onChange={(e) => setProvider(e.target.value)} />
-              </label>
+    <SystemStateShell
+      title="Infrastructure"
+      actions={actions}
+      error={err ? <>{err}</> : null}
+    >
+      <div className="surfaceLayout">
+        <div className="surfaceSidebarStack">
+          <div className="surfaceCard">
+            <div className="surfaceCardTitle">Infrastructure Templates</div>
+            <div className="surfaceList">
+              {templates.map((template) => (
+                <button
+                  key={template.id}
+                  className="btn btnGhost surfaceButtonLeft"
+                  onClick={() => applyTemplate(template)}
+                >
+                  <span className="surfaceButtonBody">
+                    <span>{template.label}</span>
+                    <span className="surfaceButtonMeta">
+                      {template.provider} • {template.assetType} • {template.environmentScope}
+                    </span>
+                  </span>
+                </button>
+              ))}
             </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={{ fontSize: 12, opacity: 0.76 }}>Owning Org</span>
-                <input className="input" value={owningOrg} onChange={(e) => setOwningOrg(e.target.value)} />
-              </label>
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={{ fontSize: 12, opacity: 0.76 }}>Environment Scope</span>
-                <select className="input" value={environmentScope} onChange={(e) => setEnvironmentScope(e.target.value)}>
-                  <option value="local">local</option>
-                  <option value="preview">preview</option>
-                  <option value="production">production</option>
-                  <option value="mixed">mixed</option>
-                  <option value="other">other</option>
-                </select>
-              </label>
-            </div>
-
-            <label style={{ display: "grid", gap: 4 }}>
-              <span style={{ fontSize: 12, opacity: 0.76 }}>Related Project Keys</span>
-              <input
-                className="input"
-                list="infrastructure-project-keys"
-                value={relatedProjectKeys}
-                onChange={(e) => setRelatedProjectKeys(e.target.value)}
-              />
-              <datalist id="infrastructure-project-keys">
-                {projects.map((project) => (
-                  <option key={project.key} value={project.key} />
-                ))}
-              </datalist>
-            </label>
-
-            <label style={{ display: "grid", gap: 4 }}>
-              <span style={{ fontSize: 12, opacity: 0.76 }}>Role</span>
-              <textarea className="pasteArea" style={{ minHeight: 90 }} value={role} onChange={(e) => setRole(e.target.value)} />
-            </label>
-
-            <label style={{ display: "grid", gap: 4 }}>
-              <span style={{ fontSize: 12, opacity: 0.76 }}>Canonical Domain</span>
-              <input className="input" value={canonicalDomain} onChange={(e) => setCanonicalDomain(e.target.value)} />
-            </label>
-
-            <label style={{ display: "grid", gap: 4 }}>
-              <span style={{ fontSize: 12, opacity: 0.76 }}>Primary Console URL</span>
-              <input className="input" value={primaryConsoleUrl} onChange={(e) => setPrimaryConsoleUrl(e.target.value)} />
-            </label>
-
-            <label style={{ display: "grid", gap: 4 }}>
-              <span style={{ fontSize: 12, opacity: 0.76 }}>Status Summary</span>
-              <textarea className="pasteArea" style={{ minHeight: 70 }} value={statusSummary} onChange={(e) => setStatusSummary(e.target.value)} />
-            </label>
-
-            <button className="btn btnPrimary" onClick={() => void createAsset()} disabled={creating || loading}>
-              {creating ? "Creating…" : "Create Asset"}
-            </button>
           </div>
 
           <ArtifactListPanel
@@ -363,28 +295,104 @@ export function InfrastructureTab({ projects }: Props) {
           />
         </div>
 
-        <div style={{ minHeight: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-          <div
-            style={{
-              border: "1px solid rgba(255,255,255,0.14)",
-              borderRadius: 12,
-              background: "rgba(255,255,255,0.03)",
-              padding: 10,
-              fontSize: 13,
-              opacity: 0.86,
-            }}
-          >
-            <strong>View:</strong> governed <code>00_origin.md</code> anchor for the selected infrastructure asset
-          </div>
+        <div className="surfaceCommandMain">
+          <div className="surfaceTwoPane">
+            <div className="surfaceCard surfaceFormGrid surfaceScrollCard">
+              <div className="surfaceCardTitle">Create Infrastructure Asset</div>
 
-          <textarea
-            className="pasteArea"
-            value={currentText}
-            onChange={(e) => setCurrentText(e.target.value)}
-            placeholder="Selected infrastructure origin record will appear here…"
-            spellCheck={false}
-            style={{ flex: 1, minHeight: 0 }}
-          />
+              <label className="surfaceFormField">
+                <span className="surfaceFormLabel">Label</span>
+                <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} />
+              </label>
+
+              <div className="surfaceFormRow2">
+                <label className="surfaceFormField">
+                  <span className="surfaceFormLabel">Asset Type</span>
+                  <select className="input" value={assetType} onChange={(e) => setAssetType(e.target.value)}>
+                    <option value="domain">domain</option>
+                    <option value="dns_zone">dns_zone</option>
+                    <option value="vercel_project">vercel_project</option>
+                    <option value="supabase_project">supabase_project</option>
+                    <option value="google_workspace">google_workspace</option>
+                    <option value="uptime_target">uptime_target</option>
+                    <option value="analytics_property">analytics_property</option>
+                    <option value="other">other</option>
+                  </select>
+                </label>
+                <label className="surfaceFormField">
+                  <span className="surfaceFormLabel">Provider</span>
+                  <input className="input" value={provider} onChange={(e) => setProvider(e.target.value)} />
+                </label>
+              </div>
+
+              <div className="surfaceFormRow2">
+                <label className="surfaceFormField">
+                  <span className="surfaceFormLabel">Owning Org</span>
+                  <input className="input" value={owningOrg} onChange={(e) => setOwningOrg(e.target.value)} />
+                </label>
+                <label className="surfaceFormField">
+                  <span className="surfaceFormLabel">Environment Scope</span>
+                  <select className="input" value={environmentScope} onChange={(e) => setEnvironmentScope(e.target.value)}>
+                    <option value="local">local</option>
+                    <option value="preview">preview</option>
+                    <option value="production">production</option>
+                    <option value="mixed">mixed</option>
+                    <option value="other">other</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="surfaceFormField">
+                <span className="surfaceFormLabel">Related Project Keys</span>
+                <input
+                  className="input"
+                  list="infrastructure-project-keys"
+                  value={relatedProjectKeys}
+                  onChange={(e) => setRelatedProjectKeys(e.target.value)}
+                />
+                <datalist id="infrastructure-project-keys">
+                  {projects.map((project) => (
+                    <option key={project.key} value={project.key} />
+                  ))}
+                </datalist>
+              </label>
+
+              <label className="surfaceFormField">
+                <span className="surfaceFormLabel">Role</span>
+                <textarea className="pasteArea surfaceTextAreaLg" value={role} onChange={(e) => setRole(e.target.value)} />
+              </label>
+
+              <label className="surfaceFormField">
+                <span className="surfaceFormLabel">Canonical Domain</span>
+                <input className="input" value={canonicalDomain} onChange={(e) => setCanonicalDomain(e.target.value)} />
+              </label>
+
+              <label className="surfaceFormField">
+                <span className="surfaceFormLabel">Primary Console URL</span>
+                <input className="input" value={primaryConsoleUrl} onChange={(e) => setPrimaryConsoleUrl(e.target.value)} />
+              </label>
+
+              <label className="surfaceFormField">
+                <span className="surfaceFormLabel">Status Summary</span>
+                <textarea className="pasteArea surfaceTextAreaMd" value={statusSummary} onChange={(e) => setStatusSummary(e.target.value)} />
+              </label>
+
+              <button className="btn btnPrimary" onClick={() => void createAsset()} disabled={creating || loading}>
+                {creating ? "Creating…" : "Create Governed Asset"}
+              </button>
+            </div>
+
+            <div className="surfaceCard surfaceViewer">
+              <div className="surfaceCardTitle">Governed Record</div>
+              <textarea
+                className="pasteArea surfaceTextareaFill"
+                value={currentText}
+                placeholder="Selected infrastructure origin record will appear here…"
+                spellCheck={false}
+                readOnly
+              />
+            </div>
+          </div>
         </div>
       </div>
     </SystemStateShell>
