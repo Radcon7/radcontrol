@@ -1,16 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { EmpireUtilityTab } from "./components/empire-utility/EmpireUtilityTab";
 
-import { DocumentLibraryPanel } from "./components/paste-tabs/DocumentLibraryPanel";
 import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
 import { LegalHubTab } from "./components/paste-tabs/LegalHubTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
 import { AddProjectModal } from "./components/projects/AddProjectModal";
-import type { AddProjectModalPrefill } from "./components/projects/AddProjectModal";
+import type {
+  AddProjectModalPrefill,
+  GovernedPortSuggestion,
+  GovernedStarterPattern,
+} from "./components/projects/AddProjectModal";
 import { ProjectLabsModal } from "./components/projects/ProjectLabsModal";
 
 import { AgentRunsTab } from "./components/agents/AgentRunsTab";
@@ -19,16 +22,13 @@ import { InfrastructureTab } from "./components/agents/InfrastructureTab";
 import type {
   AddProjectPayload,
   PortStatus,
+  ProjectKind,
   ProjectRow,
 } from "./components/projects/types";
-import {
-  fmtErr,
-  registryToProjects,
-  nextPortSuggestion,
-} from "./components/projects/helpers";
+import { fmtErr, registryToProjects } from "./components/projects/helpers";
 import { encodeO2JsonPayload, runO2Text } from "./components/common/o2Files";
 
-type LibraryTabKey = "notes" | "legal" | "labs";
+type LibraryTabKey = "notes" | "legal";
 type DocTabKey = LibraryTabKey;
 
 type TabKey =
@@ -47,7 +47,6 @@ type DocTabMeta = {
 const DOC_TABS: DocTabMeta[] = [
   { key: "notes", label: "Notes", mode: "library" },
   { key: "legal", label: "Legal", mode: "library" },
-  { key: "labs", label: "Patterns", mode: "library" },
 ];
 
 const ALL_TABS: TabKey[] = [
@@ -225,39 +224,47 @@ function parsePortStatusJson(out: string, port: number): PortStatus {
   }
 }
 
-function registryPortForKey(reg: unknown, key: string): number | null {
-  const regObj = asRecord(reg);
-  const projects = Array.isArray(reg)
-    ? reg
-    : Array.isArray(regObj?.projects)
-      ? regObj.projects
-      : null;
-  if (!projects) return null;
-
-  const row = projects.find(
-    (r) =>
-      r && typeof r === "object" && (r as Record<string, unknown>).key === key,
-  ) as Record<string, unknown> | undefined;
-
-  const port = row?.port;
-  return typeof port === "number" && Number.isFinite(port) && port > 0
-    ? port
-    : null;
-}
-
 type FormationStartPayload = {
   projectType: CanonicalProjectType;
   name: string;
   label: string;
   key: string;
+  org: string;
+  repoPath: string;
+  repoHint: string;
+  port?: number;
+  url: string;
   mission: string;
+  goalSummary: string;
   track: string;
   relationship: string;
   technicalKind: string;
   baseProjectKey: string;
+  similarProjectKey: string;
+  referenceRepos: string;
   versionTag: string;
   patternHint: string;
+  similarityNotes: string;
   intent: string;
+  projectClass: string;
+  deliverySurface: string;
+  intendedUsers: string;
+  domainIntent: string;
+  googleWorkspacePlan: string;
+  accessModel: string;
+  securityPosture: string;
+  buildStrategy: string;
+  needsAuthentication: boolean;
+  handlesSensitiveData: boolean;
+  launchLocalFirst: boolean;
+  shellPreference: string;
+  initialSectionSet: string;
+  needsAdminSurface: boolean;
+  needsCommerceSurface: boolean;
+  needsKnowledgeSurface: boolean;
+  needsTimelineSurface: boolean;
+  operatorBrief: string;
+  initialConstraints: string;
   notes: string;
 };
 
@@ -267,10 +274,51 @@ type FormationStartResult = {
   state?: string;
   projectKey?: string;
   artifactPath?: string;
+  intakeArtifactPath?: string;
+  stateArtifactPath?: string;
   summary?: string;
   openQuestions?: string[];
+  recommendedBuildLane?: string;
+  buildAgentCandidate?: boolean;
+  securityReviewRequired?: boolean;
+  suggestedNextAction?: string;
   error?: string;
   details?: string[];
+};
+
+type ProjectBootstrapResult = {
+  ok?: boolean;
+  action?: string;
+  projectKey?: string;
+  repoPath?: string;
+  workspaceFile?: string;
+  projectStatePath?: string;
+  bootstrapResultPath?: string;
+  repoFormationDir?: string;
+  repoBootstrapIntakeJsonPath?: string;
+  repoBootstrapIntakeMdPath?: string;
+  registryUpdated?: boolean;
+  runtimeKind?: string;
+  preferredUrl?: string;
+  preferredPort?: number | string;
+  error?: string;
+  details?: string[];
+};
+
+type PortSuggestionResult = {
+  ok?: boolean;
+  kind?: string;
+  preferredPort?: number;
+  preferredUrl?: string;
+  rangeStart?: number;
+  rangeEnd?: number;
+  error?: string;
+  message?: string;
+};
+
+type PatternListResult = {
+  ok?: boolean;
+  patterns?: unknown[];
 };
 
 type ProjectLabRecommendedAction =
@@ -398,9 +446,13 @@ function normalizeFormationStartPayload(
     payload.notes?.trim() ||
     "No mission provided yet.";
 
+  const goalSummary = payload.goalSummary?.trim() || "";
   const baseProjectKey = payload.parentProjectKey?.trim() || "";
+  const similarProjectKey = payload.similarProjectKey?.trim() || "";
+  const referenceRepos = payload.referenceRepos?.trim() || "";
   const patternHint =
     payload.patternHint?.trim() || payload.repoHint?.trim() || "";
+  const similarityNotes = payload.similarityNotes?.trim() || "";
   const intent = (
     payload.intent || (payload.o2LabKey ? "lab" : "production")
   ).trim();
@@ -418,14 +470,42 @@ function normalizeFormationStartPayload(
     name,
     label,
     key,
+    org: (payload.org || "other").trim(),
+    repoPath: payload.repoPath.trim(),
+    repoHint: payload.repoHint?.trim() || "",
+    port: payload.port,
+    url: payload.url?.trim() || "",
     mission,
+    goalSummary,
     track,
     relationship,
     technicalKind,
     baseProjectKey,
+    similarProjectKey,
+    referenceRepos,
     versionTag,
     patternHint,
+    similarityNotes,
     intent,
+    projectClass: payload.projectClass?.trim() || "other",
+    deliverySurface: payload.deliverySurface?.trim() || "public_website",
+    intendedUsers: payload.intendedUsers?.trim() || "",
+    domainIntent: payload.domainIntent?.trim() || "",
+    googleWorkspacePlan: payload.googleWorkspacePlan?.trim() || "unknown",
+    accessModel: payload.accessModel?.trim() || "unknown",
+    securityPosture: payload.securityPosture?.trim() || "standard",
+    buildStrategy: payload.buildStrategy?.trim() || "guided_followup",
+    needsAuthentication: Boolean(payload.needsAuthentication),
+    handlesSensitiveData: Boolean(payload.handlesSensitiveData),
+    launchLocalFirst: Boolean(payload.launchLocalFirst),
+    shellPreference: payload.shellPreference?.trim() || "o2_recommend",
+    initialSectionSet: payload.initialSectionSet?.trim() || "o2_recommend",
+    needsAdminSurface: Boolean(payload.needsAdminSurface),
+    needsCommerceSurface: Boolean(payload.needsCommerceSurface),
+    needsKnowledgeSurface: Boolean(payload.needsKnowledgeSurface),
+    needsTimelineSurface: Boolean(payload.needsTimelineSurface),
+    operatorBrief: payload.operatorBrief?.trim() || "",
+    initialConstraints: payload.initialConstraints?.trim() || "",
     notes,
   };
 }
@@ -440,13 +520,13 @@ export default function App() {
     setLog((prev) => (prev ? prev + "\n" + s : s));
 
   const [projects, setProjects] = useState<ProjectRow[]>([]);
-  const [rawRegistry, setRawRegistry] = useState<O2ListProjectsEnvelope>({
-    ok: true,
-    projects: [],
-  });
+  const [preferredProjectKey, setPreferredProjectKey] = useState<string | null>(null);
   const [showAddProject, setShowAddProject] = useState(false);
   const [addProjectPrefill, setAddProjectPrefill] =
     useState<AddProjectModalPrefill | null>(null);
+  const [governedPatterns, setGovernedPatterns] = useState<
+    GovernedStarterPattern[]
+  >([]);
   const [showProjectLabsModal, setShowProjectLabsModal] = useState(false);
   const [projectLabsProject, setProjectLabsProject] =
     useState<ProjectRow | null>(null);
@@ -456,8 +536,15 @@ export default function App() {
   const [projectLabsActionBusy, setProjectLabsActionBusy] = useState(false);
   const beforeTabChangeSaverRef = useRef<(() => Promise<boolean>) | null>(null);
 
+  const clearPreferredProjectKey = useCallback(() => {
+    setPreferredProjectKey(null);
+  }, []);
+
   const loadRegistryOnceRef = useRef(false);
   const loadRegistryInFlightRef = useRef<Promise<ProjectRow[]> | null>(null);
+  const loadGovernedPatternsInFlightRef = useRef<
+    Promise<GovernedStarterPattern[]> | null
+  >(null);
 
   async function loadRegistry(): Promise<ProjectRow[]> {
     if (loadRegistryInFlightRef.current) return loadRegistryInFlightRef.current;
@@ -468,7 +555,6 @@ export default function App() {
         const parsed = parseRegistryMaybeDoubleEncoded(out ?? "");
         const reg = parsed.projects ?? [];
 
-        setRawRegistry(parsed);
         const rows = registryToProjects(reg);
         setProjects(rows);
 
@@ -476,7 +562,6 @@ export default function App() {
         return rows;
       } catch (e) {
         appendLog("\n[registry] failed:\n" + fmtErr(e));
-        setRawRegistry({ ok: false, projects: [] });
         setProjects([]);
         return [];
       } finally {
@@ -493,22 +578,89 @@ export default function App() {
     void loadRegistry();
   }, []);
 
-  const usedPorts = useMemo(() => {
-    const s = new Set<number>();
-    projects.forEach((p) => {
-      if (typeof p.port === "number") s.add(p.port);
-    });
+  async function loadGovernedPatterns(): Promise<GovernedStarterPattern[]> {
+    if (loadGovernedPatternsInFlightRef.current) {
+      return loadGovernedPatternsInFlightRef.current;
+    }
 
-    const rcPort = registryPortForKey(rawRegistry, "radcontrol");
-    if (rcPort) s.add(rcPort);
+    loadGovernedPatternsInFlightRef.current = (async () => {
+      try {
+        const out = await runO2Text("project_pattern.list");
+        const parsed = parseMaybeDoubleEncodedJson(out ?? "") as PatternListResult | null;
+        const envelope = asRecord(parsed);
+        const patternsRaw = Array.isArray(envelope?.patterns)
+          ? envelope.patterns
+          : [];
 
-    return s;
-  }, [projects, rawRegistry]);
+        const next = patternsRaw.flatMap((entry) => {
+          const row = asRecord(entry);
+          const key = typeof row?.key === "string" ? row.key : null;
+          const label = typeof row?.label === "string" ? row.label : null;
+          const summary = typeof row?.summary === "string" ? row.summary : null;
+          if (!key || !label || !summary) return [];
 
-  const suggestedPort = useMemo(
-    () => nextPortSuggestion(Array.from(usedPorts)),
-    [usedPorts],
-  );
+          return [
+            {
+              key,
+              label,
+              summary,
+              kinds: Array.isArray(row?.kinds)
+                ? row.kinds.filter((item): item is string => typeof item === "string")
+                : [],
+              projectClasses: Array.isArray(row?.projectClasses)
+                ? row.projectClasses.filter(
+                    (item): item is string => typeof item === "string",
+                  )
+                : [],
+              deliverySurfaces: Array.isArray(row?.deliverySurfaces)
+                ? row.deliverySurfaces.filter(
+                    (item): item is string => typeof item === "string",
+                  )
+                : [],
+              bootstrapMode:
+                typeof row?.bootstrapMode === "string"
+                  ? row.bootstrapMode
+                  : undefined,
+              repoContracts: Array.isArray(row?.repoContracts)
+                ? row.repoContracts.filter(
+                    (item): item is string => typeof item === "string",
+                  )
+                : [],
+              starterArtifacts: Array.isArray(row?.starterArtifacts)
+                ? row.starterArtifacts.filter(
+                    (item): item is string => typeof item === "string",
+                  )
+                : [],
+              securityPosture:
+                typeof row?.securityPosture === "string"
+                  ? row.securityPosture
+                  : undefined,
+              artifactPath:
+                typeof row?.artifactPath === "string"
+                  ? row.artifactPath
+                  : undefined,
+            },
+          ];
+        });
+
+        setGovernedPatterns(next);
+        appendLog(`[patterns] loaded ${next.length} governed starter pattern(s)`);
+        return next;
+      } catch (e) {
+        appendLog("\n[patterns] failed:\n" + fmtErr(e));
+        return [];
+      } finally {
+        loadGovernedPatternsInFlightRef.current = null;
+      }
+    })();
+
+    return loadGovernedPatternsInFlightRef.current;
+  }
+
+  useEffect(() => {
+    if (!showAddProject) return;
+    void loadGovernedPatterns();
+  }, [showAddProject]);
 
   const [ports, setPorts] = useState<Record<number, PortStatus | undefined>>(
     {},
@@ -517,14 +669,16 @@ export default function App() {
   const PORTS = useMemo(() => {
     const s = new Set<number>();
     projects.forEach((p) => {
-      if (typeof p.port === "number") s.add(p.port);
+      const candidates = [p.port, p.preferredPort, p.runtimePort];
+      candidates.forEach((candidate) => {
+        if (typeof candidate === "number" && Number.isFinite(candidate)) {
+          s.add(candidate);
+        }
+      });
     });
 
-    const rcPort = registryPortForKey(rawRegistry, "radcontrol");
-    if (rcPort) s.add(rcPort);
-
     return Array.from(s.values()).sort((a, b) => a - b);
-  }, [projects, rawRegistry]);
+  }, [projects]);
 
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
@@ -569,7 +723,7 @@ export default function App() {
   useEffect(() => {
     void refreshPorts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projects, rawRegistry]);
+  }, [projects]);
 
   function statusForRow(p: ProjectRow) {
     if (typeof p.port !== "number") {
@@ -582,6 +736,24 @@ export default function App() {
     return s.listening
       ? { pill: "pillOn", text: "RUNNING" }
       : { pill: "pillOff", text: "STOPPED" };
+  }
+
+  async function requestPortSuggestion(
+    kind: ProjectKind,
+  ): Promise<GovernedPortSuggestion | null> {
+    try {
+      const out = await runO2Text(`port_suggest.${kind}`);
+      const parsed = JSON.parse(out) as PortSuggestionResult;
+      if (!parsed?.ok) return null;
+      return {
+        port:
+          typeof parsed.preferredPort === "number" ? parsed.preferredPort : undefined,
+        url:
+          typeof parsed.preferredUrl === "string" ? parsed.preferredUrl : undefined,
+      };
+    } catch {
+      return null;
+    }
   }
 
   async function runO2(title: string, key?: string): Promise<string | null> {
@@ -621,6 +793,29 @@ export default function App() {
     };
   }, []);
 
+  async function openProjectUrl(p: ProjectRow) {
+    const finalUrl =
+      typeof p?.url === "string" && p.url.startsWith("http") ? p.url : null;
+
+    if (!finalUrl) {
+      appendLog(
+        `[projects] Open unavailable for "${p?.label ?? "unknown"}": no project URL is recorded.`,
+      );
+      return;
+    }
+
+    void copyText(finalUrl);
+
+    try {
+      await tryAutoOpen(finalUrl);
+    } catch (e) {
+      appendLog(`
+[opener] failed: ${fmtErr(e)}
+`);
+      appendLog(`[opener] URL copied: ${finalUrl}`);
+    }
+  }
+
   async function startProject(p: ProjectRow) {
     if (!p?.o2StartKey) {
       appendLog(
@@ -630,15 +825,17 @@ export default function App() {
     }
 
     const out = await runO2(`Start ${p.label}`, p.o2StartKey);
+    const rows = await loadRegistry();
+    const latest = rows.find((row) => row.key === p.key) ?? p;
 
     const urlFromOut = out ? extractFirstHttpUrl(out) : null;
     const fallbackUrl =
-      typeof p.url === "string" && p.url.startsWith("http") ? p.url : null;
+      typeof latest.url === "string" && latest.url.startsWith("http")
+        ? latest.url
+        : null;
 
     const finalUrl = urlFromOut ?? fallbackUrl;
     if (!finalUrl) return;
-
-    void copyText(finalUrl);
 
     if (startRecheckTimerRef.current !== null) {
       window.clearTimeout(startRecheckTimerRef.current);
@@ -647,16 +844,12 @@ export default function App() {
       void refreshPorts();
     }, 1200);
 
-    try {
-      await tryAutoOpen(finalUrl);
-    } catch (e) {
-      appendLog(`\n[opener] failed: ${fmtErr(e)}\n`);
-      appendLog(`[opener] URL copied: ${finalUrl}`);
-    }
+    await openProjectUrl({ ...latest, url: finalUrl });
   }
 
   async function freePort(port: number) {
-    void runO2("Kill requested", `kill_port.${port}`);
+    await runO2("Kill requested", `kill_port.${port}`);
+    await loadRegistry();
   }
 
   async function setProjectRetired(project: ProjectRow, retired: boolean) {
@@ -753,7 +946,23 @@ export default function App() {
       }
 
       if (parsed?.ok) {
-        setShowAddProject(false);
+        if (parsed.recommendedBuildLane) {
+          appendLog(`[new-project] recommended lane: ${parsed.recommendedBuildLane}`);
+        }
+        if (parsed.buildAgentCandidate) {
+          appendLog("[new-project] build-agent planning is a candidate after governed follow-up.");
+        }
+        if (parsed.securityReviewRequired) {
+          appendLog("[new-project] security review is required before scaffold.");
+        }
+        if (parsed.openQuestions?.length) {
+          appendLog(
+            `[new-project] open questions:\n- ${parsed.openQuestions.join("\n- ")}`,
+          );
+        }
+        if (parsed.suggestedNextAction) {
+          appendLog(`[new-project] suggested next action: ${parsed.suggestedNextAction}`);
+        }
 
         if (parsed.artifactPath) {
           void copyText(parsed.artifactPath);
@@ -761,23 +970,90 @@ export default function App() {
             `[new-project] artifact path copied: ${parsed.artifactPath}`,
           );
         }
+        if (parsed.intakeArtifactPath) {
+          appendLog(
+            `[new-project] intake dossier: ${parsed.intakeArtifactPath}`,
+          );
+        }
+        if (parsed.stateArtifactPath) {
+          appendLog(
+            `[new-project] state dossier: ${parsed.stateArtifactPath}`,
+          );
+        }
+
+        if (payload.bootstrapNow && parsed.projectKey) {
+          const bootstrapVerb = `project_create.bootstrap.${encodeO2JsonPayload({
+            projectKey: parsed.projectKey,
+          })}`;
+          appendLog(
+            `\n[o2] Bootstrap Starter Surface → run_o2("${bootstrapVerb}")\n`,
+          );
+
+          const bootstrapOut = await runO2Text(bootstrapVerb);
+          appendLog(bootstrapOut || "(no output)");
+
+          let bootstrapParsed: ProjectBootstrapResult | null = null;
+          try {
+            bootstrapParsed = JSON.parse(bootstrapOut) as ProjectBootstrapResult;
+          } catch {
+            bootstrapParsed = null;
+          }
+
+          if (!bootstrapParsed?.ok) {
+            const bootstrapMessage = bootstrapParsed?.details?.length
+              ? bootstrapParsed.details.join(" ")
+              : bootstrapParsed?.error
+                ? `Bootstrap rejected: ${bootstrapParsed.error}`
+                : "Bootstrap returned an unexpected response.";
+            throw new Error(bootstrapMessage);
+          }
+
+          appendLog("[new-project] starter localhost surface bootstrapped.");
+          if (bootstrapParsed.repoPath) {
+            appendLog(`[new-project] repo path: ${bootstrapParsed.repoPath}`);
+          }
+          if (bootstrapParsed.workspaceFile) {
+            appendLog(`[new-project] workspace file: ${bootstrapParsed.workspaceFile}`);
+          }
+          if (bootstrapParsed.repoFormationDir) {
+            appendLog(`[new-project] repo formation dir: ${bootstrapParsed.repoFormationDir}`);
+          }
+          if (bootstrapParsed.repoBootstrapIntakeJsonPath) {
+            appendLog(`[new-project] repo intake json: ${bootstrapParsed.repoBootstrapIntakeJsonPath}`);
+          }
+          if (bootstrapParsed.repoBootstrapIntakeMdPath) {
+            appendLog(`[new-project] repo intake summary: ${bootstrapParsed.repoBootstrapIntakeMdPath}`);
+          }
+          if (bootstrapParsed.preferredUrl) {
+            appendLog(`[new-project] preferred localhost: ${bootstrapParsed.preferredUrl}`);
+          }
+        }
 
         await loadRegistry();
+        setPreferredProjectKey(parsed.projectKey || null);
         return;
       }
 
       if (parsed?.error) {
+        const detailMessage = parsed.details?.length
+          ? parsed.details.join(" ")
+          : `Formation rejected: ${parsed.error}`;
+
         appendLog(
           `[new-project] formation rejected: ${parsed.error}${
             parsed.details?.length ? ` :: ${parsed.details.join(" | ")}` : ""
           }`,
         );
-        return;
+        throw new Error(detailMessage);
       }
 
       appendLog("[new-project] unexpected non-JSON or non-contract response");
+      throw new Error(
+        "Start Formation returned an unexpected response. Check the RadControl log for the O2 output.",
+      );
     } catch (e) {
       appendLog("\n[new-project] ERROR:\n" + fmtErr(e));
+      throw e instanceof Error ? e : new Error(fmtErr(e));
     } finally {
       setBusy(false);
       try {
@@ -929,12 +1205,6 @@ export default function App() {
 
   const logText = (busy ? "Running…" : log || "No logs yet.").toString();
 
-  const tabPlaceholder = (t: DocTabKey) => {
-    if (t === "labs") return "Write or edit patterns here…";
-    if (isLibraryTab(t)) return `Write or edit ${tabLabel(t)} here…`;
-    return `Type ${tabLabel(t)} here… (auto-loads latest, autosaves+commits on tab change)`;
-  };
-
   function registerBeforeTabChangeSaver(fn: (() => Promise<boolean>) | null) {
     beforeTabChangeSaverRef.current = fn;
   }
@@ -970,18 +1240,6 @@ export default function App() {
     if (activeTab === "legal") {
       return (
         <LegalHubTab
-          busy={busy}
-          registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
-        />
-      );
-    }
-
-    if (isLibraryTab(activeTab)) {
-      return (
-        <DocumentLibraryPanel
-          tabKey={activeTab}
-          title={tabLabel(activeTab)}
-          placeholder={tabPlaceholder(activeTab)}
           busy={busy}
           registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
         />
@@ -1032,9 +1290,12 @@ export default function App() {
               onOpenAddProject={openAddProjectModal}
               onReloadProjects={loadRegistry}
               onRefreshPorts={refreshPorts}
+              preferredProjectKey={preferredProjectKey}
+              onPreferredProjectKeyHandled={clearPreferredProjectKey}
               onStart={startProject}
+              onOpenUrl={openProjectUrl}
               onSnapshot={(p) =>
-                void runO2(`Snapshot ${p.label}`, p.o2SnapshotKey)
+                void runO2(`Repo Snapshot ${p.label}`, p.o2SnapshotKey)
               }
               onCommit={(p) => void runO2(`Commit ${p.label}`, p.o2CommitKey)}
               onLab={openProjectLabsModal}
@@ -1052,7 +1313,8 @@ export default function App() {
               open={showAddProject}
               onClose={closeAddProjectModal}
               onCreate={createProject}
-              defaultSuggestedPort={suggestedPort}
+              requestPortSuggestion={requestPortSuggestion}
+              governedPatterns={governedPatterns}
               existingProjects={projects}
               prefill={addProjectPrefill}
             />

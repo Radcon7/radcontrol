@@ -1,4 +1,4 @@
-import type { ProjectOrg, ProjectRow } from "./types";
+import type { ProjectKind, ProjectOrg, ProjectRow } from "./types";
 
 export type ValidateAddResult = {
   ok: boolean;
@@ -33,6 +33,31 @@ function asBoolean(v: unknown): boolean | undefined {
   return typeof v === "boolean" ? v : undefined;
 }
 
+function asProjectOrg(v: unknown): ProjectOrg | undefined {
+  if (typeof v !== "string") return undefined;
+  const value = v.trim();
+  return value === "radcon" ||
+    value === "radwolfe" ||
+    value === "labs" ||
+    value === "other"
+    ? value
+    : undefined;
+}
+
+function asProjectKind(v: unknown): ProjectKind | undefined {
+  if (typeof v !== "string") return undefined;
+  const value = v.trim();
+  return value === "nextjs" ||
+    value === "ops" ||
+    value === "tauri" ||
+    value === "python" ||
+    value === "docs" ||
+    value === "static" ||
+    value === "other"
+    ? value
+    : undefined;
+}
+
 export function registryToProjects(reg: unknown): ProjectRow[] {
   try {
     const regObj = asRecord(reg);
@@ -63,9 +88,18 @@ export function registryToProjects(reg: unknown): ProjectRow[] {
         retired: asBoolean(r.retired),
         notesPath: asNonEmptyString(r.notesPath),
         notesAvailable: asBoolean(r.notesAvailable),
+        org: asProjectOrg(r.org),
+        kind: asProjectKind(r.kind),
+        repoPath: asNonEmptyString(r.repoPath),
         repoHint: asNonEmptyString(r.repoHint),
         port: asFiniteNumber(r.port),
         url: asNonEmptyString(r.url),
+        preferredPort: asFiniteNumber(r.preferredPort),
+        preferredUrl: asNonEmptyString(r.preferredUrl),
+        runtimePort: asFiniteNumber(r.runtimePort),
+        runtimeUrl: asNonEmptyString(r.runtimeUrl),
+        runtimeContractPath: asNonEmptyString(r.runtimeContractPath),
+        runtimePortMatchesPreferred: asBoolean(r.runtimePortMatchesPreferred),
         o2StartKey: asNonEmptyString(r.o2StartKey),
         o2SnapshotKey: asNonEmptyString(r.o2SnapshotKey),
         o2CommitKey: asNonEmptyString(r.o2CommitKey),

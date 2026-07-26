@@ -71,7 +71,7 @@ RadControl must not become a second governance engine.
   Timeline surface for governed project/empire tracking.
 
 - **Snapshot**  
-  Snapshot artifact viewer/editor surface backed by O2 artifact flows.
+  Empire snapshot artifact viewer/editor surface backed by O2 artifact flows.
 
 ## Runtime model
 
@@ -99,7 +99,8 @@ Current doctrine:
 - RadControl collects initial project truth
 - RadControl normalizes and dispatches the formation payload to O2
 - O2 creates the first durable formation artifact
-- O2 owns the state transition into `forming`
+- O2 bootstrap seeds both the starter repo surface and repo-local formation mirrors under `docs/project-formation/`
+- O2 owns the state transition into `forming` and then `bootstrapped`
 - further questioning and scaffold readiness remain governed steps, not hidden UI side effects
 
 Current canonical primary project types:

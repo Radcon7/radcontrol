@@ -132,7 +132,7 @@ export function EmpireUtilityTab() {
           }
           disabled={running || saving || loading}
         >
-          {running ? "Running…" : config.key === "snapshot" ? "Run Snapshot" : "Run Report"}
+          {running ? "Running…" : config.key === "snapshot" ? "Run Empire Snapshot" : "Run Report"}
         </button>
         <button
           className="btn btnGhost btnCompact"

@@ -43,7 +43,6 @@ function defaultDocStem(tabKey: string): string {
   const special: Record<string, string> = {
     notes: "note",
     legal: "legal_note",
-    labs: "pattern",
     orion_handoff: "dev_update",
   };
   if (special[tabKey]) return special[tabKey];

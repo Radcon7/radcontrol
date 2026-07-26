@@ -578,7 +578,7 @@ pre {
   padding: 24px 26px;
 
   display: grid;
-  grid-template-columns: minmax(360px, 1fr) minmax(520px, 1.25fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(380px, 430px);
   gap: 22px 24px;
   align-items: start;
   align-content: start;
@@ -626,6 +626,7 @@ pre {
   font-size: 15px;
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.82);
+  overflow-wrap: anywhere;
 }
 
 .fieldHelpStrong {
@@ -767,13 +768,21 @@ pre {
   font-size: 16px;
   line-height: 1.5;
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .modalArtifactPreview {
   margin-top: 18px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
-.modalBody input,
+.modalArtifactPreview pre {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.modalBody input:not([type="checkbox"]):not([type="radio"]),
 .modalBody select,
 .modalBody textarea {
   width: 100%;
@@ -821,7 +830,7 @@ pre {
   -webkit-text-fill-color: rgba(255, 255, 255, 0.5);
 }
 
-.modalBody input:disabled,
+.modalBody input:not([type="checkbox"]):not([type="radio"]):disabled,
 .modalBody select:disabled,
 .modalBody textarea:disabled {
   color: rgba(255, 255, 255, 0.72);
@@ -830,7 +839,7 @@ pre {
   cursor: not-allowed;
 }
 
-.modalBody input:focus,
+.modalBody input:not([type="checkbox"]):not([type="radio"]):focus,
 .modalBody select:focus,
 .modalBody textarea:focus {
   border-color: rgba(97, 242, 169, 0.5);
@@ -843,15 +852,255 @@ pre {
   color: rgba(255, 255, 255, 0.94);
 }
 
+.modalStack {
+  display: grid;
+  gap: 16px;
+}
+
+.modalInlineGrid > *,
+.modalGeneratedGrid > *,
+.modalPatternGrid > * {
+  min-width: 0;
+}
+
+.modalDecisionCard > div,
+.modalCheckboxLabel span,
+.modalPatternHeaderRow > div {
+  min-width: 0;
+}
+
+.modalSectionCard {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.modalSectionLead {
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.8);
+  overflow-wrap: anywhere;
+}
+
+.modalInlineGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.modalCheckboxGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.modalCheckboxGridTwoUp {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modalCheckboxLabel {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 12px;
+  align-items: start;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 15px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.modalCheckboxLabel input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--accentA);
+}
+
+.modalCheckboxLabel span {
+  display: block;
+}
+
+.modalCheckboxLabel small {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.modalPatternPanel {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(97, 242, 169, 0.18);
+  background: rgba(97, 242, 169, 0.07);
+}
+
+.modalPatternHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modalPatternTitle {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.98);
+}
+
+.modalPatternGrid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.modalBulletList {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.modalPatternEmpty {
+  padding: 14px 15px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.modalDecisionStack {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.modalDecisionCard {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 12px;
+  align-items: start;
+  padding: 14px 15px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.modalDecisionCard input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--accentA);
+}
+
+.modalDecisionCard span {
+  display: block;
+  font-size: 15px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.modalDecisionCard small {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.76);
+  overflow-wrap: anywhere;
+}
+
+.modalDecisionCardSelected {
+  border-color: rgba(97, 242, 169, 0.28);
+  background: rgba(97, 242, 169, 0.08);
+}
+
+.modalDecisionCardDisabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+}
+
+.modalCompactTextArea {
+  min-height: 150px;
+}
+
+.modalShortTextArea {
+  min-height: 112px;
+}
+
+.modalRecommendationTitle {
+  margin-top: 8px;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.modalRecommendationGood {
+  border-color: rgba(97, 242, 169, 0.22);
+  background: rgba(97, 242, 169, 0.08);
+}
+
+.modalRecommendationWarn {
+  border-color: rgba(255, 209, 102, 0.26);
+  background: rgba(255, 209, 102, 0.08);
+}
+
+.modalChipRow {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.modalChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.modalBody input[type="checkbox"]:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .modalFooter {
   flex: 0 0 auto;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 12px;
 
   padding: 18px 26px 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.025);
+}
+
+.modalFooterMessage {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.modalFooterMessageWarn {
+  color: rgba(255, 214, 102, 0.98);
 }
 
 /* Modal: keep it dominant but usable on narrower screens */
@@ -866,7 +1115,7 @@ pre {
   }
 
   .modalBody {
-    grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 380px);
   }
 }
 
@@ -883,6 +1132,12 @@ pre {
   .modalBody {
     grid-template-columns: 1fr;
     gap: 18px;
+  }
+
+  .modalInlineGrid,
+  .modalPatternGrid,
+  .modalCheckboxGridTwoUp {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -902,6 +1157,7 @@ pre {
   .modalFooter {
     padding-left: 16px;
     padding-right: 16px;
+    flex-wrap: wrap;
   }
 
   .modalTitle {

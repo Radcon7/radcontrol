@@ -21,7 +21,10 @@ type Props = {
   onOpenAddProject: () => void;
   onReloadProjects: () => Promise<unknown> | void;
   onRefreshPorts: () => Promise<void> | void;
+  preferredProjectKey?: string | null;
+  onPreferredProjectKeyHandled?: () => void;
   onStart: (p: ProjectRow) => Promise<void> | void;
+  onOpenUrl: (p: ProjectRow) => Promise<void> | void;
   onSnapshot: (p: ProjectRow) => Promise<void> | void;
   onCommit: (p: ProjectRow) => Promise<void> | void;
   onLab: (p: ProjectRow) => Promise<void> | void;
@@ -77,6 +80,8 @@ type ProjectDetail = {
   isListening: boolean;
   startDisabled: boolean;
   startUnavailableTitle: string;
+  openDisabled: boolean;
+  openUnavailableTitle: string;
   snapshotDisabled: boolean;
   commitDisabled: boolean;
   labDisabled: boolean;
@@ -281,7 +286,7 @@ function projectFocus(project: ProjectRow): string[] {
   }
 
   return [
-    "Use Snapshot, Map, and Proof Pack to keep project state visible before deeper code or infra changes.",
+    "Use Repo Snapshot, Map, and Proof Pack to keep project state visible before deeper code or infra changes.",
     "Capture missing infrastructure dependencies under Infrastructure so launch-readiness stops living in memory.",
     "Run a governed status audit whenever the current state feels assumed instead of evidenced.",
   ];
@@ -313,7 +318,10 @@ export function ProjectsTab({
   onOpenAddProject,
   onReloadProjects,
   onRefreshPorts,
+  preferredProjectKey,
+  onPreferredProjectKeyHandled,
   onStart,
+  onOpenUrl,
   onSnapshot,
   onCommit,
   onLab,
@@ -402,12 +410,25 @@ export function ProjectsTab({
       return;
     }
 
+    if (
+      preferredProjectKey &&
+      sortedProjects.some((project) => project.key === preferredProjectKey)
+    ) {
+      setSelectedKey(preferredProjectKey);
+      onPreferredProjectKeyHandled?.();
+      return;
+    }
+
     setSelectedKey((current) =>
       current && sortedProjects.some((project) => project.key === current)
         ? current
         : sortedProjects[0].key,
     );
-  }, [sortedProjects]);
+  }, [
+    onPreferredProjectKeyHandled,
+    preferredProjectKey,
+    sortedProjects,
+  ]);
 
   const selectedProject = useMemo(
     () => sortedProjects.find((project) => project.key === selectedKey) || null,
@@ -684,12 +705,18 @@ export function ProjectsTab({
       isListening,
       startDisabled: busy || isForming || !project.o2StartKey,
       startUnavailableTitle: project.o2StartKey
-        ? "Start project"
+        ? "Start project runtime through O2 and open its URL when available."
         : "Start unavailable: no O2 start key is configured for this project.",
-      snapshotDisabled: busy || isForming,
-      commitDisabled: busy || isForming,
+      openDisabled:
+        busy || !(typeof project.url === "string" && project.url.startsWith("http")),
+      openUnavailableTitle:
+        typeof project.url === "string" && project.url.startsWith("http")
+          ? `Open ${project.url}`
+          : "Open unavailable: no project URL is recorded.",
+      snapshotDisabled: busy || isForming || !project.o2SnapshotKey,
+      commitDisabled: busy || isForming || !project.o2CommitKey,
       labDisabled: busy || isForming || !project.o2LabKey,
-      mapDisabled: busy || isForming,
+      mapDisabled: busy || isForming || !project.o2MapKey,
       proofPackDisabled: busy || isForming || !project.o2ProofPackKey,
       lifecycleToggleDisabled: busy || isForming,
       notesDisabled: busy || isForming || notesBusyKey === project.key,
@@ -844,30 +871,11 @@ export function ProjectsTab({
                 </div>
               </div>
 
-              <div className="surfaceSignalGrid">
-                {readinessSignals(detail.p, detail.st.text).map((signal) => (
-                  <div className="surfaceCard surfaceSignalCard" key={signal.label}>
-                    <div className="surfaceLabel">{signal.label}</div>
-                    <div
-                      className={`surfaceSignalValue ${
-                        signal.tone === "good"
-                          ? "surfaceSignalValueGood"
-                          : signal.tone === "warn"
-                            ? "surfaceSignalValueWarn"
-                            : ""
-                      }`}
-                    >
-                      {signal.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
               <div className="surfaceGrid2">
                 <div className="surfaceCard">
                   <div className="surfaceCardTitle">Run Controls</div>
                   <div className="surfaceCardLead">
-                    Start, inspect, capture evidence for, or stop the selected project from one governed command surface.
+                    Start the runtime, open the live surface, capture evidence, or stop the selected project from one governed command surface.
                   </div>
                   <div className="surfaceActionGrid">
                     <button
@@ -876,14 +884,22 @@ export function ProjectsTab({
                       disabled={detail.startDisabled}
                       title={detail.startUnavailableTitle}
                     >
-                      Open Project
+                      Start Runtime
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => void onOpenUrl(detail.p)}
+                      disabled={detail.openDisabled}
+                      title={detail.openUnavailableTitle}
+                    >
+                      Open Localhost
                     </button>
                     <button
                       className="btn"
                       onClick={() => void onSnapshot(detail.p)}
                       disabled={detail.snapshotDisabled}
                     >
-                      Run Snapshot
+                      Run Repo Snapshot
                     </button>
                     <button
                       className="btn"
@@ -950,15 +966,28 @@ export function ProjectsTab({
                       <div className="surfaceValue">{fmtStartDate(detail.p.startDate)}</div>
                     </div>
                     <div className="surfaceSummaryRow">
-                      <div className="surfaceLabel">Port</div>
+                      <div className="surfaceLabel">Live Port</div>
                       <div className="surfaceValue">
                         {typeof detail.port === "number" ? `:${detail.port}` : "—"}
                       </div>
                     </div>
+                    {typeof detail.p.preferredPort === "number" &&
+                    detail.p.preferredPort !== detail.port ? (
+                      <div className="surfaceSummaryRow">
+                        <div className="surfaceLabel">Preferred Port</div>
+                        <div className="surfaceValue">:{detail.p.preferredPort}</div>
+                      </div>
+                    ) : null}
                     <div className="surfaceSummaryRow">
-                      <div className="surfaceLabel">URL</div>
+                      <div className="surfaceLabel">Live URL</div>
                       <div className="surfaceValue">{detail.p.url || "Not recorded"}</div>
                     </div>
+                    {detail.p.preferredUrl && detail.p.preferredUrl !== detail.p.url ? (
+                      <div className="surfaceSummaryRow">
+                        <div className="surfaceLabel">Preferred URL</div>
+                        <div className="surfaceValue">{detail.p.preferredUrl}</div>
+                      </div>
+                    ) : null}
                     <div className="surfaceSummaryRow">
                       <div className="surfaceLabel">Recommended Agent</div>
                       <div className="surfaceValue">{recommendAgentForProject(detail.p)}</div>
@@ -990,13 +1019,32 @@ export function ProjectsTab({
                   </div>
                 </div>
 
+              <div className="surfaceSignalGrid">
+                {readinessSignals(detail.p, detail.st.text).map((signal) => (
+                  <div className="surfaceCard surfaceSignalCard" key={signal.label}>
+                    <div className="surfaceLabel">{signal.label}</div>
+                    <div
+                      className={`surfaceSignalValue ${
+                        signal.tone === "good"
+                          ? "surfaceSignalValueGood"
+                          : signal.tone === "warn"
+                            ? "surfaceSignalValueWarn"
+                            : ""
+                      }`}
+                    >
+                      {signal.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
                 <div className="surfaceCard">
                   <div className="surfaceCardTitle">Project Status Audit</div>
                   <div className="surfaceCardLead">
                     Run an on-demand governed research pass when you need current facts instead of memory.
                   </div>
                   <div className="surfaceBodyCopy">
-                    Each audit behaves like Snapshot: it creates a reviewable artifact, records timing explicitly, and avoids silent background drift.
+                    Each audit behaves like a repo snapshot: it creates a reviewable artifact, records timing explicitly, and avoids silent background drift.
                   </div>
                   <div className="surfaceActionGrid surfaceActionGridCompact">
                     <button
