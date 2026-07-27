@@ -26,6 +26,7 @@ import type {
   ProjectRow,
 } from "./components/projects/types";
 import { fmtErr, registryToProjects } from "./components/projects/helpers";
+import { copyText } from "./components/common/copyText";
 import { encodeO2JsonPayload, runO2Text } from "./components/common/o2Files";
 
 type LibraryTabKey = "notes" | "legal";
@@ -103,29 +104,6 @@ function tabLabel(t: TabKey): string {
   return m[t] ?? t.replace(/_/g, " ");
 }
 
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    // fall through
-  }
-
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    ta.style.top = "-9999px";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-  } catch {
-    // ignore
-  }
-}
 
 type O2ListProjectsEnvelope = {
   ok?: boolean;

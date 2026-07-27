@@ -10,8 +10,8 @@ RadControl exists to:
 
 - load governed project state from O2
 - dispatch canonical O2 verbs from a desktop UI
-- display logs, artifact lists, and document surfaces
-- provide a controlled entry surface for project formation and governed Codex workflows
+- display logs, artifact lists, and governed document surfaces
+- provide a controlled entry surface for project formation, runtime actions, and project status review
 - keep empire-facing operational visibility in one place
 
 It is a cockpit, not the constitution.
@@ -40,38 +40,29 @@ RadControl must remain thin.
 - governed filesystem mutation through `files.*` verbs
 - lab dispatch
 - project formation state transitions
-- Codex execution routing and governance
+- deeper agent, infrastructure, and formation truth records
 
 RadControl must not become a second governance engine.
 
 ## Current major surfaces
 
 - **Projects**  
-  Loads project registry data from O2 and triggers project verbs such as start, snapshot, commit, map, proof pack, lab, and governed New Project formation entry.
+  Loads governed project registry data from O2, triggers project verbs such as start, snapshot, commit, map, proof pack, and lab, and hosts the governed New Project formation entry.
 
-- **Codex Chat**  
-  Dispatches governed prompt-style Codex work through O2 `codex.chat`.
+- **Infrastructure**  
+  Displays governed infrastructure records and project-linked infrastructure context sourced through O2.
 
-- **Codex Build**  
-  Dispatches governed build/audit Codex work through O2 `codex.build`.
+- **Agents**  
+  Displays governed agent profiles, recent agent runs, and project-level status-audit entry points.
 
-- **Empire Map**  
-  Displays governed empire map artifacts through the shared artifact-list surface.
+- **Empire Utility**  
+  Displays governed empire map, empire snapshot, and empire sweep artifacts through the shared artifact-list surface.
 
-- **Empire Sweep**  
-  Displays governed empire sweep artifacts through the shared artifact-list surface.
+- **Notes**  
+  Hosts governed note libraries, dev updates, timeline entries, and empire blueprint records through the shared document surface.
 
-- **Governance**  
-  Displays governance inventory and document visibility information aligned to repo governance expectations.
-
-- **Notes / Legal / Labs / Orion Handoff**  
-  Document-library surfaces backed by O2 filesystem verbs.
-
-- **Timeline**  
-  Timeline surface for governed project/empire tracking.
-
-- **Snapshot**  
-  Empire snapshot artifact viewer/editor surface backed by O2 artifact flows.
+- **Legal**  
+  Hosts governed legal notes, legal documents, and legal structure records through the shared document surface.
 
 ## Runtime model
 
@@ -86,7 +77,7 @@ These dispatch into the canonical O2 runner:
 
 - `~/dev/o2/scripts/run_o2.sh`
 
-RadControl does not own lifecycle logic, filesystem mutation logic, or Codex execution policy.
+RadControl does not own lifecycle logic, filesystem mutation logic, or project formation policy.
 
 ## New Project doctrine
 
@@ -101,7 +92,7 @@ Current doctrine:
 - O2 creates the first durable formation artifact
 - O2 bootstrap seeds both the starter repo surface and repo-local formation mirrors under `docs/project-formation/`
 - O2 owns the state transition into `forming` and then `bootstrapped`
-- further questioning and scaffold readiness remain governed steps, not hidden UI side effects
+- RadControl currently surfaces the governed `start` step plus optional localhost starter bootstrap; deeper formation stages remain O2-owned follow-up work
 
 Current canonical primary project types:
 
@@ -111,14 +102,11 @@ Current canonical primary project types:
 
 ## Labs doctrine
 
-Labs is the governed experiment umbrella, not production repo logic.
-
-Current direction:
+Labs remains the governed experiment umbrella, not production repo logic.
 
 - project rows may expose a Lab action when the registry defines an O2 lab relationship
 - O2 dispatches `<project>.lab`
-- shared lab material lives under the central Labs repo/path, not inside live production repos by default
-- promotion from Labs into a live repo should remain deliberate and governed
+- shared lab material should live outside live production repos by default
 
 ## Repo truth
 

@@ -1775,9 +1775,9 @@ export function AddProjectModal({
             </section>
 
             <section className="modalSectionCard">
-              <div className="modalArtifactTitle">Shell and Starter Sections</div>
+              <div className="modalArtifactTitle">Visual Direction and Optional Surfaces</div>
               <div className="modalSectionLead">
-                Reference repos answer what to borrow. These controls answer how the new surface should feel once it exists. DQOTD informs layered branded rails, TBIS informs split tabs, and Offroad informs compact branded navigation.
+                Reference repos answer what to borrow. These controls capture preferred style and likely day-one surfaces without forcing O2 to lock the structure too early.
               </div>
 
               <div className="modalInlineGrid">
@@ -1881,19 +1881,8 @@ export function AddProjectModal({
                 </div>
               </div>
 
-              <div className="fieldLabelTop">
-                <div className="modalGeneratedLabel">Suggested starter tabs</div>
-                <div className="modalChipRow">
-                  {suggestedStarterTabs.length ? (
-                    suggestedStarterTabs.map((tab) => (
-                      <span key={tab} className="modalChip">
-                        {tab}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="modalChip">No starter tabs suggested yet</span>
-                  )}
-                </div>
+              <div className="fieldHelp fieldLabelTop">
+                O2 may infer starter sections from this frame, but the actual first structure remains governed by formation output rather than this preview alone.
               </div>
             </section>
 
@@ -2344,59 +2333,6 @@ export function AddProjectModal({
             </section>
 
             <section className="modalSectionCard">
-              <div className="modalArtifactTitle">Starter Shell Plan</div>
-              <div className="modalGeneratedGrid">
-                <div>
-                  <div className="modalGeneratedLabel">Shell Style</div>
-                  <div className="modalGeneratedValue">
-                    {optionLabel(SHELL_PREFERENCE_OPTIONS, shellPreference)}
-                  </div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">First Sections</div>
-                  <div className="modalGeneratedValue">
-                    {optionLabel(INITIAL_SECTION_SET_OPTIONS, initialSectionSet)}
-                  </div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">Admin Surface</div>
-                  <div className="modalGeneratedValue">
-                    {needsAdminSurface ? "yes" : "no"}
-                  </div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">Commerce Surface</div>
-                  <div className="modalGeneratedValue">
-                    {needsCommerceSurface ? "yes" : "no"}
-                  </div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">Knowledge Surface</div>
-                  <div className="modalGeneratedValue">
-                    {needsKnowledgeSurface ? "yes" : "no"}
-                  </div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">Timeline Surface</div>
-                  <div className="modalGeneratedValue">
-                    {needsTimelineSurface ? "yes" : "no"}
-                  </div>
-                </div>
-              </div>
-              <div className="modalChipRow">
-                {suggestedStarterTabs.length ? (
-                  suggestedStarterTabs.map((tab) => (
-                    <span key={tab} className="modalChip">
-                      {tab}
-                    </span>
-                  ))
-                ) : (
-                  <span className="modalChip">No starter tabs suggested yet</span>
-                )}
-              </div>
-            </section>
-
-            <section className="modalSectionCard">
               <div className="modalArtifactTitle">Execution Path</div>
               <div className="modalGeneratedGrid">
                 <div>
@@ -2414,16 +2350,6 @@ export function AddProjectModal({
                   </div>
                 </div>
                 <div>
-                  <div className="modalGeneratedLabel">Bootstrap Mode</div>
-                  <div className="modalGeneratedValue">
-                    {selectedPattern?.bootstrapMode
-                      ? normalizePatternLabel(selectedPattern.bootstrapMode)
-                      : bootstrapNow
-                        ? "governed localhost starter"
-                        : "not requested in this run"}
-                  </div>
-                </div>
-                <div>
                   <div className="modalGeneratedLabel">Posture</div>
                   <div className="modalGeneratedValue">
                     {buildLane.securityReviewRequired
@@ -2437,23 +2363,11 @@ export function AddProjectModal({
             </section>
 
             <section className="modalSectionCard">
-              <div className="modalArtifactTitle">Governed Formation Summary</div>
+              <div className="modalArtifactTitle">Formation Coordinates</div>
               <div className="modalGeneratedGrid">
-                <div>
-                  <div className="modalGeneratedLabel">Project Type</div>
-                  <div className="modalGeneratedValue">{projectType}</div>
-                </div>
                 <div>
                   <div className="modalGeneratedLabel">Key</div>
                   <div className="modalGeneratedValue">{key || "(required)"}</div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">Track</div>
-                  <div className="modalGeneratedValue">{track}</div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">Relationship</div>
-                  <div className="modalGeneratedValue">{relationship}</div>
                 </div>
                 <div>
                   <div className="modalGeneratedLabel">Org</div>
@@ -2484,32 +2398,8 @@ export function AddProjectModal({
                   </div>
                 </div>
                 <div>
-                  <div className="modalGeneratedLabel">O2 Start</div>
-                  <div className="modalGeneratedValue">{computedO2StartKey || "(auto)"}</div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">O2 Snapshot</div>
-                  <div className="modalGeneratedValue">{computedO2SnapshotKey || "(auto)"}</div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">O2 Commit</div>
-                  <div className="modalGeneratedValue">{computedO2CommitKey || "(auto)"}</div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">O2 Lab</div>
-                  <div className="modalGeneratedValue">{computedO2LabKey || "(auto)"}</div>
-                </div>
-                <div>
                   <div className="modalGeneratedLabel">Starter Pattern Key</div>
                   <div className="modalGeneratedValue">{patternHint || "(none)"}</div>
-                </div>
-                <div>
-                  <div className="modalGeneratedLabel">Suggested Starter Tabs</div>
-                  <div className="modalGeneratedValue">
-                    {suggestedStarterTabs.length
-                      ? suggestedStarterTabs.join(", ")
-                      : "(none yet)"}
-                  </div>
                 </div>
               </div>
             </section>

@@ -186,9 +186,10 @@ function fmtStartDate(value?: string): string {
 }
 
 function recommendAgentForProject(project: ProjectRow): string {
-  if (project.key === "dqotd") return "Ops Agent + Research Agent";
-  if (project.key === "radcontrol") return "Builder Agent";
   if (project.state === "forming") return "Research Agent";
+  if (project.retired) return "Research Agent";
+  if (project.kind === "tauri") return "Builder Agent";
+  if (project.kind === "docs") return "Research Agent";
   return "Builder Agent";
 }
 
@@ -224,64 +225,58 @@ function readinessSignals(project: ProjectRow, runningText: string): DetailSigna
       value: typeof project.port === "number" ? `:${project.port}` : "Not assigned",
       tone: typeof project.port === "number" ? "neutral" : "warn",
     },
+    {
+      label: "Kind",
+      value: project.kind || "Not classified",
+      tone: project.kind ? "neutral" : "warn",
+    },
   ];
 
-  if (project.key === "dqotd") {
-    signals.push(
-      {
-        label: "Launch Infra",
-        value: "Vercel known; Supabase and Workspace still need confirmation",
-        tone: "warn",
-      },
-      {
-        label: "Domain",
-        value: "Needs governed uptime and domain-status checks",
-        tone: "warn",
-      },
-    );
+  if (project.state === "forming") {
+    signals.push({
+      label: "Formation",
+      value:
+        "Governed dossier exists; keep follow-up and structure decisions in O2 before deeper build work.",
+      tone: "warn",
+    });
   }
 
-  if (project.key === "radcontrol") {
-    signals.push(
-      {
-        label: "Governance",
-        value: "Agent profiles and infra records now governed in O2",
-        tone: "good",
-      },
-      {
-        label: "Next Step",
-        value: "Project-level status auditing is now wired and ready for deeper infra probes",
-        tone: "warn",
-      },
-    );
+  if (project.runtimeContractPath) {
+    signals.push({
+      label: "Runtime Contract",
+      value: project.runtimeContractPath,
+      tone: "good",
+    });
+  }
+
+  if (
+    project.preferredUrl &&
+    project.runtimeUrl &&
+    project.preferredUrl !== project.runtimeUrl
+  ) {
+    signals.push({
+      label: "Runtime Drift",
+      value: `Preferred URL is ${project.preferredUrl}, but runtime reports ${project.runtimeUrl}.`,
+      tone: "warn",
+    });
   }
 
   return signals;
 }
 
 function projectFocus(project: ProjectRow): string[] {
-  if (project.key === "dqotd") {
-    return [
-      "Confirm production deploy state in Vercel and capture it as governed infrastructure.",
-      "Verify whether the production database is already in Supabase and record the answer explicitly.",
-      "Create the Google Workspace that will own launch communication, forms, and operational mail.",
-      "Add domain and uptime status checks so launch readiness is visible from RadControl instead of memory.",
-      "Run a governed git and release readiness sweep before public launch.",
-    ];
-  }
-
-  if (project.key === "radcontrol") {
-    return [
-      "Keep the UI thin over O2 so project status, infrastructure truth, and agent actions remain governed in one place.",
-      "Expand status audits to capture git, deploy, domain, Supabase, and Workspace evidence instead of operator memory.",
-      "Use this tab as the command pane for project actions while agents and infrastructure tabs carry the deeper records.",
-    ];
-  }
-
   if (project.state === "forming") {
     return [
-      "This project is still forming, so keep actions focused on notes, plan, and governance before runtime work.",
+      "Keep this project in governed formation mode until the next O2 follow-up clarifies the repo shape and launch path.",
       "Use a research-oriented agent run to reduce false starts before infrastructure or scaffold changes.",
+      "Capture missing launch assumptions in governed notes instead of relying on operator memory.",
+    ];
+  }
+
+  if (project.retired) {
+    return [
+      "Keep this project in reference mode unless a governed reactivation decision is made.",
+      "Use notes and audits to preserve context rather than spending runtime effort here.",
     ];
   }
 
