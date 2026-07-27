@@ -57,17 +57,11 @@ const ALL_TABS: TabKey[] = [
   ...DOC_TABS.map((t) => t.key),
 ];
 
-type CanonicalProjectType =
-  | "new_website"
-  | "lab_from_existing"
-  | "website_successor";
+type CanonicalProjectType = "new_website" | "website_successor";
 
 const canonicalProjectTypeMap: Record<string, CanonicalProjectType> = {
   website: "new_website",
   new_website: "new_website",
-
-  lab: "lab_from_existing",
-  lab_from_existing: "lab_from_existing",
 
   successor: "website_successor",
   website_successor: "website_successor",
@@ -76,10 +70,6 @@ const canonicalProjectTypeMap: Record<string, CanonicalProjectType> = {
 
 function isDocTab(t: TabKey): t is DocTabKey {
   return DOC_TABS.some((d) => d.key === t);
-}
-
-function isLibraryTab(t: TabKey): t is LibraryTabKey {
-  return DOC_TABS.some((d) => d.key === t && d.mode === "library");
 }
 
 function docTabMeta(t: DocTabKey): DocTabMeta {
@@ -202,22 +192,8 @@ async function tryAutoOpen(url: string) {
 }
 
 type O2PortStatusJson = { port?: number; listening?: boolean };
+type O2PortStatusBatchJson = { ok?: boolean; ports?: O2PortStatusJson[] };
 
-function parsePortStatusJson(out: string, port: number): PortStatus {
-  try {
-    const obj = JSON.parse((out || "").trim()) as O2PortStatusJson;
-    const listening = Boolean(obj?.listening);
-    return { port, listening, pid: null, cmd: null, err: null };
-  } catch {
-    return {
-      port,
-      listening: false,
-      pid: null,
-      cmd: null,
-      err: "invalid json",
-    };
-  }
-}
 
 type FormationStartPayload = {
   projectType: CanonicalProjectType;
@@ -361,13 +337,10 @@ function normalizeFormationStartPayload(
     payload.patternHint?.trim() || payload.repoHint?.trim() || "";
   const similarityNotes = payload.similarityNotes?.trim() || "";
   const intent = (
-    payload.intent || (payload.o2LabKey ? "lab" : "production")
+    payload.intent || "production"
   ).trim();
 
-  const track =
-    projectType === "lab_from_existing" || intent === "lab"
-      ? "lab"
-      : "production";
+  const track = "production";
 
   const versionTag = "";
   const notes = payload.notes?.trim() || "";
@@ -423,8 +396,11 @@ export default function App() {
   const [portsBusy, setPortsBusy] = useState(false);
 
   const [log, setLog] = useState("");
-  const appendLog = (s: string) =>
-    setLog((prev) => (prev ? prev + "\n" + s : s));
+  const appendLog = (entry: string) =>
+    setLog((previous) => {
+      const next = previous ? `${previous}\n${entry}` : entry;
+      return next.length > 50000 ? next.slice(-50000) : next;
+    });
 
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [preferredProjectKey, setPreferredProjectKey] = useState<string | null>(null);
@@ -589,26 +565,29 @@ export default function App() {
     refreshInFlightRef.current = (async () => {
       setPortsBusy(true);
       try {
-        const results = await Promise.all(
-          PORTS.map(async (p) => {
-            try {
-              const out = await runO2Text(`port_status.${p}`);
-              return parsePortStatusJson(out, p);
-            } catch (e) {
-              return {
-                port: p,
-                listening: false,
-                pid: null,
-                cmd: null,
-                err: fmtErr(e),
-              } as PortStatus;
-            }
-          }),
-        );
+        if (PORTS.length === 0) {
+          setPorts({});
+          return;
+        }
+
+        const payload = encodeO2JsonPayload({ ports: PORTS });
+        const out = await runO2Text(`port_status.batch.${payload}`);
+        const parsed = JSON.parse(out) as O2PortStatusBatchJson;
+        if (!parsed.ok || !Array.isArray(parsed.ports)) {
+          throw new Error("port_status.batch returned an invalid response");
+        }
 
         const next: Record<number, PortStatus> = {};
-        results.forEach((r) => {
-          if (typeof r.port === "number") next[r.port] = r;
+        parsed.ports.forEach((item) => {
+          if (typeof item.port === "number") {
+            next[item.port] = {
+              port: item.port,
+              listening: Boolean(item.listening),
+              pid: null,
+              cmd: null,
+              err: null,
+            };
+          }
         });
         setPorts(next);
       } finally {
@@ -856,18 +835,11 @@ export default function App() {
   async function createProject(payload: AddProjectPayload) {
     const formationPayload = normalizeFormationStartPayload(payload);
 
-    if (
-      formationPayload.projectType === "lab_from_existing" &&
-      formationPayload.baseProjectKey
-    ) {
+    if (formationPayload.projectType === "website_successor" && formationPayload.baseProjectKey) {
       const rows = await loadRegistry();
-      const baseProject = rows.find(
-        (row) => row.key === formationPayload.baseProjectKey,
-      );
+      const baseProject = rows.find((row) => row.key === formationPayload.baseProjectKey);
       if (!baseProject) {
-        throw new Error(
-          `Base project "${formationPayload.baseProjectKey}" was not found in Projects.`,
-        );
+        throw new Error(`Base project "${formationPayload.baseProjectKey}" was not found in Projects.`);
       }
     }
 
@@ -1028,15 +1000,13 @@ export default function App() {
   async function requestTabChange(nextTab: TabKey): Promise<void> {
     if (nextTab === tab) return;
 
-    if (isLibraryTab(tab)) {
-      const saver = beforeTabChangeSaverRef.current;
-      if (saver) {
-        try {
-          const ok = await saver();
-          if (!ok) return;
-        } catch {
-          return;
-        }
+    const saver = beforeTabChangeSaverRef.current;
+    if (saver) {
+      try {
+        const ok = await saver();
+        if (!ok) return;
+      } catch {
+        return;
       }
     }
 
@@ -1119,6 +1089,7 @@ export default function App() {
               onSetRetired={setProjectRetired}
               onSetLaunchDate={setProjectLaunchDate}
               onEnsureNotes={ensureProjectNotes}
+              registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
               statusForRow={statusForRow}
             />
 
@@ -1135,9 +1106,16 @@ export default function App() {
           </>
         ) : tab === "infrastructure" ? (
 
-          <InfrastructureTab projects={projects} />
+          <InfrastructureTab
+            projects={projects}
+            onAppendLog={appendLog}
+            registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
+          />
         ) : tab === "agents" ? (
-          <AgentRunsTab projects={projects} />
+          <AgentRunsTab
+            projects={projects}
+            registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
+          />
         ) : tab === "empire_utility" ? (
           <EmpireUtilityTab />
         ) : isDocTab(tab) ? (

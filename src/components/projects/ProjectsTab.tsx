@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { readO2File, writeO2File } from "../common/o2Files";
+import { readO2File } from "../common/o2Files";
+import { persistGovernedRecordNote } from "../common/governedRecordNote";
 import { SystemStateShell } from "../common/SystemStateShell";
 import type { ProjectRow, PortStatus } from "./types";
 
@@ -25,6 +26,7 @@ type Props = {
   onSetRetired: (p: ProjectRow, retired: boolean) => Promise<void> | void;
   onSetLaunchDate: (p: ProjectRow, startDate: string) => Promise<void> | void;
   onEnsureNotes: (p: ProjectRow) => Promise<ProjectRow> | ProjectRow;
+  registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
   statusForRow: (p: ProjectRow) => StatusLike | unknown;
 };
 
@@ -92,6 +94,7 @@ export function ProjectsTab({
   onSetRetired,
   onSetLaunchDate,
   onEnsureNotes,
+  registerBeforeTabChangeSaver,
   statusForRow,
 }: Props) {
   const [sortMode, setSortMode] = useState<SortMode>("active");
@@ -108,6 +111,51 @@ export function ProjectsTab({
   const [projectNotesError, setProjectNotesError] = useState("");
   const [projectNotesSavedAt, setProjectNotesSavedAt] = useState<number | null>(null);
   const projectNotesRevisionRef = useRef(0);
+  const projectNotesPathRef = useRef<string | null>(null);
+  const projectNotesTextRef = useRef("");
+  const projectNotesLoadingRef = useRef(false);
+
+  useEffect(() => {
+    projectNotesPathRef.current = projectNotesPath;
+  }, [projectNotesPath]);
+
+  useEffect(() => {
+    projectNotesTextRef.current = projectNotesText;
+  }, [projectNotesText]);
+
+  useEffect(() => {
+    projectNotesLoadingRef.current = projectNotesLoading;
+  }, [projectNotesLoading]);
+
+  async function flushProjectNotes(): Promise<boolean> {
+    if (projectNotesRevisionRef.current === 0) return true;
+
+    const path = projectNotesPathRef.current;
+    if (!path || projectNotesLoadingRef.current) return false;
+
+    setProjectNotesSaving(true);
+    setProjectNotesError("");
+    try {
+      const savedAt = await persistGovernedRecordNote(
+        path,
+        projectNotesTextRef.current,
+      );
+      projectNotesRevisionRef.current = 0;
+      setProjectNotesSavedAt(savedAt);
+      return true;
+    } catch (error) {
+      setProjectNotesError(error instanceof Error ? error.message : String(error));
+      return false;
+    } finally {
+      setProjectNotesSaving(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!registerBeforeTabChangeSaver) return;
+    registerBeforeTabChangeSaver(flushProjectNotes);
+    return () => registerBeforeTabChangeSaver(null);
+  });
 
   const safeStatusForRow = useCallback(
     (project: ProjectRow): StatusLike => {
@@ -121,13 +169,7 @@ export function ProjectsTab({
   );
 
   const projectRows = useMemo(
-    () =>
-      projects.filter((row) => {
-        if (row.key === "o2" || row.key === "radcontrol") return false;
-        const match = row.key.match(/^(.+)-lab-v1$/i);
-        if (!match) return true;
-        return !projects.some((candidate) => candidate.key === match[1]);
-      }),
+    () => projects.filter((row) => row.key !== "o2" && row.key !== "radcontrol"),
     [projects],
   );
 
@@ -255,20 +297,21 @@ export function ProjectsTab({
 
     const revisionAtSchedule = projectNotesRevisionRef.current;
     const timeoutId = window.setTimeout(async () => {
+      if (projectNotesRevisionRef.current !== revisionAtSchedule) return;
       setProjectNotesSaving(true);
       setProjectNotesError("");
 
       try {
-        const parsed = await writeO2File({
-          path: projectNotesPath,
-          content: projectNotesText,
-        });
+        const savedAt = await persistGovernedRecordNote(
+          projectNotesPath,
+          projectNotesText,
+        );
 
         if (projectNotesRevisionRef.current === revisionAtSchedule) {
           projectNotesRevisionRef.current = 0;
         }
 
-        setProjectNotesSavedAt(typeof parsed.mtime === "number" ? parsed.mtime : Date.now());
+        setProjectNotesSavedAt(savedAt);
       } catch (error) {
         setProjectNotesError(error instanceof Error ? error.message : String(error));
       } finally {

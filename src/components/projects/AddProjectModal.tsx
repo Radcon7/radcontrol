@@ -17,7 +17,6 @@ import { validateAdd } from "./helpers";
 
 type NewProjectType =
   | "new_website"
-  | "lab_from_existing"
   | "website_successor"
   | "standalone_app"
   | "internal_tool"
@@ -25,11 +24,7 @@ type NewProjectType =
   | "service_worker"
   | "other";
 
-type RelationChoice =
-  | "net_new"
-  | "similar_to_existing"
-  | "website_successor"
-  | "lab_from_existing";
+type RelationChoice = "net_new" | "similar_to_existing" | "website_successor";
 
 export type AddProjectModalPrefill = {
   projectType?: NewProjectType;
@@ -78,10 +73,6 @@ const RELATION_OPTIONS: Array<{ value: RelationChoice; label: string }> = [
   {
     value: "website_successor",
     label: "Successor to an existing website",
-  },
-  {
-    value: "lab_from_existing",
-    label: "Lab experiment from an existing project",
   },
 ];
 
@@ -169,7 +160,6 @@ const INITIAL_SECTION_SET_OPTIONS: Array<{
 const ORG_OPTIONS: Array<{ value: ProjectOrg; label: string }> = [
   { value: "radcon", label: "Radcon" },
   { value: "radwolfe", label: "Radwolfe" },
-  { value: "labs", label: "Labs" },
   { value: "other", label: "Other" },
 ];
 
@@ -256,22 +246,20 @@ function defaultKindForSurface(surface: ProjectDeliverySurface): ProjectKind {
   }
 }
 
-function defaultOrgForRelation(choice: RelationChoice): ProjectOrg {
-  return choice === "lab_from_existing" ? "labs" : "radcon";
+function defaultOrgForRelation(_choice: RelationChoice): ProjectOrg {
+  return "radcon";
 }
 
 function requiresRelatedProject(choice: RelationChoice): boolean {
   return choice !== "net_new";
 }
 
-function derivedIntent(choice: RelationChoice): "production" | "lab" {
-  return choice === "lab_from_existing" ? "lab" : "production";
+function derivedIntent(_choice: RelationChoice): "production" {
+  return "production";
 }
 
 function derivedRelationship(choice: RelationChoice) {
   switch (choice) {
-    case "lab_from_existing":
-      return "lab_variant" as const;
     case "website_successor":
       return "version_successor" as const;
     case "similar_to_existing":
@@ -288,7 +276,6 @@ function deriveProjectType(
   surface: ProjectDeliverySurface,
   projectClass: ProjectClass,
 ): NewProjectType {
-  if (choice === "lab_from_existing") return "lab_from_existing";
   if (choice === "website_successor") return "website_successor";
   if (surface === "docs_surface" || kind === "docs") return "docs_surface";
   if (surface === "desktop_app" || kind === "tauri") return "standalone_app";
@@ -305,48 +292,28 @@ function deriveProjectType(
   return "new_website";
 }
 
-function buildDefaultRepoPath(
-  org: ProjectOrg,
-  key: string,
-  projectType: NewProjectType,
-): string {
+function buildDefaultRepoPath(org: ProjectOrg, key: string): string {
   if (!key) return "";
-
-  if (projectType === "lab_from_existing") {
-    return `/home/chris/dev/rad-empire/labs/projects/${key}`;
-  }
 
   switch (org) {
     case "radcon":
       return `/home/chris/dev/rad-empire/radcon/dev/${key}`;
     case "radwolfe":
       return `/home/chris/dev/rad-empire/radwolfe/dev/${key}`;
-    case "labs":
-      return `/home/chris/dev/rad-empire/labs/projects/${key}`;
     case "other":
     default:
       return `/home/chris/dev/${key}`;
   }
 }
 
-function buildDefaultRepoHint(
-  org: ProjectOrg,
-  key: string,
-  projectType: NewProjectType,
-): string {
+function buildDefaultRepoHint(org: ProjectOrg, key: string): string {
   if (!key) return "";
-
-  if (projectType === "lab_from_existing") {
-    return `labs/projects/${key}`;
-  }
 
   switch (org) {
     case "radcon":
       return `radcon/dev/${key}`;
     case "radwolfe":
       return `radwolfe/dev/${key}`;
-    case "labs":
-      return `labs/projects/${key}`;
     case "other":
     default:
       return key;
@@ -362,9 +329,6 @@ function missionPlaceholder(
   projectClass: ProjectClass,
   choice: RelationChoice,
 ): string {
-  if (choice === "lab_from_existing") {
-    return "Describe the experiment, what you want to test safely, and what should be learned before anything is promoted.";
-  }
   if (choice === "website_successor") {
     return "Describe what this new version needs to improve while preserving the right parts of the existing site.";
   }
@@ -399,8 +363,6 @@ function relatedProjectLabel(choice: RelationChoice): string {
       return "Primary reference project";
     case "website_successor":
       return "Existing website being succeeded";
-    case "lab_from_existing":
-      return "Base project for this lab";
     default:
       return "Related project";
   }
@@ -412,8 +374,6 @@ function relatedProjectHelp(choice: RelationChoice): string {
       return "Choose the closest repo or surface. Use the reference field below for any secondary repos, tabs, or formatting cues.";
     case "website_successor":
       return "Choose the current website this new version should inherit from and improve.";
-    case "lab_from_existing":
-      return "Choose the governed project this experiment belongs under.";
     default:
       return "Choose the existing project this effort should reference.";
   }
@@ -596,8 +556,6 @@ function referenceReposPlaceholder(choice: RelationChoice): string {
       return "DQOTD tabs, TBIS admin split, Offroad compact nav, or any other repos or surfaces O2 should inspect before proposing structure.";
     case "website_successor":
       return "List any sibling repos, current deployments, or UI surfaces that the successor should review before replacing the current site.";
-    case "lab_from_existing":
-      return "List any repos, views, or experiments the lab should inspect while it stays safely in the lab lane.";
     case "net_new":
     default:
       return "List any current repos, tabs, or local surfaces worth borrowing ideas, formatting, or constraints from.";
@@ -610,8 +568,6 @@ function similarityPlaceholder(choice: RelationChoice): string {
       return "Explain what should feel similar, what should stay different, and what should be inspected before build work begins.";
     case "website_successor":
       return "Explain what content, stack, or behavior should carry forward and what needs to change.";
-    case "lab_from_existing":
-      return "Explain the experiment boundary, what must remain untouched, and what would count as a useful outcome.";
     default:
       return "Explain any inheritance, shared patterns, or adjacent systems that matter to formation.";
   }
@@ -640,18 +596,6 @@ function recommendBuildLane(args: {
     args.googleWorkspacePlan === "day_one"
       ? " Google Workspace is expected immediately, so identity and tenant planning should be explicit."
       : "";
-
-  if (args.choice === "lab_from_existing") {
-    return {
-      key: "lab_first",
-      label: "Governed lab formation first",
-      reason:
-        "This should stay on the governed lab track until the experiment boundary, inheritance path, and success signal are explicit." +
-        workspaceClause,
-      buildAgentCandidate: false,
-      securityReviewRequired: false,
-    };
-  }
 
   const securitySensitive =
     args.securityPosture === "high_security" ||
@@ -803,14 +747,9 @@ export function AddProjectModal({
     if (!open) return;
 
     const inferredRelation: RelationChoice =
-      prefill?.projectType === "lab_from_existing"
-        ? "lab_from_existing"
-        : prefill?.projectType === "website_successor"
-          ? "website_successor"
-          : "net_new";
+      prefill?.projectType === "website_successor" ? "website_successor" : "net_new";
 
-    const defaultClass: ProjectClass =
-      inferredRelation === "lab_from_existing" ? "data_analysis" : "business_website";
+    const defaultClass: ProjectClass = "business_website";
     const defaultSurface = defaultSurfaceForClass(defaultClass);
     const defaultKind = defaultKindForSurface(defaultSurface);
 
@@ -846,7 +785,7 @@ export function AddProjectModal({
     setNeedsAuthentication(false);
     setHandlesSensitiveData(false);
     setLaunchLocalFirst(true);
-    setBootstrapNow(inferredRelation !== "lab_from_existing");
+    setBootstrapNow(true);
     setBootstrapChoiceTouched(false);
     setOperatorBrief("");
 
@@ -943,13 +882,6 @@ export function AddProjectModal({
   }, [needsAdminSurface, open]);
 
   useEffect(() => {
-    if (!open) return;
-    if (relationChoice === "lab_from_existing" && bootstrapNow) {
-      setBootstrapNow(false);
-    }
-  }, [bootstrapNow, open, relationChoice]);
-
-  useEffect(() => {
     if (!open || portTouched || !requestPortSuggestion) return;
 
     const getSuggestion = requestPortSuggestion;
@@ -1002,7 +934,7 @@ export function AddProjectModal({
   const shouldShowRelatedProject = requiresRelatedProject(relationChoice);
   const shouldShowPort = kind !== "ops";
   const shouldShowUrl = shouldShowPort;
-  const bootstrapAllowed = relationChoice !== "lab_from_existing";
+  const bootstrapAllowed = true;
   const showDomainIntent =
     deliverySurface === "public_website" ||
     deliverySurface === "private_portal" ||
@@ -1016,12 +948,12 @@ export function AddProjectModal({
 
   const computedRepoPath = useMemo(() => {
     if (repoPathTouched) return repoPath;
-    return buildDefaultRepoPath(org, key.trim(), projectType);
+    return buildDefaultRepoPath(org, key.trim());
   }, [repoPathTouched, repoPath, org, key, projectType]);
 
   const computedRepoHint = useMemo(() => {
     if (repoHintTouched) return repoHint;
-    return buildDefaultRepoHint(org, key.trim(), projectType);
+    return buildDefaultRepoHint(org, key.trim());
   }, [repoHintTouched, repoHint, org, key, projectType]);
 
   const computedUrl = useMemo(() => {
@@ -1038,7 +970,6 @@ export function AddProjectModal({
     () => (key.trim() ? `${key.trim()}.commit` : ""),
     [key],
   );
-  const computedO2LabKey = useMemo(() => (key.trim() ? `${key.trim()}.lab` : ""), [key]);
   const computedO2MapKey = useMemo(() => (key.trim() ? `${key.trim()}.map` : ""), [key]);
   const computedO2ProofPackKey = useMemo(
     () => (key.trim() ? `${key.trim()}.proofpack` : ""),
@@ -1273,14 +1204,13 @@ export function AddProjectModal({
       o2StartKey: computedO2StartKey || undefined,
       o2SnapshotKey: computedO2SnapshotKey || undefined,
       o2CommitKey: computedO2CommitKey || undefined,
-      o2LabKey: computedO2LabKey || undefined,
       o2MapKey: computedO2MapKey || undefined,
       o2ProofPackKey: computedO2ProofPackKey || undefined,
       projectType,
       intent: track,
       relationship,
       parentProjectKey:
-        relationChoice === "website_successor" || relationChoice === "lab_from_existing"
+        relationChoice === "website_successor"
           ? relatedProject.trim() || undefined
           : undefined,
       similarProjectKey:
@@ -1328,7 +1258,6 @@ export function AddProjectModal({
       computedO2StartKey,
       computedO2SnapshotKey,
       computedO2CommitKey,
-      computedO2LabKey,
       computedO2MapKey,
       computedO2ProofPackKey,
       projectType,
@@ -1387,9 +1316,6 @@ export function AddProjectModal({
     if (!key.trim()) errors.push("Project key is required.");
     if (shouldShowRelatedProject && !relatedProject.trim()) {
       errors.push("A related project is required for this formation path.");
-    }
-    if (relationChoice === "lab_from_existing" && org !== "labs") {
-      errors.push("Lab formations should stay under the labs org.");
     }
     if (relationChoice === "website_successor" && kind !== "nextjs") {
       errors.push("Website successors should stay on the Next.js surface.");
@@ -2157,7 +2083,6 @@ export function AddProjectModal({
 
               {!bootstrapAllowed ? (
                 <div className="fieldHelp fieldHelpStrong">
-                  Lab formations stay formation-only. Bootstrap is intentionally blocked until the experiment has a governed promotion path.
                 </div>
               ) : buildLane.securityReviewRequired ? (
                 <div className="fieldHelp fieldHelpStrong">

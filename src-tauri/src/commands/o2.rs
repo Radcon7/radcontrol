@@ -1,6 +1,5 @@
 use serde::Serialize;
-use std::io::Write;
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 #[derive(Serialize)]
 pub struct RunO2Result {
@@ -43,67 +42,50 @@ fn run_o2_command(arg: &str) -> RunO2Result {
   }
 }
 
-fn run_o2_command_with_input(arg: &str, input: &str) -> RunO2Result {
-  // We only ever call: bash <O2_ROOT>/scripts/run_o2.sh "<verb>"
-  // No freeform shell; arg is treated as a single verb string.
-  // Input is written to stdin (EOF after write).
-  let root = o2_root();
-  let script = format!("{}/scripts/run_o2.sh", root);
-
-  let mut child = match Command::new("bash")
-    .arg(script)
-    .arg(arg)
-    .stdin(Stdio::piped())
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .spawn()
-  {
-    Ok(c) => c,
-    Err(e) => {
-      return RunO2Result {
-        ok: false,
-        code: 1,
-        stdout: "".to_string(),
-        stderr: format!("failed to spawn run_o2: {}", e),
-      };
-    }
-  };
-
-  if let Some(mut stdin) = child.stdin.take() {
-    // Best-effort write, then close stdin (drop) to signal EOF.
-    let _ = stdin.write_all(input.as_bytes());
+fn verb_allowed(verb: &str) -> bool {
+  if matches!(
+    verb,
+    "list_projects"
+      | "project_pattern.list"
+      | "empire.map"
+      | "empire.sweep"
+      | "radcontrol.snapshot"
+      | "radcontrol.dev_strict"
+  ) {
+    return true;
   }
 
-  let output = match child.wait_with_output() {
-    Ok(o) => o,
-    Err(e) => {
-      return RunO2Result {
-        ok: false,
-        code: 1,
-        stdout: "".to_string(),
-        stderr: format!("failed to read run_o2 output: {}", e),
-      };
-    }
+  const PAYLOAD_PREFIXES: &[&str] = &[
+    "files.list.",
+    "files.read.",
+    "files.write.",
+    "files.rename.",
+    "project_note.ensure.",
+    "project_retired.set.",
+    "project_launch_date.set.",
+    "project_create.start.",
+    "project_create.bootstrap.",
+    "agent_profile.create.",
+    "infrastructure_asset.create.",
+    "port_status.",
+    "port_suggest.",
+    "kill_port.",
+  ];
+
+  if PAYLOAD_PREFIXES.iter().any(|prefix| verb.starts_with(prefix)) {
+    return true;
+  }
+
+  let Some((project_key, action)) = verb.rsplit_once('.') else {
+    return false;
   };
 
-  RunO2Result {
-    ok: output.status.success(),
-    code: output.status.code().unwrap_or(1),
-    stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-    stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-  }
+  !project_key.is_empty()
+    && project_key
+      .chars()
+      .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')
+    && matches!(action, "dev" | "dev_strict" | "snapshot" | "commit" | "map" | "proofpack")
 }
-
-// Optional: strict allowlist. If you want this ON, uncomment the check below.
-// fn verb_allowed(v: &str) -> bool {
-//   matches!(
-//     v,
-//     "files.list"
-//       | "list_projects"
-//       | "codex.chat"
-//       | "codex.build"
-//   )
-// }
 
 #[tauri::command]
 pub fn run_o2(verb: String) -> RunO2Result {
@@ -118,41 +100,14 @@ pub fn run_o2(verb: String) -> RunO2Result {
     };
   }
 
-  // If you enable allowlisting, enforce it here:
-  // if !verb_allowed(&v) {
-  //   return RunO2Result {
-  //     ok: false,
-  //     code: 1,
-  //     stdout: "".to_string(),
-  //     stderr: format!("verb not allowed: {}", v),
-  //   };
-  // }
-
-  run_o2_command(&v)
-}
-
-#[tauri::command]
-pub fn run_o2_with_input(verb: String, input: String) -> RunO2Result {
-  // Defensive trim; keep it as one argument.
-  let v = verb.trim().to_string();
-  if v.is_empty() {
+  if !verb_allowed(&v) {
     return RunO2Result {
       ok: false,
       code: 1,
       stdout: "".to_string(),
-      stderr: "empty verb".to_string(),
+      stderr: format!("verb not allowed: {}", v),
     };
   }
 
-  // If you enable allowlisting, enforce it here:
-  // if !verb_allowed(&v) {
-  //   return RunO2Result {
-  //     ok: false,
-  //     code: 1,
-  //     stdout: "".to_string(),
-  //     stderr: format!("verb not allowed: {}", v),
-  //   };
-  // }
-
-  run_o2_command_with_input(&v, &input)
+  run_o2_command(&v)
 }

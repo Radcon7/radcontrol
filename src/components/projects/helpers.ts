@@ -38,7 +38,6 @@ function asProjectOrg(v: unknown): ProjectOrg | undefined {
   const value = v.trim();
   return value === "radcon" ||
     value === "radwolfe" ||
-    value === "labs" ||
     value === "other"
     ? value
     : undefined;
@@ -103,7 +102,6 @@ export function registryToProjects(reg: unknown): ProjectRow[] {
         o2StartKey: asNonEmptyString(r.o2StartKey),
         o2SnapshotKey: asNonEmptyString(r.o2SnapshotKey),
         o2CommitKey: asNonEmptyString(r.o2CommitKey),
-        o2LabKey: asNonEmptyString(r.o2LabKey),
         o2MapKey: asNonEmptyString(r.o2MapKey),
         o2ProofPackKey: asNonEmptyString(r.o2ProofPackKey) ?? `${key}.proofpack`,
       });
@@ -149,7 +147,7 @@ export function validateAdd(args: {
   const url = typeof args.url === "string" ? args.url.trim() : "";
   const port = args.port;
 
-  const validOrgs: ProjectOrg[] = ["radcon", "radwolfe", "labs", "other"];
+  const validOrgs: ProjectOrg[] = ["radcon", "radwolfe", "other"];
 
   if (!org) {
     errors.push("Org is required.");

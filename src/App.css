@@ -1960,7 +1960,8 @@ pre {
   align-content: start;
 }
 
-.surfaceProjectBriefCard {
+.surfaceProjectBriefCard,
+.surfaceDetailBriefCard {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
@@ -1968,9 +1969,14 @@ pre {
   overflow: hidden;
 }
 
-.surfaceProjectBriefCard .surfaceSummaryList {
+.surfaceProjectBriefCard .surfaceSummaryList,
+.surfaceDetailBriefCard .surfaceSummaryList {
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.infrastructureModalCard {
+  width: min(920px, calc(100vw - 40px));
 }
 
 .surfaceProjectNoteArea {

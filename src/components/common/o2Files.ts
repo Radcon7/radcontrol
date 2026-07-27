@@ -92,33 +92,7 @@ export async function runO2(verb: string): Promise<RunO2Result> {
   return (await invoke("run_o2", { verb })) as RunO2Result;
 }
 
-export async function runO2WithInput(
-  verb: string,
-  input: string,
-): Promise<RunO2Result> {
-  return (await invoke("run_o2_with_input", {
-    verb,
-    input,
-  })) as RunO2Result;
-}
 
-export function runO2TextOutput(result: unknown): string {
-  if (typeof result === "string") return result;
-
-  if (result && typeof result === "object") {
-    const record = result as Record<string, unknown>;
-    if (typeof record.stdout === "string") return record.stdout;
-    if (typeof record.output === "string") return record.output;
-
-    try {
-      return JSON.stringify(record);
-    } catch {
-      return "[unstringifiable object]";
-    }
-  }
-
-  return (result ?? "").toString();
-}
 
 export function joinO2ResultOutput(result: RunO2Result): string {
   const stdout = (result.stdout || "").trimEnd();
@@ -128,7 +102,11 @@ export function joinO2ResultOutput(result: RunO2Result): string {
 }
 
 export async function runO2Text(verb: string): Promise<string> {
-  return runO2TextOutput(await runO2(verb));
+  const result = await runO2(verb);
+  if (!result.ok) {
+    throw new Error(errMsg(result, `${verb} failed`));
+  }
+  return joinO2ResultOutput(result);
 }
 
 export function errMsg(res: RunO2Result, fallback: string): string {

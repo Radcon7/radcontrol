@@ -80,12 +80,9 @@ export function EmpireUtilityTab() {
     saving,
     running,
     err,
-    setCurrentText,
     readPath,
     refreshList,
-    runProducerAndSave,
     runProducer,
-    saveCurrent,
   } = useArtifactStore({
     dir: config.dir,
     latestFileName: config.latestFileName,
@@ -99,7 +96,8 @@ export function EmpireUtilityTab() {
     void refreshList({ autoReadPreferred: true });
   }, [refreshList]);
 
-  const canRunAndSave = config.key !== "snapshot";
+  const runLabel =
+    config.key === "snapshot" ? "Run Empire Snapshot" : "Run Report";
 
   return (
     <section className="workspaceShell">
@@ -120,32 +118,14 @@ export function EmpireUtilityTab() {
         <button
           className="btn btnGhost btnCompact"
           onClick={() =>
-            void (canRunAndSave
-              ? runProducerAndSave({
-                  timestampCommitMessage: `radcontrol ${config.timestampStem}: save timestamped artifact`,
-                  latestCommitMessage: `radcontrol ${config.timestampStem}: update latest artifact`,
-                })
-              : runProducer({
-                  refreshArtifacts: true,
-                  autoReadPreferred: true,
-                }))
+            void runProducer({
+              refreshArtifacts: true,
+              autoReadPreferred: true,
+            })
           }
           disabled={running || saving || loading}
         >
-          {running ? "Running…" : config.key === "snapshot" ? "Run Empire Snapshot" : "Run Report"}
-        </button>
-        <button
-          className="btn btnGhost btnCompact"
-          onClick={() =>
-            void saveCurrent({
-              timestampCommitMessage: `radcontrol ${config.timestampStem}: save timestamped artifact`,
-              latestCommitMessage: `radcontrol ${config.timestampStem}: update latest artifact`,
-              preferSavedTimestamp: true,
-            })
-          }
-          disabled={saving || running || loading}
-        >
-          {saving ? "Saving…" : "Save Copy"}
+          {running ? "Running…" : runLabel}
         </button>
         <button
           className="btn btnGhost btnCompact"
@@ -169,7 +149,7 @@ export function EmpireUtilityTab() {
 
         <textarea
           value={currentText}
-          onChange={(event) => setCurrentText(event.target.value)}
+          readOnly
           placeholder={config.placeholder}
           spellCheck={false}
           className="pasteArea workspaceTextAreaFill"

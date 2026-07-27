@@ -1,21 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArtifactListPanel } from "../common/ArtifactListPanel";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  type FilesListItem,
   type FilesReadJson,
   listO2Files,
   readO2File,
   runO2PayloadParsedJson,
 } from "../common/o2Files";
+import { persistGovernedRecordNote } from "../common/governedRecordNote";
 import { SystemStateShell } from "../common/SystemStateShell";
 import type { ProjectRow } from "../projects/types";
-
-type CreateAgentRunJson = {
-  ok?: boolean;
-  runId?: string;
-  originArtifactPath?: string;
-  error?: string;
-};
 
 type CreateAgentProfileJson = {
   ok?: boolean;
@@ -27,6 +19,7 @@ type CreateAgentProfileJson = {
 
 type Props = {
   projects: ProjectRow[];
+  registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
 };
 
 type AgentProfile = {
@@ -47,11 +40,12 @@ type AgentProfile = {
   operatorIntent: string;
   contextArtifact: string;
   notes: string;
+  canonicalNotesPath?: string | null;
   governedState?: string;
   createdAt?: string;
   updatedAt?: string;
   artifactPath?: string;
-  artifactMtime?: number;
+  artifactMtime?: number | null;
 };
 
 type AgentProfileDraft = {
@@ -73,28 +67,16 @@ type AgentProfileDraft = {
   notes: string;
 };
 
-const RUNS_DIR = "docs/agent-runs";
 const PROFILES_DIR = "docs/agent-profiles";
 const DEFAULT_CONTEXT_ARTIFACT =
   "docs/radcontrol/empire_blueprint/radcontrol_transition_blueprint_20260724.md";
 
-function isRunOriginArtifact(item: FilesListItem): boolean {
-  const path = item.path || "";
-  return path.startsWith(`${RUNS_DIR}/`) && path.endsWith("/00_origin.md");
-}
-
-function isProfileArtifact(item: FilesListItem): boolean {
-  const path = item.path || "";
+function isProfileArtifact(path: string): boolean {
   return path.startsWith(`${PROFILES_DIR}/`) && path.endsWith("/01_profile.json");
 }
 
-function sortNewest(items: FilesListItem[]) {
-  return [...items].sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
-}
-
-function labelForProject(projects: ProjectRow[], key: string): string {
-  const project = projects.find((item) => item.key === key);
-  return project ? `${project.label} (${project.key})` : key;
+function sortNewest<T extends { artifactMtime?: number | null }>(items: T[]): T[] {
+  return [...items].sort((a, b) => (b.artifactMtime || 0) - (a.artifactMtime || 0));
 }
 
 function parseCsvList(value: string): string[] {
@@ -111,8 +93,27 @@ function parseLineList(value: string): string[] {
     .filter(Boolean);
 }
 
-function joinLineList(value: string[]): string {
-  return value.join("\n");
+function formatIsoDateTime(value?: string): string {
+  if (!value) return "Not recorded";
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return value;
+  return new Date(parsed).toLocaleString();
+}
+
+function labelForProject(projects: ProjectRow[], key: string): string {
+  const project = projects.find((item) => item.key === key);
+  return project ? project.label : key;
+}
+
+function joinProjectLabels(projects: ProjectRow[], keys: string[]): string {
+  if (keys.length === 0) return "No projects assigned";
+  return keys.map((key) => labelForProject(projects, key)).join(", ");
+}
+
+function notePathForProfile(profile: AgentProfile): string {
+  const explicit = profile.canonicalNotesPath?.trim();
+  if (explicit) return explicit;
+  return `${PROFILES_DIR}/${profile.profileKey}/NOTES.md`;
 }
 
 function makeBlankDraft(defaultProjectKey: string): AgentProfileDraft {
@@ -129,39 +130,25 @@ function makeBlankDraft(defaultProjectKey: string): AgentProfileDraft {
     defaultTargetType: "project",
     defaultTargetKey: defaultProjectKey,
     defaultTask:
-      "Describe the exact job this new agent should perform before you create the first run.",
+      "Describe the exact job this agent should perform when it is selected for concurrent work.",
     defaultMode: "read-only",
     approvalRequirement: "none",
     operatorIntent:
       "Define a governed specialist so future work can be assigned consistently inside RadControl.",
     contextArtifact: DEFAULT_CONTEXT_ARTIFACT,
     notes:
-      "Use this draft to capture the doctrine you want before the first governed run is created.",
+      "Use this profile to capture the agent's operating boundaries, specialty, and future areas of expertise.",
   };
 }
 
-function draftFromProfile(profile: AgentProfile): AgentProfileDraft {
-  return {
-    name: profile.name,
-    handle: profile.handle,
-    agentType: profile.agentType,
-    mission: profile.mission,
-    roleSummary: profile.roleSummary,
-    strengthsText: joinLineList(profile.strengths),
-    outputsText: joinLineList(profile.outputs),
-    assignedProjectsText: profile.assignedProjects.join(", "),
-    defaultTargetType: profile.defaultTargetType,
-    defaultTargetKey: profile.defaultTargetKey,
-    defaultTask: profile.defaultTask,
-    defaultMode: profile.defaultMode,
-    approvalRequirement: profile.approvalRequirement,
-    operatorIntent: profile.operatorIntent,
-    contextArtifact: profile.contextArtifact,
-    notes: profile.notes,
-  };
+async function readJsonPath(path: string): Promise<FilesReadJson> {
+  return readO2File(path);
 }
 
-export function AgentRunsTab({ projects }: Props) {
+export function AgentRunsTab({
+  projects,
+  registerBeforeTabChangeSaver,
+}: Props) {
   const defaultProjectKey = projects[0]?.key || "dqotd";
 
   const [profiles, setProfiles] = useState<AgentProfile[]>([]);
@@ -171,43 +158,69 @@ export function AgentRunsTab({ projects }: Props) {
   );
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [creatingProfile, setCreatingProfile] = useState(false);
-
-  const [runItems, setRunItems] = useState<FilesListItem[]>([]);
-  const [currentPath, setCurrentPath] = useState<string | null>(null);
-  const [currentText, setCurrentText] = useState("");
-  const [loadingRuns, setLoadingRuns] = useState(false);
-  const [creatingRun, setCreatingRun] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [err, setErr] = useState("");
-
-  const [title, setTitle] = useState("Launch readiness review");
-  const [targetType, setTargetType] = useState("project");
-  const [targetKey, setTargetKey] = useState(defaultProjectKey);
-  const [requestedTask, setRequestedTask] = useState(
-    "Review current state, identify blockers, and produce the next recommended steps.",
-  );
-  const [operatorIntent, setOperatorIntent] = useState(
-    "Create a governed agent run record before execution so progress is trackable in RadControl.",
-  );
-  const [requestedBy, setRequestedBy] = useState("chris");
-  const [agentType, setAgentType] = useState("codex");
-  const [requestedMode, setRequestedMode] = useState("read-only");
-  const [approvalRequirement, setApprovalRequirement] = useState("none");
-  const [contextArtifact, setContextArtifact] = useState(DEFAULT_CONTEXT_ARTIFACT);
-
-  const runOrigins = useMemo(
-    () => sortNewest(runItems.filter(isRunOriginArtifact)),
-    [runItems],
-  );
-
-  const selectedProfile =
-    profiles.find((profile) => profile.profileKey === selectedProfileKey) ||
-    profiles[0] ||
-    null;
+  const [notesText, setNotesText] = useState("");
+  const [notesPath, setNotesPath] = useState<string | null>(null);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesError, setNotesError] = useState("");
+  const [notesSavedAt, setNotesSavedAt] = useState<number | null>(null);
+  const [notesFileExists, setNotesFileExists] = useState(false);
+  const notesRevisionRef = useRef(0);
+  const notesPathRef = useRef<string | null>(null);
+  const notesTextRef = useRef("");
+  const notesLoadingRef = useRef(false);
 
   useEffect(() => {
-    if (targetKey) return;
-    setTargetKey(defaultProjectKey);
-  }, [defaultProjectKey, targetKey]);
+    notesPathRef.current = notesPath;
+  }, [notesPath]);
+
+  useEffect(() => {
+    notesTextRef.current = notesText;
+  }, [notesText]);
+
+  useEffect(() => {
+    notesLoadingRef.current = notesLoading;
+  }, [notesLoading]);
+
+  async function flushGovernedNotes(): Promise<boolean> {
+    if (notesRevisionRef.current === 0) return true;
+
+    const path = notesPathRef.current;
+    if (!path || notesLoadingRef.current) return false;
+
+    setNotesSaving(true);
+    setNotesError("");
+    try {
+      const savedAt = await persistGovernedRecordNote(
+        path,
+        notesTextRef.current,
+      );
+      notesRevisionRef.current = 0;
+      setNotesSavedAt(savedAt);
+      return true;
+    } catch (error) {
+      setNotesError(error instanceof Error ? error.message : String(error));
+      return false;
+    } finally {
+      setNotesSaving(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!registerBeforeTabChangeSaver) return;
+    registerBeforeTabChangeSaver(flushGovernedNotes);
+    return () => registerBeforeTabChangeSaver(null);
+  });
+
+  const selectedProfile = useMemo(
+    () =>
+      profiles.find((profile) => profile.profileKey === selectedProfileKey) ||
+      profiles[0] ||
+      null,
+    [profiles, selectedProfileKey],
+  );
 
   useEffect(() => {
     setProfileDraft((current) => ({
@@ -217,57 +230,18 @@ export function AgentRunsTab({ projects }: Props) {
     }));
   }, [defaultProjectKey]);
 
-  async function readJsonPath(path: string): Promise<FilesReadJson> {
-    return readO2File(path);
-  }
-
-  async function readRunPath(path: string): Promise<void> {
-    const parsed = await readJsonPath(path);
-    setCurrentPath(path);
-    setCurrentText(parsed.content || "");
-  }
-
-  async function refreshRuns(preferredPath?: string | null): Promise<void> {
-    setLoadingRuns(true);
-    setErr("");
-
-    try {
-      const parsed = await listO2Files(RUNS_DIR);
-
-      const nextItems = parsed.items || [];
-      const nextOrigins = sortNewest(nextItems.filter(isRunOriginArtifact));
-      setRunItems(nextItems);
-
-      const nextPath =
-        preferredPath && nextOrigins.some((item) => item.path === preferredPath)
-          ? preferredPath
-          : currentPath && nextOrigins.some((item) => item.path === currentPath)
-            ? currentPath
-            : nextOrigins[0]?.path || null;
-
-      if (nextPath) {
-        await readRunPath(nextPath);
-      } else {
-        setCurrentPath(null);
-        setCurrentText("");
-      }
-    } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
-    } finally {
-      setLoadingRuns(false);
-    }
-  }
-
   async function refreshProfiles(preferredKey?: string | null): Promise<void> {
     setProfilesLoading(true);
     setErr("");
 
     try {
       const parsed = await listO2Files(PROFILES_DIR);
+      const profileItems = (parsed.items || [])
+        .filter((item) => typeof item.path === "string")
+        .filter((item) => isProfileArtifact(item.path || ""));
 
-      const nextItems = sortNewest((parsed.items || []).filter(isProfileArtifact));
       const loadedProfiles = await Promise.all(
-        nextItems.map(async (item) => {
+        profileItems.map(async (item) => {
           const filePath = item.path || "";
           const read = await readJsonPath(filePath);
           let profile = {} as AgentProfile;
@@ -276,6 +250,7 @@ export function AgentRunsTab({ projects }: Props) {
           } catch {
             throw new Error(`Invalid agent profile JSON: ${filePath}`);
           }
+
           return {
             ...profile,
             artifactPath: filePath,
@@ -283,6 +258,10 @@ export function AgentRunsTab({ projects }: Props) {
             operatorIntent: profile.operatorIntent || "",
             contextArtifact: profile.contextArtifact || "",
             notes: profile.notes || "",
+            canonicalNotesPath:
+              typeof profile.canonicalNotesPath === "string"
+                ? profile.canonicalNotesPath
+                : null,
             assignedProjects: Array.isArray(profile.assignedProjects)
               ? profile.assignedProjects
               : [],
@@ -292,16 +271,18 @@ export function AgentRunsTab({ projects }: Props) {
         }),
       );
 
-      loadedProfiles.sort((a, b) => a.name.localeCompare(b.name));
-      setProfiles(loadedProfiles);
+      const nextProfiles = sortNewest(loadedProfiles).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+      setProfiles(nextProfiles);
 
       const nextSelected =
-        preferredKey && loadedProfiles.some((profile) => profile.profileKey === preferredKey)
+        preferredKey && nextProfiles.some((profile) => profile.profileKey === preferredKey)
           ? preferredKey
           : selectedProfileKey &&
-              loadedProfiles.some((profile) => profile.profileKey === selectedProfileKey)
+              nextProfiles.some((profile) => profile.profileKey === selectedProfileKey)
             ? selectedProfileKey
-            : loadedProfiles[0]?.profileKey || null;
+            : nextProfiles[0]?.profileKey || null;
 
       setSelectedProfileKey(nextSelected);
     } catch (error) {
@@ -312,29 +293,101 @@ export function AgentRunsTab({ projects }: Props) {
   }
 
   useEffect(() => {
-    void Promise.all([refreshProfiles(), refreshRuns()]);
+    void refreshProfiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function applyProfileToRun(profile: AgentProfile): void {
-    setTitle(`${profile.name} :: ${profile.mission.split(".")[0]}`);
-    setTargetType(profile.defaultTargetType);
-    setTargetKey(profile.defaultTargetKey || defaultProjectKey);
-    setRequestedTask(profile.defaultTask);
-    setOperatorIntent(profile.operatorIntent);
-    setAgentType(profile.agentType);
-    setRequestedMode(profile.defaultMode);
-    setApprovalRequirement(profile.approvalRequirement);
-    setContextArtifact(profile.contextArtifact || DEFAULT_CONTEXT_ARTIFACT);
-  }
+  useEffect(() => {
+    let cancelled = false;
 
-  function startNewProfileDraft(): void {
+    async function loadNotes() {
+      if (!selectedProfile) {
+        setNotesPath(null);
+        setNotesText("");
+        setNotesError("");
+        setNotesSavedAt(null);
+        setNotesFileExists(false);
+        setNotesLoading(false);
+        return;
+      }
+
+      const nextPath = notePathForProfile(selectedProfile);
+      setNotesPath(nextPath);
+      setNotesLoading(true);
+      setNotesError("");
+
+      try {
+        const parsed = await readO2File(nextPath);
+        if (cancelled) return;
+
+        notesRevisionRef.current = 0;
+        setNotesText(parsed.content || "");
+        setNotesSavedAt(typeof parsed.mtime === "number" ? parsed.mtime : null);
+        setNotesFileExists(true);
+      } catch {
+        if (cancelled) return;
+
+        notesRevisionRef.current = 0;
+        setNotesText(selectedProfile.notes || "");
+        setNotesSavedAt(null);
+        setNotesFileExists(false);
+      } finally {
+        if (!cancelled) {
+          setNotesLoading(false);
+        }
+      }
+    }
+
+    void loadNotes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProfile?.profileKey, selectedProfile?.updatedAt]);
+
+  useEffect(() => {
+    if (!selectedProfile?.profileKey || !notesPath || notesLoading) return;
+    if (notesRevisionRef.current === 0) return;
+
+    const revisionAtSchedule = notesRevisionRef.current;
+    const timeoutId = window.setTimeout(async () => {
+      if (notesRevisionRef.current !== revisionAtSchedule) return;
+      setNotesSaving(true);
+      setNotesError("");
+
+      try {
+        const savedAt = await persistGovernedRecordNote(
+          notesPath,
+          notesText,
+        );
+
+        if (notesRevisionRef.current === revisionAtSchedule) {
+          notesRevisionRef.current = 0;
+        }
+
+        setNotesSavedAt(savedAt);
+        setNotesFileExists(true);
+      } catch (error) {
+        setNotesError(error instanceof Error ? error.message : String(error));
+      } finally {
+        setNotesSaving(false);
+      }
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [notesLoading, notesPath, notesText, selectedProfile?.profileKey]);
+
+  function openCreateModal(): void {
     setProfileDraft(makeBlankDraft(defaultProjectKey));
+    setShowCreateModal(true);
+    setErr("");
   }
 
-  function loadSelectedIntoBuilder(): void {
-    if (!selectedProfile) return;
-    setProfileDraft(draftFromProfile(selectedProfile));
+  function closeCreateModal(): void {
+    if (creatingProfile) return;
+    setShowCreateModal(false);
   }
 
   async function createProfile(): Promise<void> {
@@ -385,6 +438,7 @@ export function AgentRunsTab({ projects }: Props) {
       }
 
       await refreshProfiles(parsed.profileKey);
+      setShowCreateModal(false);
     } catch (error) {
       setErr(error instanceof Error ? error.message : String(error));
     } finally {
@@ -392,80 +446,44 @@ export function AgentRunsTab({ projects }: Props) {
     }
   }
 
-  async function createRun(): Promise<void> {
-    if (!title.trim() || !targetKey.trim() || !requestedTask.trim()) {
-      setErr("Title, target key, and requested task are required.");
-      return;
-    }
-
-    setCreatingRun(true);
-    setErr("");
-
-    try {
-      const payload = {
-        title,
-        targetType,
-        targetKey,
-        requestedTask,
-        operatorIntent,
-        requestedBy,
-        agentType,
-        requestedMode,
-        approvalRequirement,
-        contextArtifact,
-      };
-
-      const parsed = await runO2PayloadParsedJson<CreateAgentRunJson>(
-        "agent_run.create",
-        payload,
-        "agent_run.create failed",
-        "agent_run.create returned invalid JSON",
-      );
-
-      if (!parsed.ok || !parsed.originArtifactPath) {
-        throw new Error(parsed.error || "agent_run.create returned error");
-      }
-
-      await refreshRuns(parsed.originArtifactPath);
-    } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error));
-    } finally {
-      setCreatingRun(false);
-    }
-  }
+  const notesDirty = notesRevisionRef.current > 0;
+  const notesStatus = notesLoading
+    ? "Loading note..."
+    : notesSaving
+      ? "Saving..."
+      : notesError
+        ? notesError
+        : notesDirty
+          ? "Unsaved changes"
+          : notesSavedAt
+            ? `Saved ${new Date(notesSavedAt).toLocaleString()}`
+            : notesFileExists
+              ? "Governed note"
+              : "Note will be created on first save";
 
   const actions = (
-    <>
-      <button className="btn btnGhost" onClick={startNewProfileDraft}>
-        Create New Agent
-      </button>
-      <button
-        className="btn btnGhost"
-        onClick={() => void Promise.all([refreshProfiles(), refreshRuns()])}
-        disabled={profilesLoading || loadingRuns || creatingRun || creatingProfile}
-      >
-        {profilesLoading || loadingRuns ? "Refreshing…" : "Refresh"}
-      </button>
-    </>
+    <button
+      className="btn btnPrimary"
+      onClick={openCreateModal}
+      disabled={creatingProfile || profilesLoading}
+      title="Create a governed agent profile under O2 authority"
+    >
+      New Agent
+    </button>
   );
 
-
   return (
-    <SystemStateShell
-      title="Agents"
-      actions={actions}
-      error={err ? <>{err}</> : null}
-    >
+    <SystemStateShell title="Agents" actions={actions} error={err ? <>{err}</> : null}>
       <div className="surfaceLayout">
         <div className="surfaceSidebarStack">
-          <div className="surfaceCard">
-            <div className="surfaceCardTitle">Agent Roster</div>
+          <div className="surfaceCard surfaceSidebarCard">
+            <div className="surfaceCardTitleRow surfaceSidebarHeaderRow">
+              <div className="surfaceCardTitle">AGENT ROSTER</div>
+            </div>
 
             <div className="surfaceList">
               {profiles.length === 0 ? (
-                <div className="surfaceMutedSmall">
-                  No governed profiles found yet.
-                </div>
+                <div className="surfaceEmptyState">No governed agents available yet.</div>
               ) : (
                 profiles.map((profile) => {
                   const active = profile.profileKey === selectedProfileKey;
@@ -473,142 +491,169 @@ export function AgentRunsTab({ projects }: Props) {
                     <button
                       key={profile.profileKey}
                       type="button"
+                      aria-pressed={active}
                       onClick={() => setSelectedProfileKey(profile.profileKey)}
                       className={`surfaceNavButton ${active ? "surfaceNavButtonActive" : ""}`}
                     >
                       <div className="surfaceNavTitle">{profile.name}</div>
-                      <div className="surfaceNavMeta">
-                        {profile.roleSummary}
-                      </div>
-                      <div className="surfaceNavMetaSecondary">
-                        {profile.assignedProjects.length > 0
-                          ? profile.assignedProjects.join(" • ")
-                          : "No project assignments yet"}
-                      </div>
                     </button>
                   );
                 })
               )}
             </div>
           </div>
-
-          <ArtifactListPanel
-            title="Governed Agent Runs"
-            items={runOrigins}
-            currentPath={currentPath}
-            emptyText="No governed agent runs yet."
-            onSelect={(path) => void readRunPath(path)}
-          />
         </div>
 
         <div className="surfaceCommandMain">
-          {selectedProfile ? (
-            <div className="surfaceCard">
-              <div className="surfaceHero">
-                <div>
-                  <div className="surfaceTitleLg">{selectedProfile.name}</div>
-                  <div className="surfaceCardLead">
-                    {selectedProfile.mission}
+          {!selectedProfile ? (
+            <div className="surfaceCard surfaceEmptyState surfaceEmptyStateLarge">
+              Select an agent to inspect its focus, governed limits, and operating scope.
+            </div>
+          ) : (
+            <div className="surfaceGridProjectTop">
+              <div className="surfaceCard surfaceDetailBriefCard">
+                <div className="surfaceCardTitle">Agent Brief</div>
+                <div className="surfaceSummaryList">
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Agent</div>
+                    <div className="surfaceValue">{selectedProfile.name}</div>
                   </div>
-                </div>
-                <div className="surfaceTagRow">
-                  <span className="surfaceTag">
-                    {selectedProfile.agentType}
-                  </span>
-                  <span className="surfaceTag">
-                    {selectedProfile.defaultMode}
-                  </span>
-                  <button
-                    className="btn btnGhost"
-                    onClick={loadSelectedIntoBuilder}
-                    disabled={creatingProfile}
-                  >
-                    Clone To Builder
-                  </button>
-                  <button
-                    className="btn btnPrimary"
-                    onClick={() => applyProfileToRun(selectedProfile)}
-                    disabled={creatingRun || loadingRuns}
-                  >
-                    Use For New Run
-                  </button>
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Handle</div>
+                    <div className="surfaceValue">{selectedProfile.handle}</div>
+                  </div>
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Agent Type</div>
+                    <div className="surfaceValue">{selectedProfile.agentType}</div>
+                  </div>
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Mission</div>
+                    <div className="surfaceValue">{selectedProfile.mission}</div>
+                  </div>
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Role Summary</div>
+                    <div className="surfaceValue">{selectedProfile.roleSummary}</div>
+                  </div>
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Assigned Projects</div>
+                    <div className="surfaceValue">
+                      {joinProjectLabels(projects, selectedProfile.assignedProjects)}
+                    </div>
+                  </div>
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Default Task</div>
+                    <div className="surfaceValue">{selectedProfile.defaultTask}</div>
+                  </div>
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Expected Outputs</div>
+                    <div className="surfaceValue">
+                      {selectedProfile.outputs.length
+                        ? selectedProfile.outputs.join(", ")
+                        : "No outputs recorded"}
+                    </div>
+                  </div>
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Strengths</div>
+                    <div className="surfaceValue">
+                      {selectedProfile.strengths.length
+                        ? selectedProfile.strengths.join(", ")
+                        : "No strengths recorded"}
+                    </div>
+                  </div>
+                  <div className="surfaceSummaryRow surfaceSummaryRowTall">
+                    <div className="surfaceSummaryHeader">
+                      <div className="surfaceLabel">Agent Notes</div>
+                      <div className="surfaceMutedSmall">{notesStatus}</div>
+                    </div>
+                    <textarea
+                      className="notesSingleArea surfaceProjectNoteArea"
+                      value={notesText}
+                      readOnly={!notesPath || notesLoading}
+                      placeholder={notesPath ? "Agent note" : "No governed note path available."}
+                      onChange={(event) => {
+                        notesRevisionRef.current += 1;
+                        setNotesText(event.target.value);
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="surfaceGrid3">
-                <div className="surfaceSection">
-                  <div className="surfaceLabel">
-                    Role
+              <div className="surfaceCard">
+                <div className="surfaceCardTitle">Focus & Limits</div>
+                <div className="surfaceSummaryList">
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Scope</div>
+                    <div className="surfaceValue">{selectedProfile.defaultTargetType}</div>
                   </div>
-                  <div className="surfaceValue">{selectedProfile.roleSummary}</div>
-                </div>
-
-                <div className="surfaceSection">
-                  <div className="surfaceLabel">
-                    Strengths
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Default Target Key</div>
+                    <div className="surfaceValue">
+                      {selectedProfile.defaultTargetKey || "Not recorded"}
+                    </div>
                   </div>
-                  <div className="surfaceBulletList">
-                    {selectedProfile.strengths.map((strength) => (
-                      <div key={strength} className="surfaceBullet">
-                        • {strength}
-                      </div>
-                    ))}
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Default Mode</div>
+                    <div className="surfaceValue">{selectedProfile.defaultMode}</div>
                   </div>
-                </div>
-
-                <div className="surfaceSection">
-                  <div className="surfaceLabel">
-                    Assigned Projects
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Approval Requirement</div>
+                    <div className="surfaceValue">{selectedProfile.approvalRequirement}</div>
                   </div>
-                  <div className="surfaceTagRow">
-                    {selectedProfile.assignedProjects.map((key) => (
-                      <span key={key} className="surfaceTag">
-                        {labelForProject(projects, key)}
-                      </span>
-                    ))}
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Operator Intent</div>
+                    <div className="surfaceValue">{selectedProfile.operatorIntent || "Not recorded"}</div>
                   </div>
-                </div>
-              </div>
-
-              <div className="surfaceGrid2">
-                <div className="surfaceSection">
-                  <div className="surfaceLabel">
-                    Expected Outputs
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Context Artifact</div>
+                    <div className="surfaceValue">{selectedProfile.contextArtifact || "Not recorded"}</div>
                   </div>
-                  <div className="surfaceBulletList">
-                    {selectedProfile.outputs.map((output) => (
-                      <div key={output} className="surfaceBullet">
-                        • {output}
-                      </div>
-                    ))}
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Governed State</div>
+                    <div className="surfaceValue">{selectedProfile.governedState || "active"}</div>
                   </div>
-                </div>
-                <div className="surfaceSection">
-                  <div className="surfaceLabel">
-                    Notes
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Updated</div>
+                    <div className="surfaceValue">
+                      {formatIsoDateTime(selectedProfile.updatedAt || selectedProfile.createdAt)}
+                    </div>
                   </div>
-                  <div className="surfaceValue">{selectedProfile.notes || "No notes recorded."}</div>
+                  <div className="surfaceSummaryRow">
+                    <div className="surfaceLabel">Record Artifact</div>
+                    <div className="surfaceValue">
+                      {selectedProfile.artifactPath || "Not recorded"}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          ) : null}
+          )}
+        </div>
+      </div>
 
-          <div className="surfaceTwoPane">
-            <div className="surfaceFormRows">
-              <div className="surfaceCard surfaceFormGrid surfaceScrollCard">
-                <div className="surfaceCardTitleRow">
-                  <div className="surfaceCardTitle">Create Governed Profile</div>
-                  <button className="btn btnGhost" onClick={startNewProfileDraft}>
-                    Reset Draft
-                  </button>
-                </div>
+      {showCreateModal ? (
+        <div className="modalOverlay" onClick={closeCreateModal}>
+          <div
+            className="modalCard infrastructureModalCard"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modalHeader">
+              <div className="modalTitle">New Agent</div>
+              <button className="btn btnGhost" onClick={closeCreateModal} disabled={creatingProfile}>
+                Close
+              </button>
+            </div>
 
+            <div className="modalBody modalBodySingle">
+              <div className="surfaceFormGrid">
                 <label className="surfaceFormField">
                   <span className="surfaceFormLabel">Name</span>
                   <input
                     className="input"
                     value={profileDraft.name}
-                    onChange={(e) => setProfileDraft((current) => ({ ...current, name: e.target.value }))}
+                    onChange={(event) =>
+                      setProfileDraft((current) => ({ ...current, name: event.target.value }))
+                    }
                   />
                 </label>
 
@@ -618,20 +663,26 @@ export function AgentRunsTab({ projects }: Props) {
                     <input
                       className="input"
                       value={profileDraft.handle}
-                      onChange={(e) => setProfileDraft((current) => ({ ...current, handle: e.target.value }))}
+                      onChange={(event) =>
+                        setProfileDraft((current) => ({ ...current, handle: event.target.value }))
+                      }
                     />
                   </label>
                   <label className="surfaceFormField">
                     <span className="surfaceFormLabel">Agent Type</span>
-                    <select
-                      className="input"
-                      value={profileDraft.agentType}
-                      onChange={(e) => setProfileDraft((current) => ({ ...current, agentType: e.target.value }))}
-                    >
-                      <option value="codex">codex</option>
-                      <option value="orion">orion</option>
-                      <option value="other">other</option>
-                    </select>
+                    <div className="surfaceSelectWrap">
+                      <select
+                        className="input"
+                        value={profileDraft.agentType}
+                        onChange={(event) =>
+                          setProfileDraft((current) => ({ ...current, agentType: event.target.value }))
+                        }
+                      >
+                        <option value="codex">codex</option>
+                        <option value="orion">orion</option>
+                        <option value="other">other</option>
+                      </select>
+                    </div>
                   </label>
                 </div>
 
@@ -640,7 +691,9 @@ export function AgentRunsTab({ projects }: Props) {
                   <textarea
                     className="pasteArea surfaceTextAreaMd"
                     value={profileDraft.mission}
-                    onChange={(e) => setProfileDraft((current) => ({ ...current, mission: e.target.value }))}
+                    onChange={(event) =>
+                      setProfileDraft((current) => ({ ...current, mission: event.target.value }))
+                    }
                   />
                 </label>
 
@@ -649,7 +702,9 @@ export function AgentRunsTab({ projects }: Props) {
                   <textarea
                     className="pasteArea surfaceTextAreaMd"
                     value={profileDraft.roleSummary}
-                    onChange={(e) => setProfileDraft((current) => ({ ...current, roleSummary: e.target.value }))}
+                    onChange={(event) =>
+                      setProfileDraft((current) => ({ ...current, roleSummary: event.target.value }))
+                    }
                   />
                 </label>
 
@@ -658,7 +713,9 @@ export function AgentRunsTab({ projects }: Props) {
                   <textarea
                     className="pasteArea surfaceTextAreaMd"
                     value={profileDraft.strengthsText}
-                    onChange={(e) => setProfileDraft((current) => ({ ...current, strengthsText: e.target.value }))}
+                    onChange={(event) =>
+                      setProfileDraft((current) => ({ ...current, strengthsText: event.target.value }))
+                    }
                   />
                 </label>
 
@@ -667,7 +724,9 @@ export function AgentRunsTab({ projects }: Props) {
                   <textarea
                     className="pasteArea surfaceTextAreaMd"
                     value={profileDraft.outputsText}
-                    onChange={(e) => setProfileDraft((current) => ({ ...current, outputsText: e.target.value }))}
+                    onChange={(event) =>
+                      setProfileDraft((current) => ({ ...current, outputsText: event.target.value }))
+                    }
                   />
                 </label>
 
@@ -676,23 +735,29 @@ export function AgentRunsTab({ projects }: Props) {
                   <input
                     className="input"
                     value={profileDraft.assignedProjectsText}
-                    onChange={(e) => setProfileDraft((current) => ({ ...current, assignedProjectsText: e.target.value }))}
+                    onChange={(event) =>
+                      setProfileDraft((current) => ({ ...current, assignedProjectsText: event.target.value }))
+                    }
                   />
                 </label>
 
                 <div className="surfaceFormRow2">
                   <label className="surfaceFormField">
                     <span className="surfaceFormLabel">Default Target Type</span>
-                    <select
-                      className="input"
-                      value={profileDraft.defaultTargetType}
-                      onChange={(e) => setProfileDraft((current) => ({ ...current, defaultTargetType: e.target.value }))}
-                    >
-                      <option value="project">project</option>
-                      <option value="infrastructure_asset">infrastructure_asset</option>
-                      <option value="empire">empire</option>
-                      <option value="other">other</option>
-                    </select>
+                    <div className="surfaceSelectWrap">
+                      <select
+                        className="input"
+                        value={profileDraft.defaultTargetType}
+                        onChange={(event) =>
+                          setProfileDraft((current) => ({ ...current, defaultTargetType: event.target.value }))
+                        }
+                      >
+                        <option value="project">project</option>
+                        <option value="infrastructure_asset">infrastructure_asset</option>
+                        <option value="empire">empire</option>
+                        <option value="other">other</option>
+                      </select>
+                    </div>
                   </label>
                   <label className="surfaceFormField">
                     <span className="surfaceFormLabel">Default Target Key</span>
@@ -700,7 +765,9 @@ export function AgentRunsTab({ projects }: Props) {
                       className="input"
                       list="agent-profile-target-keys"
                       value={profileDraft.defaultTargetKey}
-                      onChange={(e) => setProfileDraft((current) => ({ ...current, defaultTargetKey: e.target.value }))}
+                      onChange={(event) =>
+                        setProfileDraft((current) => ({ ...current, defaultTargetKey: event.target.value }))
+                      }
                     />
                     <datalist id="agent-profile-target-keys">
                       {projects.map((project) => (
@@ -715,35 +782,45 @@ export function AgentRunsTab({ projects }: Props) {
                   <textarea
                     className="pasteArea surfaceTextAreaLg"
                     value={profileDraft.defaultTask}
-                    onChange={(e) => setProfileDraft((current) => ({ ...current, defaultTask: e.target.value }))}
+                    onChange={(event) =>
+                      setProfileDraft((current) => ({ ...current, defaultTask: event.target.value }))
+                    }
                   />
                 </label>
 
                 <div className="surfaceFormRow2">
                   <label className="surfaceFormField">
                     <span className="surfaceFormLabel">Default Mode</span>
-                    <select
-                      className="input"
-                      value={profileDraft.defaultMode}
-                      onChange={(e) => setProfileDraft((current) => ({ ...current, defaultMode: e.target.value }))}
-                    >
-                      <option value="read-only">read-only</option>
-                      <option value="auto">auto</option>
-                      <option value="governed-write">governed-write</option>
-                      <option value="other">other</option>
-                    </select>
+                    <div className="surfaceSelectWrap">
+                      <select
+                        className="input"
+                        value={profileDraft.defaultMode}
+                        onChange={(event) =>
+                          setProfileDraft((current) => ({ ...current, defaultMode: event.target.value }))
+                        }
+                      >
+                        <option value="read-only">read-only</option>
+                        <option value="auto">auto</option>
+                        <option value="governed-write">governed-write</option>
+                        <option value="other">other</option>
+                      </select>
+                    </div>
                   </label>
                   <label className="surfaceFormField">
                     <span className="surfaceFormLabel">Approval Requirement</span>
-                    <select
-                      className="input"
-                      value={profileDraft.approvalRequirement}
-                      onChange={(e) => setProfileDraft((current) => ({ ...current, approvalRequirement: e.target.value }))}
-                    >
-                      <option value="none">none</option>
-                      <option value="required">required</option>
-                      <option value="conditional">conditional</option>
-                    </select>
+                    <div className="surfaceSelectWrap">
+                      <select
+                        className="input"
+                        value={profileDraft.approvalRequirement}
+                        onChange={(event) =>
+                          setProfileDraft((current) => ({ ...current, approvalRequirement: event.target.value }))
+                        }
+                      >
+                        <option value="none">none</option>
+                        <option value="required">required</option>
+                        <option value="conditional">conditional</option>
+                      </select>
+                    </div>
                   </label>
                 </div>
 
@@ -752,7 +829,9 @@ export function AgentRunsTab({ projects }: Props) {
                   <textarea
                     className="pasteArea surfaceTextAreaMd"
                     value={profileDraft.operatorIntent}
-                    onChange={(e) => setProfileDraft((current) => ({ ...current, operatorIntent: e.target.value }))}
+                    onChange={(event) =>
+                      setProfileDraft((current) => ({ ...current, operatorIntent: event.target.value }))
+                    }
                   />
                 </label>
 
@@ -761,7 +840,9 @@ export function AgentRunsTab({ projects }: Props) {
                   <input
                     className="input"
                     value={profileDraft.contextArtifact}
-                    onChange={(e) => setProfileDraft((current) => ({ ...current, contextArtifact: e.target.value }))}
+                    onChange={(event) =>
+                      setProfileDraft((current) => ({ ...current, contextArtifact: event.target.value }))
+                    }
                   />
                 </label>
 
@@ -770,142 +851,29 @@ export function AgentRunsTab({ projects }: Props) {
                   <textarea
                     className="pasteArea surfaceTextAreaMd"
                     value={profileDraft.notes}
-                    onChange={(e) => setProfileDraft((current) => ({ ...current, notes: e.target.value }))}
+                    onChange={(event) =>
+                      setProfileDraft((current) => ({ ...current, notes: event.target.value }))
+                    }
                   />
                 </label>
 
-                <button
-                  className="btn btnPrimary"
-                  onClick={() => void createProfile()}
-                  disabled={creatingProfile || profilesLoading}
-                >
-                  {creatingProfile ? "Saving…" : "Create Governed Profile"}
-                </button>
+                <div className="surfaceSummaryHeader">
+                  <div className="surfaceMutedSmall">
+                    Create governed agent profiles here. Concurrent agent execution and run history will be handled elsewhere.
+                  </div>
+                  <button
+                    className="btn btnPrimary"
+                    onClick={() => void createProfile()}
+                    disabled={creatingProfile || profilesLoading}
+                  >
+                    {creatingProfile ? "Saving…" : "Create Agent"}
+                  </button>
+                </div>
               </div>
-
-              <div className="surfaceCard surfaceFormGrid surfaceScrollCard">
-                <div className="surfaceCardTitle">Create Agent Run</div>
-
-                <label className="surfaceFormField">
-                  <span className="surfaceFormLabel">Title</span>
-                  <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
-                </label>
-
-                <div className="surfaceFormRow2">
-                  <label className="surfaceFormField">
-                    <span className="surfaceFormLabel">Target Type</span>
-                    <select className="input" value={targetType} onChange={(e) => setTargetType(e.target.value)}>
-                      <option value="project">project</option>
-                      <option value="infrastructure_asset">infrastructure_asset</option>
-                      <option value="empire">empire</option>
-                      <option value="other">other</option>
-                    </select>
-                  </label>
-                  <label className="surfaceFormField">
-                    <span className="surfaceFormLabel">Target Key</span>
-                    <input
-                      className="input"
-                      list="agent-target-keys"
-                      value={targetKey}
-                      onChange={(e) => setTargetKey(e.target.value)}
-                    />
-                    <datalist id="agent-target-keys">
-                      {projects.map((project) => (
-                        <option key={project.key} value={project.key} />
-                      ))}
-                    </datalist>
-                  </label>
-                </div>
-
-                <label className="surfaceFormField">
-                  <span className="surfaceFormLabel">Requested Task</span>
-                  <textarea
-                    className="pasteArea surfaceTextAreaXl"
-                    value={requestedTask}
-                    onChange={(e) => setRequestedTask(e.target.value)}
-                  />
-                </label>
-
-                <label className="surfaceFormField">
-                  <span className="surfaceFormLabel">Operator Intent</span>
-                  <textarea
-                    className="pasteArea surfaceTextAreaLg"
-                    value={operatorIntent}
-                    onChange={(e) => setOperatorIntent(e.target.value)}
-                  />
-                </label>
-
-                <div className="surfaceFormRow2">
-                  <label className="surfaceFormField">
-                    <span className="surfaceFormLabel">Agent Type</span>
-                    <select className="input" value={agentType} onChange={(e) => setAgentType(e.target.value)}>
-                      <option value="codex">codex</option>
-                      <option value="orion">orion</option>
-                      <option value="other">other</option>
-                    </select>
-                  </label>
-                  <label className="surfaceFormField">
-                    <span className="surfaceFormLabel">Requested Mode</span>
-                    <select className="input" value={requestedMode} onChange={(e) => setRequestedMode(e.target.value)}>
-                      <option value="read-only">read-only</option>
-                      <option value="auto">auto</option>
-                      <option value="governed-write">governed-write</option>
-                      <option value="other">other</option>
-                    </select>
-                  </label>
-                </div>
-
-                <div className="surfaceFormRow2">
-                  <label className="surfaceFormField">
-                    <span className="surfaceFormLabel">Requested By</span>
-                    <input className="input" value={requestedBy} onChange={(e) => setRequestedBy(e.target.value)} />
-                  </label>
-                  <label className="surfaceFormField">
-                    <span className="surfaceFormLabel">Approval Requirement</span>
-                    <select
-                      className="input"
-                      value={approvalRequirement}
-                      onChange={(e) => setApprovalRequirement(e.target.value)}
-                    >
-                      <option value="none">none</option>
-                      <option value="required">required</option>
-                      <option value="conditional">conditional</option>
-                    </select>
-                  </label>
-                </div>
-
-                <label className="surfaceFormField">
-                  <span className="surfaceFormLabel">Context Artifact</span>
-                  <input
-                    className="input"
-                    value={contextArtifact}
-                    onChange={(e) => setContextArtifact(e.target.value)}
-                  />
-                </label>
-
-                <button
-                  className="btn btnPrimary"
-                  onClick={() => void createRun()}
-                  disabled={creatingRun || loadingRuns}
-                >
-                  {creatingRun ? "Creating…" : "Create Governed Agent Run"}
-                </button>
-              </div>
-            </div>
-
-            <div className="surfaceCard surfaceViewer">
-              <div className="surfaceCardTitle">Governed Run Record</div>
-              <textarea
-                className="pasteArea surfaceTextareaFill"
-                value={currentText}
-                placeholder="Selected agent-run origin record will appear here…"
-                spellCheck={false}
-                readOnly
-              />
             </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </SystemStateShell>
   );
 }

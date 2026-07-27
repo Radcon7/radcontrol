@@ -29,14 +29,13 @@ export type ProjectRow = {
   o2StartKey?: string;
   o2SnapshotKey?: string;
   o2CommitKey?: string;
-  o2LabKey?: string;
 
   // Map / ProofPack
   o2MapKey?: string;
   o2ProofPackKey?: string;
 };
 
-export type ProjectOrg = "radcon" | "radwolfe" | "labs" | "other";
+export type ProjectOrg = "radcon" | "radwolfe" | "other";
 
 export type ProjectKind =
   | "nextjs"
@@ -133,7 +132,6 @@ export type AddProjectPayload = {
   o2StartKey?: string;
   o2SnapshotKey?: string;
   o2CommitKey?: string;
-  o2LabKey?: string;
   o2MapKey?: string;
   o2ProofPackKey?: string;
 
@@ -171,12 +169,11 @@ export type AddProjectPayload = {
 
   notes?: string;
 };
-export type NewProjectIntent = "production" | "lab";
+export type NewProjectIntent = "production";
 
 export type NewProjectRelationship =
   | "new"
   | "version_successor"
-  | "lab_variant"
   | "reference_pattern";
 
 export type NewProjectIntakePayload = {

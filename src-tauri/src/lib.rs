@@ -70,7 +70,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::o2::run_o2,
-            commands::o2::run_o2_with_input,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
