@@ -698,33 +698,6 @@ pre {
   display: block;
 }
 
-.projectLabsModalCard {
-  width: min(760px, calc(100vw - 40px));
-}
-
-.projectLabsModalSection {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.projectLabsModalMeta {
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.projectLabsModalTruth {
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.86);
-}
-
-.projectLabsModalActions {
-  margin-top: 16px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .modalGuidedBlock {
   margin-top: 18px;
   padding: 16px;
@@ -1501,6 +1474,7 @@ pre {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow: hidden;
 }
 
 .panelMeta {
@@ -1622,6 +1596,7 @@ pre {
   gap: 12px;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .surfaceSidebarStack,
@@ -1637,6 +1612,7 @@ pre {
   flex-direction: column;
   gap: 12px;
   min-height: 0;
+  overflow: hidden;
 }
 
 .surfaceCommandMain > .surfaceTwoPane {
@@ -1653,7 +1629,8 @@ pre {
 
 .surfaceCard {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  align-content: start;
 }
 
 .surfaceCardTitle {
@@ -1673,6 +1650,24 @@ pre {
   opacity: 0.8;
 }
 
+.surfaceSidebarHeaderRow {
+  align-items: center;
+}
+
+.surfaceToggleInlineSmall {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.2;
+  opacity: 0.82;
+}
+
+.surfaceToggleInlineSmall input {
+  width: 14px;
+  height: 14px;
+}
+
 .surfaceInlineNotice {
   font-size: 12px;
   line-height: 1.5;
@@ -1687,6 +1682,26 @@ pre {
 .surfaceControlStack {
   display: grid;
   gap: 10px;
+}
+
+.surfaceSelectWrap {
+  position: relative;
+}
+
+.surfaceSelectWrap::after {
+  content: "▾";
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.surfaceSelectWrap .input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
 }
 
 .surfaceControlField {
@@ -1769,6 +1784,15 @@ pre {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.surfaceGridProjectTop {
+  display: grid;
+  grid-template-columns: minmax(0, 1.72fr) minmax(210px, 0.58fr);
+  gap: 12px;
+  align-items: start;
+  flex: 1;
+  min-height: 0;
 }
 
 .surfaceGrid3 {
@@ -1882,33 +1906,20 @@ pre {
   min-height: 110px;
 }
 
-.surfaceSignalGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.surfaceSignalCard {
-  align-content: start;
-}
-
-.surfaceSignalValue {
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.surfaceSignalValueGood {
-  color: rgba(97, 242, 169, 0.95);
-}
-
-.surfaceSignalValueWarn {
-  color: rgba(255, 209, 102, 0.95);
-}
-
 .surfaceActionGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.surfaceActionStack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.surfaceActionStack .btn {
+  width: 100%;
 }
 
 .surfaceActionGridCompact {
@@ -1919,6 +1930,7 @@ pre {
 .surfaceIndexedList {
   display: grid;
   gap: 10px;
+  min-height: 0;
 }
 
 .surfaceSummaryRow {
@@ -1928,6 +1940,52 @@ pre {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.025);
+}
+
+.surfaceSummaryInlineControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.surfaceSummaryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.surfaceSummaryRowTall {
+  align-content: start;
+}
+
+.surfaceProjectBriefCard {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.surfaceProjectBriefCard .surfaceSummaryList {
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.surfaceProjectNoteArea {
+  min-height: 220px;
+  max-height: 260px;
+  overflow-y: auto;
+  resize: vertical;
+}
+
+.surfaceSummaryInput {
+  max-width: 180px;
+}
+
+.surfaceSummaryAction {
+  min-width: 150px;
 }
 
 .surfaceToggleRow {
@@ -1995,23 +2053,8 @@ pre {
   min-height: 0;
 }
 
-@media (max-width: 1200px) {
-  .surfaceGrid3,
-  .surfaceSignalGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 900px) {
-  .surfaceLayout,
-  .surfaceTwoPane,
-  .surfaceGrid2,
-  .surfaceGrid3,
-  .surfaceSignalGrid,
-  .surfaceFormRow2 {
-    grid-template-columns: 1fr;
-  }
-
+  
   .surfaceActionGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

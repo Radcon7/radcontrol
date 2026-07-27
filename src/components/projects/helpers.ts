@@ -105,7 +105,7 @@ export function registryToProjects(reg: unknown): ProjectRow[] {
         o2CommitKey: asNonEmptyString(r.o2CommitKey),
         o2LabKey: asNonEmptyString(r.o2LabKey),
         o2MapKey: asNonEmptyString(r.o2MapKey),
-        o2ProofPackKey: asNonEmptyString(r.o2ProofPackKey),
+        o2ProofPackKey: asNonEmptyString(r.o2ProofPackKey) ?? `${key}.proofpack`,
       });
     }
 

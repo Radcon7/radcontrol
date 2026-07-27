@@ -14,7 +14,6 @@ import type {
   GovernedPortSuggestion,
   GovernedStarterPattern,
 } from "./components/projects/AddProjectModal";
-import { ProjectLabsModal } from "./components/projects/ProjectLabsModal";
 
 import { AgentRunsTab } from "./components/agents/AgentRunsTab";
 import { InfrastructureTab } from "./components/agents/InfrastructureTab";
@@ -112,6 +111,24 @@ type O2ListProjectsEnvelope = {
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
+}
+
+function parseMaybeDoubleEncodedJson(raw: string): unknown | null {
+  if (!raw.trim()) return null;
+
+  let first: unknown;
+  try {
+    first = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+
+  if (typeof first !== "string") return first;
+  try {
+    return JSON.parse(first);
+  } catch {
+    return null;
+  }
 }
 
 function parseRegistryMaybeDoubleEncoded(raw: string): O2ListProjectsEnvelope {
@@ -299,94 +316,6 @@ type PatternListResult = {
   patterns?: unknown[];
 };
 
-type ProjectLabRecommendedAction =
-  | "launch_existing_lab"
-  | "start_first_lab_flow"
-  | "blocked";
-
-function parseMaybeDoubleEncodedJson(raw: string): unknown | null {
-  if (!raw.trim()) return null;
-
-  let first: unknown;
-  try {
-    first = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-
-  if (typeof first !== "string") return first;
-  try {
-    return JSON.parse(first);
-  } catch {
-    return null;
-  }
-}
-
-function didO2VerbSucceed(raw: string | null): boolean {
-  if (raw === null) return false;
-  const parsed = parseMaybeDoubleEncodedJson(raw);
-  const obj = asRecord(parsed);
-  if (!obj) return true;
-  if (typeof obj.ok === "boolean") return obj.ok;
-  return true;
-}
-
-function parseProjectLabOpenOrCreate(raw: string): {
-  recommendedAction: ProjectLabRecommendedAction | null;
-  message: string | null;
-} {
-  const parsed = parseMaybeDoubleEncodedJson(raw);
-  const obj = asRecord(parsed);
-  if (!obj) return { recommendedAction: null, message: null };
-
-  const nested = asRecord(obj.data) ?? asRecord(obj.result) ?? obj;
-  const action =
-    typeof nested.recommendedAction === "string"
-      ? nested.recommendedAction
-      : typeof nested.recommended_action === "string"
-        ? nested.recommended_action
-        : null;
-
-  const recommendedAction: ProjectLabRecommendedAction | null =
-    action === "launch_existing_lab" ||
-    action === "start_first_lab_flow" ||
-    action === "blocked"
-      ? action
-      : null;
-
-  const message =
-    typeof nested.userMessage === "string"
-      ? nested.userMessage
-      : typeof nested.message === "string"
-        ? nested.message
-        : typeof obj.message === "string"
-          ? obj.message
-          : typeof obj.error === "string"
-            ? obj.error
-            : null;
-
-  return { recommendedAction, message };
-}
-
-function toFriendlyLabMessage(
-  project: ProjectRow,
-  recommendedAction: ProjectLabRecommendedAction,
-  contractMessage: string | null,
-): string {
-  if (recommendedAction === "launch_existing_lab") {
-    return `Current governed lab is ready for ${project.label}.`;
-  }
-  if (
-    contractMessage &&
-    !/invalid_payload|recommendedAction|open_or_create|project_lab\./i.test(
-      contractMessage,
-    )
-  ) {
-    return contractMessage;
-  }
-  return `Labs are currently unavailable for ${project.label}. Please try again.`;
-}
-
 function normalizeProjectType(
   payload: AddProjectPayload,
 ): CanonicalProjectType {
@@ -505,13 +434,6 @@ export default function App() {
   const [governedPatterns, setGovernedPatterns] = useState<
     GovernedStarterPattern[]
   >([]);
-  const [showProjectLabsModal, setShowProjectLabsModal] = useState(false);
-  const [projectLabsProject, setProjectLabsProject] =
-    useState<ProjectRow | null>(null);
-  const [projectLabsMessage, setProjectLabsMessage] = useState(
-    "Checking governed lab doorway...",
-  );
-  const [projectLabsActionBusy, setProjectLabsActionBusy] = useState(false);
   const beforeTabChangeSaverRef = useRef<(() => Promise<boolean>) | null>(null);
 
   const clearPreferredProjectKey = useCallback(() => {
@@ -703,6 +625,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects]);
 
+  useEffect(() => {
+    if (tab !== "projects") return;
+
+    void loadRegistry();
+    void refreshPorts();
+
+    const intervalId = window.setInterval(() => {
+      void refreshPorts();
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   function statusForRow(p: ProjectRow) {
     if (typeof p.port !== "number") {
       return { pill: "pillWarn", text: "NO PORT" };
@@ -842,6 +780,35 @@ export default function App() {
     setBusy(true);
     appendLog(
       `\n[o2] Set lifecycle for ${project.label} → run_o2("${verb}")\n`,
+    );
+    try {
+      const out = await runO2Text(verb);
+      appendLog(out || "(no output)");
+      await loadRegistry();
+    } catch (e) {
+      appendLog("\n[o2] ERROR:\n" + fmtErr(e));
+    } finally {
+      setBusy(false);
+      try {
+        await refreshPorts();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  async function setProjectLaunchDate(project: ProjectRow, startDate: string) {
+    if (busy) return;
+
+    const payload = encodeO2JsonPayload({
+      projectKey: project.key,
+      startDate,
+    });
+    const verb = `project_launch_date.set.${payload}`;
+
+    setBusy(true);
+    appendLog(
+      `\n[o2] Set launch date for ${project.label} → run_o2("${verb}")\n`,
     );
     try {
       const out = await runO2Text(verb);
@@ -1042,135 +1009,6 @@ export default function App() {
     }
   }
 
-  async function refreshAfterProjectLabAction(
-    projectKey: string,
-  ): Promise<ProjectRow | null> {
-    const rows = await loadRegistry();
-    const latest = rows.find((row) => row.key === projectKey) ?? null;
-    setProjectLabsProject(latest);
-
-    try {
-      await refreshPorts();
-    } catch {
-      // ignore
-    }
-
-    return latest;
-  }
-
-  async function launchExistingLab(project: ProjectRow): Promise<boolean> {
-    const verb = `${project.key}.dev_strict`;
-    appendLog(`[labs] launch via canonical O2 runtime: ${verb}`);
-    const out = await runO2(`${project.label} Lab`, verb);
-    return didO2VerbSucceed(out);
-  }
-
-  async function runProjectLabOpenOrCreate(project: ProjectRow): Promise<void> {
-    if (busy || projectLabsActionBusy) return;
-
-    setProjectLabsActionBusy(true);
-    setProjectLabsMessage(`Checking lab access for ${project.label}...`);
-
-    try {
-      const payload = encodeO2JsonPayload({ projectKey: project.key });
-      const verb = `project_lab.open_or_create.${payload}`;
-      const out = await runO2(`${project.label} Lab Doorway`, verb);
-      if (!didO2VerbSucceed(out)) {
-        setProjectLabsMessage(
-          `Labs are currently unavailable for ${project.label}. Please try again.`,
-        );
-        return;
-      }
-
-      const parsed = parseProjectLabOpenOrCreate(out || "");
-      if (!parsed.recommendedAction) {
-        setProjectLabsMessage(
-          `Labs are currently unavailable for ${project.label}. Please try again.`,
-        );
-        return;
-      }
-
-      const latest = await refreshAfterProjectLabAction(project.key);
-      const resolvedProject = latest ?? project;
-      if (parsed.recommendedAction === "start_first_lab_flow") {
-        setShowProjectLabsModal(false);
-        setAddProjectPrefill({
-          projectType: "lab_from_existing",
-          relatedProjectKey: resolvedProject.key,
-        });
-        setShowAddProject(true);
-        return;
-      }
-
-      if (parsed.recommendedAction === "launch_existing_lab") {
-        setProjectLabsMessage(
-          toFriendlyLabMessage(
-            resolvedProject,
-            parsed.recommendedAction,
-            parsed.message,
-          ),
-        );
-        setShowProjectLabsModal(true);
-        return;
-      }
-
-      setShowProjectLabsModal(false);
-      setProjectLabsMessage(
-        toFriendlyLabMessage(
-          resolvedProject,
-          parsed.recommendedAction,
-          parsed.message,
-        ),
-      );
-    } finally {
-      setProjectLabsActionBusy(false);
-    }
-  }
-
-  async function runProjectLabPrimaryAction(): Promise<void> {
-    if (busy || projectLabsActionBusy || !projectLabsProject) return;
-
-    const project = projectLabsProject;
-    setProjectLabsActionBusy(true);
-    try {
-      setProjectLabsMessage(`Launching ${project.label} lab...`);
-      await launchExistingLab(project);
-    } finally {
-      setProjectLabsActionBusy(false);
-    }
-  }
-
-  async function deleteProjectLab(): Promise<void> {
-    if (busy || projectLabsActionBusy || !projectLabsProject) return;
-
-    setProjectLabsActionBusy(true);
-    try {
-      const project = projectLabsProject;
-      const payload = encodeO2JsonPayload({ projectKey: project.key });
-      const verb = `project_lab.delete.${payload}`;
-      const out = await runO2(`Delete ${project.label} Lab`, verb);
-      if (!didO2VerbSucceed(out)) return;
-
-      await refreshAfterProjectLabAction(project.key);
-      closeProjectLabsModal();
-    } finally {
-      setProjectLabsActionBusy(false);
-    }
-  }
-
-  function openProjectLabsModal(project: ProjectRow) {
-    setProjectLabsProject(project);
-    setProjectLabsMessage(`Checking lab access for ${project.label}...`);
-    setShowProjectLabsModal(false);
-    void runProjectLabOpenOrCreate(project);
-  }
-
-  function closeProjectLabsModal() {
-    setShowProjectLabsModal(false);
-    setProjectLabsActionBusy(false);
-    setProjectLabsMessage("Checking governed lab doorway...");
-  }
-
   function openAddProjectModal() {
     setAddProjectPrefill(null);
     setShowAddProject(true);
@@ -1266,23 +1104,20 @@ export default function App() {
               busy={busy}
               portsBusy={portsBusy}
               onOpenAddProject={openAddProjectModal}
-              onReloadProjects={loadRegistry}
-              onRefreshPorts={refreshPorts}
               preferredProjectKey={preferredProjectKey}
               onPreferredProjectKeyHandled={clearPreferredProjectKey}
               onStart={startProject}
-              onOpenUrl={openProjectUrl}
               onSnapshot={(p) =>
                 void runO2(`Repo Snapshot ${p.label}`, p.o2SnapshotKey)
               }
               onCommit={(p) => void runO2(`Commit ${p.label}`, p.o2CommitKey)}
-              onLab={openProjectLabsModal}
               onKill={freePort}
               onMap={(p) => void runO2(`${p.label} Map`, p.o2MapKey)}
               onProofPack={(p) =>
                 void runO2(`${p.label} Proof Pack`, p.o2ProofPackKey)
               }
               onSetRetired={setProjectRetired}
+              onSetLaunchDate={setProjectLaunchDate}
               onEnsureNotes={ensureProjectNotes}
               statusForRow={statusForRow}
             />
@@ -1297,17 +1132,6 @@ export default function App() {
               prefill={addProjectPrefill}
             />
 
-            <ProjectLabsModal
-              open={showProjectLabsModal}
-              project={projectLabsProject}
-              busy={busy || projectLabsActionBusy}
-              message={projectLabsMessage}
-              onClose={closeProjectLabsModal}
-              onPrimaryAction={() => {
-                void runProjectLabPrimaryAction();
-              }}
-              onDelete={() => void deleteProjectLab()}
-            />
           </>
         ) : tab === "infrastructure" ? (
 
