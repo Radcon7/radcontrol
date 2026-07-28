@@ -1801,6 +1801,13 @@ pre {
   resize: vertical;
 }
 
+.surfaceConfigurationNoteText {
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
 .surfaceSummaryInput {
   max-width: 180px;
 }

@@ -4,9 +4,14 @@ import { readFile } from "node:fs/promises";
 const root = new URL("../src/components/agents/", import.meta.url);
 const parent = await readFile(new URL("InfrastructureTab.tsx", root), "utf8");
 const reports = await readFile(new URL("infrastructureReports.ts", root), "utf8");
+const model = await readFile(new URL("infrastructureModel.ts", root), "utf8");
 const detail = await readFile(new URL("InfrastructureDetail.tsx", root), "utf8");
 const roster = await readFile(new URL("InfrastructureRoster.tsx", root), "utf8");
 const notes = await readFile(new URL("InfrastructureNotes.tsx", root), "utf8");
+const configuration = await readFile(
+  new URL("InfrastructureConfigurationNote.tsx", root),
+  "utf8",
+);
 const modal = await readFile(
   new URL("CreateInfrastructureModal.tsx", root),
   "utf8",
@@ -37,9 +42,24 @@ assert.match(parent, /canonicalNotesPath: matchingProfile/);
 assert.match(parent, /notePathForKey\(matchingProfile\.key\)/);
 
 assert.match(detail, /<InfrastructureBrief/);
+assert.match(detail, /<InfrastructureConfigurationNote/);
 assert.match(detail, /<InfrastructureNotes/);
+assert.ok(
+  detail.indexOf("<InfrastructureConfigurationNote") <
+    detail.indexOf("<InfrastructureNotes"),
+);
+assert.match(
+  model,
+  /docs\/infrastructure\/assets\/github\/CONFIGURATION\.md/,
+);
 assert.match(roster, /infrastructure-row-\$\{entry\.key\}/);
 assert.match(notes, /data-testid="infrastructure-notes"/);
+assert.match(
+  configuration,
+  /data-testid="infrastructure-configuration-note"/,
+);
+assert.match(parent, /selectedEntry\?\.configurationPath/);
+assert.match(parent, /readO2File\(path\)/);
 assert.match(modal, /data-testid="modal-infrastructure-label"/);
 assert.match(modal, /data-testid="modal-create-infrastructure"/);
 assert.match(reports, /export function buildInfrastructureSnapshotLog/);
