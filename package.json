@@ -9,6 +9,7 @@
     "lint": "tsc --noEmit",
     "verify:security": "node tests/verify_tauri_security.mjs",
     "verify:document-transport": "node tests/verify_document_transport_contract.mjs",
+    "verify:o2-contract": "node tests/verify_o2_contract.mjs",
     "verify:project-builder": "node tests/verify_project_builder_contract.mjs",
     "verify:agents-architecture": "node tests/verify_agents_architecture_contract.mjs",
     "verify:governed-notes": "node tests/verify_governed_note_controller_contract.mjs",

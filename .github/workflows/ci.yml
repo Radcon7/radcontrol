@@ -31,6 +31,7 @@ jobs:
         run: |
           npm run verify:security
           npm run verify:document-transport
+          npm run verify:o2-contract
           npm run verify:project-builder
           npm run verify:agents-architecture
           npm run verify:governed-notes
