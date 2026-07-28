@@ -46,6 +46,12 @@ type Props = {
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
 };
 
+type ConfigurationDocument = {
+  text: string;
+  status: string;
+  loading: boolean;
+};
+
 function openExternalUrl(url: string): void {
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -70,6 +76,12 @@ export function InfrastructureTab({
   const [creating, setCreating] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [err, setErr] = useState("");
+  const [configurationDocument, setConfigurationDocument] =
+    useState<ConfigurationDocument>({
+      text: "",
+      status: "",
+      loading: false,
+    });
   const [draft, setDraft] = useState<InfrastructureDraft>(() =>
     draftFromProfile(defaultProfile),
   );
@@ -83,6 +95,48 @@ export function InfrastructureTab({
     path: selectedEntry?.notesPath || null,
     registerBeforeTabChangeSaver,
   });
+
+  useEffect(() => {
+    const path = selectedEntry?.configurationPath;
+    let cancelled = false;
+
+    if (!path) {
+      setConfigurationDocument({ text: "", status: "", loading: false });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setConfigurationDocument({
+      text: "",
+      status: "Loading configuration",
+      loading: true,
+    });
+    void readO2File(path)
+      .then((read) => {
+        if (cancelled) return;
+        setConfigurationDocument({
+          text: read.content || "No configuration details recorded.",
+          status: "Governed by O2",
+          loading: false,
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setConfigurationDocument({
+          text:
+            error instanceof Error
+              ? error.message
+              : "Configuration note unavailable.",
+          status: "Unavailable",
+          loading: false,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedEntry?.configurationPath]);
 
   async function selectEntry(entryKey: string): Promise<void> {
     if (await governedNote.flush()) setSelectedKey(entryKey);
@@ -287,6 +341,9 @@ export function InfrastructureTab({
                 noteText={governedNote.text}
                 noteStatus={governedNote.status}
                 noteLoading={governedNote.loading}
+                configurationText={configurationDocument.text}
+                configurationStatus={configurationDocument.status}
+                configurationLoading={configurationDocument.loading}
                 onNoteChange={governedNote.onTextChange}
               />
               <InfrastructureRunControls

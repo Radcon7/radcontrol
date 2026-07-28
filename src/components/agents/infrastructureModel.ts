@@ -34,6 +34,7 @@ export type InfrastructureProfile = {
   role: string;
   statusSummary: string;
   relatedProjectKeys: string[];
+  configurationPath?: string;
 };
 
 export type InfrastructureEntry = {
@@ -55,6 +56,7 @@ export type InfrastructureEntry = {
   mcpApiPosture: string;
   billingFocus: string;
   linkedAssets: InfrastructureAsset[];
+  configurationPath?: string;
   profile?: InfrastructureProfile;
 };
 
@@ -229,6 +231,8 @@ export function buildInfrastructureProfiles(projects: ProjectRow[]): Infrastruct
       role: "Primary governed source-control surface for projects and internal tools.",
       statusSummary: "Use this for repo inventory, push status, access control, and branch-governance review.",
       relatedProjectKeys: defaultProjectKeys,
+      configurationPath:
+        "docs/infrastructure/assets/github/CONFIGURATION.md",
     },
     {
       key: "vercel",
@@ -420,6 +424,7 @@ export function buildInfrastructureEntries(
       mcpApiPosture: profile.mcpApiPosture,
       billingFocus: profile.billingFocus,
       linkedAssets,
+      configurationPath: profile.configurationPath,
       profile,
     });
   });
