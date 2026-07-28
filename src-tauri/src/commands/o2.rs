@@ -1,5 +1,6 @@
 use serde::Serialize;
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 #[derive(Serialize)]
 pub struct RunO2Result {
@@ -9,12 +10,48 @@ pub struct RunO2Result {
   pub stderr: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct E2EProjectRoots {
+  pub radcon: String,
+  pub radwolfe: String,
+  pub other: String,
+}
+
+fn e2e_mode() -> bool {
+  matches!(std::env::var("RADCONTROL_E2E"), Ok(value) if value == "1")
+}
+
+fn canonical_o2_root() -> String {
+  format!(
+    "{}/dev/o2",
+    std::env::var("HOME").unwrap_or_else(|_| "/home/chris".to_string())
+  )
+}
+
 fn o2_root() -> String {
-  std::env::var("O2_ROOT").unwrap_or_else(|_| {
-    format!(
-      "{}/dev/o2",
-      std::env::var("HOME").unwrap_or_else(|_| "/home/chris".to_string())
-    )
+  // Alternate roots are allowed only for the isolated desktop E2E harness.
+  if e2e_mode() {
+    if let Ok(root) = std::env::var("O2_ROOT") {
+      return root;
+    }
+  }
+  canonical_o2_root()
+}
+
+#[tauri::command]
+pub fn e2e_project_roots() -> Option<E2EProjectRoots> {
+  if !e2e_mode() {
+    return None;
+  }
+  let home = std::env::var("O2_E2E_HOME").ok()?;
+  if !home.starts_with('/') {
+    return None;
+  }
+  Some(E2EProjectRoots {
+    radcon: format!("{home}/dev/rad-empire/radcon/dev"),
+    radwolfe: format!("{home}/dev/rad-empire/radwolfe/dev"),
+    other: format!("{home}/dev/playground"),
   })
 }
 
@@ -69,7 +106,6 @@ fn verb_allowed(verb: &str) -> bool {
     "infrastructure_asset.create.",
     "port_status.",
     "port_suggest.",
-    "kill_port.",
   ];
 
   if PAYLOAD_PREFIXES.iter().any(|prefix| verb.starts_with(prefix)) {
@@ -84,7 +120,32 @@ fn verb_allowed(verb: &str) -> bool {
     && project_key
       .chars()
       .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')
-    && matches!(action, "dev" | "dev_strict" | "snapshot" | "commit" | "map" | "proofpack")
+    && matches!(action, "dev" | "dev_strict" | "stop" | "snapshot" | "map" | "proofpack")
+}
+
+fn payload_verb_allowed(verb: &str) -> bool {
+  matches!(verb, "files.write")
+}
+
+#[tauri::command]
+pub fn run_o2_payload(verb: String, payload_json: String) -> RunO2Result {
+  let verb = verb.trim();
+  if !payload_verb_allowed(verb) {
+    return RunO2Result { ok: false, code: 1, stdout: "".to_string(), stderr: format!("payload verb not allowed: {verb}") };
+  }
+  if payload_json.len() > 1024 * 1024 {
+    return RunO2Result { ok: false, code: 1, stdout: "".to_string(), stderr: "payload exceeds 1 MiB limit".to_string() };
+  }
+  let script = format!("{}/scripts/run_o2.sh", o2_root());
+  let child = Command::new("bash").arg(script).arg("files.write.stdin").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn();
+  let Ok(mut child) = child else { return RunO2Result { ok: false, code: 1, stdout: "".to_string(), stderr: "failed to spawn stdin O2 write".to_string() }; };
+  if child.stdin.as_mut().and_then(|stdin| stdin.write_all(payload_json.as_bytes()).ok()).is_none() {
+    return RunO2Result { ok: false, code: 1, stdout: "".to_string(), stderr: "failed to write stdin O2 payload".to_string() };
+  }
+  match child.wait_with_output() {
+    Ok(out) => RunO2Result { ok: out.status.success(), code: out.status.code().unwrap_or(1), stdout: String::from_utf8_lossy(&out.stdout).to_string(), stderr: String::from_utf8_lossy(&out.stderr).to_string() },
+    Err(error) => RunO2Result { ok: false, code: 1, stdout: "".to_string(), stderr: format!("failed to complete stdin O2 write: {error}") },
+  }
 }
 
 #[tauri::command]

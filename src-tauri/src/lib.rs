@@ -6,10 +6,15 @@ use tauri_plugin_single_instance::init as single_instance;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(single_instance(|app, _args, _cwd| {
+        .plugin(tauri_plugin_clipboard_manager::init());
+
+    // Desktop E2E launches an isolated binary beside the normal single instance.
+    let builder = if matches!(std::env::var("RADCONTROL_E2E"), Ok(value) if value == "1") {
+        builder
+    } else {
+        builder.plugin(single_instance(|app, _args, _cwd| {
             if let Some((_label, w)) = app.webview_windows().into_iter().next() {
                 let _ = w.show();
                 let _ = w.unminimize();
@@ -17,6 +22,9 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
+    };
+
+    builder
         .setup(|app| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.set_fullscreen(false);
@@ -70,6 +78,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::o2::run_o2,
+            commands::o2::run_o2_payload,
+            commands::o2::e2e_project_roots,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -8,6 +8,8 @@ export type ProjectRow = {
   retired?: boolean;
   notesPath?: string;
   notesAvailable?: boolean;
+  intakePath?: string;
+  intakeAvailable?: boolean;
   org?: ProjectOrg;
   kind?: ProjectKind;
   repoPath?: string;
@@ -28,7 +30,6 @@ export type ProjectRow = {
   // O2 hooks (all optional; UI must not assume they exist)
   o2StartKey?: string;
   o2SnapshotKey?: string;
-  o2CommitKey?: string;
 
   // Map / ProofPack
   o2MapKey?: string;
@@ -36,6 +37,7 @@ export type ProjectRow = {
 };
 
 export type ProjectOrg = "radcon" | "radwolfe" | "other";
+export type ProjectRootOverrides = Partial<Record<ProjectOrg, string>>;
 
 export type ProjectKind =
   | "nextjs"
@@ -131,7 +133,6 @@ export type AddProjectPayload = {
   // O2 hooks (optional)
   o2StartKey?: string;
   o2SnapshotKey?: string;
-  o2CommitKey?: string;
   o2MapKey?: string;
   o2ProofPackKey?: string;
 

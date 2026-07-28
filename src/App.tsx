@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -9,24 +9,19 @@ import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
 import { LegalHubTab } from "./components/paste-tabs/LegalHubTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
 import { AddProjectModal } from "./components/projects/AddProjectModal";
-import type {
-  AddProjectModalPrefill,
-  GovernedPortSuggestion,
-  GovernedStarterPattern,
-} from "./components/projects/AddProjectModal";
 
-import { AgentRunsTab } from "./components/agents/AgentRunsTab";
+import { AgentsTab } from "./components/agents/AgentsTab";
 import { InfrastructureTab } from "./components/agents/InfrastructureTab";
 
 import type {
   AddProjectPayload,
   PortStatus,
-  ProjectKind,
+  ProjectRootOverrides,
   ProjectRow,
 } from "./components/projects/types";
 import { fmtErr, registryToProjects } from "./components/projects/helpers";
 import { copyText } from "./components/common/copyText";
-import { encodeO2JsonPayload, runO2Text } from "./components/common/o2Files";
+import { encodeO2JsonPayload, getE2EProjectRoots, readO2File, runO2Text } from "./components/common/o2Files";
 
 type LibraryTabKey = "notes" | "legal";
 type DocTabKey = LibraryTabKey;
@@ -103,23 +98,6 @@ function asRecord(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
 }
 
-function parseMaybeDoubleEncodedJson(raw: string): unknown | null {
-  if (!raw.trim()) return null;
-
-  let first: unknown;
-  try {
-    first = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-
-  if (typeof first !== "string") return first;
-  try {
-    return JSON.parse(first);
-  } catch {
-    return null;
-  }
-}
 
 function parseRegistryMaybeDoubleEncoded(raw: string): O2ListProjectsEnvelope {
   let first: unknown;
@@ -276,22 +254,6 @@ type ProjectBootstrapResult = {
   details?: string[];
 };
 
-type PortSuggestionResult = {
-  ok?: boolean;
-  kind?: string;
-  preferredPort?: number;
-  preferredUrl?: string;
-  rangeStart?: number;
-  rangeEnd?: number;
-  error?: string;
-  message?: string;
-};
-
-type PatternListResult = {
-  ok?: boolean;
-  patterns?: unknown[];
-};
-
 function normalizeProjectType(
   payload: AddProjectPayload,
 ): CanonicalProjectType {
@@ -333,8 +295,7 @@ function normalizeFormationStartPayload(
   const baseProjectKey = payload.parentProjectKey?.trim() || "";
   const similarProjectKey = payload.similarProjectKey?.trim() || "";
   const referenceRepos = payload.referenceRepos?.trim() || "";
-  const patternHint =
-    payload.patternHint?.trim() || payload.repoHint?.trim() || "";
+  const patternHint = payload.patternHint?.trim() || "";
   const similarityNotes = payload.similarityNotes?.trim() || "";
   const intent = (
     payload.intent || "production"
@@ -403,13 +364,10 @@ export default function App() {
     });
 
   const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const projectsRef = useRef<ProjectRow[]>([]);
   const [preferredProjectKey, setPreferredProjectKey] = useState<string | null>(null);
   const [showAddProject, setShowAddProject] = useState(false);
-  const [addProjectPrefill, setAddProjectPrefill] =
-    useState<AddProjectModalPrefill | null>(null);
-  const [governedPatterns, setGovernedPatterns] = useState<
-    GovernedStarterPattern[]
-  >([]);
+  const [projectRootOverrides, setProjectRootOverrides] = useState<ProjectRootOverrides | undefined>();
   const beforeTabChangeSaverRef = useRef<(() => Promise<boolean>) | null>(null);
 
   const clearPreferredProjectKey = useCallback(() => {
@@ -418,9 +376,6 @@ export default function App() {
 
   const loadRegistryOnceRef = useRef(false);
   const loadRegistryInFlightRef = useRef<Promise<ProjectRow[]> | null>(null);
-  const loadGovernedPatternsInFlightRef = useRef<
-    Promise<GovernedStarterPattern[]> | null
-  >(null);
 
   async function loadRegistry(): Promise<ProjectRow[]> {
     if (loadRegistryInFlightRef.current) return loadRegistryInFlightRef.current;
@@ -432,12 +387,15 @@ export default function App() {
         const reg = parsed.projects ?? [];
 
         const rows = registryToProjects(reg);
+        projectsRef.current = rows;
         setProjects(rows);
+        void refreshPorts(rows);
 
         appendLog(`[registry] loaded ${rows.length} project(s)`);
         return rows;
       } catch (e) {
         appendLog("\n[registry] failed:\n" + fmtErr(e));
+        projectsRef.current = [];
         setProjects([]);
         return [];
       } finally {
@@ -454,153 +412,73 @@ export default function App() {
     void loadRegistry();
   }, []);
 
-  async function loadGovernedPatterns(): Promise<GovernedStarterPattern[]> {
-    if (loadGovernedPatternsInFlightRef.current) {
-      return loadGovernedPatternsInFlightRef.current;
-    }
-
-    loadGovernedPatternsInFlightRef.current = (async () => {
-      try {
-        const out = await runO2Text("project_pattern.list");
-        const parsed = parseMaybeDoubleEncodedJson(out ?? "") as PatternListResult | null;
-        const envelope = asRecord(parsed);
-        const patternsRaw = Array.isArray(envelope?.patterns)
-          ? envelope.patterns
-          : [];
-
-        const next = patternsRaw.flatMap((entry) => {
-          const row = asRecord(entry);
-          const key = typeof row?.key === "string" ? row.key : null;
-          const label = typeof row?.label === "string" ? row.label : null;
-          const summary = typeof row?.summary === "string" ? row.summary : null;
-          if (!key || !label || !summary) return [];
-
-          return [
-            {
-              key,
-              label,
-              summary,
-              kinds: Array.isArray(row?.kinds)
-                ? row.kinds.filter((item): item is string => typeof item === "string")
-                : [],
-              projectClasses: Array.isArray(row?.projectClasses)
-                ? row.projectClasses.filter(
-                    (item): item is string => typeof item === "string",
-                  )
-                : [],
-              deliverySurfaces: Array.isArray(row?.deliverySurfaces)
-                ? row.deliverySurfaces.filter(
-                    (item): item is string => typeof item === "string",
-                  )
-                : [],
-              bootstrapMode:
-                typeof row?.bootstrapMode === "string"
-                  ? row.bootstrapMode
-                  : undefined,
-              repoContracts: Array.isArray(row?.repoContracts)
-                ? row.repoContracts.filter(
-                    (item): item is string => typeof item === "string",
-                  )
-                : [],
-              starterArtifacts: Array.isArray(row?.starterArtifacts)
-                ? row.starterArtifacts.filter(
-                    (item): item is string => typeof item === "string",
-                  )
-                : [],
-              securityPosture:
-                typeof row?.securityPosture === "string"
-                  ? row.securityPosture
-                  : undefined,
-              artifactPath:
-                typeof row?.artifactPath === "string"
-                  ? row.artifactPath
-                  : undefined,
-            },
-          ];
-        });
-
-        setGovernedPatterns(next);
-        appendLog(`[patterns] loaded ${next.length} governed starter pattern(s)`);
-        return next;
-      } catch (e) {
-        appendLog("\n[patterns] failed:\n" + fmtErr(e));
-        return [];
-      } finally {
-        loadGovernedPatternsInFlightRef.current = null;
-      }
-    })();
-
-    return loadGovernedPatternsInFlightRef.current;
-  }
-
   useEffect(() => {
-    if (!showAddProject) return;
-    void loadGovernedPatterns();
-  }, [showAddProject]);
+    if (!isTauri()) return;
+    void getE2EProjectRoots().then((roots) => {
+      if (roots) setProjectRootOverrides(roots);
+    }).catch(() => undefined);
+  }, []);
 
   const [ports, setPorts] = useState<Record<number, PortStatus | undefined>>(
     {},
   );
 
-  const PORTS = useMemo(() => {
-    const s = new Set<number>();
-    projects.forEach((p) => {
-      const candidates = [p.port, p.preferredPort, p.runtimePort];
-      candidates.forEach((candidate) => {
-        if (typeof candidate === "number" && Number.isFinite(candidate)) {
-          s.add(candidate);
+  function projectPorts(rows: ProjectRow[]): number[] {
+    const ports = new Set<number>();
+    rows.forEach((project) => {
+      [project.port, project.preferredPort, project.runtimePort].forEach(
+        (candidate) => {
+          if (typeof candidate === "number" && Number.isFinite(candidate)) {
+            ports.add(candidate);
+          }
+        },
+      );
+    });
+    return Array.from(ports).sort((a, b) => a - b);
+  }
+
+  const latestPortRefreshRef = useRef(0);
+
+  async function refreshPorts(rows = projectsRef.current): Promise<void> {
+    const requestId = latestPortRefreshRef.current + 1;
+    latestPortRefreshRef.current = requestId;
+    const requestedPorts = projectPorts(rows);
+    setPortsBusy(true);
+
+    try {
+      if (requestedPorts.length === 0) {
+        if (requestId === latestPortRefreshRef.current) setPorts({});
+        return;
+      }
+
+      const payload = encodeO2JsonPayload({ ports: requestedPorts });
+      const out = await runO2Text(`port_status.batch.${payload}`);
+      const parsed = JSON.parse(out) as O2PortStatusBatchJson;
+      if (!parsed.ok || !Array.isArray(parsed.ports)) {
+        throw new Error("port_status.batch returned an invalid response");
+      }
+
+      const next: Record<number, PortStatus> = {};
+      parsed.ports.forEach((item) => {
+        if (typeof item.port === "number") {
+          next[item.port] = {
+            port: item.port,
+            listening: Boolean(item.listening),
+            pid: null,
+            cmd: null,
+            err: null,
+          };
         }
       });
-    });
-
-    return Array.from(s.values()).sort((a, b) => a - b);
-  }, [projects]);
-
-  const refreshInFlightRef = useRef<Promise<void> | null>(null);
-
-  async function refreshPorts(): Promise<void> {
-    if (refreshInFlightRef.current) return refreshInFlightRef.current;
-    if (portsBusy) return Promise.resolve();
-
-    refreshInFlightRef.current = (async () => {
-      setPortsBusy(true);
-      try {
-        if (PORTS.length === 0) {
-          setPorts({});
-          return;
-        }
-
-        const payload = encodeO2JsonPayload({ ports: PORTS });
-        const out = await runO2Text(`port_status.batch.${payload}`);
-        const parsed = JSON.parse(out) as O2PortStatusBatchJson;
-        if (!parsed.ok || !Array.isArray(parsed.ports)) {
-          throw new Error("port_status.batch returned an invalid response");
-        }
-
-        const next: Record<number, PortStatus> = {};
-        parsed.ports.forEach((item) => {
-          if (typeof item.port === "number") {
-            next[item.port] = {
-              port: item.port,
-              listening: Boolean(item.listening),
-              pid: null,
-              cmd: null,
-              err: null,
-            };
-          }
-        });
-        setPorts(next);
-      } finally {
-        setPortsBusy(false);
-        refreshInFlightRef.current = null;
-      }
-    })();
-
-    return refreshInFlightRef.current;
+      if (requestId === latestPortRefreshRef.current) setPorts(next);
+    } finally {
+      if (requestId === latestPortRefreshRef.current) setPortsBusy(false);
+    }
   }
 
   useEffect(() => {
-    void refreshPorts();
+    projectsRef.current = projects;
+    void refreshPorts(projects);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects]);
 
@@ -608,10 +486,10 @@ export default function App() {
     if (tab !== "projects") return;
 
     void loadRegistry();
-    void refreshPorts();
+    void refreshPorts(projectsRef.current);
 
     const intervalId = window.setInterval(() => {
-      void refreshPorts();
+      void refreshPorts(projectsRef.current);
     }, 15000);
 
     return () => {
@@ -625,30 +503,13 @@ export default function App() {
       return { pill: "pillWarn", text: "NO PORT" };
     }
 
-    const s = ports[p.port];
-    if (!s) return { pill: "pillWarn", text: "UNKNOWN" };
+    const port = p.runtimePort ?? p.port;
+    const s = ports[port];
+    if (!s) return { pill: "pillOff", text: "STOPPED" };
 
     return s.listening
       ? { pill: "pillOn", text: "RUNNING" }
       : { pill: "pillOff", text: "STOPPED" };
-  }
-
-  async function requestPortSuggestion(
-    kind: ProjectKind,
-  ): Promise<GovernedPortSuggestion | null> {
-    try {
-      const out = await runO2Text(`port_suggest.${kind}`);
-      const parsed = JSON.parse(out) as PortSuggestionResult;
-      if (!parsed?.ok) return null;
-      return {
-        port:
-          typeof parsed.preferredPort === "number" ? parsed.preferredPort : undefined,
-        url:
-          typeof parsed.preferredUrl === "string" ? parsed.preferredUrl : undefined,
-      };
-    } catch {
-      return null;
-    }
   }
 
   async function runO2(title: string, key?: string): Promise<string | null> {
@@ -690,7 +551,11 @@ export default function App() {
 
   async function openProjectUrl(p: ProjectRow) {
     const finalUrl =
-      typeof p?.url === "string" && p.url.startsWith("http") ? p.url : null;
+      typeof p?.runtimeUrl === "string" && p.runtimeUrl.startsWith("http")
+        ? p.runtimeUrl
+        : typeof p?.url === "string" && p.url.startsWith("http")
+          ? p.url
+          : null;
 
     if (!finalUrl) {
       appendLog(
@@ -742,8 +607,8 @@ export default function App() {
     await openProjectUrl({ ...latest, url: finalUrl });
   }
 
-  async function freePort(port: number) {
-    await runO2("Kill requested", `kill_port.${port}`);
+  async function stopProjectRuntime(project: ProjectRow) {
+    await runO2(`Stop ${project.label}`, `${project.key}.stop`);
     await loadRegistry();
   }
 
@@ -830,6 +695,27 @@ export default function App() {
     const rows = await loadRegistry();
     const latest = rows.find((p) => p.key === project.key);
     return latest ?? project;
+  }
+
+  async function showOriginalProjectRequest(project: ProjectRow): Promise<void> {
+    if (!project.intakeAvailable || !project.intakePath) {
+      appendLog(`[original-request] no governed request is available for ${project.label}`);
+      return;
+    }
+
+    const path = project.intakePath;
+    try {
+      const record = await readO2File(path);
+      let content = record.content || "";
+      try {
+        content = JSON.stringify(JSON.parse(content), null, 2);
+      } catch {
+        // Preserve non-JSON historical intake records as-is.
+      }
+      appendLog(`\n[original-request:${project.key}]\n${content || "(empty request record)"}`);
+    } catch (error) {
+      appendLog(`\n[original-request:${project.key}] unavailable: ${fmtErr(error)}`);
+    }
   }
 
   async function createProject(payload: AddProjectPayload) {
@@ -982,13 +868,11 @@ export default function App() {
   }
 
   function openAddProjectModal() {
-    setAddProjectPrefill(null);
     setShowAddProject(true);
   }
 
   function closeAddProjectModal() {
     setShowAddProject(false);
-    setAddProjectPrefill(null);
   }
 
   const logText = (busy ? "Running…" : log || "No logs yet.").toString();
@@ -1045,6 +929,7 @@ export default function App() {
             <button
               key={t}
               className={`tab ${tab === t ? "tabActive" : ""}`}
+              data-testid={`tab-${t}`}
               onClick={() => void requestTabChange(t)}
               title={tabLabel(t)}
             >
@@ -1080,9 +965,9 @@ export default function App() {
               onSnapshot={(p) =>
                 void runO2(`Repo Snapshot ${p.label}`, p.o2SnapshotKey)
               }
-              onCommit={(p) => void runO2(`Commit ${p.label}`, p.o2CommitKey)}
-              onKill={freePort}
+              onStop={stopProjectRuntime}
               onMap={(p) => void runO2(`${p.label} Map`, p.o2MapKey)}
+              onShowOriginalRequest={showOriginalProjectRequest}
               onProofPack={(p) =>
                 void runO2(`${p.label} Proof Pack`, p.o2ProofPackKey)
               }
@@ -1097,10 +982,8 @@ export default function App() {
               open={showAddProject}
               onClose={closeAddProjectModal}
               onCreate={createProject}
-              requestPortSuggestion={requestPortSuggestion}
-              governedPatterns={governedPatterns}
               existingProjects={projects}
-              prefill={addProjectPrefill}
+              projectRootOverrides={projectRootOverrides}
             />
 
           </>
@@ -1112,7 +995,7 @@ export default function App() {
             registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
           />
         ) : tab === "agents" ? (
-          <AgentRunsTab
+          <AgentsTab
             projects={projects}
             registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
           />
