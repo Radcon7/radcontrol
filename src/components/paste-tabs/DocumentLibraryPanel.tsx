@@ -31,10 +31,6 @@ function baseNameFromPath(path: string): string {
   return idx >= 0 ? normalized.slice(idx + 1) : normalized;
 }
 
-function defaultCommitMessage(tabKey: string, op: "write" | "rename"): string {
-  return `radcontrol ${tabKey}: ${op}`;
-}
-
 function formatTimestampPart(value: number): string {
   return String(value).padStart(2, "0");
 }
@@ -312,8 +308,6 @@ export function DocumentLibraryPanel({
     const payload = {
       path,
       content,
-      commit: true,
-      commitMessage: defaultCommitMessage(tabKey, "write"),
     };
 
     try {
@@ -337,8 +331,6 @@ export function DocumentLibraryPanel({
     const payload = {
       fromPath,
       toPath,
-      commit: true,
-      commitMessage: defaultCommitMessage(tabKey, "rename"),
     };
 
     try {

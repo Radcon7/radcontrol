@@ -198,8 +198,6 @@ export async function createTimelineMilestone(
   const payload = {
     path,
     content,
-    commit: true,
-    commitMessage: `timeline: add milestone ${title}`,
   };
 
   const writeJson = await writeO2File(payload);

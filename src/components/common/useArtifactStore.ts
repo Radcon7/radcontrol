@@ -21,8 +21,6 @@ type RunProducerOptions = {
 
 type SaveCurrentOptions = {
   latestFileName?: string;
-  timestampCommitMessage: string;
-  latestCommitMessage: string;
   autoReadPreferred?: boolean;
   preferSavedTimestamp?: boolean;
 };
@@ -215,8 +213,6 @@ export function useArtifactStore({
   const saveCurrent = useCallback(
     async ({
       latestFileName: latestOverride,
-      timestampCommitMessage,
-      latestCommitMessage,
       autoReadPreferred = false,
       preferSavedTimestamp = false,
     }: SaveCurrentOptions) => {
@@ -241,14 +237,10 @@ export function useArtifactStore({
           {
             path: `${dir}/${timestampName}`,
             content: currentText,
-            commit: true,
-            commitMessage: timestampCommitMessage,
           },
           {
             path: `${dir}/${finalLatestFileName}`,
             content: currentText,
-            commit: true,
-            commitMessage: latestCommitMessage,
           },
         ];
 

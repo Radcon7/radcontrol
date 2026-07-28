@@ -38,7 +38,6 @@ function asProjectOrg(v: unknown): ProjectOrg | undefined {
   const value = v.trim();
   return value === "radcon" ||
     value === "radwolfe" ||
-    value === "labs" ||
     value === "other"
     ? value
     : undefined;
@@ -88,6 +87,8 @@ export function registryToProjects(reg: unknown): ProjectRow[] {
         retired: asBoolean(r.retired),
         notesPath: asNonEmptyString(r.notesPath),
         notesAvailable: asBoolean(r.notesAvailable),
+        intakePath: asNonEmptyString(r.intakePath),
+        intakeAvailable: asBoolean(r.intakeAvailable),
         org: asProjectOrg(r.org),
         kind: asProjectKind(r.kind),
         repoPath: asNonEmptyString(r.repoPath),
@@ -102,35 +103,14 @@ export function registryToProjects(reg: unknown): ProjectRow[] {
         runtimePortMatchesPreferred: asBoolean(r.runtimePortMatchesPreferred),
         o2StartKey: asNonEmptyString(r.o2StartKey),
         o2SnapshotKey: asNonEmptyString(r.o2SnapshotKey),
-        o2CommitKey: asNonEmptyString(r.o2CommitKey),
-        o2LabKey: asNonEmptyString(r.o2LabKey),
         o2MapKey: asNonEmptyString(r.o2MapKey),
-        o2ProofPackKey: asNonEmptyString(r.o2ProofPackKey),
+        o2ProofPackKey: asNonEmptyString(r.o2ProofPackKey) ?? `${key}.proofpack`,
       });
     }
 
     return out;
   } catch {
     return [];
-  }
-}
-
-export function nextPortSuggestion(usedPorts: number[], start = 1420): number {
-  try {
-    const used = new Set<number>();
-    for (const p of usedPorts) {
-      if (typeof p === "number" && Number.isFinite(p)) used.add(Math.trunc(p));
-    }
-
-    let p = Math.max(1, Math.trunc(start));
-    while (p < 65536) {
-      if (!used.has(p)) return p;
-      p += 1;
-    }
-
-    return Math.max(1, Math.trunc(start));
-  } catch {
-    return Math.max(1, Math.trunc(start));
   }
 }
 
@@ -149,7 +129,7 @@ export function validateAdd(args: {
   const url = typeof args.url === "string" ? args.url.trim() : "";
   const port = args.port;
 
-  const validOrgs: ProjectOrg[] = ["radcon", "radwolfe", "labs", "other"];
+  const validOrgs: ProjectOrg[] = ["radcon", "radwolfe", "other"];
 
   if (!org) {
     errors.push("Org is required.");

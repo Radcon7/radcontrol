@@ -72,7 +72,7 @@ Examples:
 
 3. **Avoid cloned scripts**
 
-- `snapshot_repo_state.sh`, `o2_session_start.sh`, `o2_commit.sh` should converge:
+- `snapshot_repo_state.sh` and `o2_session_start.sh` should converge:
   - one canonical implementation
   - repo stubs/wrappers only when truly repo-specific
 

@@ -1,11 +1,24 @@
 import { invoke } from "@tauri-apps/api/core";
 
+// O2 transports authored document content through a command argument.
+export const O2_INLINE_DOCUMENT_MAX_BYTES = 1024 * 1024;
+
 export type RunO2Result = {
   ok?: boolean;
   code?: number;
   stdout?: string;
   stderr?: string;
 };
+
+export type E2EProjectRoots = {
+  radcon: string;
+  radwolfe: string;
+  other: string;
+};
+
+export async function getE2EProjectRoots(): Promise<E2EProjectRoots | null> {
+  return (await invoke("e2e_project_roots")) as E2EProjectRoots | null;
+}
 
 export type FilesListItem = {
   kind?: string;
@@ -36,8 +49,6 @@ export type FilesWriteJson = {
   path?: string;
   mtime?: number;
   bytes?: number;
-  committed?: boolean;
-  commitMessage?: string | null;
   error?: string;
 };
 
@@ -47,24 +58,26 @@ export type FilesRenameJson = {
   toPath?: string;
   mtime?: number;
   bytes?: number;
-  committed?: boolean;
-  commitMessage?: string | null;
   error?: string;
 };
 
 export type O2WritePayload = {
   path: string;
   content: string;
-  commit?: boolean;
-  commitMessage?: string | null;
 };
 
 export type O2RenamePayload = {
   fromPath: string;
   toPath: string;
-  commit?: boolean;
-  commitMessage?: string | null;
 };
+
+function assertInlineDocumentSize(content: string): void {
+  if (new TextEncoder().encode(content).byteLength > O2_INLINE_DOCUMENT_MAX_BYTES) {
+    throw new Error(
+      `Document exceeds the governed inline save limit of ${O2_INLINE_DOCUMENT_MAX_BYTES} bytes.`,
+    );
+  }
+}
 
 export function b64urlEncodeUtf8(value: string): string {
   const bytes = new TextEncoder().encode(value);
@@ -92,33 +105,7 @@ export async function runO2(verb: string): Promise<RunO2Result> {
   return (await invoke("run_o2", { verb })) as RunO2Result;
 }
 
-export async function runO2WithInput(
-  verb: string,
-  input: string,
-): Promise<RunO2Result> {
-  return (await invoke("run_o2_with_input", {
-    verb,
-    input,
-  })) as RunO2Result;
-}
 
-export function runO2TextOutput(result: unknown): string {
-  if (typeof result === "string") return result;
-
-  if (result && typeof result === "object") {
-    const record = result as Record<string, unknown>;
-    if (typeof record.stdout === "string") return record.stdout;
-    if (typeof record.output === "string") return record.output;
-
-    try {
-      return JSON.stringify(record);
-    } catch {
-      return "[unstringifiable object]";
-    }
-  }
-
-  return (result ?? "").toString();
-}
 
 export function joinO2ResultOutput(result: RunO2Result): string {
   const stdout = (result.stdout || "").trimEnd();
@@ -128,7 +115,11 @@ export function joinO2ResultOutput(result: RunO2Result): string {
 }
 
 export async function runO2Text(verb: string): Promise<string> {
-  return runO2TextOutput(await runO2(verb));
+  const result = await runO2(verb);
+  if (!result.ok) {
+    throw new Error(errMsg(result, `${verb} failed`));
+  }
+  return joinO2ResultOutput(result);
 }
 
 export function errMsg(res: RunO2Result, fallback: string): string {
@@ -199,12 +190,13 @@ export async function readO2File(path: string): Promise<FilesReadJson> {
 export async function writeO2File(
   payload: O2WritePayload,
 ): Promise<FilesWriteJson> {
-  const parsed = await runO2PayloadParsedJson<FilesWriteJson>(
-    "files.write",
-    payload,
-    "files.write failed",
-    "files.write returned invalid JSON",
-  );
+  assertInlineDocumentSize(payload.content);
+  const result = await invoke<RunO2Result>("run_o2_payload", {
+    verb: "files.write",
+    payloadJson: JSON.stringify(payload),
+  });
+  if (!result.ok) throw new Error(errMsg(result, "files.write failed"));
+  const parsed = parseO2Json<FilesWriteJson>(result.stdout || "", "files.write returned invalid JSON");
   if (!parsed.ok) {
     throw new Error(parsed.error || "files.write returned error");
   }

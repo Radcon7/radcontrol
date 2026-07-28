@@ -8,6 +8,8 @@ export type ProjectRow = {
   retired?: boolean;
   notesPath?: string;
   notesAvailable?: boolean;
+  intakePath?: string;
+  intakeAvailable?: boolean;
   org?: ProjectOrg;
   kind?: ProjectKind;
   repoPath?: string;
@@ -28,15 +30,14 @@ export type ProjectRow = {
   // O2 hooks (all optional; UI must not assume they exist)
   o2StartKey?: string;
   o2SnapshotKey?: string;
-  o2CommitKey?: string;
-  o2LabKey?: string;
 
   // Map / ProofPack
   o2MapKey?: string;
   o2ProofPackKey?: string;
 };
 
-export type ProjectOrg = "radcon" | "radwolfe" | "labs" | "other";
+export type ProjectOrg = "radcon" | "radwolfe" | "other";
+export type ProjectRootOverrides = Partial<Record<ProjectOrg, string>>;
 
 export type ProjectKind =
   | "nextjs"
@@ -132,8 +133,6 @@ export type AddProjectPayload = {
   // O2 hooks (optional)
   o2StartKey?: string;
   o2SnapshotKey?: string;
-  o2CommitKey?: string;
-  o2LabKey?: string;
   o2MapKey?: string;
   o2ProofPackKey?: string;
 
@@ -171,12 +170,11 @@ export type AddProjectPayload = {
 
   notes?: string;
 };
-export type NewProjectIntent = "production" | "lab";
+export type NewProjectIntent = "production";
 
 export type NewProjectRelationship =
   | "new"
   | "version_successor"
-  | "lab_variant"
   | "reference_pattern";
 
 export type NewProjectIntakePayload = {

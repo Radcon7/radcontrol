@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -9,25 +9,19 @@ import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
 import { LegalHubTab } from "./components/paste-tabs/LegalHubTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
 import { AddProjectModal } from "./components/projects/AddProjectModal";
-import type {
-  AddProjectModalPrefill,
-  GovernedPortSuggestion,
-  GovernedStarterPattern,
-} from "./components/projects/AddProjectModal";
-import { ProjectLabsModal } from "./components/projects/ProjectLabsModal";
 
-import { AgentRunsTab } from "./components/agents/AgentRunsTab";
+import { AgentsTab } from "./components/agents/AgentsTab";
 import { InfrastructureTab } from "./components/agents/InfrastructureTab";
 
 import type {
   AddProjectPayload,
   PortStatus,
-  ProjectKind,
+  ProjectRootOverrides,
   ProjectRow,
 } from "./components/projects/types";
 import { fmtErr, registryToProjects } from "./components/projects/helpers";
 import { copyText } from "./components/common/copyText";
-import { encodeO2JsonPayload, runO2Text } from "./components/common/o2Files";
+import { encodeO2JsonPayload, getE2EProjectRoots, readO2File, runO2Text } from "./components/common/o2Files";
 
 type LibraryTabKey = "notes" | "legal";
 type DocTabKey = LibraryTabKey;
@@ -58,17 +52,11 @@ const ALL_TABS: TabKey[] = [
   ...DOC_TABS.map((t) => t.key),
 ];
 
-type CanonicalProjectType =
-  | "new_website"
-  | "lab_from_existing"
-  | "website_successor";
+type CanonicalProjectType = "new_website" | "website_successor";
 
 const canonicalProjectTypeMap: Record<string, CanonicalProjectType> = {
   website: "new_website",
   new_website: "new_website",
-
-  lab: "lab_from_existing",
-  lab_from_existing: "lab_from_existing",
 
   successor: "website_successor",
   website_successor: "website_successor",
@@ -77,10 +65,6 @@ const canonicalProjectTypeMap: Record<string, CanonicalProjectType> = {
 
 function isDocTab(t: TabKey): t is DocTabKey {
   return DOC_TABS.some((d) => d.key === t);
-}
-
-function isLibraryTab(t: TabKey): t is LibraryTabKey {
-  return DOC_TABS.some((d) => d.key === t && d.mode === "library");
 }
 
 function docTabMeta(t: DocTabKey): DocTabMeta {
@@ -113,6 +97,7 @@ type O2ListProjectsEnvelope = {
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
 }
+
 
 function parseRegistryMaybeDoubleEncoded(raw: string): O2ListProjectsEnvelope {
   let first: unknown;
@@ -185,22 +170,8 @@ async function tryAutoOpen(url: string) {
 }
 
 type O2PortStatusJson = { port?: number; listening?: boolean };
+type O2PortStatusBatchJson = { ok?: boolean; ports?: O2PortStatusJson[] };
 
-function parsePortStatusJson(out: string, port: number): PortStatus {
-  try {
-    const obj = JSON.parse((out || "").trim()) as O2PortStatusJson;
-    const listening = Boolean(obj?.listening);
-    return { port, listening, pid: null, cmd: null, err: null };
-  } catch {
-    return {
-      port,
-      listening: false,
-      pid: null,
-      cmd: null,
-      err: "invalid json",
-    };
-  }
-}
 
 type FormationStartPayload = {
   projectType: CanonicalProjectType;
@@ -283,110 +254,6 @@ type ProjectBootstrapResult = {
   details?: string[];
 };
 
-type PortSuggestionResult = {
-  ok?: boolean;
-  kind?: string;
-  preferredPort?: number;
-  preferredUrl?: string;
-  rangeStart?: number;
-  rangeEnd?: number;
-  error?: string;
-  message?: string;
-};
-
-type PatternListResult = {
-  ok?: boolean;
-  patterns?: unknown[];
-};
-
-type ProjectLabRecommendedAction =
-  | "launch_existing_lab"
-  | "start_first_lab_flow"
-  | "blocked";
-
-function parseMaybeDoubleEncodedJson(raw: string): unknown | null {
-  if (!raw.trim()) return null;
-
-  let first: unknown;
-  try {
-    first = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-
-  if (typeof first !== "string") return first;
-  try {
-    return JSON.parse(first);
-  } catch {
-    return null;
-  }
-}
-
-function didO2VerbSucceed(raw: string | null): boolean {
-  if (raw === null) return false;
-  const parsed = parseMaybeDoubleEncodedJson(raw);
-  const obj = asRecord(parsed);
-  if (!obj) return true;
-  if (typeof obj.ok === "boolean") return obj.ok;
-  return true;
-}
-
-function parseProjectLabOpenOrCreate(raw: string): {
-  recommendedAction: ProjectLabRecommendedAction | null;
-  message: string | null;
-} {
-  const parsed = parseMaybeDoubleEncodedJson(raw);
-  const obj = asRecord(parsed);
-  if (!obj) return { recommendedAction: null, message: null };
-
-  const nested = asRecord(obj.data) ?? asRecord(obj.result) ?? obj;
-  const action =
-    typeof nested.recommendedAction === "string"
-      ? nested.recommendedAction
-      : typeof nested.recommended_action === "string"
-        ? nested.recommended_action
-        : null;
-
-  const recommendedAction: ProjectLabRecommendedAction | null =
-    action === "launch_existing_lab" ||
-    action === "start_first_lab_flow" ||
-    action === "blocked"
-      ? action
-      : null;
-
-  const message =
-    typeof nested.userMessage === "string"
-      ? nested.userMessage
-      : typeof nested.message === "string"
-        ? nested.message
-        : typeof obj.message === "string"
-          ? obj.message
-          : typeof obj.error === "string"
-            ? obj.error
-            : null;
-
-  return { recommendedAction, message };
-}
-
-function toFriendlyLabMessage(
-  project: ProjectRow,
-  recommendedAction: ProjectLabRecommendedAction,
-  contractMessage: string | null,
-): string {
-  if (recommendedAction === "launch_existing_lab") {
-    return `Current governed lab is ready for ${project.label}.`;
-  }
-  if (
-    contractMessage &&
-    !/invalid_payload|recommendedAction|open_or_create|project_lab\./i.test(
-      contractMessage,
-    )
-  ) {
-    return contractMessage;
-  }
-  return `Labs are currently unavailable for ${project.label}. Please try again.`;
-}
-
 function normalizeProjectType(
   payload: AddProjectPayload,
 ): CanonicalProjectType {
@@ -428,17 +295,13 @@ function normalizeFormationStartPayload(
   const baseProjectKey = payload.parentProjectKey?.trim() || "";
   const similarProjectKey = payload.similarProjectKey?.trim() || "";
   const referenceRepos = payload.referenceRepos?.trim() || "";
-  const patternHint =
-    payload.patternHint?.trim() || payload.repoHint?.trim() || "";
+  const patternHint = payload.patternHint?.trim() || "";
   const similarityNotes = payload.similarityNotes?.trim() || "";
   const intent = (
-    payload.intent || (payload.o2LabKey ? "lab" : "production")
+    payload.intent || "production"
   ).trim();
 
-  const track =
-    projectType === "lab_from_existing" || intent === "lab"
-      ? "lab"
-      : "production";
+  const track = "production";
 
   const versionTag = "";
   const notes = payload.notes?.trim() || "";
@@ -494,24 +357,17 @@ export default function App() {
   const [portsBusy, setPortsBusy] = useState(false);
 
   const [log, setLog] = useState("");
-  const appendLog = (s: string) =>
-    setLog((prev) => (prev ? prev + "\n" + s : s));
+  const appendLog = (entry: string) =>
+    setLog((previous) => {
+      const next = previous ? `${previous}\n${entry}` : entry;
+      return next.length > 50000 ? next.slice(-50000) : next;
+    });
 
   const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const projectsRef = useRef<ProjectRow[]>([]);
   const [preferredProjectKey, setPreferredProjectKey] = useState<string | null>(null);
   const [showAddProject, setShowAddProject] = useState(false);
-  const [addProjectPrefill, setAddProjectPrefill] =
-    useState<AddProjectModalPrefill | null>(null);
-  const [governedPatterns, setGovernedPatterns] = useState<
-    GovernedStarterPattern[]
-  >([]);
-  const [showProjectLabsModal, setShowProjectLabsModal] = useState(false);
-  const [projectLabsProject, setProjectLabsProject] =
-    useState<ProjectRow | null>(null);
-  const [projectLabsMessage, setProjectLabsMessage] = useState(
-    "Checking governed lab doorway...",
-  );
-  const [projectLabsActionBusy, setProjectLabsActionBusy] = useState(false);
+  const [projectRootOverrides, setProjectRootOverrides] = useState<ProjectRootOverrides | undefined>();
   const beforeTabChangeSaverRef = useRef<(() => Promise<boolean>) | null>(null);
 
   const clearPreferredProjectKey = useCallback(() => {
@@ -520,9 +376,6 @@ export default function App() {
 
   const loadRegistryOnceRef = useRef(false);
   const loadRegistryInFlightRef = useRef<Promise<ProjectRow[]> | null>(null);
-  const loadGovernedPatternsInFlightRef = useRef<
-    Promise<GovernedStarterPattern[]> | null
-  >(null);
 
   async function loadRegistry(): Promise<ProjectRow[]> {
     if (loadRegistryInFlightRef.current) return loadRegistryInFlightRef.current;
@@ -534,12 +387,15 @@ export default function App() {
         const reg = parsed.projects ?? [];
 
         const rows = registryToProjects(reg);
+        projectsRef.current = rows;
         setProjects(rows);
+        void refreshPorts(rows);
 
         appendLog(`[registry] loaded ${rows.length} project(s)`);
         return rows;
       } catch (e) {
         appendLog("\n[registry] failed:\n" + fmtErr(e));
+        projectsRef.current = [];
         setProjects([]);
         return [];
       } finally {
@@ -556,182 +412,104 @@ export default function App() {
     void loadRegistry();
   }, []);
 
-  async function loadGovernedPatterns(): Promise<GovernedStarterPattern[]> {
-    if (loadGovernedPatternsInFlightRef.current) {
-      return loadGovernedPatternsInFlightRef.current;
-    }
-
-    loadGovernedPatternsInFlightRef.current = (async () => {
-      try {
-        const out = await runO2Text("project_pattern.list");
-        const parsed = parseMaybeDoubleEncodedJson(out ?? "") as PatternListResult | null;
-        const envelope = asRecord(parsed);
-        const patternsRaw = Array.isArray(envelope?.patterns)
-          ? envelope.patterns
-          : [];
-
-        const next = patternsRaw.flatMap((entry) => {
-          const row = asRecord(entry);
-          const key = typeof row?.key === "string" ? row.key : null;
-          const label = typeof row?.label === "string" ? row.label : null;
-          const summary = typeof row?.summary === "string" ? row.summary : null;
-          if (!key || !label || !summary) return [];
-
-          return [
-            {
-              key,
-              label,
-              summary,
-              kinds: Array.isArray(row?.kinds)
-                ? row.kinds.filter((item): item is string => typeof item === "string")
-                : [],
-              projectClasses: Array.isArray(row?.projectClasses)
-                ? row.projectClasses.filter(
-                    (item): item is string => typeof item === "string",
-                  )
-                : [],
-              deliverySurfaces: Array.isArray(row?.deliverySurfaces)
-                ? row.deliverySurfaces.filter(
-                    (item): item is string => typeof item === "string",
-                  )
-                : [],
-              bootstrapMode:
-                typeof row?.bootstrapMode === "string"
-                  ? row.bootstrapMode
-                  : undefined,
-              repoContracts: Array.isArray(row?.repoContracts)
-                ? row.repoContracts.filter(
-                    (item): item is string => typeof item === "string",
-                  )
-                : [],
-              starterArtifacts: Array.isArray(row?.starterArtifacts)
-                ? row.starterArtifacts.filter(
-                    (item): item is string => typeof item === "string",
-                  )
-                : [],
-              securityPosture:
-                typeof row?.securityPosture === "string"
-                  ? row.securityPosture
-                  : undefined,
-              artifactPath:
-                typeof row?.artifactPath === "string"
-                  ? row.artifactPath
-                  : undefined,
-            },
-          ];
-        });
-
-        setGovernedPatterns(next);
-        appendLog(`[patterns] loaded ${next.length} governed starter pattern(s)`);
-        return next;
-      } catch (e) {
-        appendLog("\n[patterns] failed:\n" + fmtErr(e));
-        return [];
-      } finally {
-        loadGovernedPatternsInFlightRef.current = null;
-      }
-    })();
-
-    return loadGovernedPatternsInFlightRef.current;
-  }
-
   useEffect(() => {
-    if (!showAddProject) return;
-    void loadGovernedPatterns();
-  }, [showAddProject]);
+    if (!isTauri()) return;
+    void getE2EProjectRoots().then((roots) => {
+      if (roots) setProjectRootOverrides(roots);
+    }).catch(() => undefined);
+  }, []);
 
   const [ports, setPorts] = useState<Record<number, PortStatus | undefined>>(
     {},
   );
 
-  const PORTS = useMemo(() => {
-    const s = new Set<number>();
-    projects.forEach((p) => {
-      const candidates = [p.port, p.preferredPort, p.runtimePort];
-      candidates.forEach((candidate) => {
-        if (typeof candidate === "number" && Number.isFinite(candidate)) {
-          s.add(candidate);
+  function projectPorts(rows: ProjectRow[]): number[] {
+    const ports = new Set<number>();
+    rows.forEach((project) => {
+      [project.port, project.preferredPort, project.runtimePort].forEach(
+        (candidate) => {
+          if (typeof candidate === "number" && Number.isFinite(candidate)) {
+            ports.add(candidate);
+          }
+        },
+      );
+    });
+    return Array.from(ports).sort((a, b) => a - b);
+  }
+
+  const latestPortRefreshRef = useRef(0);
+
+  async function refreshPorts(rows = projectsRef.current): Promise<void> {
+    const requestId = latestPortRefreshRef.current + 1;
+    latestPortRefreshRef.current = requestId;
+    const requestedPorts = projectPorts(rows);
+    setPortsBusy(true);
+
+    try {
+      if (requestedPorts.length === 0) {
+        if (requestId === latestPortRefreshRef.current) setPorts({});
+        return;
+      }
+
+      const payload = encodeO2JsonPayload({ ports: requestedPorts });
+      const out = await runO2Text(`port_status.batch.${payload}`);
+      const parsed = JSON.parse(out) as O2PortStatusBatchJson;
+      if (!parsed.ok || !Array.isArray(parsed.ports)) {
+        throw new Error("port_status.batch returned an invalid response");
+      }
+
+      const next: Record<number, PortStatus> = {};
+      parsed.ports.forEach((item) => {
+        if (typeof item.port === "number") {
+          next[item.port] = {
+            port: item.port,
+            listening: Boolean(item.listening),
+            pid: null,
+            cmd: null,
+            err: null,
+          };
         }
       });
-    });
-
-    return Array.from(s.values()).sort((a, b) => a - b);
-  }, [projects]);
-
-  const refreshInFlightRef = useRef<Promise<void> | null>(null);
-
-  async function refreshPorts(): Promise<void> {
-    if (refreshInFlightRef.current) return refreshInFlightRef.current;
-    if (portsBusy) return Promise.resolve();
-
-    refreshInFlightRef.current = (async () => {
-      setPortsBusy(true);
-      try {
-        const results = await Promise.all(
-          PORTS.map(async (p) => {
-            try {
-              const out = await runO2Text(`port_status.${p}`);
-              return parsePortStatusJson(out, p);
-            } catch (e) {
-              return {
-                port: p,
-                listening: false,
-                pid: null,
-                cmd: null,
-                err: fmtErr(e),
-              } as PortStatus;
-            }
-          }),
-        );
-
-        const next: Record<number, PortStatus> = {};
-        results.forEach((r) => {
-          if (typeof r.port === "number") next[r.port] = r;
-        });
-        setPorts(next);
-      } finally {
-        setPortsBusy(false);
-        refreshInFlightRef.current = null;
-      }
-    })();
-
-    return refreshInFlightRef.current;
+      if (requestId === latestPortRefreshRef.current) setPorts(next);
+    } finally {
+      if (requestId === latestPortRefreshRef.current) setPortsBusy(false);
+    }
   }
 
   useEffect(() => {
-    void refreshPorts();
+    projectsRef.current = projects;
+    void refreshPorts(projects);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects]);
+
+  useEffect(() => {
+    if (tab !== "projects") return;
+
+    void loadRegistry();
+    void refreshPorts(projectsRef.current);
+
+    const intervalId = window.setInterval(() => {
+      void refreshPorts(projectsRef.current);
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   function statusForRow(p: ProjectRow) {
     if (typeof p.port !== "number") {
       return { pill: "pillWarn", text: "NO PORT" };
     }
 
-    const s = ports[p.port];
-    if (!s) return { pill: "pillWarn", text: "UNKNOWN" };
+    const port = p.runtimePort ?? p.port;
+    const s = ports[port];
+    if (!s) return { pill: "pillOff", text: "STOPPED" };
 
     return s.listening
       ? { pill: "pillOn", text: "RUNNING" }
       : { pill: "pillOff", text: "STOPPED" };
-  }
-
-  async function requestPortSuggestion(
-    kind: ProjectKind,
-  ): Promise<GovernedPortSuggestion | null> {
-    try {
-      const out = await runO2Text(`port_suggest.${kind}`);
-      const parsed = JSON.parse(out) as PortSuggestionResult;
-      if (!parsed?.ok) return null;
-      return {
-        port:
-          typeof parsed.preferredPort === "number" ? parsed.preferredPort : undefined,
-        url:
-          typeof parsed.preferredUrl === "string" ? parsed.preferredUrl : undefined,
-      };
-    } catch {
-      return null;
-    }
   }
 
   async function runO2(title: string, key?: string): Promise<string | null> {
@@ -773,7 +551,11 @@ export default function App() {
 
   async function openProjectUrl(p: ProjectRow) {
     const finalUrl =
-      typeof p?.url === "string" && p.url.startsWith("http") ? p.url : null;
+      typeof p?.runtimeUrl === "string" && p.runtimeUrl.startsWith("http")
+        ? p.runtimeUrl
+        : typeof p?.url === "string" && p.url.startsWith("http")
+          ? p.url
+          : null;
 
     if (!finalUrl) {
       appendLog(
@@ -825,8 +607,8 @@ export default function App() {
     await openProjectUrl({ ...latest, url: finalUrl });
   }
 
-  async function freePort(port: number) {
-    await runO2("Kill requested", `kill_port.${port}`);
+  async function stopProjectRuntime(project: ProjectRow) {
+    await runO2(`Stop ${project.label}`, `${project.key}.stop`);
     await loadRegistry();
   }
 
@@ -842,6 +624,35 @@ export default function App() {
     setBusy(true);
     appendLog(
       `\n[o2] Set lifecycle for ${project.label} → run_o2("${verb}")\n`,
+    );
+    try {
+      const out = await runO2Text(verb);
+      appendLog(out || "(no output)");
+      await loadRegistry();
+    } catch (e) {
+      appendLog("\n[o2] ERROR:\n" + fmtErr(e));
+    } finally {
+      setBusy(false);
+      try {
+        await refreshPorts();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  async function setProjectLaunchDate(project: ProjectRow, startDate: string) {
+    if (busy) return;
+
+    const payload = encodeO2JsonPayload({
+      projectKey: project.key,
+      startDate,
+    });
+    const verb = `project_launch_date.set.${payload}`;
+
+    setBusy(true);
+    appendLog(
+      `\n[o2] Set launch date for ${project.label} → run_o2("${verb}")\n`,
     );
     try {
       const out = await runO2Text(verb);
@@ -886,21 +697,35 @@ export default function App() {
     return latest ?? project;
   }
 
+  async function showOriginalProjectRequest(project: ProjectRow): Promise<void> {
+    if (!project.intakeAvailable || !project.intakePath) {
+      appendLog(`[original-request] no governed request is available for ${project.label}`);
+      return;
+    }
+
+    const path = project.intakePath;
+    try {
+      const record = await readO2File(path);
+      let content = record.content || "";
+      try {
+        content = JSON.stringify(JSON.parse(content), null, 2);
+      } catch {
+        // Preserve non-JSON historical intake records as-is.
+      }
+      appendLog(`\n[original-request:${project.key}]\n${content || "(empty request record)"}`);
+    } catch (error) {
+      appendLog(`\n[original-request:${project.key}] unavailable: ${fmtErr(error)}`);
+    }
+  }
+
   async function createProject(payload: AddProjectPayload) {
     const formationPayload = normalizeFormationStartPayload(payload);
 
-    if (
-      formationPayload.projectType === "lab_from_existing" &&
-      formationPayload.baseProjectKey
-    ) {
+    if (formationPayload.projectType === "website_successor" && formationPayload.baseProjectKey) {
       const rows = await loadRegistry();
-      const baseProject = rows.find(
-        (row) => row.key === formationPayload.baseProjectKey,
-      );
+      const baseProject = rows.find((row) => row.key === formationPayload.baseProjectKey);
       if (!baseProject) {
-        throw new Error(
-          `Base project "${formationPayload.baseProjectKey}" was not found in Projects.`,
-        );
+        throw new Error(`Base project "${formationPayload.baseProjectKey}" was not found in Projects.`);
       }
     }
 
@@ -1042,143 +867,12 @@ export default function App() {
     }
   }
 
-  async function refreshAfterProjectLabAction(
-    projectKey: string,
-  ): Promise<ProjectRow | null> {
-    const rows = await loadRegistry();
-    const latest = rows.find((row) => row.key === projectKey) ?? null;
-    setProjectLabsProject(latest);
-
-    try {
-      await refreshPorts();
-    } catch {
-      // ignore
-    }
-
-    return latest;
-  }
-
-  async function launchExistingLab(project: ProjectRow): Promise<boolean> {
-    const verb = `${project.key}.dev_strict`;
-    appendLog(`[labs] launch via canonical O2 runtime: ${verb}`);
-    const out = await runO2(`${project.label} Lab`, verb);
-    return didO2VerbSucceed(out);
-  }
-
-  async function runProjectLabOpenOrCreate(project: ProjectRow): Promise<void> {
-    if (busy || projectLabsActionBusy) return;
-
-    setProjectLabsActionBusy(true);
-    setProjectLabsMessage(`Checking lab access for ${project.label}...`);
-
-    try {
-      const payload = encodeO2JsonPayload({ projectKey: project.key });
-      const verb = `project_lab.open_or_create.${payload}`;
-      const out = await runO2(`${project.label} Lab Doorway`, verb);
-      if (!didO2VerbSucceed(out)) {
-        setProjectLabsMessage(
-          `Labs are currently unavailable for ${project.label}. Please try again.`,
-        );
-        return;
-      }
-
-      const parsed = parseProjectLabOpenOrCreate(out || "");
-      if (!parsed.recommendedAction) {
-        setProjectLabsMessage(
-          `Labs are currently unavailable for ${project.label}. Please try again.`,
-        );
-        return;
-      }
-
-      const latest = await refreshAfterProjectLabAction(project.key);
-      const resolvedProject = latest ?? project;
-      if (parsed.recommendedAction === "start_first_lab_flow") {
-        setShowProjectLabsModal(false);
-        setAddProjectPrefill({
-          projectType: "lab_from_existing",
-          relatedProjectKey: resolvedProject.key,
-        });
-        setShowAddProject(true);
-        return;
-      }
-
-      if (parsed.recommendedAction === "launch_existing_lab") {
-        setProjectLabsMessage(
-          toFriendlyLabMessage(
-            resolvedProject,
-            parsed.recommendedAction,
-            parsed.message,
-          ),
-        );
-        setShowProjectLabsModal(true);
-        return;
-      }
-
-      setShowProjectLabsModal(false);
-      setProjectLabsMessage(
-        toFriendlyLabMessage(
-          resolvedProject,
-          parsed.recommendedAction,
-          parsed.message,
-        ),
-      );
-    } finally {
-      setProjectLabsActionBusy(false);
-    }
-  }
-
-  async function runProjectLabPrimaryAction(): Promise<void> {
-    if (busy || projectLabsActionBusy || !projectLabsProject) return;
-
-    const project = projectLabsProject;
-    setProjectLabsActionBusy(true);
-    try {
-      setProjectLabsMessage(`Launching ${project.label} lab...`);
-      await launchExistingLab(project);
-    } finally {
-      setProjectLabsActionBusy(false);
-    }
-  }
-
-  async function deleteProjectLab(): Promise<void> {
-    if (busy || projectLabsActionBusy || !projectLabsProject) return;
-
-    setProjectLabsActionBusy(true);
-    try {
-      const project = projectLabsProject;
-      const payload = encodeO2JsonPayload({ projectKey: project.key });
-      const verb = `project_lab.delete.${payload}`;
-      const out = await runO2(`Delete ${project.label} Lab`, verb);
-      if (!didO2VerbSucceed(out)) return;
-
-      await refreshAfterProjectLabAction(project.key);
-      closeProjectLabsModal();
-    } finally {
-      setProjectLabsActionBusy(false);
-    }
-  }
-
-  function openProjectLabsModal(project: ProjectRow) {
-    setProjectLabsProject(project);
-    setProjectLabsMessage(`Checking lab access for ${project.label}...`);
-    setShowProjectLabsModal(false);
-    void runProjectLabOpenOrCreate(project);
-  }
-
-  function closeProjectLabsModal() {
-    setShowProjectLabsModal(false);
-    setProjectLabsActionBusy(false);
-    setProjectLabsMessage("Checking governed lab doorway...");
-  }
-
   function openAddProjectModal() {
-    setAddProjectPrefill(null);
     setShowAddProject(true);
   }
 
   function closeAddProjectModal() {
     setShowAddProject(false);
-    setAddProjectPrefill(null);
   }
 
   const logText = (busy ? "Running…" : log || "No logs yet.").toString();
@@ -1190,15 +884,13 @@ export default function App() {
   async function requestTabChange(nextTab: TabKey): Promise<void> {
     if (nextTab === tab) return;
 
-    if (isLibraryTab(tab)) {
-      const saver = beforeTabChangeSaverRef.current;
-      if (saver) {
-        try {
-          const ok = await saver();
-          if (!ok) return;
-        } catch {
-          return;
-        }
+    const saver = beforeTabChangeSaverRef.current;
+    if (saver) {
+      try {
+        const ok = await saver();
+        if (!ok) return;
+      } catch {
+        return;
       }
     }
 
@@ -1237,6 +929,7 @@ export default function App() {
             <button
               key={t}
               className={`tab ${tab === t ? "tabActive" : ""}`}
+              data-testid={`tab-${t}`}
               onClick={() => void requestTabChange(t)}
               title={tabLabel(t)}
             >
@@ -1266,24 +959,22 @@ export default function App() {
               busy={busy}
               portsBusy={portsBusy}
               onOpenAddProject={openAddProjectModal}
-              onReloadProjects={loadRegistry}
-              onRefreshPorts={refreshPorts}
               preferredProjectKey={preferredProjectKey}
               onPreferredProjectKeyHandled={clearPreferredProjectKey}
               onStart={startProject}
-              onOpenUrl={openProjectUrl}
               onSnapshot={(p) =>
                 void runO2(`Repo Snapshot ${p.label}`, p.o2SnapshotKey)
               }
-              onCommit={(p) => void runO2(`Commit ${p.label}`, p.o2CommitKey)}
-              onLab={openProjectLabsModal}
-              onKill={freePort}
+              onStop={stopProjectRuntime}
               onMap={(p) => void runO2(`${p.label} Map`, p.o2MapKey)}
+              onShowOriginalRequest={showOriginalProjectRequest}
               onProofPack={(p) =>
                 void runO2(`${p.label} Proof Pack`, p.o2ProofPackKey)
               }
               onSetRetired={setProjectRetired}
+              onSetLaunchDate={setProjectLaunchDate}
               onEnsureNotes={ensureProjectNotes}
+              registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
               statusForRow={statusForRow}
             />
 
@@ -1291,29 +982,23 @@ export default function App() {
               open={showAddProject}
               onClose={closeAddProjectModal}
               onCreate={createProject}
-              requestPortSuggestion={requestPortSuggestion}
-              governedPatterns={governedPatterns}
               existingProjects={projects}
-              prefill={addProjectPrefill}
+              projectRootOverrides={projectRootOverrides}
             />
 
-            <ProjectLabsModal
-              open={showProjectLabsModal}
-              project={projectLabsProject}
-              busy={busy || projectLabsActionBusy}
-              message={projectLabsMessage}
-              onClose={closeProjectLabsModal}
-              onPrimaryAction={() => {
-                void runProjectLabPrimaryAction();
-              }}
-              onDelete={() => void deleteProjectLab()}
-            />
           </>
         ) : tab === "infrastructure" ? (
 
-          <InfrastructureTab projects={projects} />
+          <InfrastructureTab
+            projects={projects}
+            onAppendLog={appendLog}
+            registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
+          />
         ) : tab === "agents" ? (
-          <AgentRunsTab projects={projects} />
+          <AgentsTab
+            projects={projects}
+            registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
+          />
         ) : tab === "empire_utility" ? (
           <EmpireUtilityTab />
         ) : isDocTab(tab) ? (
