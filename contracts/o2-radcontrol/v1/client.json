@@ -1,0 +1,32 @@
+{
+  "protocol": "o2-radcontrol",
+  "clientProtocolVersion": 1,
+  "minimumO2ProtocolVersion": 1,
+  "maximumO2ProtocolVersion": 1,
+  "requiredCapabilities": [
+    "agent_profile.create",
+    "empire.map",
+    "empire.sweep",
+    "files.list",
+    "files.read",
+    "files.rename",
+    "files.write",
+    "infrastructure_asset.create",
+    "list_projects",
+    "port_status.batch",
+    "port_suggest",
+    "project.dev",
+    "project.dev_strict",
+    "project.map",
+    "project.proofpack",
+    "project.snapshot",
+    "project.stop",
+    "project_create.bootstrap",
+    "project_create.start",
+    "project_launch_date.set",
+    "project_note.ensure",
+    "project_pattern.list",
+    "project_retired.set",
+    "radcontrol.snapshot"
+  ]
+}

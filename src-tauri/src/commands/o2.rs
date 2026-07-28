@@ -82,7 +82,8 @@ fn run_o2_command(arg: &str) -> RunO2Result {
 fn verb_allowed(verb: &str) -> bool {
   if matches!(
     verb,
-    "list_projects"
+    "contract_info"
+      | "list_projects"
       | "project_pattern.list"
       | "empire.map"
       | "empire.sweep"

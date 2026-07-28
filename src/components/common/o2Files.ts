@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { assertCompatibleO2Contract, type O2ContractInfo } from "./o2Contract";
 
 // O2 transports authored document content through a command argument.
 export const O2_INLINE_DOCUMENT_MAX_BYTES = 1024 * 1024;
@@ -101,11 +102,38 @@ export function normalizeO2Path(path: string): string {
   return trimmed.startsWith("docs/") ? trimmed : `docs/${trimmed}`;
 }
 
-export async function runO2(verb: string): Promise<RunO2Result> {
+async function invokeO2Unchecked(verb: string): Promise<RunO2Result> {
   return (await invoke("run_o2", { verb })) as RunO2Result;
 }
 
+let compatibilityPromise: Promise<O2ContractInfo> | null = null;
 
+export function ensureO2Compatibility(): Promise<O2ContractInfo> {
+  if (!compatibilityPromise) {
+    compatibilityPromise = (async () => {
+      const result = await invokeO2Unchecked("contract_info");
+      if (!result.ok) {
+        throw new Error(errMsg(result, "O2 compatibility check failed"));
+      }
+      const payload = parseO2Json<unknown>(
+        result.stdout || "",
+        "O2 contract_info returned invalid JSON",
+      );
+      return assertCompatibleO2Contract(payload);
+    })();
+    void compatibilityPromise.catch(() => {
+      compatibilityPromise = null;
+    });
+  }
+  return compatibilityPromise;
+}
+
+export async function runO2(verb: string): Promise<RunO2Result> {
+  if (verb !== "contract_info") {
+    await ensureO2Compatibility();
+  }
+  return invokeO2Unchecked(verb);
+}
 
 export function joinO2ResultOutput(result: RunO2Result): string {
   const stdout = (result.stdout || "").trimEnd();
@@ -191,6 +219,7 @@ export async function writeO2File(
   payload: O2WritePayload,
 ): Promise<FilesWriteJson> {
   assertInlineDocumentSize(payload.content);
+  await ensureO2Compatibility();
   const result = await invoke<RunO2Result>("run_o2_payload", {
     verb: "files.write",
     payloadJson: JSON.stringify(payload),
