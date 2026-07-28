@@ -8,6 +8,13 @@
     "dev:sanity": "node scripts/dev_sanity_check.mjs",
     "lint": "tsc --noEmit",
     "verify:security": "node tests/verify_tauri_security.mjs",
+    "verify:document-transport": "node tests/verify_document_transport_contract.mjs",
+    "verify:project-builder": "node tests/verify_project_builder_contract.mjs",
+    "verify:agents-architecture": "node tests/verify_agents_architecture_contract.mjs",
+    "verify:governed-notes": "node tests/verify_governed_note_controller_contract.mjs",
+    "verify:infrastructure-architecture": "node tests/verify_infrastructure_architecture_contract.mjs",
+    "verify:projects-architecture": "node tests/verify_projects_architecture_contract.mjs",
+    "verify:tauri-e2e-contract": "node tests/verify_tauri_e2e_contract.mjs",
     "vite:dev": "vite",
     "vite:build": "tsc && vite build",
     "vite:preview": "vite preview",
@@ -16,7 +23,8 @@
     "preview": "npm run vite:preview",
     "tauri:dev": "node scripts/tauri_dev.mjs",
     "tauri:build": "npx tauri build",
-    "tauri": "npx tauri"
+    "tauri": "npx tauri",
+    "test:tauri-e2e": "npm run build && cargo build --release --manifest-path src-tauri/Cargo.toml && node scripts/tauri_e2e.mjs"
   },
   "dependencies": {
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",

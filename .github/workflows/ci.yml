@@ -1,0 +1,46 @@
+name: RadControl CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: RadControl verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install Rust toolchain
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - name: Install Linux Tauri prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Run frontend contracts and build
+        run: |
+          npm run verify:security
+          npm run verify:document-transport
+          npm run verify:project-builder
+          npm run verify:agents-architecture
+          npm run verify:governed-notes
+          npm run verify:infrastructure-architecture
+          npm run verify:projects-architecture
+          npm run verify:tauri-e2e-contract
+          npm run lint
+          npm run build
+          npm audit --omit=dev
+      - name: Run Rust checks
+        run: |
+          cargo check --manifest-path src-tauri/Cargo.toml
+          cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings

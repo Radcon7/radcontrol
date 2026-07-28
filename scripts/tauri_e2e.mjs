@@ -1,0 +1,409 @@
+import assert from "node:assert/strict";
+import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
+import net from "node:net";
+import os from "node:os";
+import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+
+const fixtureKey = "radcontrol-e2e-fixture";
+const createdProjectKey = "radcontrol-e2e-draft";
+const agentName = "RadControl E2E Agent";
+const agentKey = "radcontrol-e2e-agent";
+const infrastructureLabel = "RadControl E2E Infrastructure";
+const infrastructureKey = "radcontrol-e2e-infrastructure-domain-edge";
+const infrastructureProfileKey = "cloudflare";
+const app = new URL("../src-tauri/target/release/radcontrol-app", import.meta.url).pathname;
+const sourceO2Root = process.env.O2_E2E_SOURCE_ROOT || "/home/chris/dev/o2";
+
+function assertNativeDriver() {
+  const result = spawnSync("WebKitWebDriver", ["--help"], { stdio: "ignore" });
+  if (result.error || result.status !== 0) {
+    throw new Error("WebKitWebDriver is required. Install it with: sudo apt-get install webkit2gtk-driver");
+  }
+}
+
+async function unusedPort() {
+  const server = net.createServer();
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const port = address.port;
+  await new Promise((resolve) => server.close(resolve));
+  return port;
+}
+
+async function prepareIsolatedO2Root() {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "radcontrol-tauri-e2e-"));
+  const o2Root = path.join(tempRoot, "o2");
+  const fixtureRepo = path.join(tempRoot, "fixture");
+  const e2eHome = path.join(tempRoot, "home");
+  const createdProjectRepo = path.join(e2eHome, "dev", "rad-empire", "radcon", "dev", createdProjectKey);
+  const fixturePort = await unusedPort();
+  const fixtureUrl = `http://127.0.0.1:${fixturePort}`;
+  const notesPath = path.join(o2Root, "docs", "projects", fixtureKey, "NOTES.md");
+  const agentProfileDir = path.join(
+    o2Root,
+    "docs",
+    "agent-profiles",
+    agentKey,
+  );
+  const agentNotesPath = path.join(agentProfileDir, "NOTES.md");
+  const infrastructureRecordDir = path.join(
+    o2Root,
+    "docs",
+    "infrastructure",
+    "records",
+    infrastructureKey,
+  );
+  const infrastructureNotesPath = path.join(
+    o2Root,
+    "docs",
+    "infrastructure",
+    "assets",
+    infrastructureProfileKey,
+    "NOTES.md",
+  );
+
+  await cp(path.join(sourceO2Root, "scripts"), path.join(o2Root, "scripts"), { recursive: true });
+  await mkdir(path.join(o2Root, "registry"), { recursive: true });
+  await mkdir(path.join(fixtureRepo, "site"), { recursive: true });
+  await mkdir(path.dirname(notesPath), { recursive: true });
+  await writeFile(path.join(fixtureRepo, "site", "index.html"), "<main>RadControl E2E fixture</main>\n");
+  await writeFile(notesPath, "Temporary E2E fixture note.\n");
+  await writeFile(
+    path.join(o2Root, "registry", "projects.json"),
+    `${JSON.stringify([{
+      key: fixtureKey,
+      label: "RadControl E2E Fixture",
+      repoPath: fixtureRepo,
+      url: fixtureUrl,
+      port: fixturePort,
+      kind: "static",
+      org: "other",
+      state: "active",
+      o2StartKey: `${fixtureKey}.dev`,
+      o2SnapshotKey: `${fixtureKey}.snapshot`,
+      o2MapKey: `${fixtureKey}.map`,
+      o2ProofPackKey: `${fixtureKey}.proofpack`,
+    }], null, 2)}\n`,
+  );
+
+  return {
+    tempRoot,
+    o2Root,
+    fixturePort,
+    notesPath,
+    agentProfileDir,
+    agentNotesPath,
+    e2eHome,
+    createdProjectRepo,
+    infrastructureRecordDir,
+    infrastructureNotesPath,
+  };
+}
+
+async function request(base, route, method = "GET", body) {
+  const response = await fetch(`${base}${route}`, {
+    signal: AbortSignal.timeout(30_000),
+    method,
+    headers: body ? { "content-type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.value?.error) {
+    throw new Error(`${method} ${route}: ${JSON.stringify(payload)}`);
+  }
+  return payload.value;
+}
+
+async function eventually(action, description, timeoutMs = 20_000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError;
+  while (Date.now() < deadline) {
+    try { return await action(); } catch (error) { lastError = error; await delay(250); }
+  }
+  throw new Error(`${description}: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+}
+
+async function element(base, sessionId, selector) {
+  const value = await request(base, `/session/${sessionId}/element`, "POST", { using: "css selector", value: selector });
+  return value["element-6066-11e4-a52e-4f735466cecf"];
+}
+
+async function click(base, sessionId, selector) {
+  const id = await eventually(() => element(base, sessionId, selector), `find ${selector}`);
+  await request(base, `/session/${sessionId}/element/${id}/click`, "POST", {});
+  return id;
+}
+
+async function replaceValue(base, sessionId, id, text) {
+  await request(base, `/session/${sessionId}/element/${id}/clear`, "POST", {});
+  await request(base, `/session/${sessionId}/element/${id}/value`, "POST", { text });
+}
+
+async function elementText(base, sessionId, id) {
+  return request(base, `/session/${sessionId}/element/${id}/text`);
+}
+
+async function bodyText(base, sessionId) {
+  const id = await element(base, sessionId, "body");
+  return elementText(base, sessionId, id);
+}
+
+async function stopChild(child) {
+  if (!child || !child.pid) return;
+  const stopGroup = (signal) => {
+    try {
+      process.kill(-child.pid, signal);
+    } catch {
+      if (child.exitCode === null) child.kill(signal);
+    }
+  };
+  stopGroup("SIGTERM");
+  await Promise.race([once(child, "exit").catch(() => undefined), delay(3_000)]);
+  stopGroup("SIGKILL");
+}
+
+console.error("[e2e] checking native driver");
+assertNativeDriver();
+console.error("[e2e] checking release binary and O2 source");
+await Promise.all([access(app), access(path.join(sourceO2Root, "scripts", "run_o2.sh"))]);
+
+const fixture = await prepareIsolatedO2Root();
+const driverPort = await unusedPort();
+const nativePort = await unusedPort();
+const base = `http://127.0.0.1:${driverPort}`;
+const driver = spawn("tauri-driver", ["--port", String(driverPort), "--native-port", String(nativePort)], {
+  stdio: ["ignore", "inherit", "inherit"],
+  detached: true,
+  env: { ...process.env, O2_ROOT: fixture.o2Root, RADCONTROL_E2E: "1", O2_E2E_HOME: fixture.e2eHome },
+});
+let sessionId;
+try {
+  console.error("[e2e] waiting for isolated desktop session");
+  await eventually(() => request(base, "/status"), "start tauri-driver");
+  const session = await request(base, "/session", "POST", {
+    capabilities: {
+      alwaysMatch: {
+        browserName: "wry",
+        "tauri:options": { application: app },
+      },
+    },
+  });
+  sessionId = session.sessionId;
+  assert.ok(sessionId, "desktop session id is required");
+
+  await click(base, sessionId, '[data-testid="tab-notes"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /Notes/);
+  await click(base, sessionId, '[data-testid="tab-agents"]');
+  assert.match(
+    await eventually(() => bodyText(base, sessionId), "render Agents"),
+    /AGENT ROSTER/,
+  );
+  const newAgent = await eventually(
+    () => element(base, sessionId, '[data-testid="new-agent"]'),
+    "find New Agent",
+  );
+  await eventually(async () => {
+    assert.equal(
+      await request(base, `/session/${sessionId}/element/${newAgent}/enabled`),
+      true,
+    );
+  }, "enable New Agent");
+  await click(base, sessionId, '[data-testid="new-agent"]');
+  const agentNameInput = await eventually(
+    () => element(base, sessionId, '[data-testid="modal-agent-name"]'),
+    "open New Agent modal",
+  );
+  const agentHandleInput = await element(
+    base,
+    sessionId,
+    '[data-testid="modal-agent-handle"]',
+  );
+  await replaceValue(base, sessionId, agentNameInput, agentName);
+  await replaceValue(base, sessionId, agentHandleInput, agentKey);
+  const createAgent = await element(
+    base,
+    sessionId,
+    '[data-testid="modal-create-agent"]',
+  );
+  assert.equal(
+    await request(base, `/session/${sessionId}/element/${createAgent}/enabled`),
+    true,
+  );
+  await click(base, sessionId, '[data-testid="modal-create-agent"]');
+  await eventually(async () => {
+    const profile = JSON.parse(
+      await readFile(
+        path.join(fixture.agentProfileDir, "01_profile.json"),
+        "utf8",
+      ),
+    );
+    await access(path.join(fixture.agentProfileDir, "00_origin.md"));
+    await access(fixture.agentNotesPath);
+    assert.equal(profile.profileKey, agentKey);
+    assert.equal(profile.name, agentName);
+    assert.equal(
+      profile.canonicalNotesPath,
+      `docs/agent-profiles/${agentKey}/NOTES.md`,
+    );
+    assert.match(await bodyText(base, sessionId), /RadControl E2E Agent/);
+  }, "create governed Agent profile inside the isolated root");
+  await click(base, sessionId, `[data-testid="agent-row-${agentKey}"]`);
+  const agentNotes = await eventually(
+    () => element(base, sessionId, '[data-testid="agent-notes"]'),
+    "load isolated Agent note",
+  );
+  await replaceValue(
+    base,
+    sessionId,
+    agentNotes,
+    "Temporary Agent E2E note.\nE2E agent autosave probe",
+  );
+  await eventually(async () => {
+    assert.match(
+      await readFile(fixture.agentNotesPath, "utf8"),
+      /E2E agent autosave probe/,
+    );
+  }, "persist Agent autosave into the isolated O2 root");
+
+  await click(base, sessionId, '[data-testid="tab-infrastructure"]');
+  assert.match(
+    await eventually(() => bodyText(base, sessionId), "render Infrastructure"),
+    /INFRASTRUCTURE ASSETS/,
+  );
+  const newInfrastructure = await eventually(
+    () => element(base, sessionId, '[data-testid="new-infrastructure"]'),
+    "find New Infrastructure",
+  );
+  await eventually(async () => {
+    assert.equal(
+      await request(
+        base,
+        `/session/${sessionId}/element/${newInfrastructure}/enabled`,
+      ),
+      true,
+    );
+  }, "enable New Infrastructure");
+  await click(base, sessionId, '[data-testid="new-infrastructure"]');
+  const infrastructureLabelInput = await eventually(
+    () => element(base, sessionId, '[data-testid="modal-infrastructure-label"]'),
+    "open New Infrastructure modal",
+  );
+  await replaceValue(
+    base,
+    sessionId,
+    infrastructureLabelInput,
+    infrastructureLabel,
+  );
+  const createInfrastructure = await element(
+    base,
+    sessionId,
+    '[data-testid="modal-create-infrastructure"]',
+  );
+  assert.equal(
+    await request(
+      base,
+      `/session/${sessionId}/element/${createInfrastructure}/enabled`,
+    ),
+    true,
+  );
+  await click(base, sessionId, '[data-testid="modal-create-infrastructure"]');
+  await eventually(async () => {
+    const inventory = JSON.parse(
+      await readFile(
+        path.join(fixture.infrastructureRecordDir, "01_inventory.json"),
+        "utf8",
+      ),
+    );
+    await access(path.join(fixture.infrastructureRecordDir, "00_origin.md"));
+    assert.equal(inventory.assetKey, infrastructureKey);
+    assert.equal(inventory.provider, infrastructureProfileKey);
+    assert.equal(
+      inventory.canonicalNotesPath,
+      `docs/infrastructure/assets/${infrastructureProfileKey}/NOTES.md`,
+    );
+    assert.match(await bodyText(base, sessionId), /RadControl E2E Infrastructure/);
+  }, "create governed Infrastructure record inside the isolated root");
+  await click(
+    base,
+    sessionId,
+    `[data-testid="infrastructure-row-${infrastructureProfileKey}"]`,
+  );
+  const infrastructureNotes = await eventually(
+    () => element(base, sessionId, '[data-testid="infrastructure-notes"]'),
+    "load isolated Infrastructure note",
+  );
+  await replaceValue(
+    base,
+    sessionId,
+    infrastructureNotes,
+    "Temporary Infrastructure E2E note.\nE2E infrastructure autosave probe",
+  );
+  await eventually(async () => {
+    assert.match(
+      await readFile(fixture.infrastructureNotesPath, "utf8"),
+      /E2E infrastructure autosave probe/,
+    );
+  }, "persist Infrastructure autosave into the isolated O2 root");
+
+  await click(base, sessionId, '[data-testid="tab-projects"]');
+
+  await click(base, sessionId, '[data-testid="new-project"]');
+  const nameInput = await eventually(() => element(base, sessionId, '[data-testid="modal-project-name"]'), "open New Project modal");
+  await replaceValue(base, sessionId, nameInput, "RadControl E2E Draft");
+  await eventually(async () => {
+    const repo = await element(base, sessionId, '[data-testid="modal-project-repo"]');
+    assert.equal(await elementText(base, sessionId, repo), fixture.createdProjectRepo);
+  }, "apply the isolated governed project root");
+  const requestInput = await element(base, sessionId, '[data-testid="modal-project-request"]');
+  await replaceValue(base, sessionId, requestInput, "Desktop E2E verifies the governed project builder form.");
+  const buildButton = await element(base, sessionId, '[data-testid="modal-build-project"]');
+  assert.equal(await request(base, `/session/${sessionId}/element/${buildButton}/enabled`), true);
+  await click(base, sessionId, '[data-testid="modal-build-project"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    const builderError = text.match(/(?:formation rejected|project build could not start|repoPath must stay under)[^\n]*/i)?.[0];
+    if (builderError) throw new Error(builderError);
+    await access(path.join(fixture.createdProjectRepo, "site", "index.html"));
+    await access(path.join(fixture.createdProjectRepo, "docs", "project-formation", "00_bootstrap_intake.json"));
+    await access(path.join(fixture.o2Root, "docs", "project-formation", "records", createdProjectKey, "00_intake.json"));
+    const registry = JSON.parse(await readFile(path.join(fixture.o2Root, "registry", "projects.json"), "utf8"));
+    const created = registry.find((project) => project.key === createdProjectKey);
+    assert.equal(created?.repoPath, fixture.createdProjectRepo);
+  }, "build a project entirely inside the isolated root", 30_000);
+  assert.match(await eventually(() => bodyText(base, sessionId), "render created project"), /RadControl E2E Draft/);
+
+  await click(base, sessionId, `[data-testid="project-row-${fixtureKey}"]`);
+  const notes = await eventually(() => element(base, sessionId, '[data-testid="project-notes"]'), "load isolated fixture note");
+  await replaceValue(base, sessionId, notes, "Temporary E2E fixture note.\nE2E autosave probe");
+  await eventually(async () => {
+    assert.match(await readFile(fixture.notesPath, "utf8"), /E2E autosave probe/);
+  }, "persist autosave into isolated O2 root");
+
+  await click(base, sessionId, '[data-testid="launch-runtime"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    if (!/RUNNING/.test(text)) throw new Error("fixture runtime has not started");
+  }, "launch isolated fixture runtime", 30_000);
+  await click(base, sessionId, '[data-testid="stop-runtime"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    if (!/STOPPED/.test(text)) throw new Error("fixture runtime has not stopped");
+  }, "stop isolated fixture runtime", 30_000);
+
+  console.error("[e2e] passed: isolated tab switching, Agent and Infrastructure creation, governed-note autosave, project bootstrap, and runtime lifecycle");
+} finally {
+  if (sessionId) await request(base, `/session/${sessionId}`, "DELETE").catch(() => {});
+  spawnSync("bash", [path.join(fixture.o2Root, "scripts", "run_o2.sh"), `${fixtureKey}.stop`], {
+    env: { ...process.env, O2_ROOT: fixture.o2Root },
+    stdio: "ignore",
+  });
+  await stopChild(driver);
+  await rm(fixture.tempRoot, { recursive: true, force: true });
+}
