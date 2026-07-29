@@ -34,7 +34,6 @@ export type InfrastructureProfile = {
   role: string;
   statusSummary: string;
   relatedProjectKeys: string[];
-  configurationPath?: string;
 };
 
 export type InfrastructureEntry = {
@@ -56,7 +55,7 @@ export type InfrastructureEntry = {
   mcpApiPosture: string;
   billingFocus: string;
   linkedAssets: InfrastructureAsset[];
-  configurationPath?: string;
+  configurationPath: string;
   profile?: InfrastructureProfile;
 };
 
@@ -122,6 +121,10 @@ export function uniqueStrings(values: string[]): string[] {
 
 export function notePathForKey(key: string): string {
   return `${INFRASTRUCTURE_NOTES_DIR}/${normalizeKey(key)}/NOTES.md`;
+}
+
+export function configurationPathForKey(key: string): string {
+  return `${INFRASTRUCTURE_NOTES_DIR}/${normalizeKey(key)}/CONFIGURATION.md`;
 }
 
 export function formatIsoDateTime(value?: string): string {
@@ -231,8 +234,6 @@ export function buildInfrastructureProfiles(projects: ProjectRow[]): Infrastruct
       role: "Primary governed source-control surface for projects and internal tools.",
       statusSummary: "Use this for repo inventory, push status, access control, and branch-governance review.",
       relatedProjectKeys: defaultProjectKeys,
-      configurationPath:
-        "docs/infrastructure/assets/github/CONFIGURATION.md",
     },
     {
       key: "vercel",
@@ -269,8 +270,25 @@ export function buildInfrastructureProfiles(projects: ProjectRow[]): Infrastruct
       relatedProjectKeys: defaultProjectKeys,
     },
     {
+      key: "resend",
+      label: "Resend",
+      provider: "resend",
+      assetType: "api_surface",
+      category: "Email Delivery",
+      owningOrg: "radcon",
+      environmentScope: "mixed",
+      primaryConsoleUrl: "https://resend.com",
+      focusSummary: "Track DQOTD transactional sender-domain verification, API-key scope, delivery health, and the separation between provider configuration and mailbox ownership.",
+      statusAuditFocus: "Review sender-domain verification, Cloudflare DNS posture, Preview versus Production environment wiring, delivery logs, and the absence of secrets from governed records.",
+      mcpApiPosture: "Resend API status can later surface sender-domain and delivery health. RadControl does not yet maintain those checks.",
+      billingFocus: "Record plan tier, sending volume, domain ownership, and any deliverability or usage-cost drift.",
+      role: "Transactional email delivery provider for DQOTD verification, password reset, and public contact/report delivery.",
+      statusSummary: "Use this for DQOTD sender-domain setup, delivery proof, and email-provider ownership.",
+      relatedProjectKeys: [dqotdProjectKey],
+    },
+    {
       key: "google-workspace",
-      label: "Google Workspace",
+      label: "Radcon Workspace",
       provider: "google",
       assetType: "workspace_tenant",
       category: "Identity & Mail",
@@ -284,6 +302,23 @@ export function buildInfrastructureProfiles(projects: ProjectRow[]): Infrastruct
       role: "Primary identity, collaboration, and mail layer for business and website operations.",
       statusSummary: "Use this for admin/billing posture, mailbox readiness, and domain/workspace linkage.",
       relatedProjectKeys: defaultProjectKeys,
+    },
+    {
+      key: "dqotd-workspace",
+      label: "DQOTD Workspace",
+      provider: "google",
+      assetType: "workspace_tenant",
+      category: "Identity & Mail",
+      owningOrg: "radcon",
+      environmentScope: "production",
+      primaryConsoleUrl: "https://admin.google.com",
+      focusSummary: "Track DQOTD domain identity, administrator coverage, recovery, billing, and the hello mailbox separately from the Radcon tenant.",
+      statusAuditFocus: "Review domain verification, super-admin and recovery coverage, mailbox readiness, mail authentication, billing, and application-email boundaries.",
+      mcpApiPosture: "Workspace APIs may later report tenant health and service readiness. RadControl does not yet maintain those checks.",
+      billingFocus: "Capture the DQOTD Workspace plan, seat count, renewal posture, and ownership of critical administrator and mailbox accounts.",
+      role: "Dedicated identity and human email tenant for Dinosaur Question of the Day.",
+      statusSummary: "Use this for DQOTD Workspace administration, mailbox readiness, and domain email posture.",
+      relatedProjectKeys: [dqotdProjectKey],
     },
     {
       key: "docker",
@@ -378,10 +413,18 @@ export function buildInfrastructureEntries(
 ): InfrastructureEntry[] {
   const usedAssetKeys = new Set<string>();
   const entries: InfrastructureEntry[] = [];
+  const providerProfileCounts = profiles.reduce((counts, profile) => {
+    const providerKey = normalizeKey(profile.provider);
+    counts.set(providerKey, (counts.get(providerKey) || 0) + 1);
+    return counts;
+  }, new Map<string, number>());
 
   profiles.forEach((profile) => {
     const linkedAssets = assets.filter((asset) => {
-      const providerMatch = normalizeKey(asset.provider) === normalizeKey(profile.provider);
+      const providerKey = normalizeKey(profile.provider);
+      const providerMatch =
+        providerProfileCounts.get(providerKey) === 1 &&
+        normalizeKey(asset.provider) === providerKey;
       const keyMatch = normalizeKey(asset.assetKey) === normalizeKey(profile.key);
       return providerMatch || keyMatch;
     });
@@ -424,7 +467,7 @@ export function buildInfrastructureEntries(
       mcpApiPosture: profile.mcpApiPosture,
       billingFocus: profile.billingFocus,
       linkedAssets,
-      configurationPath: profile.configurationPath,
+      configurationPath: configurationPathForKey(profile.key),
       profile,
     });
   });
@@ -445,6 +488,7 @@ export function buildInfrastructureEntries(
         canonicalDomains: asset.canonicalDomain ? [asset.canonicalDomain] : [],
         relatedProjectKeys: asset.relatedProjectKeys,
         notesPath: asset.notesPath,
+        configurationPath: configurationPathForKey(asset.assetKey),
         updatedAt: asset.updatedAt,
         focusSummary: "This governed record does not yet map to a standard infrastructure profile. Use notes to capture what it owns and why it matters.",
         statusAuditFocus: "Review what this record owns, whether it overlaps another platform entry, and whether a clearer infrastructure category is needed.",

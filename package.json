@@ -8,6 +8,7 @@
     "dev:sanity": "node scripts/dev_sanity_check.mjs",
     "lint": "tsc --noEmit",
     "verify:security": "node tests/verify_tauri_security.mjs",
+    "verify:governance": "node tests/verify_governance_pointers.mjs",
     "verify:document-transport": "node tests/verify_document_transport_contract.mjs",
     "verify:o2-contract": "node tests/verify_o2_contract.mjs",
     "verify:project-builder": "node tests/verify_project_builder_contract.mjs",

@@ -1,13 +1,17 @@
 type Props = {
   status: string;
   value: string;
-  loading: boolean;
+  readOnly: boolean;
+  placeholder: string;
+  onChange: (value: string) => void;
 };
 
 export function InfrastructureConfigurationNote({
   status,
   value,
-  loading,
+  readOnly,
+  placeholder,
+  onChange,
 }: Props) {
   return (
     <div
@@ -18,9 +22,14 @@ export function InfrastructureConfigurationNote({
         <div className="surfaceLabel">Configuration Note</div>
         <div className="surfaceMutedSmall">{status}</div>
       </div>
-      <div className="surfaceConfigurationNoteText">
-        {loading ? "Loading configuration..." : value}
-      </div>
+      <textarea
+        className="notesSingleArea surfaceProjectNoteArea"
+        data-testid="infrastructure-configuration-note"
+        value={value}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </div>
   );
 }

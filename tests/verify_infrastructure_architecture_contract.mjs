@@ -48,18 +48,24 @@ assert.ok(
   detail.indexOf("<InfrastructureConfigurationNote") <
     detail.indexOf("<InfrastructureNotes"),
 );
-assert.match(
-  model,
-  /docs\/infrastructure\/assets\/github\/CONFIGURATION\.md/,
-);
+assert.match(model, /export function configurationPathForKey/);
+assert.match(model, /configurationPathForKey\(profile\.key\)/);
+assert.match(model, /configurationPathForKey\(asset\.assetKey\)/);
+assert.doesNotMatch(model, /profile\.configurationPath/);
+assert.match(model, /key: "resend"/);
+assert.match(model, /key: "dqotd-workspace"/);
+assert.match(model, /providerProfileCounts/);
 assert.match(roster, /infrastructure-row-\$\{entry\.key\}/);
 assert.match(notes, /data-testid="infrastructure-notes"/);
 assert.match(
   configuration,
   /data-testid="infrastructure-configuration-note"/,
 );
-assert.match(parent, /selectedEntry\?\.configurationPath/);
-assert.match(parent, /readO2File\(path\)/);
+assert.match(configuration, /<textarea/);
+assert.match(configuration, /onChange=/);
+assert.match(parent, /recordKey: selectedEntry \? `configuration:\$\{selectedEntry\.key\}`/);
+assert.match(parent, /configurationNote\.flush/);
+assert.match(parent, /onConfigurationChange=\{configurationNote\.onTextChange\}/);
 assert.match(modal, /data-testid="modal-infrastructure-label"/);
 assert.match(modal, /data-testid="modal-create-infrastructure"/);
 assert.match(reports, /export function buildInfrastructureSnapshotLog/);
