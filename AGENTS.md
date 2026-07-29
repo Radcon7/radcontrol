@@ -1,33 +1,19 @@
-# RadControl App — Repo Agent Pointers (Codex Entrypoint)
+# RadControl - Agent Pointer
 
-Empire-wide law:
+Empire law remains binding from `~/.codex/AGENTS.md`.
 
-- ~/.codex/AGENTS.md
-- Also accessible via: ~/dev/rad-empire/codex (symlink)
+Read these local entry documents first:
 
-Role boundary (binding):
+1. `README.md`
+2. `docs/REPO_STATE.md`
+3. `docs/POLICY_POINTERS.md`
 
-- RadControl is a UI/control panel only.
-- RadControl resources, UI state, and RadControl logs live in this repo.
-- O2 owns governing rules/logic/scripts that RadControl invokes.
-- Codex is the worker/executor (analysis + code assistance), not the rules source.
+For O2-owned behavior, follow the explicitly scoped contracts linked from `docs/POLICY_POINTERS.md`. Ordinary RadControl UI implementation starts from this repo's local architecture; consult O2 when a change affects an O2-owned registry, runtime, project-formation, persistence, or action-capability contract, or when local governance has a real gap.
 
-This repo’s authoritative documents:
+Role boundary:
 
-- docs/REPO_STATE.md (architecture + behavior authority), if present
-- docs/POLICY_POINTERS.md (policy pointers), if present
+- RadControl owns presentation, UI composition, local ephemeral view state, and its constrained Tauri bridge.
+- O2 owns durable operational truth, governed filesystem writes, registries, runtime coordination, and project formation.
+- RadControl must not duplicate O2 policy or durable data in React/local storage.
 
-Workflow discipline (binding):
-
-- Single-response rule
-- O2 discipline:
-  - step-by-step
-  - specify terminal (dev-server vs command)
-  - no long heredocs
-  - create files via terminal
-  - overwrite via VS Code Explorer
-  - quote paths with parentheses
-  - use grep (assume no rg)
-
-This file is a pointer only.
-Do not duplicate governance here.
+Use the current repo tools and the smallest coherent diff. Preserve unrelated dirty work, snapshot before changes, verify based on impact, and review the diff. Git checkpoints and release actions are explicit operator decisions, not automatic session-end behavior.

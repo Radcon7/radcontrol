@@ -14,7 +14,9 @@ type Props = {
   configurationText: string;
   configurationStatus: string;
   configurationLoading: boolean;
+  configurationPath: string | null;
   onNoteChange: (value: string) => void;
+  onConfigurationChange: (value: string) => void;
 };
 
 export function InfrastructureDetail({
@@ -27,20 +29,26 @@ export function InfrastructureDetail({
   configurationText,
   configurationStatus,
   configurationLoading,
+  configurationPath,
   onNoteChange,
+  onConfigurationChange,
 }: Props) {
   return (
     <div className="surfaceCard surfaceDetailBriefCard">
       <div className="surfaceCardTitle">Infrastructure Brief</div>
       <div className="surfaceSummaryList">
         <InfrastructureBrief entry={entry} projects={projects} />
-        {entry.configurationPath ? (
-          <InfrastructureConfigurationNote
-            status={configurationStatus}
-            value={configurationText}
-            loading={configurationLoading}
-          />
-        ) : null}
+        <InfrastructureConfigurationNote
+          status={configurationStatus}
+          value={configurationText}
+          readOnly={!configurationPath || configurationLoading}
+          placeholder={
+            configurationPath
+              ? "Paste a concise, non-secret setup or material-change summary."
+              : "No governed configuration path available."
+          }
+          onChange={onConfigurationChange}
+        />
         <InfrastructureNotes
           status={noteStatus}
           value={noteText}

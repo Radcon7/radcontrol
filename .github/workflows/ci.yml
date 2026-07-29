@@ -30,6 +30,7 @@ jobs:
       - name: Run frontend contracts and build
         run: |
           npm run verify:security
+          npm run verify:governance
           npm run verify:document-transport
           npm run verify:o2-contract
           npm run verify:project-builder
