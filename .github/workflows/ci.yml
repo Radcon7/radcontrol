@@ -34,6 +34,7 @@ jobs:
           npm run verify:document-transport
           npm run verify:o2-contract
           npm run verify:project-builder
+          npm run verify:ci-contract
           npm run verify:repo-index
           npm run verify:agents-architecture
           npm run verify:governed-notes
