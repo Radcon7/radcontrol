@@ -12,6 +12,7 @@
     "verify:document-transport": "node tests/verify_document_transport_contract.mjs",
     "verify:o2-contract": "node tests/verify_o2_contract.mjs",
     "verify:project-builder": "node tests/verify_project_builder_contract.mjs",
+    "verify:repo-index": "node tests/verify_repo_index_contract.mjs",
     "verify:agents-architecture": "node tests/verify_agents_architecture_contract.mjs",
     "verify:governed-notes": "node tests/verify_governed_note_controller_contract.mjs",
     "verify:infrastructure-architecture": "node tests/verify_infrastructure_architecture_contract.mjs",
