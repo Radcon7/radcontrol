@@ -161,7 +161,6 @@ export type AddProjectPayload = {
   needsCommerceSurface?: boolean;
   needsKnowledgeSurface?: boolean;
   needsTimelineSurface?: boolean;
-  patternHint?: string;
   similarityNotes?: string;
   mission?: string;
   initialConstraints?: string;
@@ -175,7 +174,7 @@ export type NewProjectIntent = "production";
 export type NewProjectRelationship =
   | "new"
   | "version_successor"
-  | "reference_pattern";
+  | "reference_project";
 
 export type NewProjectIntakePayload = {
   key: string;
@@ -205,7 +204,6 @@ export type NewProjectIntakePayload = {
   needsCommerceSurface?: boolean;
   needsKnowledgeSurface?: boolean;
   needsTimelineSurface?: boolean;
-  patternHint?: string;
   similarityNotes?: string;
   initialConstraints?: string;
   operatorBrief?: string;

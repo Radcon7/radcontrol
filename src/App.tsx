@@ -192,7 +192,6 @@ type FormationStartPayload = {
   similarProjectKey: string;
   referenceRepos: string;
   versionTag: string;
-  patternHint: string;
   similarityNotes: string;
   intent: string;
   projectClass: string;
@@ -295,7 +294,6 @@ function normalizeFormationStartPayload(
   const baseProjectKey = payload.parentProjectKey?.trim() || "";
   const similarProjectKey = payload.similarProjectKey?.trim() || "";
   const referenceRepos = payload.referenceRepos?.trim() || "";
-  const patternHint = payload.patternHint?.trim() || "";
   const similarityNotes = payload.similarityNotes?.trim() || "";
   const intent = (
     payload.intent || "production"
@@ -325,7 +323,6 @@ function normalizeFormationStartPayload(
     similarProjectKey,
     referenceRepos,
     versionTag,
-    patternHint,
     similarityNotes,
     intent,
     projectClass: payload.projectClass?.trim() || "other",

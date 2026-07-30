@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DocumentLibraryPanel } from "./DocumentLibraryPanel";
 import { TimelineTab } from "./TimelineTab";
 
-type NotesMode = "notes" | "orion_handoff" | "timeline" | "empire_blueprint";
+type NotesMode = "notes" | "timeline" | "empire_blueprint";
 
 type Props = {
   busy?: boolean;
@@ -10,7 +10,7 @@ type Props = {
 };
 
 type LibraryModeConfig = {
-  key: Extract<NotesMode, "notes" | "orion_handoff" | "empire_blueprint">;
+  key: Extract<NotesMode, "notes" | "empire_blueprint">;
   label: string;
   title: string;
   placeholder: string;
@@ -28,12 +28,6 @@ const MODE_CONFIGS: Array<
     label: "Notes",
     title: "Notes",
     placeholder: "Write or edit general notes here…",
-  },
-  {
-    key: "orion_handoff",
-    label: "Dev Updates",
-    title: "Dev Updates",
-    placeholder: "Write or edit development updates here…",
   },
   {
     key: "timeline",

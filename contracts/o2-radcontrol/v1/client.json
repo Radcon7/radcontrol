@@ -25,7 +25,6 @@
     "project_create.start",
     "project_launch_date.set",
     "project_note.ensure",
-    "project_pattern.list",
     "project_retired.set",
     "radcontrol.snapshot"
   ]

@@ -39,7 +39,6 @@ function defaultDocStem(tabKey: string): string {
   const special: Record<string, string> = {
     notes: "note",
     legal: "legal_note",
-    orion_handoff: "dev_update",
   };
   if (special[tabKey]) return special[tabKey];
 
@@ -76,29 +75,9 @@ function lastActivePathStorageKey(tabKey: string): string {
   return `radcontrol.library.lastActivePath.${tabKey}`;
 }
 
-// Legacy UI-state migration only. These helpers preserve old localStorage keys and
-// historical tab path selections after tab/folder renames. They do not govern
-// document storage; O2 files.* verbs remain the source of truth for documents.
-function legacyUiStateStorageKey(tabKey: string): string | null {
-  if (tabKey === "orion_handoff") {
-    return "radcontrol.library.lastActivePath.roadmap";
-  }
-  return null;
-}
-
-function migrateLegacyUiStatePathToCanonical(tabKey: string, path: string): string {
+function migrateLegacyUiStatePathToCanonical(path: string): string {
   let normalized = normalizeO2Path(path);
   if (!normalized) return "";
-
-  if (
-    tabKey === "orion_handoff" &&
-    normalized.startsWith("docs/radcontrol/roadmap/")
-  ) {
-    normalized = normalized.replace(
-      "docs/radcontrol/roadmap/",
-      "docs/radcontrol/orion_handoff/",
-    );
-  }
 
   if (normalized.startsWith("docs/radcontrol/Notes/")) {
     normalized = normalized.replace(
@@ -118,26 +97,14 @@ function loadLastActivePath(tabKey: string): string | null {
     const canonicalKey = lastActivePathStorageKey(tabKey);
     const canonicalRaw = window.localStorage.getItem(canonicalKey);
     if (canonicalRaw) {
-      const normalized = migrateLegacyUiStatePathToCanonical(tabKey, canonicalRaw);
+      const normalized = migrateLegacyUiStatePathToCanonical(canonicalRaw);
       if (normalized && normalized !== canonicalRaw) {
         window.localStorage.setItem(canonicalKey, normalized);
       }
       return normalized || null;
     }
 
-    const legacyKey = legacyUiStateStorageKey(tabKey);
-    if (!legacyKey) return null;
-
-    const legacyRaw = window.localStorage.getItem(legacyKey);
-    if (!legacyRaw) return null;
-
-    const migrated = migrateLegacyUiStatePathToCanonical(tabKey, legacyRaw);
-    if (migrated) {
-      window.localStorage.setItem(canonicalKey, migrated);
-    }
-    window.localStorage.removeItem(legacyKey);
-
-    return migrated || null;
+    return null;
   } catch {
     return null;
   }
