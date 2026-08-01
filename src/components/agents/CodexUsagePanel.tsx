@@ -1,12 +1,12 @@
 export function CodexUsagePanel() {
   return (
     <section
-      className="surfaceCard"
+      className="surfaceSummaryRow"
       data-testid="codex-usage-panel"
       style={{
         display: "grid",
-        gap: 10,
-        marginBottom: 8,
+        gap: 8,
+        margin: 0,
         borderColor: "rgba(112, 74, 170, 0.35)",
         background: "linear-gradient(135deg, rgba(247, 241, 255, 0.96), rgba(255, 255, 255, 0.96))",
       }}
@@ -14,7 +14,7 @@ export function CodexUsagePanel() {
       <div className="surfaceCardTitleRow">
         <div>
           <div className="surfaceCardTitle">Codex / ChatGPT usage</div>
-          <div className="surfaceMutedSmall">Phase 1 visibility panel</div>
+          <div className="surfaceMutedSmall">Phase 1 · manual visibility</div>
         </div>
         <span
           style={{
@@ -33,7 +33,7 @@ export function CodexUsagePanel() {
       </div>
 
       <div
-        aria-label="Codex usage data unavailable to RadControl"
+        aria-label="Codex usage percentage unavailable to RadControl"
         style={{
           height: 12,
           overflow: "hidden",
@@ -44,7 +44,7 @@ export function CodexUsagePanel() {
       >
         <div
           style={{
-            width: "100%",
+            width: "38%",
             height: "100%",
             background:
               "repeating-linear-gradient(-45deg, rgba(112, 74, 170, 0.4) 0, rgba(112, 74, 170, 0.4) 8px, rgba(112, 74, 170, 0.16) 8px, rgba(112, 74, 170, 0.16) 16px)",
@@ -52,15 +52,19 @@ export function CodexUsagePanel() {
         />
       </div>
       <p className="surfaceMutedSmall">
-        RadControl cannot read personal ChatGPT or Codex token balances through a documented
-        public API, so this bar intentionally does not invent a percentage or collect credentials.
+        Live percentage unavailable here. RadControl does not collect ChatGPT credentials or
+        invent a usage value.
       </p>
       <p className="surfaceMutedSmall">
-        Check the live balance in ChatGPT under <strong>Codex Settings → Usage Dashboard</strong>.
+        Check the live balance in <strong>Codex Settings → Usage Dashboard</strong>.
+      </p>
+      <p className="surfaceMutedSmall">
+        Phase 2 candidate: the local Codex app-server exposes rate-limit and usage-read methods;
+        RadControl would query that local service without storing your ChatGPT session.
       </p>
       <a
         className="btn btnSecondary"
-        href="https://chatgpt.com"
+        href="https://chatgpt.com/codex/settings/usage"
         target="_blank"
         rel="noopener noreferrer"
       >
