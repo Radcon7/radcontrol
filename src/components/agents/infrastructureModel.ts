@@ -202,6 +202,23 @@ export function buildInfrastructureProfiles(projects: ProjectRow[]): Infrastruct
 
   return [
     {
+      key: "openai-codex",
+      label: "OpenAI Codex / ChatGPT",
+      provider: "openai",
+      assetType: "workspace_tenant",
+      category: "AI & Agent Workspace",
+      owningOrg: "radcon",
+      environmentScope: "mixed",
+      primaryConsoleUrl: "https://chatgpt.com",
+      focusSummary: "Track Codex and ChatGPT plan access, usage visibility, model access, credits, and the boundary between OpenAI-hosted usage data and RadControl.",
+      statusAuditFocus: "Review the ChatGPT plan, Codex access, Usage Dashboard visibility, credits posture, and whether any supported workspace analytics are available.",
+      mcpApiPosture: "Personal ChatGPT/Codex usage is not exposed to RadControl through a documented public API. Workspace administrators may have separate analytics and usage-reporting capabilities.",
+      billingFocus: "Record the active ChatGPT plan, optional credits or auto-top-up settings, and who controls the billing account; never store tokens or session credentials here.",
+      role: "Primary OpenAI-hosted coding and agent workspace for Radcon operations.",
+      statusSummary: "Usage status is verified in ChatGPT under Codex Settings → Usage Dashboard; RadControl Phase 1 provides a safe link and manual-status panel.",
+      relatedProjectKeys: ["radcontrol", ...defaultProjectKeys],
+    },
+    {
       key: "cloudflare",
       label: "Cloudflare",
       provider: "cloudflare",

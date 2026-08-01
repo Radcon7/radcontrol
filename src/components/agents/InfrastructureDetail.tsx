@@ -1,6 +1,7 @@
 import type { ProjectRow } from "../projects/types";
 import { InfrastructureBrief } from "./InfrastructureBrief";
 import { InfrastructureConfigurationNote } from "./InfrastructureConfigurationNote";
+import { CodexUsagePanel } from "./CodexUsagePanel";
 import type { InfrastructureEntry } from "./infrastructureModel";
 import { InfrastructureNotes } from "./InfrastructureNotes";
 
@@ -37,6 +38,7 @@ export function InfrastructureDetail({
     <div className="surfaceCard surfaceDetailBriefCard">
       <div className="surfaceCardTitle">Infrastructure Brief</div>
       <div className="surfaceSummaryList">
+        {entry.key === "openai-codex" ? <CodexUsagePanel /> : null}
         <InfrastructureBrief entry={entry} projects={projects} />
         <InfrastructureConfigurationNote
           status={configurationStatus}
