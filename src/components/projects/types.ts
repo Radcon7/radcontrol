@@ -20,6 +20,8 @@ export type ProjectRow = {
   // Runtime
   port?: number;
   url?: string;
+  launchUrl?: string;
+  launchHostKey?: string;
   preferredPort?: number;
   preferredUrl?: string;
   runtimePort?: number;

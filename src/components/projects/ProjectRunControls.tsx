@@ -32,7 +32,7 @@ export function ProjectRunControls({
           disabled={detail.launchDisabled}
           title={detail.launchTitle}
         >
-          Launch
+          {detail.launchLabel}
         </button>
         <button
           className="btn btnPrimary"

@@ -57,7 +57,7 @@ export function ProjectBrief({
         <SummaryRow label="Runtime Status" value={status.text} />
         <SummaryRow
           label="Live URL"
-          value={project.runtimeUrl || project.url || "Not recorded"}
+          value={project.launchUrl || project.runtimeUrl || project.url || "Not recorded"}
         />
         {project.preferredUrl && project.preferredUrl !== project.url ? (
           <SummaryRow label="Preferred URL" value={project.preferredUrl} />

@@ -13,8 +13,15 @@ export function CodexUsagePanel() {
     >
       <div className="surfaceCardTitleRow">
         <div>
-          <div className="surfaceCardTitle">Codex / ChatGPT usage</div>
-          <div className="surfaceMutedSmall">Phase 1 · live data not connected</div>
+          <div className="surfaceCardTitle" style={{ color: "#2f2142" }}>
+            Codex / ChatGPT usage
+          </div>
+          <div
+            className="surfaceMutedSmall"
+            style={{ color: "#4b3b5f", opacity: 1, fontWeight: 700 }}
+          >
+            Phase 1 · live data not connected
+          </div>
         </div>
         <span
           style={{

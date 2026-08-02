@@ -8,7 +8,11 @@ GIT STATUS (excluding generated evidence)
 ================================================================================
  M .github/workflows/ci.yml
  M package.json
-?? tests/verify_ci_workflow_contract.mjs
+ M src/App.css
+ M src/components/paste-tabs/LegalHubTab.tsx
+?? src/components/paste-tabs/PortfolioBlueprint.tsx
+?? src/components/paste-tabs/portfolioBlueprintModel.ts
+?? tests/verify_portfolio_blueprint_contract.mjs
 
 ================================================================================
 TOP-LEVEL INVENTORY (bounded)
@@ -190,6 +194,7 @@ src/components/agents/AgentFocusLimits.tsx
 src/components/agents/AgentNotes.tsx
 src/components/agents/AgentRoster.tsx
 src/components/agents/AgentsTab.tsx
+src/components/agents/CodexUsagePanel.tsx
 src/components/agents/CreateAgentModal.tsx
 src/components/agents/CreateInfrastructureModal.tsx
 src/components/agents/InfrastructureBrief.tsx
@@ -216,7 +221,9 @@ src/components/paste-tabs/DocumentLibraryPanel.tsx
 src/components/paste-tabs/LegalHubTab.tsx
 src/components/paste-tabs/MilestoneModal.tsx
 src/components/paste-tabs/NotesHubTab.tsx
+src/components/paste-tabs/PortfolioBlueprint.tsx
 src/components/paste-tabs/TimelineTab.tsx
+src/components/paste-tabs/portfolioBlueprintModel.ts
 src/components/paste-tabs/timelineLoader.ts
 src/components/projects/AddProjectModal.tsx
 src/components/projects/ProjectBrief.tsx
@@ -264,8 +271,8 @@ src/components/common/o2Files.ts:21:  return (await invoke("e2e_project_roots"))
 ================================================================================
 FS / PATH / SHELL (if any)
 ================================================================================
-src/App.css:1425:.surfaceCommandMain {
-src/App.css:1433:.surfaceCommandMain > .surfaceTwoPane {
+src/App.css:1651:.surfaceCommandMain {
+src/App.css:1659:.surfaceCommandMain > .surfaceTwoPane {
 src/App.css:79:/* App shell */
 src/App.tsx:208:  shellPreference: string;
 src/App.tsx:339:    shellPreference: payload.shellPreference?.trim() || "o2_recommend",
@@ -282,8 +289,8 @@ src/components/agents/AgentsTab.tsx:67:    path: selectedProfile ? notePathForPr
 src/components/agents/AgentsTab.tsx:91:        .filter((item) => typeof item.path === "string")
 src/components/agents/AgentsTab.tsx:92:        .filter((item) => isProfileArtifact(item.path || ""));
 src/components/agents/AgentsTab.tsx:96:          const filePath = item.path || "";
-src/components/agents/InfrastructureDetail.tsx:48:              : "No governed configuration path available."
-src/components/agents/InfrastructureDetail.tsx:59:              : "No governed note path available."
+src/components/agents/InfrastructureDetail.tsx:50:              : "No governed configuration path available."
+src/components/agents/InfrastructureDetail.tsx:61:              : "No governed note path available."
 src/components/agents/InfrastructureTab.tsx:112:        .filter((item) => typeof item.path === "string")
 src/components/agents/InfrastructureTab.tsx:113:        .filter((item) => (item.path || "").startsWith(`${RECORDS_DIR}/`))
 src/components/agents/InfrastructureTab.tsx:114:        .filter((item) => (item.path || "").endsWith("/01_inventory.json"));
@@ -412,6 +419,7 @@ PACKAGE / TOOLING (bounded)
     "verify:security": "node tests/verify_tauri_security.mjs",
     "verify:governance": "node tests/verify_governance_pointers.mjs",
     "verify:document-transport": "node tests/verify_document_transport_contract.mjs",
+    "verify:portfolio-blueprint": "node tests/verify_portfolio_blueprint_contract.mjs",
     "verify:o2-contract": "node tests/verify_o2_contract.mjs",
     "verify:project-builder": "node tests/verify_project_builder_contract.mjs",
     "verify:ci-contract": "node tests/verify_ci_workflow_contract.mjs",

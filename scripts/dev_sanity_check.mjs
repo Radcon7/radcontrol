@@ -131,7 +131,7 @@ function detectRelevantRepos(radcontrolRepoRoot) {
     { key: "radcontrol", path: radcontrolRepoRoot, exists: fs.existsSync(radcontrolRepoRoot) },
     { key: "dqotd", path: path.join(empireRoot, "radcon", "dev", "dqotd"), exists: fs.existsSync(path.join(empireRoot, "radcon", "dev", "dqotd")) },
     { key: "tbis", path: path.join(empireRoot, "radcon", "dev", "tbis"), exists: fs.existsSync(path.join(empireRoot, "radcon", "dev", "tbis")) },
-    { key: "offroad", path: path.join(empireRoot, "radwolfe", "dev", "offroadcroquet"), exists: fs.existsSync(path.join(empireRoot, "radwolfe", "dev", "offroadcroquet")) },
+    { key: "offroad", path: path.join(empireRoot, "radcon", "dev", "offroadcroquet"), exists: fs.existsSync(path.join(empireRoot, "radcon", "dev", "offroadcroquet")) },
     { key: "o2", path: path.join(path.dirname(empireRoot), "o2"), exists: fs.existsSync(path.join(path.dirname(empireRoot), "o2")) },
   ];
 }

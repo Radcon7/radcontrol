@@ -95,6 +95,8 @@ export function registryToProjects(reg: unknown): ProjectRow[] {
         repoHint: asNonEmptyString(r.repoHint),
         port: asFiniteNumber(r.port),
         url: asNonEmptyString(r.url),
+        launchUrl: asNonEmptyString(r.launchUrl),
+        launchHostKey: asNonEmptyString(r.launchHostKey),
         preferredPort: asFiniteNumber(r.preferredPort),
         preferredUrl: asNonEmptyString(r.preferredUrl),
         runtimePort: asFiniteNumber(r.runtimePort),

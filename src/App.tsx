@@ -88,6 +88,18 @@ function tabLabel(t: TabKey): string {
   return m[t] ?? t.replace(/_/g, " ");
 }
 
+export function cacheFreshLocalUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl);
+    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+      url.searchParams.set("_radcontrol_open", Date.now().toString());
+    }
+    return url.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
 
 type O2ListProjectsEnvelope = {
   ok?: boolean;
@@ -548,7 +560,9 @@ export default function App() {
 
   async function openProjectUrl(p: ProjectRow) {
     const finalUrl =
-      typeof p?.runtimeUrl === "string" && p.runtimeUrl.startsWith("http")
+      typeof p?.launchUrl === "string" && p.launchUrl.startsWith("http")
+        ? p.launchUrl
+        : typeof p?.runtimeUrl === "string" && p.runtimeUrl.startsWith("http")
         ? p.runtimeUrl
         : typeof p?.url === "string" && p.url.startsWith("http")
           ? p.url
@@ -561,19 +575,40 @@ export default function App() {
       return;
     }
 
-    void copyText(finalUrl);
+    const openUrl = cacheFreshLocalUrl(finalUrl);
+    void copyText(openUrl);
 
     try {
-      await tryAutoOpen(finalUrl);
+      await tryAutoOpen(openUrl);
     } catch (e) {
       appendLog(`
 [opener] failed: ${fmtErr(e)}
 `);
-      appendLog(`[opener] URL copied: ${finalUrl}`);
+      appendLog(`[opener] URL copied: ${openUrl}`);
     }
   }
 
+  async function ensureLaunchHost(project: ProjectRow) {
+    if (!project.launchHostKey) return;
+    const rows = await loadRegistry();
+    const host = rows.find((row) => row.key === project.launchHostKey);
+    if (!host) {
+      appendLog(`[projects] Launch host "${project.launchHostKey}" is not registered.`);
+      return;
+    }
+    const hostPort = host.runtimePort ?? host.port;
+    if (typeof hostPort === "number" && ports[hostPort]?.listening) return;
+    if (host.o2StartKey) await runO2(`Start ${host.label}`, host.o2StartKey);
+  }
+
   async function startProject(p: ProjectRow) {
+    const port = p.runtimePort ?? p.port;
+    if (typeof port === "number" && ports[port]?.listening) {
+      await ensureLaunchHost(p);
+      await openProjectUrl(p);
+      return;
+    }
+
     if (!p?.o2StartKey) {
       appendLog(
         `[projects] Start unavailable for "${p?.label ?? "unknown"}": no O2 start key configured.`,
@@ -584,6 +619,7 @@ export default function App() {
     const out = await runO2(`Start ${p.label}`, p.o2StartKey);
     const rows = await loadRegistry();
     const latest = rows.find((row) => row.key === p.key) ?? p;
+    await ensureLaunchHost(latest);
 
     const urlFromOut = out ? extractFirstHttpUrl(out) : null;
     const fallbackUrl =
