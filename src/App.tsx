@@ -560,7 +560,9 @@ export default function App() {
 
   async function openProjectUrl(p: ProjectRow) {
     const finalUrl =
-      typeof p?.launchUrl === "string" && p.launchUrl.startsWith("http")
+      typeof p?.operatorUrl === "string" && p.operatorUrl.startsWith("http")
+        ? p.operatorUrl
+        : typeof p?.launchUrl === "string" && p.launchUrl.startsWith("http")
         ? p.launchUrl
         : typeof p?.runtimeUrl === "string" && p.runtimeUrl.startsWith("http")
         ? p.runtimeUrl
@@ -588,6 +590,21 @@ export default function App() {
     }
   }
 
+  async function launchProjectWebsite(p: ProjectRow) {
+    const websiteUrl = p.websiteUrl?.startsWith("http") ? p.websiteUrl : null;
+    if (!websiteUrl) {
+      appendLog(`[projects] Website unavailable for "${p.label}": no live website URL is recorded.`);
+      return;
+    }
+    void copyText(websiteUrl);
+    try {
+      await tryAutoOpen(websiteUrl);
+    } catch (error) {
+      appendLog(`[opener] failed: ${fmtErr(error)}`);
+      appendLog(`[opener] URL copied: ${websiteUrl}`);
+    }
+  }
+
   async function ensureLaunchHost(project: ProjectRow) {
     if (!project.launchHostKey) return;
     const rows = await loadRegistry();
@@ -602,13 +619,6 @@ export default function App() {
   }
 
   async function startProject(p: ProjectRow) {
-    const port = p.runtimePort ?? p.port;
-    if (typeof port === "number" && ports[port]?.listening) {
-      await ensureLaunchHost(p);
-      await openProjectUrl(p);
-      return;
-    }
-
     if (!p?.o2StartKey) {
       appendLog(
         `[projects] Start unavailable for "${p?.label ?? "unknown"}": no O2 start key configured.`,
@@ -623,7 +633,11 @@ export default function App() {
 
     const urlFromOut = out ? extractFirstHttpUrl(out) : null;
     const fallbackUrl =
-      typeof latest.url === "string" && latest.url.startsWith("http")
+      typeof latest.operatorUrl === "string" && latest.operatorUrl.startsWith("http")
+        ? latest.operatorUrl
+        : typeof latest.launchUrl === "string" && latest.launchUrl.startsWith("http")
+          ? latest.launchUrl
+          : typeof latest.url === "string" && latest.url.startsWith("http")
         ? latest.url
         : null;
 
@@ -995,6 +1009,7 @@ export default function App() {
               preferredProjectKey={preferredProjectKey}
               onPreferredProjectKeyHandled={clearPreferredProjectKey}
               onStart={startProject}
+              onLaunchWebsite={launchProjectWebsite}
               onSnapshot={(p) =>
                 void runO2(`Repo Snapshot ${p.label}`, p.o2SnapshotKey)
               }

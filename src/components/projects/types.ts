@@ -20,6 +20,11 @@ export type ProjectRow = {
   // Runtime
   port?: number;
   url?: string;
+  /** Role-scoped Radcon Enterprises destination for embedded operator work. */
+  operatorUrl?: string;
+  /** Public/live website destination. Never use a preview deployment here. */
+  websiteUrl?: string;
+  /** Legacy registry field; retained only while O2 records are migrated. */
   launchUrl?: string;
   launchHostKey?: string;
   preferredPort?: number;

@@ -56,9 +56,10 @@ export function ProjectBrief({
         </div>
         <SummaryRow label="Runtime Status" value={status.text} />
         <SummaryRow
-          label="Live URL"
-          value={project.launchUrl || project.runtimeUrl || project.url || "Not recorded"}
+          label="Local / operator destination"
+          value={project.operatorUrl || project.launchUrl || project.runtimeUrl || project.url || "Not recorded"}
         />
+        {project.websiteUrl ? <SummaryRow label="Live website" value={project.websiteUrl} /> : null}
         {project.preferredUrl && project.preferredUrl !== project.url ? (
           <SummaryRow label="Preferred URL" value={project.preferredUrl} />
         ) : null}

@@ -13,7 +13,7 @@ export type ProjectDetail = {
   port?: number;
   isListening: boolean;
   launchDisabled: boolean;
-  launchLabel: "Launch" | "Open";
+  launchLabel: "Launch Localhost" | "Launch Radcon Portal";
   launchTitle: string;
   snapshotDisabled: boolean;
   mapDisabled: boolean;
@@ -89,7 +89,7 @@ export function buildProjectDetail(
   const port = project.runtimePort ?? project.port;
   const portState = typeof port === "number" ? ports[port] : undefined;
   const isListening = Boolean(portState?.listening);
-  const hasOpenUrl = [project.launchUrl, project.runtimeUrl, project.url].some(
+  const hasLaunchTarget = [project.operatorUrl, project.launchUrl, project.runtimeUrl, project.url].some(
     (value) => typeof value === "string" && value.startsWith("http"),
   );
 
@@ -99,12 +99,12 @@ export function buildProjectDetail(
     port,
     isListening,
     launchDisabled:
-      busy || isForming || (isListening ? !hasOpenUrl : !project.o2StartKey),
-    launchLabel: isListening ? "Open" : "Launch",
-    launchTitle: isListening
-      ? "Open the running project's recorded URL."
+      busy || isForming || !project.o2StartKey || !hasLaunchTarget,
+    launchLabel: project.operatorUrl || project.launchUrl ? "Launch Radcon Portal" : "Launch Localhost",
+    launchTitle: project.operatorUrl || project.launchUrl
+      ? "Restart this project's local service through O2, ensure Radcon Enterprises is available, and open only its role-scoped portal tab."
       : project.o2StartKey
-        ? "Start project runtime through O2 and open its URL when available."
+        ? "Restart this project's governed localhost runtime through O2 and open a fresh local URL."
         : "Launch unavailable: no runtime command is recorded.",
     snapshotDisabled: busy || isForming || !project.o2SnapshotKey,
     mapDisabled: busy || isForming || !project.o2MapKey,
