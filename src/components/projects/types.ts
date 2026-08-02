@@ -20,6 +20,13 @@ export type ProjectRow = {
   // Runtime
   port?: number;
   url?: string;
+  /** Role-scoped Radcon Enterprises destination for embedded operator work. */
+  operatorUrl?: string;
+  /** Public/live website destination. Never use a preview deployment here. */
+  websiteUrl?: string;
+  /** Legacy registry field; retained only while O2 records are migrated. */
+  launchUrl?: string;
+  launchHostKey?: string;
   preferredPort?: number;
   preferredUrl?: string;
   runtimePort?: number;
@@ -161,7 +168,6 @@ export type AddProjectPayload = {
   needsCommerceSurface?: boolean;
   needsKnowledgeSurface?: boolean;
   needsTimelineSurface?: boolean;
-  patternHint?: string;
   similarityNotes?: string;
   mission?: string;
   initialConstraints?: string;
@@ -175,7 +181,7 @@ export type NewProjectIntent = "production";
 export type NewProjectRelationship =
   | "new"
   | "version_successor"
-  | "reference_pattern";
+  | "reference_project";
 
 export type NewProjectIntakePayload = {
   key: string;
@@ -205,7 +211,6 @@ export type NewProjectIntakePayload = {
   needsCommerceSurface?: boolean;
   needsKnowledgeSurface?: boolean;
   needsTimelineSurface?: boolean;
-  patternHint?: string;
   similarityNotes?: string;
   initialConstraints?: string;
   operatorBrief?: string;

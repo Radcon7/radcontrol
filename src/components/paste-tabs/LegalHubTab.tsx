@@ -1,21 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DocumentLibraryPanel } from "./DocumentLibraryPanel";
+import { PortfolioBlueprint } from "./PortfolioBlueprint";
 
-type LegalMode = "legal_notes" | "legal_documents" | "legal_entity_structure";
+type LegalMode =
+  | "portfolio_blueprint"
+  | "legal_notes"
+  | "legal_documents"
+  | "legal_entity_structure";
 
 type Props = {
   busy?: boolean;
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
 };
 
-type LegalModeConfig = {
-  key: LegalMode;
+type LibraryLegalModeConfig = {
+  key: Exclude<LegalMode, "portfolio_blueprint">;
   label: string;
   title: string;
   placeholder: string;
 };
 
-const MODE_CONFIGS: LegalModeConfig[] = [
+const MODE_CONFIGS: Array<
+  | LibraryLegalModeConfig
+  | { key: "portfolio_blueprint"; label: string }
+> = [
+  {
+    key: "portfolio_blueprint",
+    label: "Portfolio Blueprint",
+  },
   {
     key: "legal_notes",
     label: "Legal Notes",
@@ -36,18 +48,19 @@ const MODE_CONFIGS: LegalModeConfig[] = [
   },
 ];
 
-function libraryConfigFor(mode: LegalMode): LegalModeConfig {
+function libraryConfigFor(mode: LibraryLegalModeConfig["key"]): LibraryLegalModeConfig {
   const found = MODE_CONFIGS.find((item) => item.key === mode);
-  if (!found) {
+  if (!found || found.key === "portfolio_blueprint") {
     throw new Error(`Missing legal mode config for ${mode}`);
   }
   return found;
 }
 
 export function LegalHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
-  const [mode, setMode] = useState<LegalMode>("legal_notes");
+  const [mode, setMode] = useState<LegalMode>("portfolio_blueprint");
   const saverRef = useRef<(() => Promise<boolean>) | null>(null);
-  const activeLibraryConfig = libraryConfigFor(mode);
+  const activeLibraryConfig =
+    mode === "portfolio_blueprint" ? null : libraryConfigFor(mode);
 
   const registerModeSaver = useCallback(
     (fn: (() => Promise<boolean>) | null) => {
@@ -96,13 +109,17 @@ export function LegalHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
       </div>
 
       <div className="workspaceHubBody">
-        <DocumentLibraryPanel
-          tabKey={activeLibraryConfig.key}
-          title={activeLibraryConfig.title}
-          placeholder={activeLibraryConfig.placeholder}
-          busy={busy}
-          registerBeforeTabChangeSaver={registerModeSaver}
-        />
+        {mode === "portfolio_blueprint" ? (
+          <PortfolioBlueprint />
+        ) : (
+          <DocumentLibraryPanel
+            tabKey={activeLibraryConfig!.key}
+            title={activeLibraryConfig!.title}
+            placeholder={activeLibraryConfig!.placeholder}
+            busy={busy}
+            registerBeforeTabChangeSaver={registerModeSaver}
+          />
+        )}
       </div>
     </section>
   );

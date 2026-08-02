@@ -4,6 +4,7 @@ type Props = {
   detail: ProjectDetail;
   busy: boolean;
   onLaunch: () => void;
+  onLaunchWebsite: () => void;
   onSnapshot: () => void;
   onMap: () => void;
   onShowOriginalRequest: () => void;
@@ -15,6 +16,7 @@ export function ProjectRunControls({
   detail,
   busy,
   onLaunch,
+  onLaunchWebsite,
   onSnapshot,
   onMap,
   onShowOriginalRequest,
@@ -32,8 +34,19 @@ export function ProjectRunControls({
           disabled={detail.launchDisabled}
           title={detail.launchTitle}
         >
-          Launch
+          {detail.launchLabel}
         </button>
+        {detail.project.websiteUrl ? (
+          <button
+            className="btn btnPrimary"
+            data-testid="launch-website"
+            onClick={onLaunchWebsite}
+            disabled={busy}
+            title="Open the recorded live website. Preview deployments remain in Vercel."
+          >
+            Launch Website
+          </button>
+        ) : null}
         <button
           className="btn btnPrimary"
           onClick={onSnapshot}

@@ -88,6 +88,18 @@ function tabLabel(t: TabKey): string {
   return m[t] ?? t.replace(/_/g, " ");
 }
 
+export function cacheFreshLocalUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl);
+    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+      url.searchParams.set("_radcontrol_open", Date.now().toString());
+    }
+    return url.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
 
 type O2ListProjectsEnvelope = {
   ok?: boolean;
@@ -192,7 +204,6 @@ type FormationStartPayload = {
   similarProjectKey: string;
   referenceRepos: string;
   versionTag: string;
-  patternHint: string;
   similarityNotes: string;
   intent: string;
   projectClass: string;
@@ -295,7 +306,6 @@ function normalizeFormationStartPayload(
   const baseProjectKey = payload.parentProjectKey?.trim() || "";
   const similarProjectKey = payload.similarProjectKey?.trim() || "";
   const referenceRepos = payload.referenceRepos?.trim() || "";
-  const patternHint = payload.patternHint?.trim() || "";
   const similarityNotes = payload.similarityNotes?.trim() || "";
   const intent = (
     payload.intent || "production"
@@ -325,7 +335,6 @@ function normalizeFormationStartPayload(
     similarProjectKey,
     referenceRepos,
     versionTag,
-    patternHint,
     similarityNotes,
     intent,
     projectClass: payload.projectClass?.trim() || "other",
@@ -551,7 +560,11 @@ export default function App() {
 
   async function openProjectUrl(p: ProjectRow) {
     const finalUrl =
-      typeof p?.runtimeUrl === "string" && p.runtimeUrl.startsWith("http")
+      typeof p?.operatorUrl === "string" && p.operatorUrl.startsWith("http")
+        ? p.operatorUrl
+        : typeof p?.launchUrl === "string" && p.launchUrl.startsWith("http")
+        ? p.launchUrl
+        : typeof p?.runtimeUrl === "string" && p.runtimeUrl.startsWith("http")
         ? p.runtimeUrl
         : typeof p?.url === "string" && p.url.startsWith("http")
           ? p.url
@@ -564,16 +577,45 @@ export default function App() {
       return;
     }
 
-    void copyText(finalUrl);
+    const openUrl = cacheFreshLocalUrl(finalUrl);
+    void copyText(openUrl);
 
     try {
-      await tryAutoOpen(finalUrl);
+      await tryAutoOpen(openUrl);
     } catch (e) {
       appendLog(`
 [opener] failed: ${fmtErr(e)}
 `);
-      appendLog(`[opener] URL copied: ${finalUrl}`);
+      appendLog(`[opener] URL copied: ${openUrl}`);
     }
+  }
+
+  async function launchProjectWebsite(p: ProjectRow) {
+    const websiteUrl = p.websiteUrl?.startsWith("http") ? p.websiteUrl : null;
+    if (!websiteUrl) {
+      appendLog(`[projects] Website unavailable for "${p.label}": no live website URL is recorded.`);
+      return;
+    }
+    void copyText(websiteUrl);
+    try {
+      await tryAutoOpen(websiteUrl);
+    } catch (error) {
+      appendLog(`[opener] failed: ${fmtErr(error)}`);
+      appendLog(`[opener] URL copied: ${websiteUrl}`);
+    }
+  }
+
+  async function ensureLaunchHost(project: ProjectRow) {
+    if (!project.launchHostKey) return;
+    const rows = await loadRegistry();
+    const host = rows.find((row) => row.key === project.launchHostKey);
+    if (!host) {
+      appendLog(`[projects] Launch host "${project.launchHostKey}" is not registered.`);
+      return;
+    }
+    const hostPort = host.runtimePort ?? host.port;
+    if (typeof hostPort === "number" && ports[hostPort]?.listening) return;
+    if (host.o2StartKey) await runO2(`Start ${host.label}`, host.o2StartKey);
   }
 
   async function startProject(p: ProjectRow) {
@@ -587,10 +629,15 @@ export default function App() {
     const out = await runO2(`Start ${p.label}`, p.o2StartKey);
     const rows = await loadRegistry();
     const latest = rows.find((row) => row.key === p.key) ?? p;
+    await ensureLaunchHost(latest);
 
     const urlFromOut = out ? extractFirstHttpUrl(out) : null;
     const fallbackUrl =
-      typeof latest.url === "string" && latest.url.startsWith("http")
+      typeof latest.operatorUrl === "string" && latest.operatorUrl.startsWith("http")
+        ? latest.operatorUrl
+        : typeof latest.launchUrl === "string" && latest.launchUrl.startsWith("http")
+          ? latest.launchUrl
+          : typeof latest.url === "string" && latest.url.startsWith("http")
         ? latest.url
         : null;
 
@@ -962,6 +1009,7 @@ export default function App() {
               preferredProjectKey={preferredProjectKey}
               onPreferredProjectKeyHandled={clearPreferredProjectKey}
               onStart={startProject}
+              onLaunchWebsite={launchProjectWebsite}
               onSnapshot={(p) =>
                 void runO2(`Repo Snapshot ${p.label}`, p.o2SnapshotKey)
               }

@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "24"
           cache: npm
@@ -32,8 +32,11 @@ jobs:
           npm run verify:security
           npm run verify:governance
           npm run verify:document-transport
+          npm run verify:portfolio-blueprint
           npm run verify:o2-contract
           npm run verify:project-builder
+          npm run verify:ci-contract
+          npm run verify:repo-index
           npm run verify:agents-architecture
           npm run verify:governed-notes
           npm run verify:infrastructure-architecture

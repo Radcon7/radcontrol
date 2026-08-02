@@ -8,6 +8,6 @@ assert.match(source, /bootstrapNow: true/);
 assert.match(source, /repoPath,/);
 assert.match(source, /launchLocalFirst: true/);
 assert.doesNotMatch(source, /AddProjectModalPrefill|prefill\?/);
-assert.match(appSource, /const patternHint = payload\.patternHint\?\.trim\(\) \|\| "";/);
-assert.doesNotMatch(appSource, /patternHint[\s\S]{0,100}payload\.repoHint/);
+assert.doesNotMatch(appSource, /patternHint|reference_pattern/);
+assert.match(source, /reference_project/);
 console.log("project builder contract: governed localhost starter defaults verified");

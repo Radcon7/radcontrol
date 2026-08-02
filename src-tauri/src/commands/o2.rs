@@ -84,7 +84,6 @@ fn verb_allowed(verb: &str) -> bool {
     verb,
     "contract_info"
       | "list_projects"
-      | "project_pattern.list"
       | "empire.map"
       | "empire.sweep"
       | "radcontrol.snapshot"

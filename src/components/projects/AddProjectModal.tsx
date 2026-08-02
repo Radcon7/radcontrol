@@ -119,7 +119,7 @@ export function AddProjectModal({
   const repoPath = useMemo(() => key ? `${rootForOrg(org, projectRootOverrides)}/${key}` : "", [key, org, projectRootOverrides]);
   const selectedShape = SHAPES.find((item) => item.value === shape) ?? SHAPES[0];
   const privateSurface = shape === "private";
-  const relationship = referenceProject ? "reference_pattern" : "new";
+  const relationship = referenceProject ? "reference_project" : "new";
   const accessModel: ProjectAccessModel = privateSurface ? "role_based_private" : "public";
   const securityPosture: ProjectSecurityPosture = privateSurface || sensitiveData ? "elevated" : "standard";
   const repositoryHint = repoPath.replace("/home/chris/dev/rad-empire/", "").replace("/home/chris/dev/", "");

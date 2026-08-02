@@ -25,6 +25,7 @@ type Props = {
   preferredProjectKey?: string | null;
   onPreferredProjectKeyHandled?: () => void;
   onStart: (project: ProjectRow) => Promise<void> | void;
+  onLaunchWebsite: (project: ProjectRow) => Promise<void> | void;
   onSnapshot: (project: ProjectRow) => Promise<void> | void;
   onStop: (project: ProjectRow) => Promise<void> | void;
   onMap: (project: ProjectRow) => Promise<void> | void;
@@ -51,6 +52,7 @@ export function ProjectsTab({
   preferredProjectKey,
   onPreferredProjectKeyHandled,
   onStart,
+  onLaunchWebsite,
   onSnapshot,
   onStop,
   onMap,
@@ -203,6 +205,7 @@ export function ProjectsTab({
                 detail={detail}
                 busy={busy}
                 onLaunch={() => void onStart(detail.project)}
+                onLaunchWebsite={() => void onLaunchWebsite(detail.project)}
                 onSnapshot={() => void onSnapshot(detail.project)}
                 onMap={() => void onMap(detail.project)}
                 onShowOriginalRequest={() =>

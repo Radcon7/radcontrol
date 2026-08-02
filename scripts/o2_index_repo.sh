@@ -9,8 +9,6 @@ OUT="$ROOT/docs/_o2_repo_index.txt"
 
 cd "$ROOT"
 
-ts() { date +"%Y-%m-%d %H:%M:%S %z"; }
-
 section() {
   echo
   echo "================================================================================"
@@ -42,11 +40,11 @@ grep_block() {
   if [[ "$rg_available" == "yes" ]]; then
     rg -n --no-heading --hidden --glob "!.git/**" --glob "!dist/**" --glob "!node_modules/**" \
       --glob "!docs/_repo_snapshot.txt" --glob "!docs/_o2_repo_index.txt" \
-      "$pattern" "$path" | head -n 250 || true
+      "$pattern" "$path" | sort | sed -n '1,250p' || true
   else
     grep -RIn --exclude-dir=.git --exclude-dir=dist --exclude-dir=node_modules \
       --exclude=docs/_repo_snapshot.txt --exclude=docs/_o2_repo_index.txt \
-      -E "$pattern" "$path" 2>/dev/null | head -n 250 || true
+      -E "$pattern" "$path" 2>/dev/null | sort | sed -n '1,250p' || true
   fi
 }
 
@@ -54,26 +52,32 @@ mkdir -p "$ROOT/docs"
 
 {
   echo "O2_REPO_INDEX (RadControl)"
-  echo "Generated: $(ts)"
   echo "Repo: $ROOT"
+  echo "Evidence is deterministic: timestamps, generated artifacts, caches, and .git are excluded."
   echo
 
-  section "GIT STATUS (for context)"
-  git status -sb || true
+  section "GIT STATUS (excluding generated evidence)"
+  git status --short | grep -vE 'docs/_(o2_repo_index|repo_snapshot)\.txt$' || true
 
-  section "TOP-LEVEL FILES (bounded)"
-  ls -la | sed -n '1,160p' || true
+  section "TOP-LEVEL INVENTORY (bounded)"
+  find . -maxdepth 1 -mindepth 1 \
+    ! -name .git ! -name node_modules ! -name dist ! -name target \
+    -printf '%f\n' | sort | sed -n '1,120p' || true
 
   section "DOCS INDEX"
-  (cd docs && ls -la) | sed -n '1,200p' || true
+  find docs -maxdepth 3 -type f \
+    ! -name _repo_snapshot.txt ! -name _o2_repo_index.txt \
+    -printf '%p\n' | sort | sed -n '1,240p' || true
 
   section "KEY DOCS (bounded previews)"
+  preview_file "README.md" 120
   preview_file "docs/REPO_STATE.md" 220
+  preview_file "docs/POLICY_POINTERS.md" 220
 
-  section "SOURCE TREE (bounded listings)"
-  find "src" -maxdepth 3 -type f 2>/dev/null | sed 's|^\./||' | sort | head -n 400 || true
+  section "SOURCE INVENTORY (bounded)"
+  find "src" -maxdepth 3 -type f 2>/dev/null | sort | sed -n '1,240p' || true
   echo
-  find "src-tauri" -maxdepth 4 -type f 2>/dev/null | sed 's|^\./||' | sort | head -n 400 || true
+  find "src-tauri/src" -maxdepth 4 -type f 2>/dev/null | sort | sed -n '1,160p' || true
 
   section "HOTSPOT GREPS (intervention + command wiring)"
   grep_block "INTERVENTION" 'intervention' "src"

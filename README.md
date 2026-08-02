@@ -12,7 +12,7 @@ RadControl owns UI layout, local presentation state, document viewing and editin
 - **Infrastructure**: governed infrastructure assets and notes.
 - **Agents**: governed agent roster, attributes, scopes, and notes.
 - **Empire Utility**: empire map, snapshot, and sweep artifacts.
-- **Notes**: notes, development updates, timeline, and empire blueprints.
+- **Notes**: one authored-notes library, timeline, and empire blueprints.
 - **Legal**: legal notes, documents, and entity structure records.
 
 ## Runtime Model
