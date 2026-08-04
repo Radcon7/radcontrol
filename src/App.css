@@ -2016,6 +2016,268 @@ pre {
   padding-right: 4px;
 }
 
+.surfaceGridProjectTopSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.workstationHealth {
+  display: grid;
+  gap: 14px;
+  color: var(--text);
+}
+
+.workstationHealthHeader,
+.workstationCodexReviewTitle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.workstationHealthIntro {
+  margin: 5px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+}
+
+.workstationStatus {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workstationStatus-healthy,
+.workstationHistoryDot-healthy {
+  color: #9ff0be;
+  background: rgba(55, 176, 104, 0.18);
+  border-color: rgba(91, 221, 143, 0.38);
+}
+
+.workstationStatus-attention,
+.workstationHistoryDot-attention {
+  color: #ffd38b;
+  background: rgba(211, 139, 27, 0.18);
+  border-color: rgba(255, 188, 81, 0.42);
+}
+
+.workstationStatus-critical,
+.workstationHistoryDot-critical {
+  color: #ffaaa4;
+  background: rgba(208, 63, 51, 0.2);
+  border-color: rgba(255, 109, 98, 0.44);
+}
+
+.workstationStatus-inconclusive,
+.workstationHistoryDot-inconclusive {
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.workstationActions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workstationActions .btn {
+  width: 100%;
+  min-height: 38px;
+}
+
+.workstationCodexButton {
+  border-color: rgba(174, 121, 255, 0.55);
+  background: linear-gradient(135deg, rgba(105, 57, 164, 0.9), rgba(67, 43, 111, 0.9));
+  color: #fff;
+}
+
+.workstationSummary,
+.workstationMessage,
+.workstationPreview,
+.workstationCodexReview,
+.workstationDetails,
+.workstationEmpty {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 11px 13px;
+}
+
+.workstationSummary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.workstationSummary span,
+.workstationEmpty {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+}
+
+.workstationMetrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workstationMetrics > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(8, 15, 27, 0.34);
+}
+
+.workstationMetrics span {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+}
+
+.workstationMetrics strong {
+  overflow: hidden;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workstationMessage,
+.workstationPreview {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.workstationMessageError {
+  border-color: rgba(255, 100, 89, 0.45);
+  color: #ffb5af;
+}
+
+.workstationDetails summary {
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.workstationDetailGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.workstationDetailGrid > div {
+  display: grid;
+  gap: 5px;
+}
+
+.workstationDetailGrid span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+.workstationCodexReview {
+  border-color: rgba(174, 121, 255, 0.3);
+  background: linear-gradient(135deg, rgba(75, 45, 118, 0.2), rgba(20, 27, 42, 0.45));
+}
+
+.workstationCodexReviewTitle {
+  font-weight: 800;
+}
+
+.workstationCodexReviewTitle span {
+  color: rgba(226, 207, 255, 0.72);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.workstationCodexReviewBody {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.workstationHistory {
+  display: grid;
+  gap: 6px;
+}
+
+.workstationHistoryTitle {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.workstationHistoryRow {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) auto minmax(100px, auto);
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+  text-align: left;
+}
+
+.workstationHistoryRow:hover {
+  border-color: rgba(116, 169, 255, 0.38);
+  background: rgba(116, 169, 255, 0.07);
+}
+
+.workstationHistoryRow small {
+  color: rgba(255, 255, 255, 0.56);
+  text-align: right;
+}
+
+.workstationHistoryDot {
+  width: 9px;
+  height: 9px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+@media (max-width: 1100px) {
+  .workstationActions,
+  .workstationMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .workstationActions,
+  .workstationMetrics,
+  .workstationDetailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .workstationSummary,
+  .workstationHealthHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workstationHistoryRow {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .workstationHistoryRow small {
+    display: none;
+  }
+}
+
 .infrastructureModalCard {
   width: min(920px, calc(100vw - 40px));
 }

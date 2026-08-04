@@ -88,6 +88,11 @@ fn verb_allowed(verb: &str) -> bool {
       | "empire.sweep"
       | "radcontrol.snapshot"
       | "radcontrol.dev_strict"
+      | "workstation.health.check"
+      | "workstation.health.history"
+      | "workstation.cleanup.preview"
+      | "workstation.cleanup.apply"
+      | "workstation.codex.review"
   ) {
     return true;
   }
