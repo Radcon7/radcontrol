@@ -66,6 +66,7 @@ type Checkup = {
 type HealthHistory = {
   ok: boolean;
   checkups: Checkup[];
+  reviews: CodexReview[];
   events: Array<{
     at: string;
     action: string;
@@ -88,10 +89,15 @@ type CleanupResult = {
 
 type CodexReview = {
   ok: boolean;
+  startedAt: string;
+  completedAt: string;
+  durationSeconds: number;
   model: string;
   reasoningEffort: string;
   analysis: string;
-  report: Checkup;
+  preparedCandidates?: CleanupCandidate[];
+  learningCandidate?: string;
+  report?: Checkup;
 };
 
 type Props = {
@@ -115,12 +121,17 @@ function statusLabel(status: HealthStatus): string {
   return "Check incomplete";
 }
 
+function workstationLog(message: string): string {
+  return `\n[workstation · ${new Date().toLocaleString()}] ${message}\n`;
+}
+
 export function WorkstationHealthPanel({ onAppendLog }: Props) {
   const [report, setReport] = useState<Checkup | null>(null);
-  const [history, setHistory] = useState<HealthHistory>({ ok: true, checkups: [], events: [] });
+  const [history, setHistory] = useState<HealthHistory>({ ok: true, checkups: [], events: [], reviews: [] });
   const [preview, setPreview] = useState<CleanupCandidate[] | null>(null);
   const [codexReview, setCodexReview] = useState<CodexReview | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [codexElapsedSeconds, setCodexElapsedSeconds] = useState(0);
   const [error, setError] = useState("");
 
   const activeSupabase = useMemo(
@@ -136,6 +147,7 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
     );
     setHistory(payload);
     setReport(preferred || payload.checkups[0] || null);
+    setCodexReview((current) => current || payload.reviews?.[0] || null);
   }
 
   useEffect(() => {
@@ -143,6 +155,16 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
       setError(reason instanceof Error ? reason.message : String(reason));
     });
   }, []);
+
+  useEffect(() => {
+    if (busyAction !== "Terra workstation review") return;
+    const started = Date.now();
+    setCodexElapsedSeconds(0);
+    const timer = window.setInterval(() => {
+      setCodexElapsedSeconds(Math.floor((Date.now() - started) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [busyAction]);
 
   async function perform<T>(action: string, verb: string): Promise<T | null> {
     setBusyAction(action);
@@ -167,7 +189,7 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
     setPreview(null);
     setCodexReview(null);
     await refreshHistory(next);
-    onAppendLog(`\n[workstation] ${statusLabel(next.status)} — ${next.summary}\n`);
+    onAppendLog(workstationLog(`${statusLabel(next.status)} — ${next.summary}`));
   }
 
   async function previewCleanup(): Promise<void> {
@@ -179,9 +201,7 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
     setPreview(next.candidates);
     setReport(next.report);
     await refreshHistory(next.report);
-    onAppendLog(
-      `\n[workstation] Safe cleanup preview → ${next.candidates.length} candidate(s)\n`,
-    );
+    onAppendLog(workstationLog(`Safe cleanup preview → ${next.candidates.length} candidate(s)`));
   }
 
   async function applyCleanup(): Promise<void> {
@@ -196,9 +216,9 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
     setPreview(null);
     setReport(next.after);
     await refreshHistory(next.after);
-    onAppendLog(
-      `\n[workstation] Safe cleanup → ${next.actions.map((action) => action.summary).join(" ") || "Nothing needed cleanup."}\n`,
-    );
+    onAppendLog(workstationLog(
+      `Safe cleanup → ${next.actions.map((action) => action.summary).join(" ") || "Nothing needed cleanup."}`,
+    ));
   }
 
   async function askCodex(): Promise<void> {
@@ -208,11 +228,12 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
     );
     if (!next) return;
     setCodexReview(next);
-    setReport(next.report);
+    if (next.report) setReport(next.report);
+    setPreview(next.preparedCandidates?.length ? next.preparedCandidates : null);
     await refreshHistory(next.report);
-    onAppendLog(
-      `\n[workstation] Terra medium review ${next.ok ? "completed" : "did not complete"}.\n`,
-    );
+    onAppendLog(workstationLog(
+      `Terra medium review ${next.ok ? "completed" : "failed"} in ${next.durationSeconds}s — ${next.analysis}`,
+    ));
   }
 
   const busy = busyAction !== null;
@@ -252,6 +273,14 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
       </div>
 
       {error ? <div className="workstationMessage workstationMessageError">{error}</div> : null}
+
+      {busyAction === "Terra workstation review" ? (
+        <div className="workstationCodexProgress" role="status">
+          <strong>Terra is reviewing the latest checkup</strong>
+          <span>{codexElapsedSeconds}s elapsed · usually under 2 minutes · hard stop at 5 minutes</span>
+          <div><i style={{ width: `${Math.min(100, (codexElapsedSeconds / 300) * 100)}%` }} /></div>
+        </div>
+      ) : null}
 
       {report ? (
         <>
@@ -307,11 +336,26 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
       )}
 
       {codexReview ? (
-        <div className="workstationCodexReview">
+        <div className={`workstationCodexReview ${codexReview.ok ? "" : "workstationCodexReviewFailed"}`}>
           <div className="workstationCodexReviewTitle">
-            Terra review <span>{codexReview.model} · {codexReview.reasoningEffort}</span>
+            Latest Terra result
+            <span>
+              {codexReview.ok ? "Completed" : "Failed"} {formatDateTime(codexReview.completedAt)} · {codexReview.durationSeconds}s
+            </span>
           </div>
           <div className="workstationCodexReviewBody">{codexReview.analysis}</div>
+          {codexReview.preparedCandidates?.length ? (
+            <div className="workstationCodexPrepared">
+              Prepared for your approval: {codexReview.preparedCandidates.map((candidate) => candidate.label).join(", ")}
+            </div>
+          ) : null}
+          {codexReview.learningCandidate ? (
+            <div className="workstationCodexLearning">
+              <strong>Possible reusable lesson</strong>
+              <span>{codexReview.learningCandidate}</span>
+            </div>
+          ) : null}
+          <div className="workstationCodexMeta">{codexReview.model} · {codexReview.reasoningEffort} reasoning</div>
         </div>
       ) : null}
 

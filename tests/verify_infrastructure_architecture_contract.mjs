@@ -86,6 +86,10 @@ for (const verb of [
 assert.match(workstation, /Preview Safe Cleanup/);
 assert.match(workstation, /window\.confirm/);
 assert.match(workstation, /Ask Codex/);
+assert.match(workstation, /usually under 2 minutes/);
+assert.match(workstation, /Latest Terra result/);
+assert.match(workstation, /workstationLog/);
+assert.match(workstation, /preparedCandidates/);
 
 console.log(
   "infrastructure architecture contract: controller, views, and pure reports verified",
