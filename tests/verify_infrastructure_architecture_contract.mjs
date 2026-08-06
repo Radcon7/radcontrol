@@ -90,6 +90,10 @@ assert.match(workstation, /usually under 2 minutes/);
 assert.match(workstation, /Latest Terra result/);
 assert.match(workstation, /workstationLog/);
 assert.match(workstation, /preparedCandidates/);
+assert.match(workstation, /current CPU/);
+assert.match(workstation, /system authorization popup/);
+assert.match(workstation, /Likely cause right now/);
+assert.match(workstation, /VS Code workspace contains/);
 
 console.log(
   "infrastructure architecture contract: controller, views, and pure reports verified",

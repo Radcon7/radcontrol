@@ -2099,6 +2099,8 @@ pre {
 .workstationMessage,
 .workstationPreview,
 .workstationCodexReview,
+.workstationCause,
+.workstationRepairProgress,
 .workstationDetails,
 .workstationEmpty {
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2146,6 +2148,32 @@ pre {
   font-size: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.workstationCause {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-color: rgba(255, 188, 81, 0.24);
+  background: rgba(138, 91, 24, 0.1);
+}
+
+.workstationCause span,
+.workstationRepairProgress span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+}
+
+.workstationCause strong {
+  text-align: right;
+}
+
+.workstationRepairProgress {
+  display: grid;
+  gap: 5px;
+  border-color: rgba(255, 188, 81, 0.38);
+  background: rgba(138, 91, 24, 0.16);
 }
 
 .workstationMessage,
@@ -2317,9 +2345,14 @@ pre {
   }
 
   .workstationSummary,
-  .workstationHealthHeader {
+  .workstationHealthHeader,
+  .workstationCause {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .workstationCause strong {
+    text-align: left;
   }
 
   .workstationHistoryRow {

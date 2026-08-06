@@ -5,8 +5,10 @@ type HealthStatus = "healthy" | "attention" | "critical" | "inconclusive";
 
 type CleanupCandidate = {
   id: string;
+  kind?: string;
   label: string;
   ageHours: number;
+  requiresAuthorization?: boolean;
 };
 
 type Checkup = {
@@ -46,8 +48,10 @@ type Checkup = {
     pid: number;
     process: string;
     cpuPercent: number;
+    averageCpuPercent?: number;
     rssMiB: number;
     projectKey: string;
+    role?: string;
   }>;
   devRuntimes: Array<{ projectKey: string; ageHours: number; kind: string }>;
   docker: {
@@ -56,7 +60,8 @@ type Checkup = {
     exposedContainers: string[];
   };
   vscode: {
-    watchedFileCount: number;
+    workspaceFileCount?: number;
+    watchedFileCount?: number;
     broadWorkspace: boolean;
   };
   zombies: { count: number };
@@ -207,7 +212,10 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
   async function applyCleanup(): Promise<void> {
     if (!preview?.length) return;
     const targets = preview.map((candidate) => `• ${candidate.label}`).join("\n");
-    if (!window.confirm(`Apply only these verified cleanup actions?\n\n${targets}`)) return;
+    const authorizationNote = preview.some((candidate) => candidate.requiresAuthorization)
+      ? "\n\nA system authorization popup will appear for the allowlisted service repair."
+      : "";
+    if (!window.confirm(`Apply only these verified cleanup actions?\n\n${targets}${authorizationNote}`)) return;
     const next = await perform<CleanupResult>(
       "Safe cleanup",
       "workstation.cleanup.apply",
@@ -282,6 +290,13 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
         </div>
       ) : null}
 
+      {busyAction === "Safe cleanup" && preview?.some((candidate) => candidate.requiresAuthorization) ? (
+        <div className="workstationRepairProgress" role="status">
+          <strong>Waiting for system authorization</strong>
+          <span>Approve the operating-system popup to restart only the verified stuck updater.</span>
+        </div>
+      ) : null}
+
       {report ? (
         <>
           <div className="workstationSummary">
@@ -298,6 +313,15 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
             <div><span>Power</span><strong>{report.powerProfile}</strong></div>
           </div>
 
+          <div className="workstationCause">
+            <span>Likely cause right now</span>
+            {report.topProcesses[0]?.cpuPercent >= 80 ? (
+              <strong>{report.topProcesses[0].role || report.topProcesses[0].process} · {report.topProcesses[0].cpuPercent}% current CPU</strong>
+            ) : (
+              <strong>No process sustained high CPU during the sample</strong>
+            )}
+          </div>
+
           {report.reasons.length ? (
             <div className="workstationMessage">
               {report.reasons.map((reason) => <div key={reason}>• {reason}</div>)}
@@ -308,7 +332,10 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
             <div className="workstationPreview">
               <strong>Safe cleanup preview</strong>
               {preview.length ? preview.map((candidate) => (
-                <div key={candidate.id}>• {candidate.label} · {candidate.ageHours} hours old</div>
+                <div key={candidate.id}>
+                  • {candidate.label} · {candidate.ageHours} hours old
+                  {candidate.requiresAuthorization ? " · system approval required" : ""}
+                </div>
               )) : <div>Nothing needs safe cleanup.</div>}
             </div>
           ) : null}
@@ -319,14 +346,16 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
               <div>
                 <strong>Top activity</strong>
                 {report.topProcesses.slice(0, 5).map((process) => (
-                  <span key={process.pid}>{process.process} · {process.cpuPercent}% average CPU</span>
+                  <span key={process.pid}>{process.role || process.process} · {process.cpuPercent}% current CPU</span>
                 ))}
               </div>
               <div>
                 <strong>Development services</strong>
                 <span>{report.devRuntimes.length} governed runtime(s)</span>
                 <span>Supabase: {activeSupabase}</span>
-                <span>VS Code watches {report.vscode.watchedFileCount.toLocaleString()} files</span>
+                <span>
+                  VS Code workspace contains {(report.vscode.workspaceFileCount ?? report.vscode.watchedFileCount ?? 0).toLocaleString()} files
+                </span>
               </div>
             </div>
           </details>
