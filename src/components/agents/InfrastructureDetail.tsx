@@ -4,7 +4,7 @@ import { InfrastructureConfigurationNote } from "./InfrastructureConfigurationNo
 import { CodexUsagePanel } from "./CodexUsagePanel";
 import type { InfrastructureEntry } from "./infrastructureModel";
 import { InfrastructureNotes } from "./InfrastructureNotes";
-import { WorkstationHealthPanel } from "./WorkstationHealthPanel";
+import { WorkstationOperationsPanel } from "./WorkstationOperationsPanel";
 
 type Props = {
   entry: InfrastructureEntry;
@@ -44,7 +44,7 @@ export function InfrastructureDetail({
       <div className="surfaceSummaryList">
         {entry.key === "openai-codex" ? <CodexUsagePanel /> : null}
         {isWorkstation ? (
-          <WorkstationHealthPanel onAppendLog={onAppendLog} />
+          <WorkstationOperationsPanel onAppendLog={onAppendLog} />
         ) : (
           <InfrastructureBrief entry={entry} projects={projects} />
         )}

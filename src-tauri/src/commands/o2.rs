@@ -93,6 +93,10 @@ fn verb_allowed(verb: &str) -> bool {
       | "workstation.cleanup.preview"
       | "workstation.cleanup.apply"
       | "workstation.codex.review"
+      | "workstation.updates.check"
+      | "workstation.updates.history"
+      | "workstation.updates.refresh"
+      | "workstation.updates.open"
   ) {
     return true;
   }

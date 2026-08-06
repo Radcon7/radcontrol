@@ -2020,10 +2020,49 @@ pre {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.workstationHealth {
+.workstationOperations,
+.workstationHealth,
+.workstationUpdates {
   display: grid;
   gap: 14px;
   color: var(--text);
+}
+
+.workstationSectionTabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(7, 13, 24, 0.42);
+}
+
+.workstationSectionTabs button {
+  flex: 1;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.68);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.workstationSectionTabs button span {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 173, 64, 0.2);
+  color: #ffd38b;
+  font-size: 10px;
+}
+
+.workstationSectionTabs button.isActive {
+  border-color: rgba(116, 169, 255, 0.38);
+  background: linear-gradient(135deg, rgba(44, 94, 164, 0.42), rgba(26, 49, 84, 0.55));
+  color: #fff;
 }
 
 .workstationHealthHeader,
@@ -2078,6 +2117,29 @@ pre {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.workstationUpdateStatus-current,
+.workstationUpdateDot-current {
+  color: #9ff0be;
+  background: rgba(55, 176, 104, 0.18);
+  border-color: rgba(91, 221, 143, 0.38);
+}
+
+.workstationUpdateStatus-routine,
+.workstationUpdateDot-routine {
+  color: #add0ff;
+  background: rgba(67, 127, 204, 0.18);
+  border-color: rgba(116, 169, 255, 0.4);
+}
+
+.workstationUpdateStatus-attention,
+.workstationUpdateStatus-stale,
+.workstationUpdateDot-attention,
+.workstationUpdateDot-stale {
+  color: #ffd38b;
+  background: rgba(211, 139, 27, 0.18);
+  border-color: rgba(255, 188, 81, 0.42);
+}
+
 .workstationActions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2087,6 +2149,27 @@ pre {
 .workstationActions .btn {
   width: 100%;
   min-height: 38px;
+}
+
+.workstationUpdateActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workstationUpdateActions .btn {
+  width: 100%;
+  min-height: 38px;
+}
+
+.workstationUpdateBoundary {
+  padding: 10px 12px;
+  border: 1px solid rgba(116, 169, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(43, 87, 147, 0.09);
+  color: rgba(218, 232, 255, 0.8);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .workstationCodexButton {
@@ -2126,6 +2209,120 @@ pre {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
+}
+
+.workstationUpdateMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workstationUpdateMetrics > div {
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(8, 15, 27, 0.34);
+}
+
+.workstationUpdateMetrics span,
+.workstationToolGrid span,
+.workstationToolGrid small {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+}
+
+.workstationUpdateMetrics strong {
+  font-size: 20px;
+}
+
+.workstationRecommendations {
+  display: grid;
+  gap: 8px;
+}
+
+.workstationRecommendations article {
+  display: grid;
+  grid-template-columns: 78px minmax(150px, 0.7fr) minmax(260px, 1.8fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 188, 81, 0.22);
+  border-radius: 10px;
+  background: rgba(138, 91, 24, 0.09);
+}
+
+.workstationRecommendations article > span {
+  color: #ffd38b;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workstationRecommendations p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workstationToolGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workstationToolGrid article {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(8, 15, 27, 0.34);
+}
+
+.workstationToolGrid article.hasUpdate {
+  border-color: rgba(255, 188, 81, 0.3);
+}
+
+.workstationToolGrid article > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.workstationToolGrid p {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 12px;
+}
+
+.workstationToolGrid small {
+  color: #add0ff;
+}
+
+.workstationUpdateItems {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.workstationUpdateItems > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(220px, 1.6fr) auto;
+  gap: 10px;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 11px;
+}
+
+.workstationUpdateItems small {
+  color: #ffd38b;
+  text-align: right;
 }
 
 .workstationMetrics > div {
@@ -2332,7 +2529,9 @@ pre {
 
 @media (max-width: 1100px) {
   .workstationActions,
-  .workstationMetrics {
+  .workstationMetrics,
+  .workstationUpdateActions,
+  .workstationUpdateMetrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -2340,8 +2539,20 @@ pre {
 @media (max-width: 720px) {
   .workstationActions,
   .workstationMetrics,
+  .workstationUpdateActions,
+  .workstationUpdateMetrics,
+  .workstationToolGrid,
   .workstationDetailGrid {
     grid-template-columns: 1fr;
+  }
+
+  .workstationRecommendations article,
+  .workstationUpdateItems > div {
+    grid-template-columns: 1fr;
+  }
+
+  .workstationUpdateItems small {
+    text-align: left;
   }
 
   .workstationSummary,

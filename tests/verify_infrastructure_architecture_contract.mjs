@@ -7,6 +7,8 @@ const reports = await readFile(new URL("infrastructureReports.ts", root), "utf8"
 const model = await readFile(new URL("infrastructureModel.ts", root), "utf8");
 const detail = await readFile(new URL("InfrastructureDetail.tsx", root), "utf8");
 const workstation = await readFile(new URL("WorkstationHealthPanel.tsx", root), "utf8");
+const workstationOperations = await readFile(new URL("WorkstationOperationsPanel.tsx", root), "utf8");
+const workstationUpdates = await readFile(new URL("WorkstationUpdatesPanel.tsx", root), "utf8");
 const roster = await readFile(new URL("InfrastructureRoster.tsx", root), "utf8");
 const notes = await readFile(new URL("InfrastructureNotes.tsx", root), "utf8");
 const configuration = await readFile(
@@ -45,7 +47,7 @@ assert.match(parent, /notePathForKey\(matchingProfile\.key\)/);
 assert.match(detail, /<InfrastructureBrief/);
 assert.match(detail, /<InfrastructureConfigurationNote/);
 assert.match(detail, /<InfrastructureNotes/);
-assert.match(detail, /<WorkstationHealthPanel/);
+assert.match(detail, /<WorkstationOperationsPanel/);
 assert.ok(
   detail.indexOf("<InfrastructureConfigurationNote") <
     detail.indexOf("<InfrastructureNotes"),
@@ -94,6 +96,19 @@ assert.match(workstation, /current CPU/);
 assert.match(workstation, /system authorization popup/);
 assert.match(workstation, /Likely cause right now/);
 assert.match(workstation, /VS Code workspace contains/);
+assert.match(workstation, /requiresUserFollowup/);
+assert.match(workstationOperations, /Health & cleanup/);
+assert.match(workstationOperations, /Updates/);
+for (const verb of [
+  "workstation.updates.check",
+  "workstation.updates.history",
+  "workstation.updates.refresh",
+  "workstation.updates.open",
+]) {
+  assert.match(workstationUpdates, new RegExp(verb.replaceAll(".", "\\.")));
+}
+assert.match(workstationUpdates, /Open Official Updater/);
+assert.match(workstationUpdates, /does not install updates/);
 
 console.log(
   "infrastructure architecture contract: controller, views, and pure reports verified",

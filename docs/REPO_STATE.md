@@ -12,7 +12,7 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 ## Current surfaces
 
 - Projects: governed registry, runtime controls, project evidence, notes, formation intake, and bootstrap entry.
-- Infrastructure: governed provider/platform assets, editable non-secret configuration notes, actions, and operational notes.
+- Infrastructure: governed provider/platform assets, editable non-secret configuration notes, actions, and operational notes. The System76 asset provides separate Health & Cleanup and Updates topics backed by O2-owned bounded history and allowlisted actions.
 - Agents: governed profiles, focus/scope/limits, and notes.
 - Empire Utility: generated map, snapshot, and sweep artifacts.
 - Notes and Legal: O2-backed authored document libraries and timeline records.

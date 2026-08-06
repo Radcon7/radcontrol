@@ -9,6 +9,7 @@ type CleanupCandidate = {
   label: string;
   ageHours: number;
   requiresAuthorization?: boolean;
+  requiresUserFollowup?: boolean;
 };
 
 type Checkup = {
@@ -333,8 +334,9 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
               <strong>Safe cleanup preview</strong>
               {preview.length ? preview.map((candidate) => (
                 <div key={candidate.id}>
-                  • {candidate.label} · {candidate.ageHours} hours old
+                  • {candidate.label}{candidate.ageHours > 0 ? ` · ${candidate.ageHours} hours old` : ""}
                   {candidate.requiresAuthorization ? " · system approval required" : ""}
+                  {candidate.requiresUserFollowup ? " · close the old home-folder window after checking saved work" : ""}
                 </div>
               )) : <div>Nothing needs safe cleanup.</div>}
             </div>
