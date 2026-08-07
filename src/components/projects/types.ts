@@ -24,7 +24,7 @@ export type ProjectRow = {
   operatorUrl?: string;
   /** Public/live website destination. Never use a preview deployment here. */
   websiteUrl?: string;
-  /** Legacy registry field; retained only while O2 records are migrated. */
+  /** Preferred final browser route for a local runtime. */
   launchUrl?: string;
   launchHostKey?: string;
   preferredPort?: number;

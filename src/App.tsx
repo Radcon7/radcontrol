@@ -605,17 +605,20 @@ export default function App() {
     }
   }
 
-  async function ensureLaunchHost(project: ProjectRow) {
-    if (!project.launchHostKey) return;
+  async function ensureLaunchHost(project: ProjectRow): Promise<boolean> {
+    if (!project.launchHostKey) return true;
     const rows = await loadRegistry();
     const host = rows.find((row) => row.key === project.launchHostKey);
     if (!host) {
       appendLog(`[projects] Launch host "${project.launchHostKey}" is not registered.`);
-      return;
+      return false;
     }
-    const hostPort = host.runtimePort ?? host.port;
-    if (typeof hostPort === "number" && ports[hostPort]?.listening) return;
-    if (host.o2StartKey) await runO2(`Start ${host.label}`, host.o2StartKey);
+    if (!host.o2StartKey) {
+      appendLog(`[projects] Launch host "${host.label}" has no O2 start command.`);
+      return false;
+    }
+
+    return (await runO2(`Start ${host.label}`, host.o2StartKey)) !== null;
   }
 
   async function startProject(p: ProjectRow) {
@@ -627,9 +630,17 @@ export default function App() {
     }
 
     const out = await runO2(`Start ${p.label}`, p.o2StartKey);
+    if (out === null) {
+      appendLog(`[projects] Launch aborted because ${p.label} did not start successfully.`);
+      return;
+    }
+
     const rows = await loadRegistry();
     const latest = rows.find((row) => row.key === p.key) ?? p;
-    await ensureLaunchHost(latest);
+    if (!(await ensureLaunchHost(latest))) {
+      appendLog(`[projects] Launch aborted because its Radcon Enterprises host did not start successfully.`);
+      return;
+    }
 
     const urlFromOut = out ? extractFirstHttpUrl(out) : null;
     const fallbackUrl =

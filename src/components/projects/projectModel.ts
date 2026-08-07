@@ -100,8 +100,8 @@ export function buildProjectDetail(
     isListening,
     launchDisabled:
       busy || isForming || !project.o2StartKey || !hasLaunchTarget,
-    launchLabel: project.operatorUrl || project.launchUrl ? "Launch Radcon Portal" : "Launch Localhost",
-    launchTitle: project.operatorUrl || project.launchUrl
+    launchLabel: project.operatorUrl ? "Launch Radcon Portal" : "Launch Localhost",
+    launchTitle: project.operatorUrl
       ? "Restart this project's local service through O2, ensure Radcon Enterprises is available, and open only its role-scoped portal tab."
       : project.o2StartKey
         ? "Restart this project's governed localhost runtime through O2 and open a fresh local URL."
