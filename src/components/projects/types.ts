@@ -115,6 +115,9 @@ export type ProjectInitialSectionSet =
   | "member_workspace_tabs"
   | "dashboard_ops_tabs";
 
+export type ProjectFoundationBlueprint =
+  | "o2_web_foundation_v1";
+
 /**
  * What the Add Project modal produces.
  * This may contain extra structure that is reduced
@@ -152,6 +155,8 @@ export type AddProjectPayload = {
   referenceRepos?: string;
   projectClass?: ProjectClass;
   deliverySurface?: ProjectDeliverySurface;
+  productSurface?: "standalone" | "none";
+  operatorSurface?: "embedded" | "none";
   goalSummary?: string;
   intendedUsers?: string;
   domainIntent?: string;
@@ -164,10 +169,16 @@ export type AddProjectPayload = {
   launchLocalFirst?: boolean;
   shellPreference?: ProjectShellPreference;
   initialSectionSet?: ProjectInitialSectionSet;
+  foundationBlueprint?: ProjectFoundationBlueprint;
   needsAdminSurface?: boolean;
   needsCommerceSurface?: boolean;
   needsKnowledgeSurface?: boolean;
   needsTimelineSurface?: boolean;
+  needsPersistentData?: boolean;
+  needsFileUploads?: boolean;
+  needsEmailDelivery?: boolean;
+  needsOperatorSurface?: boolean;
+  needsHostedDelivery?: boolean;
   similarityNotes?: string;
   mission?: string;
   initialConstraints?: string;
@@ -195,6 +206,8 @@ export type NewProjectIntakePayload = {
   referenceRepos?: string;
   projectClass?: ProjectClass;
   deliverySurface?: ProjectDeliverySurface;
+  productSurface?: "standalone" | "none";
+  operatorSurface?: "embedded" | "none";
   goalSummary?: string;
   intendedUsers?: string;
   domainIntent?: string;
@@ -207,10 +220,16 @@ export type NewProjectIntakePayload = {
   launchLocalFirst?: boolean;
   shellPreference?: ProjectShellPreference;
   initialSectionSet?: ProjectInitialSectionSet;
+  foundationBlueprint?: ProjectFoundationBlueprint;
   needsAdminSurface?: boolean;
   needsCommerceSurface?: boolean;
   needsKnowledgeSurface?: boolean;
   needsTimelineSurface?: boolean;
+  needsPersistentData?: boolean;
+  needsFileUploads?: boolean;
+  needsEmailDelivery?: boolean;
+  needsOperatorSurface?: boolean;
+  needsHostedDelivery?: boolean;
   similarityNotes?: string;
   initialConstraints?: string;
   operatorBrief?: string;

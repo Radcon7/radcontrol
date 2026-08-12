@@ -1,45 +1,48 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/docs/_repo_snapshot.txt"
+PROJECT_KEY="radcontrol"
+MODE="${1:-write}"
+
+render() {
+  cd "$ROOT"
+  echo "RAD EMPIRE REPOSITORY SNAPSHOT"
+  echo "contract: repo-snapshot/v1"
+  echo "project: $PROJECT_KEY"
+  echo
+  echo "GOVERNANCE"
+  for path in AGENTS.md README.md docs/REPO_STATE.md docs/SMOKE_TESTS.md; do
+    [[ -f "$path" ]] && echo "$path"
+  done
+  echo
+  echo "PACKAGE SCRIPTS"
+  node -e 'const p=require("./package.json"); console.log(Object.keys(p.scripts||{}).sort().join("\n"))'
+  echo
+  echo "BOUNDED FILE INVENTORY"
+  git ls-files --cached --others --exclude-standard | LC_ALL=C sort -u | awk '
+    /^docs\/_repo_snapshot\.txt$/ { next }
+    /^docs\/_o2_repo_index\.txt$/ { next }
+    /(^|\/)(node_modules|\.next|coverage|dist|out|target|\.cache|\.temp|backups)(\/|$)/ { next }
+    /(^|\/)\.env($|\.)/ && !/(^|\/)\.env\.example$/ { next }
+    /\.(pem|key|p12|dump|tsbuildinfo)$/ { next }
+    /\.tar\.gz$/ { next }
+    { print }
+  ' | sed -n '1,500p'
+}
 
 mkdir -p "$ROOT/docs"
+first="$(mktemp)"
+second="$(mktemp)"
+trap 'rm -f "$first" "$second"' EXIT
+render > "$first"
 
-{
-  echo "=== SNAPSHOT: RadControl ==="
-  echo "root: $ROOT"
-  echo "time: $(date)"
-  echo
+case "$MODE" in
+  write) cp "$first" "$OUT" ;;
+  --check) cmp -s "$first" "$OUT" || { diff -u "$OUT" "$first" || true; exit 1; } ;;
+  --verify-idempotence) render > "$second"; cmp -s "$first" "$second" ;;
+  *) echo "usage: $0 [--check|--verify-idempotence]" >&2; exit 2 ;;
+esac
 
-  echo "## identity"
-  git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null | sed 's/^/branch: /' || echo "branch: (no git)"
-  git -C "$ROOT" rev-parse HEAD 2>/dev/null | sed 's/^/commit: /' || echo "commit: (no git)"
-  echo
-
-  echo "## status"
-  git -C "$ROOT" status || true
-  echo
-
-  echo "## recent commits"
-  git -C "$ROOT" log -5 --oneline || true
-  echo
-
-  echo "## tree (depth 4, filtered)"
-  tree -a -L 4 -I 'node_modules|dist|.git|target|.next|coverage' "$ROOT" || true
-  echo
-
-  echo "## package.json (name + scripts)"
-  if [ -f "$ROOT/package.json" ]; then
-    grep -nE '"name"|\"scripts\"' "$ROOT/package.json" || true
-  else
-    echo "(no package.json)"
-  fi
-  echo
-
-  echo "## verification"
-  echo "lint: not run"
-  echo "build: not run"
-} > "$OUT"
-
-echo "wrote $OUT"
+echo "snapshot $MODE: $OUT"

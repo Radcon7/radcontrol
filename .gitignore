@@ -21,7 +21,4 @@ src-tauri/gen
 src-tauri/.tauri
 
 # O2 generated artifacts
-/docs/_repo_snapshot.txt
 /docs/_o2_repo_index.txt
-docs/_repo_snapshot.txt
-docs/_repo_snapshot.txt

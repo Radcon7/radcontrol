@@ -208,6 +208,8 @@ type FormationStartPayload = {
   intent: string;
   projectClass: string;
   deliverySurface: string;
+  productSurface: "standalone" | "none";
+  operatorSurface: "embedded" | "none";
   intendedUsers: string;
   domainIntent: string;
   googleWorkspacePlan: string;
@@ -219,10 +221,16 @@ type FormationStartPayload = {
   launchLocalFirst: boolean;
   shellPreference: string;
   initialSectionSet: string;
+  foundationBlueprint: string;
   needsAdminSurface: boolean;
   needsCommerceSurface: boolean;
   needsKnowledgeSurface: boolean;
   needsTimelineSurface: boolean;
+  needsPersistentData: boolean;
+  needsFileUploads: boolean;
+  needsEmailDelivery: boolean;
+  needsOperatorSurface: boolean;
+  needsHostedDelivery: boolean;
   operatorBrief: string;
   initialConstraints: string;
   notes: string;
@@ -339,6 +347,10 @@ function normalizeFormationStartPayload(
     intent,
     projectClass: payload.projectClass?.trim() || "other",
     deliverySurface: payload.deliverySurface?.trim() || "public_website",
+    productSurface: payload.productSurface
+      ?? (payload.deliverySurface === "public_website" || payload.deliverySurface === "private_portal" ? "standalone" : "none"),
+    operatorSurface: payload.operatorSurface
+      ?? (payload.needsOperatorSurface ? "embedded" : "none"),
     intendedUsers: payload.intendedUsers?.trim() || "",
     domainIntent: payload.domainIntent?.trim() || "",
     googleWorkspacePlan: payload.googleWorkspacePlan?.trim() || "unknown",
@@ -350,10 +362,16 @@ function normalizeFormationStartPayload(
     launchLocalFirst: Boolean(payload.launchLocalFirst),
     shellPreference: payload.shellPreference?.trim() || "o2_recommend",
     initialSectionSet: payload.initialSectionSet?.trim() || "o2_recommend",
+    foundationBlueprint: payload.foundationBlueprint?.trim() || "o2_web_foundation_v1",
     needsAdminSurface: Boolean(payload.needsAdminSurface),
     needsCommerceSurface: Boolean(payload.needsCommerceSurface),
     needsKnowledgeSurface: Boolean(payload.needsKnowledgeSurface),
     needsTimelineSurface: Boolean(payload.needsTimelineSurface),
+    needsPersistentData: Boolean(payload.needsPersistentData),
+    needsFileUploads: Boolean(payload.needsFileUploads),
+    needsEmailDelivery: Boolean(payload.needsEmailDelivery),
+    needsOperatorSurface: Boolean(payload.needsOperatorSurface),
+    needsHostedDelivery: Boolean(payload.needsHostedDelivery),
     operatorBrief: payload.operatorBrief?.trim() || "",
     initialConstraints: payload.initialConstraints?.trim() || "",
     notes,
