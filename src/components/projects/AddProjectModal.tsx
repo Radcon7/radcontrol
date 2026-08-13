@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type {
   AddProjectPayload,
   ProjectAccessModel,
+  ProjectArchetype,
   ProjectClass,
   ProjectDeliverySurface,
   ProjectGoogleWorkspacePlan,
@@ -65,6 +66,12 @@ function surfaceForShape(shape: ProjectShape): ProjectDeliverySurface {
     case "planning": return "local_dashboard";
     default: return "public_website";
   }
+}
+
+function archetypeForShape(shape: ProjectShape): ProjectArchetype {
+  if (shape === "operations") return "portal-private-app";
+  if (shape === "planning") return "prototype";
+  return "standalone-product";
 }
 
 function YesNoSelect({ label, value, onChange, disabled }: {
@@ -171,6 +178,7 @@ export function AddProjectModal({
   const repositoryHint = repoPath.replace("/home/chris/dev/rad-empire/", "").replace("/home/chris/dev/", "");
   const productSurface = shape === "public" || shape === "member" || shape === "private" ? "standalone" : "none";
   const operatorSurface = needsOperatorSurface ? "embedded" : "none";
+  const projectArchetype = archetypeForShape(shape);
 
   const originalRequest = useMemo(() => [
     "Original Project Request",
@@ -178,6 +186,7 @@ export function AddProjectModal({
     `Name: ${name.trim() || "(required)"}`,
     `Build location: ${repoPath || "(derived after name)"}`,
     `Website shape: ${selectedShape.label}`,
+    `Project archetype: ${projectArchetype}`,
     `Product surface: ${productSurface}`,
     `Radcon operator surface: ${operatorSurface}`,
     "Foundation blueprint: O2 Modern Web Foundation v1",
@@ -199,7 +208,7 @@ export function AddProjectModal({
     request.trim() || "(required)",
     constraints.trim() ? `\nConstraints\n${constraints.trim()}` : null,
   ].filter((line): line is string => Boolean(line)).join("\n"), [
-    name, repoPath, selectedShape.label, productSurface, operatorSurface, referenceProject, domainIntent, intendedUsers, workspacePlan,
+    name, repoPath, selectedShape.label, projectArchetype, productSurface, operatorSurface, referenceProject, domainIntent, intendedUsers, workspacePlan,
     sensitiveData, needsAuthentication, needsAdminSurface, needsPersistentData, needsFileUploads,
     needsEmailDelivery, needsCommerceSurface, needsOperatorSurface, needsHostedDelivery, request, constraints,
   ]);
@@ -219,6 +228,7 @@ export function AddProjectModal({
     similarProjectKey: referenceProject || undefined,
     referenceRepos: referenceProject || undefined,
     projectClass: classForShape(shape),
+    projectArchetype,
     deliverySurface: surfaceForShape(shape),
     productSurface,
     operatorSurface,
@@ -249,7 +259,7 @@ export function AddProjectModal({
   }), [
     key, name, org, repoPath, repositoryHint, relationship, referenceProject, shape, request,
     intendedUsers, domainIntent, workspacePlan, accessModel, securityPosture, needsAuthentication,
-    sensitiveData, productSurface, operatorSurface, needsAdminSurface, needsCommerceSurface, needsPersistentData, needsFileUploads,
+    sensitiveData, projectArchetype, productSurface, operatorSurface, needsAdminSurface, needsCommerceSurface, needsPersistentData, needsFileUploads,
     needsEmailDelivery, needsOperatorSurface, needsHostedDelivery, constraints, originalRequest,
   ]);
 
@@ -306,12 +316,12 @@ export function AddProjectModal({
               </div>
               <div className="modalGeneratedGrid fieldLabelTop">
                 <div>
-                  <div className="modalGeneratedLabel">Repo</div>
-                  <div className="modalGeneratedValue" data-testid="modal-project-repo">{repoPath || "Enter a project name"}</div>
+                  <div className="modalGeneratedLabel">Architecture role</div>
+                  <div className="modalGeneratedValue" data-testid="modal-project-archetype">{projectArchetype}</div>
                 </div>
                 <div>
-                  <div className="modalGeneratedLabel">Localhost</div>
-                  <div className="modalGeneratedValue">Port assigned during build</div>
+                  <div className="modalGeneratedLabel">Repo</div>
+                  <div className="modalGeneratedValue" data-testid="modal-project-repo">{repoPath || "Enter a project name"}</div>
                 </div>
               </div>
             </section>

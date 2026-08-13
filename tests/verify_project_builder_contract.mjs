@@ -14,6 +14,11 @@ assert.match(source, /O2 Modern Web Foundation v1/);
 assert.match(source, /foundationBlueprint: "o2_web_foundation_v1"/);
 assert.match(source, /productSurface,/);
 assert.match(source, /operatorSurface,/);
+assert.match(source, /projectArchetype,/);
+assert.match(source, /Architecture role/);
+assert.match(source, /standalone-product/);
+assert.match(source, /portal-private-app/);
+assert.match(source, /prototype/);
 assert.match(source, /Embedded in Radcon Enterprises\?/);
 for (const capability of [
   "needsAuthentication",

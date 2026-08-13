@@ -207,6 +207,7 @@ type FormationStartPayload = {
   similarityNotes: string;
   intent: string;
   projectClass: string;
+  projectArchetype: string;
   deliverySurface: string;
   productSurface: "standalone" | "none";
   operatorSurface: "embedded" | "none";
@@ -346,6 +347,13 @@ function normalizeFormationStartPayload(
     similarityNotes,
     intent,
     projectClass: payload.projectClass?.trim() || "other",
+    projectArchetype: payload.projectArchetype?.trim() || (
+      payload.productSurface === "standalone"
+        ? "standalone-product"
+        : payload.deliverySurface === "operations_workspace"
+          ? "portal-private-app"
+          : "prototype"
+    ),
     deliverySurface: payload.deliverySurface?.trim() || "public_website",
     productSurface: payload.productSurface
       ?? (payload.deliverySurface === "public_website" || payload.deliverySurface === "private_portal" ? "standalone" : "none"),
