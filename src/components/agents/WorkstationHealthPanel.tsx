@@ -93,6 +93,15 @@ type CleanupResult = {
   after: Checkup;
 };
 
+type LearningCandidateResult = {
+  state: "not-proposed" | "captured" | "deduplicated" | "rejected";
+  candidateId: string | null;
+  candidateStatus?: string;
+  outcome: string | null;
+  dedupeOutcome?: string;
+  authorityChanged?: false;
+};
+
 type CodexReview = {
   ok: boolean;
   startedAt: string;
@@ -102,7 +111,7 @@ type CodexReview = {
   reasoningEffort: string;
   analysis: string;
   preparedCandidates?: CleanupCandidate[];
-  learningCandidate?: string;
+  learningCandidate?: LearningCandidateResult | string;
   report?: Checkup;
 };
 
@@ -131,6 +140,19 @@ function workstationLog(message: string): string {
   return `\n[workstation · ${new Date().toLocaleString()}] ${message}\n`;
 }
 
+function learningCandidateLabel(value: LearningCandidateResult | string | undefined): string | null {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (value.state === "not-proposed") return null;
+  if (value.state === "captured") {
+    return `Captured ${value.candidateId || "candidate"} for governed review; doctrine was not changed.`;
+  }
+  if (value.state === "deduplicated") {
+    return `Matched ${value.candidateId || "an existing candidate"}; doctrine was not changed.`;
+  }
+  return `Candidate not captured: ${value.outcome || "governed validation rejected it"}.`;
+}
+
 export function WorkstationHealthPanel({ onAppendLog }: Props) {
   const [report, setReport] = useState<Checkup | null>(null);
   const [history, setHistory] = useState<HealthHistory>({ ok: true, checkups: [], events: [], reviews: [] });
@@ -144,6 +166,7 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
     () => report?.docker.supabaseStacks.map((stack) => stack.projectKey).join(", ") || "None",
     [report],
   );
+  const learningCandidate = learningCandidateLabel(codexReview?.learningCandidate);
 
   async function refreshHistory(preferred?: Checkup | null): Promise<void> {
     const payload = await runO2ParsedJson<HealthHistory>(
@@ -380,10 +403,10 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
               Prepared for your approval: {codexReview.preparedCandidates.map((candidate) => candidate.label).join(", ")}
             </div>
           ) : null}
-          {codexReview.learningCandidate ? (
+          {learningCandidate ? (
             <div className="workstationCodexLearning">
-              <strong>Possible reusable lesson</strong>
-              <span>{codexReview.learningCandidate}</span>
+              <strong>Governed learning queue</strong>
+              <span>{learningCandidate}</span>
             </div>
           ) : null}
           <div className="workstationCodexMeta">{codexReview.model} · {codexReview.reasoningEffort} reasoning</div>
