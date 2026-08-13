@@ -20,6 +20,7 @@ import type {
   ProjectRow,
 } from "./components/projects/types";
 import { fmtErr, registryToProjects } from "./components/projects/helpers";
+import { normalizeFormationStartPayload } from "./components/projects/formationPayload";
 import { copyText } from "./components/common/copyText";
 import { encodeO2JsonPayload, getE2EProjectRoots, readO2File, runO2Text } from "./components/common/o2Files";
 
@@ -52,16 +53,6 @@ const ALL_TABS: TabKey[] = [
   ...DOC_TABS.map((t) => t.key),
 ];
 
-type CanonicalProjectType = "new_website" | "website_successor";
-
-const canonicalProjectTypeMap: Record<string, CanonicalProjectType> = {
-  website: "new_website",
-  new_website: "new_website",
-
-  successor: "website_successor",
-  website_successor: "website_successor",
-  "v.x.x website from existing website": "website_successor",
-};
 
 function isDocTab(t: TabKey): t is DocTabKey {
   return DOC_TABS.some((d) => d.key === t);
@@ -185,58 +176,6 @@ type O2PortStatusJson = { port?: number; listening?: boolean };
 type O2PortStatusBatchJson = { ok?: boolean; ports?: O2PortStatusJson[] };
 
 
-type FormationStartPayload = {
-  projectType: CanonicalProjectType;
-  name: string;
-  label: string;
-  key: string;
-  org: string;
-  repoPath: string;
-  repoHint: string;
-  port?: number;
-  url: string;
-  mission: string;
-  goalSummary: string;
-  track: string;
-  relationship: string;
-  technicalKind: string;
-  baseProjectKey: string;
-  similarProjectKey: string;
-  referenceRepos: string;
-  versionTag: string;
-  similarityNotes: string;
-  intent: string;
-  projectClass: string;
-  projectArchetype: string;
-  deliverySurface: string;
-  productSurface: "standalone" | "none";
-  operatorSurface: "embedded" | "none";
-  intendedUsers: string;
-  domainIntent: string;
-  googleWorkspacePlan: string;
-  accessModel: string;
-  securityPosture: string;
-  buildStrategy: string;
-  needsAuthentication: boolean;
-  handlesSensitiveData: boolean;
-  launchLocalFirst: boolean;
-  shellPreference: string;
-  initialSectionSet: string;
-  foundationBlueprint: string;
-  needsAdminSurface: boolean;
-  needsCommerceSurface: boolean;
-  needsKnowledgeSurface: boolean;
-  needsTimelineSurface: boolean;
-  needsPersistentData: boolean;
-  needsFileUploads: boolean;
-  needsEmailDelivery: boolean;
-  needsOperatorSurface: boolean;
-  needsHostedDelivery: boolean;
-  operatorBrief: string;
-  initialConstraints: string;
-  notes: string;
-};
-
 type FormationStartResult = {
   ok?: boolean;
   action?: string;
@@ -273,118 +212,6 @@ type ProjectBootstrapResult = {
   error?: string;
   details?: string[];
 };
-
-function normalizeProjectType(
-  payload: AddProjectPayload,
-): CanonicalProjectType {
-  const rawProjectType = payload.projectType?.trim().toLowerCase() || "";
-  const rawKind = payload.kind?.trim().toLowerCase() || "";
-
-  if (rawProjectType in canonicalProjectTypeMap) {
-    return canonicalProjectTypeMap[rawProjectType];
-  }
-
-  if (rawKind in canonicalProjectTypeMap) {
-    return canonicalProjectTypeMap[rawKind];
-  }
-
-  if (payload.parentProjectKey?.trim()) {
-    return "website_successor";
-  }
-
-  return "new_website";
-}
-
-function normalizeFormationStartPayload(
-  payload: AddProjectPayload,
-): FormationStartPayload {
-  const projectType = normalizeProjectType(payload);
-  const relationship = (payload.relationship || "new").trim();
-  const technicalKind = (payload.kind || "other").trim();
-
-  const name = (payload.label || payload.key).trim();
-  const label = (payload.label || payload.key).trim();
-  const key = payload.key.trim();
-
-  const mission =
-    payload.mission?.trim() ||
-    payload.notes?.trim() ||
-    "No mission provided yet.";
-
-  const goalSummary = payload.goalSummary?.trim() || "";
-  const baseProjectKey = payload.parentProjectKey?.trim() || "";
-  const similarProjectKey = payload.similarProjectKey?.trim() || "";
-  const referenceRepos = payload.referenceRepos?.trim() || "";
-  const similarityNotes = payload.similarityNotes?.trim() || "";
-  const intent = (
-    payload.intent || "production"
-  ).trim();
-
-  const track = "production";
-
-  const versionTag = "";
-  const notes = payload.notes?.trim() || "";
-
-  return {
-    projectType,
-    name,
-    label,
-    key,
-    org: (payload.org || "other").trim(),
-    repoPath: payload.repoPath.trim(),
-    repoHint: payload.repoHint?.trim() || "",
-    port: payload.port,
-    url: payload.url?.trim() || "",
-    mission,
-    goalSummary,
-    track,
-    relationship,
-    technicalKind,
-    baseProjectKey,
-    similarProjectKey,
-    referenceRepos,
-    versionTag,
-    similarityNotes,
-    intent,
-    projectClass: payload.projectClass?.trim() || "other",
-    projectArchetype: payload.projectArchetype?.trim() || (
-      payload.productSurface === "standalone"
-        ? "standalone-product"
-        : payload.deliverySurface === "operations_workspace"
-          ? "portal-private-app"
-          : "prototype"
-    ),
-    deliverySurface: payload.deliverySurface?.trim() || "public_website",
-    productSurface: payload.productSurface
-      ?? (payload.deliverySurface === "public_website" || payload.deliverySurface === "private_portal" ? "standalone" : "none"),
-    operatorSurface: payload.operatorSurface
-      ?? (payload.needsOperatorSurface ? "embedded" : "none"),
-    intendedUsers: payload.intendedUsers?.trim() || "",
-    domainIntent: payload.domainIntent?.trim() || "",
-    googleWorkspacePlan: payload.googleWorkspacePlan?.trim() || "unknown",
-    accessModel: payload.accessModel?.trim() || "unknown",
-    securityPosture: payload.securityPosture?.trim() || "standard",
-    buildStrategy: payload.buildStrategy?.trim() || "guided_followup",
-    needsAuthentication: Boolean(payload.needsAuthentication),
-    handlesSensitiveData: Boolean(payload.handlesSensitiveData),
-    launchLocalFirst: Boolean(payload.launchLocalFirst),
-    shellPreference: payload.shellPreference?.trim() || "o2_recommend",
-    initialSectionSet: payload.initialSectionSet?.trim() || "o2_recommend",
-    foundationBlueprint: payload.foundationBlueprint?.trim() || "o2_web_foundation_v1",
-    needsAdminSurface: Boolean(payload.needsAdminSurface),
-    needsCommerceSurface: Boolean(payload.needsCommerceSurface),
-    needsKnowledgeSurface: Boolean(payload.needsKnowledgeSurface),
-    needsTimelineSurface: Boolean(payload.needsTimelineSurface),
-    needsPersistentData: Boolean(payload.needsPersistentData),
-    needsFileUploads: Boolean(payload.needsFileUploads),
-    needsEmailDelivery: Boolean(payload.needsEmailDelivery),
-    needsOperatorSurface: Boolean(payload.needsOperatorSurface),
-    needsHostedDelivery: Boolean(payload.needsHostedDelivery),
-    operatorBrief: payload.operatorBrief?.trim() || "",
-    initialConstraints: payload.initialConstraints?.trim() || "",
-    notes,
-  };
-}
 
 export default function App() {
   const [tab, setTab] = useState<TabKey>("projects");
