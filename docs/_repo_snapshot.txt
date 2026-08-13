@@ -133,6 +133,7 @@ src/components/agents/AgentsTab.tsx
 src/components/agents/CodexUsagePanel.tsx
 src/components/agents/CreateAgentModal.tsx
 src/components/agents/CreateInfrastructureModal.tsx
+src/components/agents/GovernanceLearningStatus.tsx
 src/components/agents/InfrastructureBrief.tsx
 src/components/agents/InfrastructureConfigurationNote.tsx
 src/components/agents/InfrastructureDetail.tsx
@@ -144,6 +145,7 @@ src/components/agents/WorkstationHealthPanel.tsx
 src/components/agents/WorkstationOperationsPanel.tsx
 src/components/agents/WorkstationUpdatesPanel.tsx
 src/components/agents/agentModel.ts
+src/components/agents/governanceLearningModel.ts
 src/components/agents/infrastructureModel.ts
 src/components/agents/infrastructureReports.ts
 src/components/common/ArtifactListPanel.tsx

@@ -2206,6 +2206,7 @@ pre {
 .workstationMessage,
 .workstationPreview,
 .workstationCodexReview,
+.governanceLearningStatus,
 .workstationCause,
 .workstationRepairProgress,
 .workstationDetails,
@@ -2214,6 +2215,96 @@ pre {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.035);
   padding: 11px 13px;
+}
+
+.governanceLearningStatus {
+  display: grid;
+  gap: 10px;
+  border-color: rgba(104, 160, 255, 0.28);
+  background: linear-gradient(135deg, rgba(35, 75, 129, 0.16), rgba(20, 27, 42, 0.45));
+}
+
+.governanceLearningHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.governanceLearningHeader > div {
+  display: grid;
+  gap: 3px;
+}
+
+.governanceLearningHeader span,
+.governanceLearningPromoted small,
+.governanceMemoryStatus span,
+.governanceMemoryStatus small {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+}
+
+.governanceLearningCounts,
+.governanceMemoryStatus {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.governanceMemoryStatus {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.governanceLearningCounts > div,
+.governanceMemoryStatus > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  background: rgba(8, 15, 27, 0.34);
+}
+
+.governanceLearningCounts span {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+}
+
+.governanceLearningCounts strong {
+  font-size: 18px;
+}
+
+.governanceLearningBoundary,
+.governanceLearningDegraded {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.governanceLearningDegraded {
+  margin-top: 0;
+  border: 1px solid rgba(255, 188, 81, 0.32);
+  background: rgba(138, 91, 24, 0.12);
+  color: #ffd38b;
+}
+
+.governanceLearningPromoted {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.governanceLearningPromoted article {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border-left: 2px solid rgba(91, 221, 143, 0.55);
+  background: rgba(55, 176, 104, 0.07);
 }
 
 .workstationSummary {
@@ -2558,15 +2649,60 @@ pre {
   .workstationUpdateMetrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .governanceLearningCounts,
+  .governanceMemoryStatus {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
+  .mainArea {
+    overflow-y: auto;
+  }
+
+  .systemShell,
+  .systemShellBody {
+    height: auto;
+    overflow: visible;
+  }
+
+  .systemShellBody,
+  .surfaceLayout {
+    flex: 0 0 auto;
+  }
+
+  .surfaceLayout,
+  .surfaceGridProjectTop {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .surfaceLayout,
+  .surfaceCommandMain,
+  .surfaceDetailBriefCard,
+  .surfaceDetailBriefCard .surfaceSummaryList {
+    overflow: visible;
+  }
+
+  .surfaceDetailBriefCard {
+    height: auto;
+  }
+
+  .surfaceSidebarStack {
+    max-height: 260px;
+  }
+
   .workstationActions,
   .workstationMetrics,
   .workstationUpdateActions,
   .workstationUpdateMetrics,
   .workstationToolGrid,
   .workstationDetailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .governanceLearningCounts,
+  .governanceMemoryStatus {
     grid-template-columns: 1fr;
   }
 
@@ -2583,6 +2719,11 @@ pre {
   .workstationHealthHeader,
   .workstationCause {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .governanceLearningHeader {
+    align-items: stretch;
     flex-direction: column;
   }
 

@@ -88,6 +88,7 @@ fn verb_allowed(verb: &str) -> bool {
       | "empire.sweep"
       | "radcontrol.snapshot"
       | "radcontrol.dev_strict"
+      | "codex.memory.status"
       | "workstation.health.check"
       | "workstation.health.history"
       | "workstation.cleanup.preview"
@@ -115,6 +116,7 @@ fn verb_allowed(verb: &str) -> bool {
     "infrastructure_asset.create.",
     "port_status.",
     "port_suggest.",
+    "lesson.candidate.list.",
   ];
 
   if PAYLOAD_PREFIXES.iter().any(|prefix| verb.starts_with(prefix)) {
