@@ -18,6 +18,8 @@ O2 documents override RadControl only when they declare `Authority class: Empire
 - UI structure: `~/dev/o2/docs/radcontrol/empire_blueprint/radcontrol_ui_structure_doctrine_20260725.md`
 - Document persistence: `~/dev/o2/docs/radcontrol/empire_blueprint/radcontrol_document_persistence_doctrine_20260727.md`
 - Project formation: `~/dev/o2/docs/project-formation/PROJECT_CREATE_START.md`
+- Learning candidates: `~/dev/o2/docs/O2_LEARNING_SYSTEM.md` and the governed
+  `lesson.candidate.*` capability family
 - O2 implementation: `~/dev/o2/scripts/`, `~/dev/o2/registry/projects.json`, and `~/dev/o2/workspaces/`
 
 Home-level legacy procedure notes such as `~/.codex/O2_CONTROL.md` and `~/.codex/SNAPSHOT_CONTRACT.md` are not tracked O2 authority. Current tracked O2 and repo-local doctrine supersede conflicting instructions in those files.
