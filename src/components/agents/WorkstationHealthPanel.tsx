@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { runO2ParsedJson } from "../common/o2Files";
+import { GovernanceLearningStatus } from "./GovernanceLearningStatus";
 
 type HealthStatus = "healthy" | "attention" | "critical" | "inconclusive";
 
@@ -142,15 +143,25 @@ function workstationLog(message: string): string {
 
 function learningCandidateLabel(value: LearningCandidateResult | string | undefined): string | null {
   if (!value) return null;
-  if (typeof value === "string") return value;
+  if (typeof value === "string") {
+    return "A legacy candidate result was withheld; doctrine was not changed.";
+  }
   if (value.state === "not-proposed") return null;
+  const candidateId = typeof value.candidateId === "string" && /^lesson-[a-f0-9]{16}$/u.test(value.candidateId)
+    ? value.candidateId
+    : "candidate";
+  const candidateStatus = value.candidateStatus === "proposed"
+    ? " as proposed"
+    : value.candidateStatus === "needs-evidence"
+      ? " as needing evidence"
+      : "";
   if (value.state === "captured") {
-    return `Captured ${value.candidateId || "candidate"} for governed review; doctrine was not changed.`;
+    return `Captured ${candidateId}${candidateStatus} for governed review; doctrine was not changed.`;
   }
   if (value.state === "deduplicated") {
-    return `Matched ${value.candidateId || "an existing candidate"}; doctrine was not changed.`;
+    return `Matched ${candidateId}; doctrine was not changed.`;
   }
-  return `Candidate not captured: ${value.outcome || "governed validation rejected it"}.`;
+  return "Candidate not captured: governed validation rejected it.";
 }
 
 export function WorkstationHealthPanel({ onAppendLog }: Props) {
@@ -305,6 +316,8 @@ export function WorkstationHealthPanel({ onAppendLog }: Props) {
       </div>
 
       {error ? <div className="workstationMessage workstationMessageError">{error}</div> : null}
+
+      <GovernanceLearningStatus />
 
       {busyAction === "Terra workstation review" ? (
         <div className="workstationCodexProgress" role="status">

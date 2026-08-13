@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import {
+  parseCandidateListSummary,
+  parseSafeMemoryStatus,
+} from "../src/components/agents/governanceLearningModel.ts";
 
 const root = new URL("../src/components/agents/", import.meta.url);
 const parent = await readFile(new URL("InfrastructureTab.tsx", root), "utf8");
@@ -7,6 +11,7 @@ const reports = await readFile(new URL("infrastructureReports.ts", root), "utf8"
 const model = await readFile(new URL("infrastructureModel.ts", root), "utf8");
 const detail = await readFile(new URL("InfrastructureDetail.tsx", root), "utf8");
 const workstation = await readFile(new URL("WorkstationHealthPanel.tsx", root), "utf8");
+const governanceLearning = await readFile(new URL("GovernanceLearningStatus.tsx", root), "utf8");
 const workstationOperations = await readFile(new URL("WorkstationOperationsPanel.tsx", root), "utf8");
 const workstationUpdates = await readFile(new URL("WorkstationUpdatesPanel.tsx", root), "utf8");
 const roster = await readFile(new URL("InfrastructureRoster.tsx", root), "utf8");
@@ -96,6 +101,13 @@ assert.match(workstation, /LearningCandidateResult/);
 assert.match(workstation, /learningCandidateLabel/);
 assert.match(workstation, /doctrine was not changed/);
 assert.match(workstation, /Governed learning queue/);
+assert.match(workstation, /legacy candidate result was withheld/);
+assert.match(workstation, /<GovernanceLearningStatus/);
+assert.match(governanceLearning, /lesson\.candidate\.list/);
+assert.match(governanceLearning, /codex\.memory\.status/);
+assert.match(governanceLearning, /Proposed and accepted candidates remain non-authoritative/);
+assert.match(governanceLearning, /raw content hidden/);
+assert.match(governanceLearning, /No promotion was inferred/);
 assert.match(workstation, /current CPU/);
 assert.match(workstation, /system authorization popup/);
 assert.match(workstation, /Likely cause right now/);
@@ -113,6 +125,76 @@ for (const verb of [
 }
 assert.match(workstationUpdates, /Open Official Updater/);
 assert.match(workstationUpdates, /does not install updates/);
+
+const candidateSummary = parseCandidateListSummary({
+  ok: true,
+  outcome: "listed",
+  totalMatched: 1,
+  candidates: [{
+    id: "lesson-82f3663ea79ae19a",
+    title: "Keep credential scans secret-safe",
+    status: "promoted",
+    relatedCatalogIds: ["o2.credential-hygiene"],
+    promotionState: "authority-linked",
+    authorityLinked: true,
+    authorityLinks: [{
+      id: "playbook.command-approval-credential-hygiene",
+      title: "OP-013 Command-Approval Credential Hygiene",
+      repository: "o2",
+      path: "docs/O2_OPERATIONAL_PLAYBOOK.md#op-013",
+      authorityClass: "global-default",
+      lifecycleStatus: "active",
+    }],
+    verifiedResolution: "This lesson body must not cross the UI model boundary.",
+  }],
+}, "promoted");
+assert.equal(candidateSummary.totalMatched, 1);
+assert.equal(candidateSummary.candidates[0].status, "promoted");
+assert.equal("verifiedResolution" in candidateSummary.candidates[0], false);
+assert.throws(
+  () => parseCandidateListSummary({
+    ok: true,
+    outcome: "listed",
+    totalMatched: 1,
+    candidates: [{
+      id: "lesson-82f3663ea79ae19a",
+      title: "Still proposed",
+      status: "proposed",
+      relatedCatalogIds: [],
+      promotionState: null,
+      authorityLinked: false,
+      authorityLinks: [],
+    }],
+  }, "promoted"),
+  /status filter/,
+);
+
+const memoryStatus = parseSafeMemoryStatus({
+  ok: true,
+  enabled: true,
+  useMemories: true,
+  generateMemories: true,
+  disableOnExternalContext: true,
+  minimumRateLimitRemainingPercent: 35,
+  memoryFileCount: 0,
+  rawMemoryContentIncluded: false,
+  store: {
+    integrity: "ok",
+    jobCount: 0,
+    failedJobCount: 0,
+    generatedInputCount: 0,
+    lastSuccessfulGeneration: null,
+  },
+  extensionHost: { available: true, supportsMemories: true, version: "codex-cli test" },
+  shellCli: { available: true, supportsMemories: false, version: "codex-cli old" },
+  memoryContent: "This raw memory must not cross the UI model boundary.",
+});
+assert.equal(memoryStatus.store.integrity, "ok");
+assert.equal("memoryContent" in memoryStatus, false);
+assert.throws(
+  () => parseSafeMemoryStatus({ ...memoryStatus, ok: true, rawMemoryContentIncluded: true }),
+  /not safe/,
+);
 
 console.log(
   "infrastructure architecture contract: controller, views, and pure reports verified",
