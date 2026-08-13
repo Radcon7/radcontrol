@@ -829,10 +829,33 @@ pre {
   overflow-wrap: anywhere;
 }
 
+.modalBlueprintNote {
+  display: grid;
+  gap: 5px;
+  margin-top: 14px;
+  padding: 13px 15px;
+  border: 1px solid rgba(97, 242, 169, 0.24);
+  border-radius: 14px;
+  background: rgba(97, 242, 169, 0.07);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.modalBlueprintNote strong {
+  color: rgba(255, 255, 255, 0.98);
+}
+
 .modalInlineGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 18px;
+}
+
+.modalDecisionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 16px;
 }
 
 .modalCheckboxGrid {
@@ -924,6 +947,7 @@ pre {
   }
 
   .modalInlineGrid,
+  .modalDecisionGrid,
   .modalCheckboxGridTwoUp {
     grid-template-columns: 1fr;
   }
@@ -2014,6 +2038,565 @@ pre {
 .surfaceDetailBriefCard .surfaceSummaryList {
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.surfaceGridProjectTopSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.workstationOperations,
+.workstationHealth,
+.workstationUpdates {
+  display: grid;
+  gap: 14px;
+  color: var(--text);
+}
+
+.workstationSectionTabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(7, 13, 24, 0.42);
+}
+
+.workstationSectionTabs button {
+  flex: 1;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.68);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.workstationSectionTabs button span {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 173, 64, 0.2);
+  color: #ffd38b;
+  font-size: 10px;
+}
+
+.workstationSectionTabs button.isActive {
+  border-color: rgba(116, 169, 255, 0.38);
+  background: linear-gradient(135deg, rgba(44, 94, 164, 0.42), rgba(26, 49, 84, 0.55));
+  color: #fff;
+}
+
+.workstationHealthHeader,
+.workstationCodexReviewTitle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.workstationHealthIntro {
+  margin: 5px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+}
+
+.workstationStatus {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workstationStatus-healthy,
+.workstationHistoryDot-healthy {
+  color: #9ff0be;
+  background: rgba(55, 176, 104, 0.18);
+  border-color: rgba(91, 221, 143, 0.38);
+}
+
+.workstationStatus-attention,
+.workstationHistoryDot-attention {
+  color: #ffd38b;
+  background: rgba(211, 139, 27, 0.18);
+  border-color: rgba(255, 188, 81, 0.42);
+}
+
+.workstationStatus-critical,
+.workstationHistoryDot-critical {
+  color: #ffaaa4;
+  background: rgba(208, 63, 51, 0.2);
+  border-color: rgba(255, 109, 98, 0.44);
+}
+
+.workstationStatus-inconclusive,
+.workstationHistoryDot-inconclusive {
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.workstationUpdateStatus-current,
+.workstationUpdateDot-current {
+  color: #9ff0be;
+  background: rgba(55, 176, 104, 0.18);
+  border-color: rgba(91, 221, 143, 0.38);
+}
+
+.workstationUpdateStatus-routine,
+.workstationUpdateDot-routine {
+  color: #add0ff;
+  background: rgba(67, 127, 204, 0.18);
+  border-color: rgba(116, 169, 255, 0.4);
+}
+
+.workstationUpdateStatus-attention,
+.workstationUpdateStatus-stale,
+.workstationUpdateDot-attention,
+.workstationUpdateDot-stale {
+  color: #ffd38b;
+  background: rgba(211, 139, 27, 0.18);
+  border-color: rgba(255, 188, 81, 0.42);
+}
+
+.workstationActions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workstationActions .btn {
+  width: 100%;
+  min-height: 38px;
+}
+
+.workstationUpdateActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workstationUpdateActions .btn {
+  width: 100%;
+  min-height: 38px;
+}
+
+.workstationUpdateBoundary {
+  padding: 10px 12px;
+  border: 1px solid rgba(116, 169, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(43, 87, 147, 0.09);
+  color: rgba(218, 232, 255, 0.8);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workstationCodexButton {
+  border-color: rgba(174, 121, 255, 0.55);
+  background: linear-gradient(135deg, rgba(105, 57, 164, 0.9), rgba(67, 43, 111, 0.9));
+  color: #fff;
+}
+
+.workstationSummary,
+.workstationMessage,
+.workstationPreview,
+.workstationCodexReview,
+.workstationCause,
+.workstationRepairProgress,
+.workstationDetails,
+.workstationEmpty {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 11px 13px;
+}
+
+.workstationSummary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.workstationSummary span,
+.workstationEmpty {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+}
+
+.workstationMetrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workstationUpdateMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workstationUpdateMetrics > div {
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(8, 15, 27, 0.34);
+}
+
+.workstationUpdateMetrics span,
+.workstationToolGrid span,
+.workstationToolGrid small {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+}
+
+.workstationUpdateMetrics strong {
+  font-size: 20px;
+}
+
+.workstationRecommendations {
+  display: grid;
+  gap: 8px;
+}
+
+.workstationRecommendations article {
+  display: grid;
+  grid-template-columns: 78px minmax(150px, 0.7fr) minmax(260px, 1.8fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 188, 81, 0.22);
+  border-radius: 10px;
+  background: rgba(138, 91, 24, 0.09);
+}
+
+.workstationRecommendations article > span {
+  color: #ffd38b;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workstationRecommendations p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workstationToolGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workstationToolGrid article {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(8, 15, 27, 0.34);
+}
+
+.workstationToolGrid article.hasUpdate {
+  border-color: rgba(255, 188, 81, 0.3);
+}
+
+.workstationToolGrid article > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.workstationToolGrid p {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 12px;
+}
+
+.workstationToolGrid small {
+  color: #add0ff;
+}
+
+.workstationUpdateItems {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.workstationUpdateItems > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(220px, 1.6fr) auto;
+  gap: 10px;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 11px;
+}
+
+.workstationUpdateItems small {
+  color: #ffd38b;
+  text-align: right;
+}
+
+.workstationMetrics > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(8, 15, 27, 0.34);
+}
+
+.workstationMetrics span {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+}
+
+.workstationMetrics strong {
+  overflow: hidden;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workstationCause {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-color: rgba(255, 188, 81, 0.24);
+  background: rgba(138, 91, 24, 0.1);
+}
+
+.workstationCause span,
+.workstationRepairProgress span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+}
+
+.workstationCause strong {
+  text-align: right;
+}
+
+.workstationRepairProgress {
+  display: grid;
+  gap: 5px;
+  border-color: rgba(255, 188, 81, 0.38);
+  background: rgba(138, 91, 24, 0.16);
+}
+
+.workstationMessage,
+.workstationPreview {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.workstationMessageError {
+  border-color: rgba(255, 100, 89, 0.45);
+  color: #ffb5af;
+}
+
+.workstationDetails summary {
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.workstationDetailGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.workstationDetailGrid > div {
+  display: grid;
+  gap: 5px;
+}
+
+.workstationDetailGrid span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+.workstationCodexReview {
+  border-color: rgba(174, 121, 255, 0.3);
+  background: linear-gradient(135deg, rgba(75, 45, 118, 0.2), rgba(20, 27, 42, 0.45));
+}
+
+.workstationCodexReviewFailed {
+  border-color: rgba(255, 116, 107, 0.38);
+  background: linear-gradient(135deg, rgba(122, 45, 48, 0.22), rgba(20, 27, 42, 0.45));
+}
+
+.workstationCodexProgress {
+  display: grid;
+  gap: 7px;
+  padding: 11px 13px;
+  border: 1px solid rgba(174, 121, 255, 0.36);
+  border-radius: 12px;
+  background: rgba(88, 53, 137, 0.18);
+}
+
+.workstationCodexProgress span,
+.workstationCodexMeta {
+  color: rgba(226, 207, 255, 0.74);
+  font-size: 11px;
+}
+
+.workstationCodexProgress > div {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.workstationCodexProgress i {
+  display: block;
+  height: 100%;
+  min-width: 2%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9b6de3, #d6bcff);
+  transition: width 1s linear;
+}
+
+.workstationCodexReviewTitle {
+  font-weight: 800;
+}
+
+.workstationCodexReviewTitle span {
+  color: rgba(226, 207, 255, 0.72);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.workstationCodexReviewBody {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.workstationCodexPrepared,
+.workstationCodexLearning {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: rgba(159, 106, 237, 0.12);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workstationCodexMeta {
+  margin-top: 9px;
+}
+
+.workstationHistory {
+  display: grid;
+  gap: 6px;
+}
+
+.workstationHistoryTitle {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.workstationHistoryRow {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) auto minmax(100px, auto);
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+  text-align: left;
+}
+
+.workstationHistoryRow:hover {
+  border-color: rgba(116, 169, 255, 0.38);
+  background: rgba(116, 169, 255, 0.07);
+}
+
+.workstationHistoryRow small {
+  color: rgba(255, 255, 255, 0.56);
+  text-align: right;
+}
+
+.workstationHistoryDot {
+  width: 9px;
+  height: 9px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+@media (max-width: 1100px) {
+  .workstationActions,
+  .workstationMetrics,
+  .workstationUpdateActions,
+  .workstationUpdateMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .workstationActions,
+  .workstationMetrics,
+  .workstationUpdateActions,
+  .workstationUpdateMetrics,
+  .workstationToolGrid,
+  .workstationDetailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .workstationRecommendations article,
+  .workstationUpdateItems > div {
+    grid-template-columns: 1fr;
+  }
+
+  .workstationUpdateItems small {
+    text-align: left;
+  }
+
+  .workstationSummary,
+  .workstationHealthHeader,
+  .workstationCause {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workstationCause strong {
+    text-align: left;
+  }
+
+  .workstationHistoryRow {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .workstationHistoryRow small {
+    display: none;
+  }
 }
 
 .infrastructureModalCard {

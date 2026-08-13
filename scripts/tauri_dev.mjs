@@ -68,6 +68,35 @@ function startTauri(repoRoot) {
   return child;
 }
 
+function waitForChild(child, label) {
+  return new Promise((resolve, reject) => {
+    child.once("error", (error) => {
+      reject(new Error(`${label} failed to start: ${error.message}`));
+    });
+    child.once("exit", (code, signal) => {
+      resolve({ code, signal });
+    });
+  });
+}
+
+async function runTauri(repoRoot, ownedVite = null) {
+  console.log(`[tauri-dev] Starting Tauri dev...`);
+  const tauri = startTauri(repoRoot);
+
+  try {
+    const result = await waitForChild(tauri, "Tauri dev");
+    if (result.code !== 0) {
+      throw new Error(
+        `Tauri dev exited unexpectedly (${result.signal ? `signal ${result.signal}` : `code ${result.code}`})`,
+      );
+    }
+  } finally {
+    if (ownedVite && ownedVite.exitCode === null && !ownedVite.killed) {
+      ownedVite.kill("SIGTERM");
+    }
+  }
+}
+
 async function main() {
   const repoRoot = repoRootFromMeta(import.meta.url);
 
@@ -81,8 +110,7 @@ async function main() {
     console.log(
       `[tauri-dev] OK: Vite already reachable at ${RADCONTROL_DEV_URL} (root=${p.rootStatus}, vite=${p.viteStatus}, main=${p.mainStatus})`,
     );
-    console.log(`[tauri-dev] Starting Tauri dev...`);
-    startTauri(repoRoot);
+    await runTauri(repoRoot);
     return;
   }
 
@@ -141,8 +169,7 @@ async function main() {
     `[tauri-dev] OK: Vite reachable at ${RADCONTROL_DEV_URL} (root=${p.rootStatus}, vite=${p.viteStatus}, main=${p.mainStatus})`,
   );
 
-  console.log(`[tauri-dev] Starting Tauri dev...`);
-  startTauri(repoRoot);
+  await runTauri(repoRoot, vite);
 }
 
 main().catch((err) => {

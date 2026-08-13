@@ -26,6 +26,11 @@
     "project_launch_date.set",
     "project_note.ensure",
     "project_retired.set",
-    "radcontrol.snapshot"
+    "radcontrol.snapshot",
+    "workstation.cleanup.apply",
+    "workstation.cleanup.preview",
+    "workstation.codex.review",
+    "workstation.health.check",
+    "workstation.health.history"
   ]
 }

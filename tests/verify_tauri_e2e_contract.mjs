@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const source = await readFile(new URL("../scripts/tauri_e2e.mjs", import.meta.url), "utf8");
+const devLauncherSource = await readFile(new URL("../scripts/tauri_dev.mjs", import.meta.url), "utf8");
 assert.match(source, /mkdtemp\(/);
 assert.match(source, /prepareIsolatedO2Root/);
 assert.match(source, /O2_E2E_HOME: fixture\.e2eHome/);
@@ -30,4 +31,8 @@ assert.match(source, /rm\(fixture\.tempRoot, \{ recursive: true, force: true \}\
 assert.match(source, /\[e2e\] passed: isolated tab switching, Agent and Infrastructure creation, governed-note autosave, project bootstrap, and runtime lifecycle/);
 assert.doesNotMatch(source, /O2_ROOT: "\/home\/chris\/dev\/o2"/);
 assert.doesNotMatch(source, /const driverPort = 4447/);
+assert.match(devLauncherSource, /function waitForChild/);
+assert.match(devLauncherSource, /await runTauri\(repoRoot\)/);
+assert.match(devLauncherSource, /await runTauri\(repoRoot, vite\)/);
+assert.match(devLauncherSource, /ownedVite\.kill\("SIGTERM"\)/);
 console.log("tauri e2e isolation contract: ok");

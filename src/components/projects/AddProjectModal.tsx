@@ -13,13 +13,14 @@ import type {
 import { validateAdd } from "./helpers";
 
 
-type ProjectShape = "public" | "private" | "operations" | "planning";
+type ProjectShape = "public" | "member" | "private" | "operations" | "planning";
 
 const SHAPES: Array<{ value: ProjectShape; label: string; help: string }> = [
-  { value: "public", label: "Public website", help: "A public-facing site that starts locally and can be hosted later." },
-  { value: "private", label: "Private portal", help: "A website that will require login, roles, or protected information." },
-  { value: "operations", label: "Operations website", help: "A local-first dashboard or operational surface with a website interface." },
-  { value: "planning", label: "Planning website", help: "A simple local surface for plans, research, or a focused side project." },
+  { value: "public", label: "Public website — no accounts", help: "A public product, information, or marketing site." },
+  { value: "member", label: "Public website — member accounts", help: "A public product with sign-up, sign-in, and member features." },
+  { value: "private", label: "Private portal — invited users", help: "A protected website with roles or private information." },
+  { value: "operations", label: "Internal operations tool", help: "A private dashboard or workflow used by operators." },
+  { value: "planning", label: "Local prototype or planning tool", help: "A localhost-first experiment without an assumed hosted launch." },
 ];
 
 const LOCATION_OPTIONS: Array<{ value: ProjectOrg; label: string; root: string }> = [
@@ -66,6 +67,23 @@ function surfaceForShape(shape: ProjectShape): ProjectDeliverySurface {
   }
 }
 
+function YesNoSelect({ label, value, onChange, disabled }: {
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div>
+      <label>{label}</label>
+      <select value={value ? "yes" : "no"} onChange={(event) => onChange(event.target.value === "yes")} disabled={disabled}>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+    </div>
+  );
+}
+
 export function AddProjectModal({
   open,
   onClose,
@@ -87,6 +105,14 @@ export function AddProjectModal({
   const [domainIntent, setDomainIntent] = useState("");
   const [intendedUsers, setIntendedUsers] = useState("");
   const [workspacePlan, setWorkspacePlan] = useState<ProjectGoogleWorkspacePlan>("unknown");
+  const [needsAuthentication, setNeedsAuthentication] = useState(false);
+  const [needsAdminSurface, setNeedsAdminSurface] = useState(true);
+  const [needsPersistentData, setNeedsPersistentData] = useState(true);
+  const [needsFileUploads, setNeedsFileUploads] = useState(false);
+  const [needsEmailDelivery, setNeedsEmailDelivery] = useState(false);
+  const [needsCommerceSurface, setNeedsCommerceSurface] = useState(false);
+  const [needsOperatorSurface, setNeedsOperatorSurface] = useState(true);
+  const [needsHostedDelivery, setNeedsHostedDelivery] = useState(true);
   const [sensitiveData, setSensitiveData] = useState(false);
   const [constraints, setConstraints] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -102,11 +128,27 @@ export function AddProjectModal({
     setDomainIntent("");
     setIntendedUsers("");
     setWorkspacePlan("unknown");
+    setNeedsAuthentication(false);
+    setNeedsAdminSurface(true);
+    setNeedsPersistentData(true);
+    setNeedsFileUploads(false);
+    setNeedsEmailDelivery(false);
+    setNeedsCommerceSurface(false);
+    setNeedsOperatorSurface(true);
+    setNeedsHostedDelivery(true);
     setSensitiveData(false);
     setConstraints("");
     setErr(null);
     setSaving(false);
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    setNeedsAuthentication(shape === "member" || shape === "private" || shape === "operations");
+    setNeedsPersistentData(shape !== "planning");
+    setNeedsOperatorSurface(org === "radcon" && shape !== "planning");
+    setNeedsHostedDelivery(shape !== "planning");
+  }, [open, org, shape]);
 
   useEffect(() => {
     if (!open) return;
@@ -118,11 +160,17 @@ export function AddProjectModal({
   const key = useMemo(() => projectKeyFromName(name), [name]);
   const repoPath = useMemo(() => key ? `${rootForOrg(org, projectRootOverrides)}/${key}` : "", [key, org, projectRootOverrides]);
   const selectedShape = SHAPES.find((item) => item.value === shape) ?? SHAPES[0];
-  const privateSurface = shape === "private";
+  const privateSurface = shape === "private" || shape === "operations";
   const relationship = referenceProject ? "reference_project" : "new";
-  const accessModel: ProjectAccessModel = privateSurface ? "role_based_private" : "public";
-  const securityPosture: ProjectSecurityPosture = privateSurface || sensitiveData ? "elevated" : "standard";
+  const accessModel: ProjectAccessModel = shape === "planning"
+    ? "local_only"
+    : privateSurface
+      ? shape === "operations" ? "internal_login" : "role_based_private"
+      : needsAuthentication ? "mixed" : "public";
+  const securityPosture: ProjectSecurityPosture = needsAuthentication || sensitiveData ? "elevated" : "standard";
   const repositoryHint = repoPath.replace("/home/chris/dev/rad-empire/", "").replace("/home/chris/dev/", "");
+  const productSurface = shape === "public" || shape === "member" || shape === "private" ? "standalone" : "none";
+  const operatorSurface = needsOperatorSurface ? "embedded" : "none";
 
   const originalRequest = useMemo(() => [
     "Original Project Request",
@@ -130,17 +178,30 @@ export function AddProjectModal({
     `Name: ${name.trim() || "(required)"}`,
     `Build location: ${repoPath || "(derived after name)"}`,
     `Website shape: ${selectedShape.label}`,
-    referenceProject ? `Reference project: ${referenceProject}` : "Reference project: none selected",
+    `Product surface: ${productSurface}`,
+    `Radcon operator surface: ${operatorSurface}`,
+    "Foundation blueprint: O2 Modern Web Foundation v1",
+    referenceProject ? `Additional reference project: ${referenceProject}` : "Additional reference project: none",
     domainIntent.trim() ? `Domain or workspace: ${domainIntent.trim()}` : null,
     intendedUsers.trim() ? `Initial users: ${intendedUsers.trim()}` : null,
     `Google Workspace: ${WORKSPACE_OPTIONS.find((item) => item.value === workspacePlan)?.label ?? workspacePlan}`,
     `Sensitive data: ${sensitiveData ? "yes" : "no"}`,
+    `Member or operator login: ${needsAuthentication ? "yes" : "no"}`,
+    `Admin or editor tools: ${needsAdminSurface ? "yes" : "no"}`,
+    `Persistent application data: ${needsPersistentData ? "yes" : "no"}`,
+    `File uploads: ${needsFileUploads ? "yes" : "no"}`,
+    `Transactional email: ${needsEmailDelivery ? "yes" : "no"}`,
+    `Commerce or payments: ${needsCommerceSurface ? "yes" : "no"}`,
+    `Radcon operator surface: ${needsOperatorSurface ? "yes" : "no"}`,
+    `Hosted delivery planned: ${needsHostedDelivery ? "yes" : "no"}`,
     "",
     "Request",
     request.trim() || "(required)",
     constraints.trim() ? `\nConstraints\n${constraints.trim()}` : null,
   ].filter((line): line is string => Boolean(line)).join("\n"), [
-    name, repoPath, selectedShape.label, referenceProject, domainIntent, intendedUsers, workspacePlan, sensitiveData, request, constraints,
+    name, repoPath, selectedShape.label, productSurface, operatorSurface, referenceProject, domainIntent, intendedUsers, workspacePlan,
+    sensitiveData, needsAuthentication, needsAdminSurface, needsPersistentData, needsFileUploads,
+    needsEmailDelivery, needsCommerceSurface, needsOperatorSurface, needsHostedDelivery, request, constraints,
   ]);
 
   const payload = useMemo<AddProjectPayload>(() => ({
@@ -159,6 +220,8 @@ export function AddProjectModal({
     referenceRepos: referenceProject || undefined,
     projectClass: classForShape(shape),
     deliverySurface: surfaceForShape(shape),
+    productSurface,
+    operatorSurface,
     mission: request.trim(),
     goalSummary: "Create a governed localhost website starter and preserve this request for the next build pass.",
     intendedUsers: intendedUsers.trim() || "Owner and invited users to be defined during the next build pass.",
@@ -167,17 +230,27 @@ export function AddProjectModal({
     accessModel,
     securityPosture,
     buildStrategy: "guided_followup",
-    needsAuthentication: privateSurface,
+    needsAuthentication,
     handlesSensitiveData: sensitiveData,
     launchLocalFirst: true,
     shellPreference: "o2_recommend",
     initialSectionSet: "o2_recommend",
+    foundationBlueprint: "o2_web_foundation_v1",
+    needsAdminSurface,
+    needsCommerceSurface,
+    needsKnowledgeSurface: shape === "public" || shape === "member",
+    needsPersistentData,
+    needsFileUploads,
+    needsEmailDelivery,
+    needsOperatorSurface,
+    needsHostedDelivery,
     initialConstraints: constraints.trim() || undefined,
     notes: originalRequest,
   }), [
     key, name, org, repoPath, repositoryHint, relationship, referenceProject, shape, request,
-    intendedUsers, domainIntent, workspacePlan, accessModel, securityPosture, privateSurface,
-    sensitiveData, constraints, originalRequest,
+    intendedUsers, domainIntent, workspacePlan, accessModel, securityPosture, needsAuthentication,
+    sensitiveData, productSurface, operatorSurface, needsAdminSurface, needsCommerceSurface, needsPersistentData, needsFileUploads,
+    needsEmailDelivery, needsOperatorSurface, needsHostedDelivery, constraints, originalRequest,
   ]);
 
   const validationError = useMemo(() => {
@@ -251,14 +324,19 @@ export function AddProjectModal({
                   <select value={shape} onChange={(event) => setShape(event.target.value as ProjectShape)} disabled={saving}>
                     {SHAPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
+                  <div className="fieldHelp">{selectedShape.help}</div>
                 </div>
                 <div>
-                  <label>Existing project to borrow from</label>
+                  <label>Additional project reference</label>
                   <select value={referenceProject} onChange={(event) => setReferenceProject(event.target.value)} disabled={saving}>
-                    <option value="">None: build a net-new starter</option>
+                    <option value="">None — use the O2 blueprint</option>
                     {existingProjects.map((project) => <option key={project.key} value={project.key}>{project.label?.trim() || project.key}</option>)}
                   </select>
                 </div>
+              </div>
+              <div className="modalBlueprintNote">
+                <strong>O2 Modern Web Foundation v1</strong>
+                <span>Uses the proven repository, security, data, Preview, and operations boundaries learned across DQOTD and the wider empire. Product-specific code is never copied.</span>
               </div>
               <label className="fieldLabelTop">Describe what you want built</label>
               <textarea data-testid="modal-project-request" value={request} onChange={(event) => setRequest(event.target.value)} disabled={saving} className="modalCompactTextArea" placeholder="Goal, audience, pages, features, ideas, and anything important." />
@@ -280,10 +358,18 @@ export function AddProjectModal({
               </div>
               <label className="fieldLabelTop">Initial users</label>
               <input value={intendedUsers} onChange={(event) => setIntendedUsers(event.target.value)} placeholder="Customers, family, partners, staff, or another audience" disabled={saving} />
-              <label className="modalCheckboxLabel fieldLabelTop">
-                <input type="checkbox" checked={sensitiveData} onChange={(event) => setSensitiveData(event.target.checked)} disabled={saving} />
-                <span>Handles sensitive or private information</span>
-              </label>
+              <div className="modalArtifactTitle fieldLabelTopLg">Quick architecture decisions</div>
+              <div className="modalDecisionGrid">
+                <YesNoSelect label="Member or operator login?" value={needsAuthentication} onChange={setNeedsAuthentication} disabled={saving} />
+                <YesNoSelect label="Admin or editor tools?" value={needsAdminSurface} onChange={setNeedsAdminSurface} disabled={saving} />
+                <YesNoSelect label="Persistent app data?" value={needsPersistentData} onChange={setNeedsPersistentData} disabled={saving} />
+                <YesNoSelect label="File or image uploads?" value={needsFileUploads} onChange={setNeedsFileUploads} disabled={saving} />
+                <YesNoSelect label="Transactional email?" value={needsEmailDelivery} onChange={setNeedsEmailDelivery} disabled={saving} />
+                <YesNoSelect label="Commerce or payments?" value={needsCommerceSurface} onChange={setNeedsCommerceSurface} disabled={saving} />
+                <YesNoSelect label="Embedded in Radcon Enterprises?" value={needsOperatorSurface} onChange={setNeedsOperatorSurface} disabled={saving} />
+                <YesNoSelect label="Hosted after localhost?" value={needsHostedDelivery} onChange={setNeedsHostedDelivery} disabled={saving} />
+                <YesNoSelect label="Sensitive or private data?" value={sensitiveData} onChange={setSensitiveData} disabled={saving} />
+              </div>
               <label className="fieldLabelTop">Non-negotiable constraints</label>
               <textarea value={constraints} onChange={(event) => setConstraints(event.target.value)} disabled={saving} className="modalShortTextArea" placeholder="Anything the build must avoid, preserve, or solve." />
             </section>

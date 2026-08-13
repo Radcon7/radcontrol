@@ -21,7 +21,7 @@ The desktop app invokes the Tauri command `run_o2`, which calls `~/dev/o2/script
 
 ## New Project
 
-`BUILD PROJECT` records the governed intake in O2, then bootstraps the approved local starter repository. The formation record is durable under `docs/project-formation/records/<project>/`; a repo-local intake mirror is created during bootstrap.
+`BUILD PROJECT` records the governed intake in O2, then bootstraps the approved local starter repository. The form defaults to O2 Modern Web Foundation v1, captures compact capability decisions, and may name an additional real project as reference evidence. The formation record is durable under `docs/project-formation/records/<project>/`; repo-local intake and project-blueprint documents are created during bootstrap.
 
 ## Development Checks
 
