@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 
 const source = await readFile(new URL("../src/components/projects/AddProjectModal.tsx", import.meta.url), "utf8");
 const appSource = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+const formationSource = await readFile(new URL("../src/components/projects/formationPayload.ts", import.meta.url), "utf8");
 assert.match(source, /kind: "static"/);
 assert.match(source, /bootstrapNow: true/);
 assert.match(source, /repoPath,/);
@@ -14,7 +15,16 @@ assert.match(source, /O2 Modern Web Foundation v1/);
 assert.match(source, /foundationBlueprint: "o2_web_foundation_v1"/);
 assert.match(source, /productSurface,/);
 assert.match(source, /operatorSurface,/);
+assert.match(source, /projectArchetype,/);
+assert.match(source, /Architecture role/);
+assert.match(source, /standalone-product/);
+assert.match(formationSource, /portal-private-app/);
+assert.match(formationSource, /local-control-plane/);
+assert.match(source, /prototype/);
 assert.match(source, /Embedded in Radcon Enterprises\?/);
+assert.match(source, /Where will this tool operate\?/);
+assert.match(source, /On this development machine as a local builder or control system/);
+assert.match(source, /As a private application accessed through Radcon Enterprises/);
 for (const capability of [
   "needsAuthentication",
   "needsAdminSurface",
@@ -26,7 +36,7 @@ for (const capability of [
   "needsHostedDelivery",
 ]) {
   assert.match(source, new RegExp(capability));
-  assert.match(appSource, new RegExp(capability));
+  assert.match(appSource + formationSource, new RegExp(capability));
 }
 assert.match(source, /None — use the O2 blueprint/);
 console.log("project builder contract: governed blueprint and capability intake verified");

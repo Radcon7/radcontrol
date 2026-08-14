@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type {
   AddProjectPayload,
   ProjectAccessModel,
+  ProjectArchetype,
   ProjectClass,
   ProjectDeliverySurface,
   ProjectGoogleWorkspacePlan,
@@ -11,6 +12,7 @@ import type {
   ProjectSecurityPosture,
 } from "./types";
 import { validateAdd } from "./helpers";
+import { architectureForOperationsPlacement, type OperationsPlacement } from "./formationPayload";
 
 
 type ProjectShape = "public" | "member" | "private" | "operations" | "planning";
@@ -67,6 +69,12 @@ function surfaceForShape(shape: ProjectShape): ProjectDeliverySurface {
   }
 }
 
+function archetypeForShape(shape: ProjectShape, operationsPlacement: OperationsPlacement): ProjectArchetype {
+  if (shape === "operations") return architectureForOperationsPlacement(operationsPlacement).projectArchetype;
+  if (shape === "planning") return "prototype";
+  return "standalone-product";
+}
+
 function YesNoSelect({ label, value, onChange, disabled }: {
   label: string;
   value: boolean;
@@ -100,6 +108,7 @@ export function AddProjectModal({
   const [name, setName] = useState("");
   const [org, setOrg] = useState<ProjectOrg>("radcon");
   const [shape, setShape] = useState<ProjectShape>("public");
+  const [operationsPlacement, setOperationsPlacement] = useState<OperationsPlacement>("local");
   const [referenceProject, setReferenceProject] = useState("");
   const [request, setRequest] = useState("");
   const [domainIntent, setDomainIntent] = useState("");
@@ -123,6 +132,7 @@ export function AddProjectModal({
     setName("");
     setOrg("radcon");
     setShape("public");
+    setOperationsPlacement("local");
     setReferenceProject("");
     setRequest("");
     setDomainIntent("");
@@ -161,16 +171,23 @@ export function AddProjectModal({
   const repoPath = useMemo(() => key ? `${rootForOrg(org, projectRootOverrides)}/${key}` : "", [key, org, projectRootOverrides]);
   const selectedShape = SHAPES.find((item) => item.value === shape) ?? SHAPES[0];
   const privateSurface = shape === "private" || shape === "operations";
+  const operationsArchitecture = architectureForOperationsPlacement(operationsPlacement);
   const relationship = referenceProject ? "reference_project" : "new";
-  const accessModel: ProjectAccessModel = shape === "planning"
+  const accessModel: ProjectAccessModel = shape === "operations"
+    ? operationsArchitecture.accessModel
+    : shape === "planning"
     ? "local_only"
     : privateSurface
-      ? shape === "operations" ? "internal_login" : "role_based_private"
+      ? "role_based_private"
       : needsAuthentication ? "mixed" : "public";
   const securityPosture: ProjectSecurityPosture = needsAuthentication || sensitiveData ? "elevated" : "standard";
   const repositoryHint = repoPath.replace("/home/chris/dev/rad-empire/", "").replace("/home/chris/dev/", "");
   const productSurface = shape === "public" || shape === "member" || shape === "private" ? "standalone" : "none";
-  const operatorSurface = needsOperatorSurface ? "embedded" : "none";
+  const effectiveNeedsOperatorSurface = shape === "operations" ? operationsArchitecture.needsOperatorSurface : needsOperatorSurface;
+  const effectiveNeedsHostedDelivery = shape === "operations" ? operationsArchitecture.needsHostedDelivery : needsHostedDelivery;
+  const operatorSurface = effectiveNeedsOperatorSurface ? "embedded" : "none";
+  const projectArchetype = archetypeForShape(shape, operationsPlacement);
+  const deliverySurface = shape === "operations" ? operationsArchitecture.deliverySurface : surfaceForShape(shape);
 
   const originalRequest = useMemo(() => [
     "Original Project Request",
@@ -178,6 +195,7 @@ export function AddProjectModal({
     `Name: ${name.trim() || "(required)"}`,
     `Build location: ${repoPath || "(derived after name)"}`,
     `Website shape: ${selectedShape.label}`,
+    `Project archetype: ${projectArchetype}`,
     `Product surface: ${productSurface}`,
     `Radcon operator surface: ${operatorSurface}`,
     "Foundation blueprint: O2 Modern Web Foundation v1",
@@ -192,16 +210,16 @@ export function AddProjectModal({
     `File uploads: ${needsFileUploads ? "yes" : "no"}`,
     `Transactional email: ${needsEmailDelivery ? "yes" : "no"}`,
     `Commerce or payments: ${needsCommerceSurface ? "yes" : "no"}`,
-    `Radcon operator surface: ${needsOperatorSurface ? "yes" : "no"}`,
-    `Hosted delivery planned: ${needsHostedDelivery ? "yes" : "no"}`,
+    `Radcon operator surface: ${effectiveNeedsOperatorSurface ? "yes" : "no"}`,
+    `Hosted delivery planned: ${effectiveNeedsHostedDelivery ? "yes" : "no"}`,
     "",
     "Request",
     request.trim() || "(required)",
     constraints.trim() ? `\nConstraints\n${constraints.trim()}` : null,
   ].filter((line): line is string => Boolean(line)).join("\n"), [
-    name, repoPath, selectedShape.label, productSurface, operatorSurface, referenceProject, domainIntent, intendedUsers, workspacePlan,
+    name, repoPath, selectedShape.label, projectArchetype, productSurface, operatorSurface, referenceProject, domainIntent, intendedUsers, workspacePlan,
     sensitiveData, needsAuthentication, needsAdminSurface, needsPersistentData, needsFileUploads,
-    needsEmailDelivery, needsCommerceSurface, needsOperatorSurface, needsHostedDelivery, request, constraints,
+    needsEmailDelivery, needsCommerceSurface, effectiveNeedsOperatorSurface, effectiveNeedsHostedDelivery, request, constraints,
   ]);
 
   const payload = useMemo<AddProjectPayload>(() => ({
@@ -219,7 +237,8 @@ export function AddProjectModal({
     similarProjectKey: referenceProject || undefined,
     referenceRepos: referenceProject || undefined,
     projectClass: classForShape(shape),
-    deliverySurface: surfaceForShape(shape),
+    projectArchetype,
+    deliverySurface,
     productSurface,
     operatorSurface,
     mission: request.trim(),
@@ -242,15 +261,15 @@ export function AddProjectModal({
     needsPersistentData,
     needsFileUploads,
     needsEmailDelivery,
-    needsOperatorSurface,
-    needsHostedDelivery,
+    needsOperatorSurface: effectiveNeedsOperatorSurface,
+    needsHostedDelivery: effectiveNeedsHostedDelivery,
     initialConstraints: constraints.trim() || undefined,
     notes: originalRequest,
   }), [
     key, name, org, repoPath, repositoryHint, relationship, referenceProject, shape, request,
     intendedUsers, domainIntent, workspacePlan, accessModel, securityPosture, needsAuthentication,
-    sensitiveData, productSurface, operatorSurface, needsAdminSurface, needsCommerceSurface, needsPersistentData, needsFileUploads,
-    needsEmailDelivery, needsOperatorSurface, needsHostedDelivery, constraints, originalRequest,
+    sensitiveData, projectArchetype, productSurface, operatorSurface, needsAdminSurface, needsCommerceSurface, needsPersistentData, needsFileUploads,
+    needsEmailDelivery, effectiveNeedsOperatorSurface, effectiveNeedsHostedDelivery, deliverySurface, constraints, originalRequest,
   ]);
 
   const validationError = useMemo(() => {
@@ -306,12 +325,12 @@ export function AddProjectModal({
               </div>
               <div className="modalGeneratedGrid fieldLabelTop">
                 <div>
-                  <div className="modalGeneratedLabel">Repo</div>
-                  <div className="modalGeneratedValue" data-testid="modal-project-repo">{repoPath || "Enter a project name"}</div>
+                  <div className="modalGeneratedLabel">Architecture role</div>
+                  <div className="modalGeneratedValue" data-testid="modal-project-archetype">{projectArchetype}</div>
                 </div>
                 <div>
-                  <div className="modalGeneratedLabel">Localhost</div>
-                  <div className="modalGeneratedValue">Port assigned during build</div>
+                  <div className="modalGeneratedLabel">Repo</div>
+                  <div className="modalGeneratedValue" data-testid="modal-project-repo">{repoPath || "Enter a project name"}</div>
                 </div>
               </div>
             </section>
@@ -325,6 +344,16 @@ export function AddProjectModal({
                     {SHAPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                   <div className="fieldHelp">{selectedShape.help}</div>
+                  {shape === "operations" ? (
+                    <div className="fieldLabelTop">
+                      <label>Where will this tool operate?</label>
+                      <select data-testid="modal-operations-placement" value={operationsPlacement} onChange={(event) => setOperationsPlacement(event.target.value as OperationsPlacement)} disabled={saving}>
+                        <option value="local">On this development machine as a local builder or control system</option>
+                        <option value="portal">As a private application accessed through Radcon Enterprises</option>
+                      </select>
+                      <div className="fieldHelp">O2 validates the architecture role before bootstrap.</div>
+                    </div>
+                  ) : null}
                 </div>
                 <div>
                   <label>Additional project reference</label>
@@ -366,8 +395,8 @@ export function AddProjectModal({
                 <YesNoSelect label="File or image uploads?" value={needsFileUploads} onChange={setNeedsFileUploads} disabled={saving} />
                 <YesNoSelect label="Transactional email?" value={needsEmailDelivery} onChange={setNeedsEmailDelivery} disabled={saving} />
                 <YesNoSelect label="Commerce or payments?" value={needsCommerceSurface} onChange={setNeedsCommerceSurface} disabled={saving} />
-                <YesNoSelect label="Embedded in Radcon Enterprises?" value={needsOperatorSurface} onChange={setNeedsOperatorSurface} disabled={saving} />
-                <YesNoSelect label="Hosted after localhost?" value={needsHostedDelivery} onChange={setNeedsHostedDelivery} disabled={saving} />
+                {shape !== "operations" ? <YesNoSelect label="Embedded in Radcon Enterprises?" value={needsOperatorSurface} onChange={setNeedsOperatorSurface} disabled={saving} /> : null}
+                {shape !== "operations" ? <YesNoSelect label="Hosted after localhost?" value={needsHostedDelivery} onChange={setNeedsHostedDelivery} disabled={saving} /> : null}
                 <YesNoSelect label="Sensitive or private data?" value={sensitiveData} onChange={setSensitiveData} disabled={saving} />
               </div>
               <label className="fieldLabelTop">Non-negotiable constraints</label>

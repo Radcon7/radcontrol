@@ -12,6 +12,7 @@ export type ProjectRow = {
   intakeAvailable?: boolean;
   org?: ProjectOrg;
   kind?: ProjectKind;
+  archetype?: ProjectArchetype;
   repoPath?: string;
 
   // Display hints
@@ -54,6 +55,15 @@ export type ProjectKind =
   | "docs"
   | "static"
   | "other";
+
+export type ProjectArchetype =
+  | "standalone-product"
+  | "portal-shell"
+  | "portal-private-app"
+  | "local-control-plane"
+  | "governance"
+  | "shared-library"
+  | "prototype";
 
 export type ProjectClass =
   | "info_website"
@@ -154,6 +164,7 @@ export type AddProjectPayload = {
   similarProjectKey?: string;
   referenceRepos?: string;
   projectClass?: ProjectClass;
+  projectArchetype?: ProjectArchetype;
   deliverySurface?: ProjectDeliverySurface;
   productSurface?: "standalone" | "none";
   operatorSurface?: "embedded" | "none";
@@ -205,6 +216,7 @@ export type NewProjectIntakePayload = {
   similarProjectKey?: string;
   referenceRepos?: string;
   projectClass?: ProjectClass;
+  projectArchetype?: ProjectArchetype;
   deliverySurface?: ProjectDeliverySurface;
   productSurface?: "standalone" | "none";
   operatorSurface?: "embedded" | "none";
