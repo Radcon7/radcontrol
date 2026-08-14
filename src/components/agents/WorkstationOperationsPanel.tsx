@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { runO2ParsedJson } from "../common/o2Files";
+import { RouterHealthPanel } from "./RouterHealthPanel";
 import { WorkstationHealthPanel } from "./WorkstationHealthPanel";
 import { WorkstationUpdatesPanel } from "./WorkstationUpdatesPanel";
 
@@ -8,7 +9,7 @@ type Props = {
 };
 
 export function WorkstationOperationsPanel({ onAppendLog }: Props) {
-  const [section, setSection] = useState<"health" | "updates">("health");
+  const [section, setSection] = useState<"health" | "routers" | "updates">("health");
   const [updateSummary, setUpdateSummary] = useState({ securityCount: 0, updateCount: 0 });
 
   useEffect(() => {
@@ -36,6 +37,13 @@ export function WorkstationOperationsPanel({ onAppendLog }: Props) {
       <nav className="workstationSectionTabs" aria-label="Workstation operations">
         <button
           type="button"
+          className={section === "routers" ? "isActive" : ""}
+          onClick={() => setSection("routers")}
+        >
+          Repository routers
+        </button>
+        <button
+          type="button"
           className={section === "health" ? "isActive" : ""}
           onClick={() => setSection("health")}
         >
@@ -56,6 +64,8 @@ export function WorkstationOperationsPanel({ onAppendLog }: Props) {
       </nav>
       {section === "health" ? (
         <WorkstationHealthPanel onAppendLog={onAppendLog} />
+      ) : section === "routers" ? (
+        <RouterHealthPanel />
       ) : (
         <WorkstationUpdatesPanel onAppendLog={onAppendLog} onSummaryChange={setUpdateSummary} />
       )}

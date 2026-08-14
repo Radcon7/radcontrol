@@ -88,6 +88,7 @@ fn verb_allowed(verb: &str) -> bool {
       | "empire.sweep"
       | "radcontrol.snapshot"
       | "radcontrol.dev_strict"
+      | "router.health"
       | "workstation.health.check"
       | "workstation.health.history"
       | "workstation.cleanup.preview"

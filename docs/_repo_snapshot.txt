@@ -141,6 +141,7 @@ src/components/agents/InfrastructureNotes.tsx
 src/components/agents/InfrastructureRoster.tsx
 src/components/agents/InfrastructureRunControls.tsx
 src/components/agents/InfrastructureTab.tsx
+src/components/agents/RouterHealthPanel.tsx
 src/components/agents/WorkstationHealthPanel.tsx
 src/components/agents/WorkstationOperationsPanel.tsx
 src/components/agents/WorkstationUpdatesPanel.tsx
