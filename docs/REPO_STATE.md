@@ -16,6 +16,13 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   Foundation v1. The selected website shape records an explicit repository
   archetype before bootstrap. RadControl captures answers; O2 owns the durable
   dossier, archetype definitions, and tailored repo-local blueprint.
+  New Project intentionally presents many visible yes/no decisions, select
+  controls, option boxes, architecture questions, and capability choices. O2
+  or Codex may infer and recommend answers, but those recommendations assist
+  rather than replace the explicit decisions Chris can inspect and control.
+  Do not reduce this surface to an opaque AI-only prompt or minimal hidden
+  wizard without a later explicit product decision. This is RadControl product
+  behavior, not an Empire-wide form-design standard.
 - Infrastructure: governed provider/platform assets, editable non-secret configuration notes, actions, and operational notes. The System76 asset provides separate Health & Cleanup and Updates topics backed by O2-owned bounded history and allowlisted actions.
 - Agents: governed profiles, focus/scope/limits, and notes.
 - Empire Utility: generated map, snapshot, and sweep artifacts.
