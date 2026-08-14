@@ -7,6 +7,7 @@ const reports = await readFile(new URL("infrastructureReports.ts", root), "utf8"
 const model = await readFile(new URL("infrastructureModel.ts", root), "utf8");
 const detail = await readFile(new URL("InfrastructureDetail.tsx", root), "utf8");
 const workstation = await readFile(new URL("WorkstationHealthPanel.tsx", root), "utf8");
+const routerHealth = await readFile(new URL("RouterHealthPanel.tsx", root), "utf8");
 const workstationOperations = await readFile(new URL("WorkstationOperationsPanel.tsx", root), "utf8");
 const workstationUpdates = await readFile(new URL("WorkstationUpdatesPanel.tsx", root), "utf8");
 const roster = await readFile(new URL("InfrastructureRoster.tsx", root), "utf8");
@@ -98,7 +99,11 @@ assert.match(workstation, /Likely cause right now/);
 assert.match(workstation, /VS Code workspace contains/);
 assert.match(workstation, /requiresUserFollowup/);
 assert.match(workstationOperations, /Health & cleanup/);
+assert.match(workstationOperations, /Repository routers/);
 assert.match(workstationOperations, /Updates/);
+assert.match(routerHealth, /router\.health/);
+assert.match(routerHealth, /RadControl keeps no duplicate registry/);
+assert.match(routerHealth, /defaultBranchDurable/);
 for (const verb of [
   "workstation.updates.check",
   "workstation.updates.history",

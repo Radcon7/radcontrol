@@ -27,6 +27,7 @@
     "project_note.ensure",
     "project_retired.set",
     "radcontrol.snapshot",
+    "router.health",
     "workstation.cleanup.apply",
     "workstation.cleanup.preview",
     "workstation.codex.review",
