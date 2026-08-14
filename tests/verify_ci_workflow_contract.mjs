@@ -8,6 +8,8 @@ assert.match(workflow, /actions\/setup-node@[0-9a-f]{40}/);
 assert.match(workflow, /permissions:\s+contents: read/);
 assert.match(workflow, /npm run verify:ci-contract/);
 assert.match(workflow, /npm run verify:repo-index/);
+assert.match(workflow, /npm run test:formation-payload/);
+assert.match(workflow, /npm run verify:formation-learning/);
 assert.match(workflow, /npm audit --omit=dev/);
 assert.match(workflow, /cargo clippy --manifest-path src-tauri\/Cargo\.toml -- -D warnings/);
 

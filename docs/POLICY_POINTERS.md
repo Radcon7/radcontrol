@@ -19,6 +19,10 @@ O2 documents override RadControl only when they declare `Authority class: Empire
 - Document persistence: `~/dev/o2/docs/radcontrol/empire_blueprint/radcontrol_document_persistence_doctrine_20260727.md`
 - Project formation: `~/dev/o2/docs/project-formation/PROJECT_CREATE_START.md`
 - Project archetypes: `~/dev/o2/contracts/project-archetypes/v1/README.md`
+- User correction learning:
+  `~/dev/o2/contracts/user-correction-learning/v1/README.md`
+- Local Codex memory verification and non-authoritative boundary:
+  `~/dev/o2/contracts/codex-memory-verification/v1/README.md`
 - Build Me a Business maturity path:
   `~/dev/o2/docs/project-formation/BUILD_ME_A_BUSINESS_ROADMAP.md`
 - O2 implementation: `~/dev/o2/scripts/`, `~/dev/o2/registry/projects.json`, and `~/dev/o2/workspaces/`

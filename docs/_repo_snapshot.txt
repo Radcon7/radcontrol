@@ -22,6 +22,7 @@ test:tauri-e2e
 verify:agents-architecture
 verify:ci-contract
 verify:document-transport
+verify:formation-learning
 verify:governance
 verify:governed-notes
 verify:infrastructure-architecture
@@ -173,12 +174,14 @@ src/components/projects/ProjectNotes.tsx
 src/components/projects/ProjectRoster.tsx
 src/components/projects/ProjectRunControls.tsx
 src/components/projects/ProjectsTab.tsx
+src/components/projects/formationLearning.ts
 src/components/projects/formationPayload.ts
 src/components/projects/helpers.ts
 src/components/projects/projectModel.ts
 src/components/projects/types.ts
 src/main.tsx
 src/vite-env.d.ts
+tests/formation_learning_contract.mjs
 tests/formation_payload_behavior.mjs
 tests/verify_agents_architecture_contract.mjs
 tests/verify_ci_workflow_contract.mjs

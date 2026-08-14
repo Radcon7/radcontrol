@@ -13,6 +13,7 @@
     "verify:portfolio-blueprint": "node tests/verify_portfolio_blueprint_contract.mjs",
     "verify:o2-contract": "node tests/verify_o2_contract.mjs",
     "verify:project-builder": "node tests/verify_project_builder_contract.mjs",
+    "verify:formation-learning": "node --experimental-strip-types tests/formation_learning_contract.mjs",
     "test:formation-payload": "node --experimental-strip-types tests/formation_payload_behavior.mjs",
     "verify:ci-contract": "node tests/verify_ci_workflow_contract.mjs",
     "verify:repo-index": "node tests/verify_repo_index_contract.mjs",

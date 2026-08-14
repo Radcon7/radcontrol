@@ -6,3 +6,15 @@ any operational command is dispatched.
 
 A breaking O2 command or response change requires a new versioned contract, not
 an in-place edit to v1 semantics.
+
+`project_create.bootstrap` success includes additive
+`learningInheritance` evidence. RadControl fails closed unless it identifies
+router contract v1, the exact project and archetype, an initial quality
+profile, `docs/REPO_STATE.md` as product authority, User Correction Learning
+Contract v1, bounded correction/roadblock/quality routes, correction closeout,
+human-reviewed promotion, source ownership, conformant status, and host-local
+memory that is explicitly non-authoritative and not inherited or initialized
+per project.
+
+This validation changes no visible New Project fields. O2 remains the source
+of the evidence; RadControl does not persist a parallel policy or memory store.
