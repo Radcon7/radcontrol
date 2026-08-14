@@ -23,6 +23,10 @@ assert.match(agentPointer, /must not duplicate O2 policy or durable data/);
 assert.match(repoState, /## Authority boundary/);
 assert.match(repoState, /Durable writes use O2 file or producer verbs/);
 assert.match(repoState, /Projects: governed registry/);
+assert.match(repoState, /many visible yes\/no decisions/);
+assert.match(repoState, /recommendations assist[\s\S]*explicit decisions/);
+assert.match(repoState, /not an Empire-wide form-design standard/);
+assert.doesNotMatch(repoState, /New Project intentionally uses an AI-only prompt/);
 assert.match(repoState, /Infrastructure: governed provider\/platform assets/);
 assert.match(repoState, /Agents: governed profiles/);
 
