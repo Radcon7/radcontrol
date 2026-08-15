@@ -29,6 +29,8 @@ assert.match(repoState, /not an Empire-wide form-design standard/);
 assert.doesNotMatch(repoState, /New Project intentionally uses an AI-only prompt/);
 assert.match(repoState, /Infrastructure: governed provider\/platform assets/);
 assert.match(repoState, /Agents: governed profiles/);
+assert.match(repoState, /Sentinel: a RadControl command surface/);
+assert.match(repoState, /structured Empire To-Do workspace/);
 
 assert.match(policyPointers, /Explicitly scoped O2 empire contracts/);
 assert.match(policyPointers, /radcontrol_ui_structure_doctrine_20260725\.md/);
@@ -36,5 +38,6 @@ assert.match(policyPointers, /radcontrol_document_persistence_doctrine_20260727\
 assert.match(policyPointers, /Home-level legacy procedure notes/);
 assert.match(policyPointers, /are not tracked O2 authority/);
 assert.doesNotMatch(policyPointers, /record UI state \(tabs\/notes\) locally/);
+assert.match(policyPointers, /sentinel-security\/v1\/README\.md/);
 
 console.log("governance pointers: current O2 and RadControl authority verified");

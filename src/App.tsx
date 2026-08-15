@@ -3,7 +3,7 @@ import "./App.css";
 import { isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-import { EmpireUtilityTab } from "./components/empire-utility/EmpireUtilityTab";
+import { SentinelTab } from "./components/sentinel/SentinelTab";
 
 import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
 import { LegalHubTab } from "./components/paste-tabs/LegalHubTab";
@@ -35,7 +35,7 @@ type TabKey =
   | "projects"
   | "infrastructure"
   | "agents"
-  | "empire_utility"
+  | "sentinel"
   | DocTabKey;
 
 type DocTabMeta = {
@@ -53,7 +53,7 @@ const ALL_TABS: TabKey[] = [
   "projects",
   "infrastructure",
   "agents",
-  "empire_utility",
+  "sentinel",
   ...DOC_TABS.map((t) => t.key),
 ];
 
@@ -77,7 +77,7 @@ function tabLabel(t: TabKey): string {
     projects: "Projects",
     infrastructure: "Infrastructure",
     agents: "Agents",
-    empire_utility: "Empire Utility",
+    sentinel: "Sentinel",
   };
 
   return m[t] ?? t.replace(/_/g, " ");
@@ -927,8 +927,8 @@ export default function App() {
             projects={projects}
             registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
           />
-        ) : tab === "empire_utility" ? (
-          <EmpireUtilityTab />
+        ) : tab === "sentinel" ? (
+          <SentinelTab />
         ) : isDocTab(tab) ? (
           renderDocTab(tab)
         ) : null}

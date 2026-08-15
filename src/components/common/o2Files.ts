@@ -190,6 +190,23 @@ export async function runO2PayloadParsedJson<T>(
   );
 }
 
+export async function runO2StdinPayloadParsedJson<T>(
+  verb: string,
+  payload: unknown,
+  errorFallback: string,
+  invalidJsonFallback: string,
+): Promise<T> {
+  const payloadJson = JSON.stringify(payload);
+  assertInlineDocumentSize(payloadJson);
+  await ensureO2Compatibility();
+  const result = await invoke<RunO2Result>("run_o2_payload", {
+    verb,
+    payloadJson,
+  });
+  if (!result.ok) throw new Error(errMsg(result, errorFallback));
+  return parseO2Json<T>(result.stdout || "", invalidJsonFallback);
+}
+
 export async function listO2Files(dir: string): Promise<FilesListJson> {
   const parsed = await runO2ParsedJson<FilesListJson>(
     `files.list.${b64urlEncodeUtf8(normalizeO2Path(dir))}`,

@@ -2709,3 +2709,588 @@ pre {
   font-size: 15px;
   line-height: 1.2;
 }
+
+/* Empire To-Do List */
+.empireTodoShell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.empireTodoToolbar,
+.empireTodoEditorHeading,
+.empireTodoTimestamps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.empireTodoToolbar > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.empireTodoToolbar strong,
+.empireTodoEditorHeading > span {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+}
+
+.empireTodoToolbar span,
+.empireTodoEditorHeading small,
+.empireTodoTimestamps {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empireTodoToolbar > div:last-child {
+  display: flex;
+  gap: 8px;
+}
+
+.empireTodoGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.38fr) minmax(0, 1fr);
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.empireTodoList,
+.empireTodoEditor {
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(2, 7, 17, 0.34);
+}
+
+.empireTodoList {
+  padding: 10px;
+}
+
+.empireTodoListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 7px 11px;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.empireTodoListItem {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 7px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.empireTodoListItem:hover,
+.empireTodoListItem.isSelected {
+  border-color: rgba(104, 160, 255, 0.34);
+  background: rgba(104, 160, 255, 0.1);
+}
+
+.empireTodoListItem span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.empireTodoListItem strong {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.empireTodoListItem small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.empireTodoDot {
+  width: 11px;
+  height: 11px;
+  margin-top: 4px;
+  border: 2px solid var(--muted2);
+  border-radius: 50%;
+}
+
+.empireTodoDot-in-progress,
+.empireTodoDot-planned {
+  border-color: var(--accentB);
+  box-shadow: 0 0 10px rgba(104, 160, 255, 0.45);
+}
+
+.empireTodoDot-blocked {
+  border-color: #ff7474;
+}
+
+.empireTodoDot-complete {
+  border-color: var(--accentA);
+  background: var(--accentA);
+}
+
+.empireTodoEditor {
+  padding: 16px;
+}
+
+.empireTodoEditorHeading {
+  margin-bottom: 14px;
+}
+
+.empireTodoField {
+  display: grid;
+  gap: 6px;
+}
+
+.empireTodoField > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.empireTodoTitleField .input {
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.empireTodoMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.empireTodoTextFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.empireTodoTextFields .pasteArea {
+  min-height: 126px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.empireTodoTimestamps {
+  justify-content: flex-start;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.empireTodoTimestamps strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Radcon Sentinel */
+.sentinelShell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.sentinelHero {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid rgba(104, 160, 255, 0.22);
+  border-radius: 18px;
+  background:
+    linear-gradient(120deg, rgba(20, 38, 68, 0.72), rgba(9, 17, 32, 0.78)),
+    radial-gradient(circle at 20% 0, rgba(97, 242, 169, 0.16), transparent 48%);
+}
+
+.sentinelEyebrow,
+.sentinelGuardianHeading span,
+.sentinelAsk > div:first-child > span {
+  color: var(--accentA);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.17em;
+}
+
+.sentinelHero h1 {
+  margin: 3px 0 5px;
+  font-size: clamp(24px, 3vw, 38px);
+  line-height: 1.05;
+}
+
+.sentinelHero p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.sentinelOverall {
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.sentinelOverall small,
+.sentinelOverall > span:last-child,
+.sentinelLastCheck,
+.sentinelAsk small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.sentinelStatus {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.sentinelStatus-healthy {
+  border-color: rgba(97, 242, 169, 0.38);
+  background: rgba(97, 242, 169, 0.12);
+  color: #8affc1;
+}
+
+.sentinelStatus-attention,
+.sentinelStatus-learning,
+.sentinelStatus-stale {
+  border-color: rgba(255, 205, 92, 0.4);
+  background: rgba(255, 205, 92, 0.12);
+  color: #ffdc83;
+}
+
+.sentinelStatus-elevated,
+.sentinelStatus-critical {
+  border-color: rgba(255, 95, 115, 0.46);
+  background: rgba(255, 95, 115, 0.14);
+  color: #ff9baa;
+}
+
+.sentinelStatus-not_configured,
+.sentinelStatus-unavailable,
+.sentinelStatus-permission_required,
+.sentinelStatus-unsupported,
+.sentinelStatus-unknown {
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.sentinelActions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sentinelNotice {
+  padding: 10px 12px;
+  border: 1px solid rgba(97, 242, 169, 0.2);
+  border-radius: 10px;
+  background: rgba(97, 242, 169, 0.07);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 13px;
+}
+
+.sentinelGuardianGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 12px;
+}
+
+.sentinelGuardianCard,
+.sentinelRecordsGrid > article,
+.sentinelAsk {
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.sentinelGuardianHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.sentinelGuardianHeading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.sentinelGuardianHeading strong {
+  font-size: 16px;
+}
+
+.sentinelSignalGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sentinelSignal {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 92px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.sentinelSignal > span:first-child,
+.sentinelWebsiteSummary span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sentinelSignal strong {
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.sentinelLastCheck {
+  margin-top: 11px;
+}
+
+.sentinelProviderList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.sentinelProviderList > div,
+.sentinelWebsiteSummary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 12px;
+}
+
+.sentinelWebsiteSummary {
+  margin-top: 8px;
+}
+
+.sentinelWebsiteSummary strong {
+  font-size: 11px;
+  text-align: right;
+}
+
+.sentinelRecordsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sentinelRecordsGrid article {
+  min-width: 0;
+}
+
+.sentinelRecordsGrid h2 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sentinelRecordsGrid p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sentinelRecordRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sentinelRecordRow > span:last-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sentinelRecordRow strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sentinelRecordRow small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+.sentinelRecordDot {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--accentB);
+}
+
+.sentinelRecordDot-attention { background: #ffdc83; }
+.sentinelRecordDot-elevated,
+.sentinelRecordDot-critical { background: #ff6f84; }
+.sentinelRecordDot-informational { background: var(--accentB); }
+
+.sentinelAsk {
+  display: grid;
+  gap: 10px;
+}
+
+.sentinelAsk > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.sentinelAskControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: stretch;
+}
+
+.sentinelAskControls .pasteArea {
+  min-height: 74px;
+  max-height: 130px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.sentinelAnswer {
+  padding: 10px 12px;
+  border: 1px solid rgba(104, 160, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(104, 160, 255, 0.07);
+}
+
+.sentinelAnswer strong {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+
+.sentinelAnswer p {
+  margin: 5px 0;
+  font-size: 13px;
+}
+
+.sentinelAnswer small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.sentinelBoundary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 16px;
+  padding: 8px 2px 2px;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 1200px) {
+  .sentinelActions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sentinelGuardianGrid,
+  .sentinelRecordsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 850px) {
+  .empireTodoGrid,
+  .empireTodoMetaGrid,
+  .empireTodoTextFields,
+  .sentinelGuardianGrid,
+  .sentinelRecordsGrid,
+  .sentinelSignalGrid,
+  .sentinelActions,
+  .sentinelAskControls {
+    grid-template-columns: 1fr;
+  }
+
+  .empireTodoToolbar,
+  .sentinelHero,
+  .sentinelAsk > div:first-child {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .empireTodoGrid {
+    overflow-y: auto;
+  }
+
+  .empireTodoList {
+    max-height: 260px;
+  }
+
+  .empireTodoEditor {
+    overflow: visible;
+  }
+
+  .sentinelOverall {
+    justify-items: start;
+  }
+}

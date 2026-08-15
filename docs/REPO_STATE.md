@@ -25,12 +25,20 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   behavior, not an Empire-wide form-design standard.
 - Infrastructure: governed provider/platform assets, editable non-secret configuration notes, actions, and operational notes. The System76 asset provides separate Health & Cleanup and Updates topics backed by O2-owned bounded history and allowlisted actions.
 - Agents: governed profiles, focus/scope/limits, and notes.
-- Empire Utility: generated map, snapshot, and sweep artifacts.
+- Sentinel: a RadControl command surface over O2-owned Host Guardian and
+  Security Guardian observation, capability, trigger, event, incident, action,
+  baseline, and hash-chained audit records. Sentinel never owns policy or a
+  privileged executor; v1 is Level-0 observation and dry-run only.
 - Notes and Legal: O2-backed authored document libraries and timeline records.
+  Notes also includes an O2-backed structured Empire To-Do workspace whose
+  editable records live at `docs/radcontrol/empire_todo/items.json` in O2.
 
 ## Persistence and execution
 
 - Durable writes use O2 file or producer verbs; React/local storage is not document truth.
+- Empire To-Do writes use the validated O2 `empire.todo.save` payload route;
+  Sentinel runtime state and audit use the O2 Sentinel contract rather than
+  browser storage or RadControl-owned files.
 - The Tauri bridge exposes an allowlist of O2 actions rather than arbitrary shell or filesystem access.
 - Generated snapshots and reports are evidence, not authority and not implicit Git actions.
 - `scripts/snapshot_repo_state.sh` produces `docs/_repo_snapshot.txt` without operational side effects.
