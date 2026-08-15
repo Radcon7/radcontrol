@@ -355,7 +355,7 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
           <div className="sentinelLastCheck">Last check: {formatDateTime(status?.host.checkedAt)} · Baselines remain separate from hardware safety limits.</div>
 
           <div className="sentinelEvidenceDetails">
-            <details className="sentinelDetails" open>
+            <details className="sentinelDetails">
               <summary>Thermal + sensor truth</summary>
               <div className="sentinelCompactList">
                 {thermalRows.map((sensor, index) => (

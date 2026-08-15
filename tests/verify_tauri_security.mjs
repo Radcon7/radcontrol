@@ -20,7 +20,8 @@ const bridge = await readFile(new URL("../src-tauri/src/commands/o2.rs", import.
 assert.doesNotMatch(bridge, /"commit"/);
 assert.doesNotMatch(bridge, /"kill_port\."/);
 assert.match(bridge, /"contract_info"/);
-assert.match(bridge, /"router\.health"/);
+assert.doesNotMatch(bridge, /"router\.health"/);
+assert.doesNotMatch(bridge, /"empire\.sweep"/);
 assert.match(bridge, /"stop"/);
 assert.match(bridge, /fn payload_verb_command/);
 assert.match(bridge, /"files.write" => Some\("files.write.stdin"\)/);

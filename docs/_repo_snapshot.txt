@@ -52,6 +52,7 @@ contracts/o2-radcontrol/v1/client.json
 docs/CODEX_EXECUTION_NOTES.md
 docs/POLICY_POINTERS.md
 docs/REPO_STATE.md
+docs/SENTINEL_PHASE1_MIGRATION.md
 index.html
 package-lock.json
 package.json
@@ -156,7 +157,6 @@ src/components/common/copyText.ts
 src/components/common/governedRecordNote.ts
 src/components/common/o2Contract.ts
 src/components/common/o2Files.ts
-src/components/common/useArtifactStore.ts
 src/components/common/useGovernedRecordNote.ts
 src/components/notes/EmpireTodoWorkspace.tsx
 src/components/notes/empireTodoApi.ts

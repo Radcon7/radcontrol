@@ -16,5 +16,7 @@ assert.match(workflow, /npm run test:sentinel/);
 assert.match(workflow, /npm run verify:sentinel/);
 assert.match(workflow, /npm audit --omit=dev/);
 assert.match(workflow, /cargo clippy --manifest-path src-tauri\/Cargo\.toml -- -D warnings/);
+assert.doesNotMatch(workflow, /npm run (?:dev|preview|tauri:dev|test:tauri-e2e)(?:\s|$)/);
+assert.doesNotMatch(workflow, /(?:vite|tauri) (?:dev|preview)(?:\s|$)/);
 
-console.log("CI workflow contract: immutable and complete");
+console.log("CI workflow contract: immutable, complete, and non-launching");
