@@ -38,6 +38,16 @@ Non-server checks remain allowed: contract/unit tests, lint, production builds
 that do not launch the app, Rust checks, audits, and deterministic snapshots.
 This is RadControl product-local execution authority, not an Empire-wide rule.
 
+## RadControl content preservation boundary
+
+Broad UI consolidation must preserve unrelated existing RadControl content and
+capabilities. Before replacing a surface, inventory the pre-change visible
+functionality from Git history and retain or migrate each capability explicitly.
+Authorization to remove one asset or replace one destination is not authority
+to remove unrelated Projects, Infrastructure assets, Notes modes, governance
+health, utilities, or other reachable product content. Encode intentional
+exceptions and preservation evidence in focused tests.
+
 ## Task router
 
 | Trigger | Required local first reads | Conditional shared route |

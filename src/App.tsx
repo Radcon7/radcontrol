@@ -3,7 +3,7 @@ import "./App.css";
 import { isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-import { SentinelTab } from "./components/sentinel/SentinelTab";
+import { SecurityTab } from "./components/security/SecurityTab";
 
 import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
 import { LegalHubTab } from "./components/paste-tabs/LegalHubTab";
@@ -928,7 +928,7 @@ export default function App() {
             registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
           />
         ) : tab === "sentinel" ? (
-          <SentinelTab
+          <SecurityTab
             registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
           />
         ) : isDocTab(tab) ? (

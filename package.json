@@ -26,6 +26,8 @@
     "verify:empire-todo": "node tests/verify_empire_todo_contract.mjs",
     "test:sentinel": "node --experimental-strip-types tests/sentinel_behavior.mjs",
     "verify:sentinel": "node tests/verify_sentinel_contract.mjs",
+    "test:content-preservation": "node --experimental-strip-types tests/content_preservation_behavior.mjs",
+    "verify:content-preservation": "node tests/verify_content_preservation_contract.mjs",
     "vite:dev": "vite",
     "vite:build": "tsc && vite build",
     "vite:preview": "vite preview",

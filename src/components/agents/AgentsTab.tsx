@@ -12,6 +12,7 @@ import { AgentFocusLimits } from "./AgentFocusLimits";
 import { AgentNotes } from "./AgentNotes";
 import { AgentRoster } from "./AgentRoster";
 import { CreateAgentModal } from "./CreateAgentModal";
+import { RouterHealthPanel } from "./RouterHealthPanel";
 import {
   PROFILES_DIR,
   isProfileArtifact,
@@ -38,10 +39,13 @@ type Props = {
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
 };
 
+type AgentsMode = "profiles" | "repository_routers";
+
 export function AgentsTab({
   projects,
   registerBeforeTabChangeSaver,
 }: Props) {
+  const [mode, setMode] = useState<AgentsMode>("profiles");
   const defaultProjectKey = projects[0]?.key || "dqotd";
 
   const [profiles, setProfiles] = useState<AgentProfile[]>([]);
@@ -215,7 +219,27 @@ export function AgentsTab({
 
   return (
     <SystemStateShell title="Agents" actions={actions} error={err ? <>{err}</> : null}>
-      <div className="surfaceLayout">
+      <div className="workspaceModeRow" role="tablist" aria-label="Agent workspaces">
+        <button
+          type="button"
+          className={`workspaceModeButton ${mode === "profiles" ? "workspaceModeButtonActive" : ""}`}
+          onClick={() => setMode("profiles")}
+          data-testid="agents-mode-profiles"
+        >
+          Agent Profiles
+        </button>
+        <button
+          type="button"
+          className={`workspaceModeButton ${mode === "repository_routers" ? "workspaceModeButtonActive" : ""}`}
+          onClick={() => setMode("repository_routers")}
+          data-testid="agents-mode-repository-routers"
+        >
+          Repository Routers
+        </button>
+      </div>
+
+      {mode === "profiles" ? (
+        <div className="surfaceLayout">
         <div className="surfaceSidebarStack">
           <AgentRoster
             profiles={profiles}
@@ -256,7 +280,10 @@ export function AgentsTab({
             </div>
           )}
         </div>
-      </div>
+        </div>
+      ) : (
+        <RouterHealthPanel />
+      )}
 
       {showCreateModal ? (
         <CreateAgentModal
