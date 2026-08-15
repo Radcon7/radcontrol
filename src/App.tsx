@@ -77,7 +77,7 @@ function tabLabel(t: TabKey): string {
     projects: "Projects",
     infrastructure: "Infrastructure",
     agents: "Agents",
-    sentinel: "Sentinel",
+    sentinel: "Security",
   };
 
   return m[t] ?? t.replace(/_/g, " ");
@@ -928,7 +928,9 @@ export default function App() {
             registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
           />
         ) : tab === "sentinel" ? (
-          <SentinelTab />
+          <SentinelTab
+            registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
+          />
         ) : isDocTab(tab) ? (
           renderDocTab(tab)
         ) : null}

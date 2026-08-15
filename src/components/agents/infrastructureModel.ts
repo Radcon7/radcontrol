@@ -75,6 +75,7 @@ export type InfrastructureDraft = {
 
 export const RECORDS_DIR = "docs/infrastructure/records";
 export const INFRASTRUCTURE_NOTES_DIR = "docs/infrastructure/assets";
+export const HOST_GUARDIAN_ASSET_KEY = "system76-workstation";
 export const DEFAULT_OPEN_QUESTIONS =
   "- Which provider-side health, API, or billing checks should be automated first?";
 
@@ -85,7 +86,6 @@ export const ASSET_TYPE_OPTIONS = [
   "data_platform",
   "workspace_tenant",
   "local_toolchain",
-  "workstation",
   "domain_edge",
   "mcp_surface",
   "api_surface",
@@ -355,23 +355,6 @@ export function buildInfrastructureProfiles(projects: ProjectRow[]): Infrastruct
       relatedProjectKeys: defaultProjectKeys,
     },
     {
-      key: "system76-workstation",
-      label: "System76 Workstation",
-      provider: "system76",
-      assetType: "workstation",
-      category: "Primary Machine",
-      owningOrg: "radcon",
-      environmentScope: "local",
-      primaryConsoleUrl: "",
-      focusSummary: "Diagnose the primary development machine, keep VS Code and project runtimes bounded, and centralize evidence-based workstation update review.",
-      statusAuditFocus: "Review temperature, fan, current load, memory, disk, services, containers, workspace breadth, security updates, firmware, and governed cleanup candidates.",
-      mcpApiPosture: "O2 provides local health, history, safe-cleanup, update-catalog, official-updater, and bounded Terra-review actions. No scheduled agent or unattended update installer is used.",
-      billingFocus: "No recurring platform bill, but note hardware lifecycle, backup cost, and any local tooling subscriptions tied to the machine.",
-      role: "Primary governed workstation for RadControl, repo work, and empire operations.",
-      statusSummary: "Manual zero-token health and update checks are live; installations stay operator-controlled and Terra medium participates only when explicitly requested.",
-      relatedProjectKeys: ["radcontrol", ...defaultProjectKeys],
-    },
-    {
       key: "agent-mcp-surfaces",
       label: "Agent / MCP Surfaces",
       provider: "local",
@@ -428,6 +411,9 @@ export function buildInfrastructureEntries(
   assets: InfrastructureAsset[],
   profiles: InfrastructureProfile[],
 ): InfrastructureEntry[] {
+  const visibleAssets = assets.filter(
+    (asset) => normalizeKey(asset.assetKey) !== HOST_GUARDIAN_ASSET_KEY,
+  );
   const usedAssetKeys = new Set<string>();
   const entries: InfrastructureEntry[] = [];
   const providerProfileCounts = profiles.reduce((counts, profile) => {
@@ -437,7 +423,7 @@ export function buildInfrastructureEntries(
   }, new Map<string, number>());
 
   profiles.forEach((profile) => {
-    const linkedAssets = assets.filter((asset) => {
+    const linkedAssets = visibleAssets.filter((asset) => {
       const providerKey = normalizeKey(profile.provider);
       const providerMatch =
         providerProfileCounts.get(providerKey) === 1 &&
@@ -489,7 +475,7 @@ export function buildInfrastructureEntries(
     });
   });
 
-  assets
+  visibleAssets
     .filter((asset) => !usedAssetKeys.has(asset.assetKey))
     .forEach((asset) => {
       entries.push({

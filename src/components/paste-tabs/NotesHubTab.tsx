@@ -31,10 +31,6 @@ const MODE_CONFIGS: Array<
     placeholder: "Write or edit general notes here…",
   },
   {
-    key: "empire_todo",
-    label: "Empire To-Do List",
-  },
-  {
     key: "timeline",
     label: "Timeline",
   },
@@ -43,6 +39,10 @@ const MODE_CONFIGS: Array<
     label: "Empire Blueprint",
     title: "Empire Blueprint",
     placeholder: "Write or edit empire blueprint notes here…",
+  },
+  {
+    key: "empire_todo",
+    label: "Empire To-Do",
   },
 ];
 
@@ -99,6 +99,7 @@ export function NotesHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
             type="button"
             className={`workspaceModeButton ${mode === item.key ? "workspaceModeButtonActive" : ""}`}
             onClick={() => void requestModeChange(item.key)}
+            data-testid={`notes-mode-${item.key}`}
           >
             {item.label}
           </button>

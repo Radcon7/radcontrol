@@ -28,19 +28,6 @@ export type AskSentinelResponse = {
   error?: string;
 };
 
-export type SentinelDryRunResponse = {
-  ok: boolean;
-  executed: boolean;
-  action: {
-    id: string;
-    requestedCapability: string;
-    policyResult: string;
-    approvalRequirement: string;
-    executionResult: string;
-  };
-  error?: string;
-};
-
 export function loadSentinelStatus(): Promise<SentinelStatus> {
   return runO2ParsedJson<SentinelStatus>(
     "sentinel.status",
@@ -87,21 +74,5 @@ export function askSentinel(question: string): Promise<AskSentinelResponse> {
     { question, sourceKind: "operator" },
     "Ask Sentinel failed",
     "Ask Sentinel returned invalid data",
-  );
-}
-
-export function prepareLockdownDryRun(): Promise<SentinelDryRunResponse> {
-  return runO2PayloadParsedJson<SentinelDryRunResponse>(
-    "sentinel.action.dry_run",
-    {
-      capability: "host.emergency.isolate-network",
-      requestingAgent: "radcontrol-operator",
-      reason: "Prepare lockdown simulation from RadControl",
-      evidenceIds: [],
-      arguments: {},
-      sourceKind: "operator",
-    },
-    "Sentinel lockdown simulation failed",
-    "Sentinel lockdown simulation returned invalid data",
   );
 }

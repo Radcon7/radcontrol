@@ -4,7 +4,6 @@ import { InfrastructureConfigurationNote } from "./InfrastructureConfigurationNo
 import { CodexUsagePanel } from "./CodexUsagePanel";
 import type { InfrastructureEntry } from "./infrastructureModel";
 import { InfrastructureNotes } from "./InfrastructureNotes";
-import { WorkstationOperationsPanel } from "./WorkstationOperationsPanel";
 
 type Props = {
   entry: InfrastructureEntry;
@@ -19,7 +18,6 @@ type Props = {
   configurationPath: string | null;
   onNoteChange: (value: string) => void;
   onConfigurationChange: (value: string) => void;
-  onAppendLog: (text: string) => void;
 };
 
 export function InfrastructureDetail({
@@ -35,19 +33,13 @@ export function InfrastructureDetail({
   configurationPath,
   onNoteChange,
   onConfigurationChange,
-  onAppendLog,
 }: Props) {
-  const isWorkstation = entry.key === "system76-workstation";
   return (
     <div className="surfaceCard surfaceDetailBriefCard">
-      {!isWorkstation ? <div className="surfaceCardTitle">Infrastructure Brief</div> : null}
+      <div className="surfaceCardTitle">Infrastructure Brief</div>
       <div className="surfaceSummaryList">
         {entry.key === "openai-codex" ? <CodexUsagePanel /> : null}
-        {isWorkstation ? (
-          <WorkstationOperationsPanel onAppendLog={onAppendLog} />
-        ) : (
-          <InfrastructureBrief entry={entry} projects={projects} />
-        )}
+        <InfrastructureBrief entry={entry} projects={projects} />
         <InfrastructureConfigurationNote
           status={configurationStatus}
           value={configurationText}

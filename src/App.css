@@ -2040,565 +2040,6 @@ pre {
   padding-right: 4px;
 }
 
-.surfaceGridProjectTopSingle {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.workstationOperations,
-.workstationHealth,
-.workstationUpdates {
-  display: grid;
-  gap: 14px;
-  color: var(--text);
-}
-
-.workstationSectionTabs {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  background: rgba(7, 13, 24, 0.42);
-}
-
-.workstationSectionTabs button {
-  flex: 1;
-  min-height: 38px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.68);
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.workstationSectionTabs button span {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: rgba(255, 173, 64, 0.2);
-  color: #ffd38b;
-  font-size: 10px;
-}
-
-.workstationSectionTabs button.isActive {
-  border-color: rgba(116, 169, 255, 0.38);
-  background: linear-gradient(135deg, rgba(44, 94, 164, 0.42), rgba(26, 49, 84, 0.55));
-  color: #fff;
-}
-
-.workstationHealthHeader,
-.workstationCodexReviewTitle {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.workstationHealthIntro {
-  margin: 5px 0 0;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 13px;
-}
-
-.workstationStatus {
-  flex: 0 0 auto;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  padding: 5px 10px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.workstationStatus-healthy,
-.workstationHistoryDot-healthy {
-  color: #9ff0be;
-  background: rgba(55, 176, 104, 0.18);
-  border-color: rgba(91, 221, 143, 0.38);
-}
-
-.workstationStatus-attention,
-.workstationHistoryDot-attention {
-  color: #ffd38b;
-  background: rgba(211, 139, 27, 0.18);
-  border-color: rgba(255, 188, 81, 0.42);
-}
-
-.workstationStatus-critical,
-.workstationHistoryDot-critical {
-  color: #ffaaa4;
-  background: rgba(208, 63, 51, 0.2);
-  border-color: rgba(255, 109, 98, 0.44);
-}
-
-.workstationStatus-inconclusive,
-.workstationHistoryDot-inconclusive {
-  color: rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.workstationUpdateStatus-current,
-.workstationUpdateDot-current {
-  color: #9ff0be;
-  background: rgba(55, 176, 104, 0.18);
-  border-color: rgba(91, 221, 143, 0.38);
-}
-
-.workstationUpdateStatus-routine,
-.workstationUpdateDot-routine {
-  color: #add0ff;
-  background: rgba(67, 127, 204, 0.18);
-  border-color: rgba(116, 169, 255, 0.4);
-}
-
-.workstationUpdateStatus-attention,
-.workstationUpdateStatus-stale,
-.workstationUpdateDot-attention,
-.workstationUpdateDot-stale {
-  color: #ffd38b;
-  background: rgba(211, 139, 27, 0.18);
-  border-color: rgba(255, 188, 81, 0.42);
-}
-
-.workstationActions {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.workstationActions .btn {
-  width: 100%;
-  min-height: 38px;
-}
-
-.workstationUpdateActions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.workstationUpdateActions .btn {
-  width: 100%;
-  min-height: 38px;
-}
-
-.workstationUpdateBoundary {
-  padding: 10px 12px;
-  border: 1px solid rgba(116, 169, 255, 0.2);
-  border-radius: 10px;
-  background: rgba(43, 87, 147, 0.09);
-  color: rgba(218, 232, 255, 0.8);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.workstationCodexButton {
-  border-color: rgba(174, 121, 255, 0.55);
-  background: linear-gradient(135deg, rgba(105, 57, 164, 0.9), rgba(67, 43, 111, 0.9));
-  color: #fff;
-}
-
-.workstationSummary,
-.workstationMessage,
-.workstationPreview,
-.workstationCodexReview,
-.workstationCause,
-.workstationRepairProgress,
-.workstationDetails,
-.workstationEmpty {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.035);
-  padding: 11px 13px;
-}
-
-.workstationSummary {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: baseline;
-}
-
-.workstationSummary span,
-.workstationEmpty {
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 12px;
-}
-
-.workstationMetrics {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.workstationUpdateMetrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.workstationUpdateMetrics > div {
-  display: grid;
-  gap: 5px;
-  padding: 11px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background: rgba(8, 15, 27, 0.34);
-}
-
-.workstationUpdateMetrics span,
-.workstationToolGrid span,
-.workstationToolGrid small {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 11px;
-}
-
-.workstationUpdateMetrics strong {
-  font-size: 20px;
-}
-
-.workstationRecommendations {
-  display: grid;
-  gap: 8px;
-}
-
-.workstationRecommendations article {
-  display: grid;
-  grid-template-columns: 78px minmax(150px, 0.7fr) minmax(260px, 1.8fr);
-  gap: 12px;
-  align-items: center;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 188, 81, 0.22);
-  border-radius: 10px;
-  background: rgba(138, 91, 24, 0.09);
-}
-
-.workstationRecommendations article > span {
-  color: #ffd38b;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.workstationRecommendations p {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.workstationToolGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.workstationToolGrid article {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  padding: 11px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background: rgba(8, 15, 27, 0.34);
-}
-
-.workstationToolGrid article.hasUpdate {
-  border-color: rgba(255, 188, 81, 0.3);
-}
-
-.workstationToolGrid article > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.workstationToolGrid p {
-  overflow-wrap: anywhere;
-  margin: 0;
-  color: rgba(255, 255, 255, 0.84);
-  font-size: 12px;
-}
-
-.workstationToolGrid small {
-  color: #add0ff;
-}
-
-.workstationUpdateItems {
-  display: grid;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.workstationUpdateItems > div {
-  display: grid;
-  grid-template-columns: minmax(120px, 0.8fr) minmax(220px, 1.6fr) auto;
-  gap: 10px;
-  align-items: center;
-  color: rgba(255, 255, 255, 0.74);
-  font-size: 11px;
-}
-
-.workstationUpdateItems small {
-  color: #ffd38b;
-  text-align: right;
-}
-
-.workstationMetrics > div {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background: rgba(8, 15, 27, 0.34);
-}
-
-.workstationMetrics span {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 11px;
-}
-
-.workstationMetrics strong {
-  overflow: hidden;
-  font-size: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.workstationCause {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  border-color: rgba(255, 188, 81, 0.24);
-  background: rgba(138, 91, 24, 0.1);
-}
-
-.workstationCause span,
-.workstationRepairProgress span {
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 12px;
-}
-
-.workstationCause strong {
-  text-align: right;
-}
-
-.workstationRepairProgress {
-  display: grid;
-  gap: 5px;
-  border-color: rgba(255, 188, 81, 0.38);
-  background: rgba(138, 91, 24, 0.16);
-}
-
-.workstationMessage,
-.workstationPreview {
-  display: grid;
-  gap: 5px;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.workstationMessageError {
-  border-color: rgba(255, 100, 89, 0.45);
-  color: #ffb5af;
-}
-
-.workstationDetails summary {
-  cursor: pointer;
-  font-weight: 750;
-}
-
-.workstationDetailGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-  margin-top: 10px;
-}
-
-.workstationDetailGrid > div {
-  display: grid;
-  gap: 5px;
-}
-
-.workstationDetailGrid span {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 12px;
-}
-
-.workstationCodexReview {
-  border-color: rgba(174, 121, 255, 0.3);
-  background: linear-gradient(135deg, rgba(75, 45, 118, 0.2), rgba(20, 27, 42, 0.45));
-}
-
-.workstationCodexReviewFailed {
-  border-color: rgba(255, 116, 107, 0.38);
-  background: linear-gradient(135deg, rgba(122, 45, 48, 0.22), rgba(20, 27, 42, 0.45));
-}
-
-.workstationCodexProgress {
-  display: grid;
-  gap: 7px;
-  padding: 11px 13px;
-  border: 1px solid rgba(174, 121, 255, 0.36);
-  border-radius: 12px;
-  background: rgba(88, 53, 137, 0.18);
-}
-
-.workstationCodexProgress span,
-.workstationCodexMeta {
-  color: rgba(226, 207, 255, 0.74);
-  font-size: 11px;
-}
-
-.workstationCodexProgress > div {
-  height: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.workstationCodexProgress i {
-  display: block;
-  height: 100%;
-  min-width: 2%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #9b6de3, #d6bcff);
-  transition: width 1s linear;
-}
-
-.workstationCodexReviewTitle {
-  font-weight: 800;
-}
-
-.workstationCodexReviewTitle span {
-  color: rgba(226, 207, 255, 0.72);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.workstationCodexReviewBody {
-  margin-top: 10px;
-  color: rgba(255, 255, 255, 0.84);
-  font-size: 13px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-}
-
-.workstationCodexPrepared,
-.workstationCodexLearning {
-  display: grid;
-  gap: 4px;
-  margin-top: 10px;
-  padding: 9px 10px;
-  border-radius: 9px;
-  background: rgba(159, 106, 237, 0.12);
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.workstationCodexMeta {
-  margin-top: 9px;
-}
-
-.workstationHistory {
-  display: grid;
-  gap: 6px;
-}
-
-.workstationHistoryTitle {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.workstationHistoryRow {
-  display: grid;
-  grid-template-columns: auto minmax(160px, 1fr) auto minmax(100px, auto);
-  gap: 9px;
-  align-items: center;
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.025);
-  color: var(--text);
-  text-align: left;
-}
-
-.workstationHistoryRow:hover {
-  border-color: rgba(116, 169, 255, 0.38);
-  background: rgba(116, 169, 255, 0.07);
-}
-
-.workstationHistoryRow small {
-  color: rgba(255, 255, 255, 0.56);
-  text-align: right;
-}
-
-.workstationHistoryDot {
-  width: 9px;
-  height: 9px;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-}
-
-@media (max-width: 1100px) {
-  .workstationActions,
-  .workstationMetrics,
-  .workstationUpdateActions,
-  .workstationUpdateMetrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 720px) {
-  .workstationActions,
-  .workstationMetrics,
-  .workstationUpdateActions,
-  .workstationUpdateMetrics,
-  .workstationToolGrid,
-  .workstationDetailGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .workstationRecommendations article,
-  .workstationUpdateItems > div {
-    grid-template-columns: 1fr;
-  }
-
-  .workstationUpdateItems small {
-    text-align: left;
-  }
-
-  .workstationSummary,
-  .workstationHealthHeader,
-  .workstationCause {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .workstationCause strong {
-    text-align: left;
-  }
-
-  .workstationHistoryRow {
-    grid-template-columns: auto 1fr auto;
-  }
-
-  .workstationHistoryRow small {
-    display: none;
-  }
-}
-
 .infrastructureModalCard {
   width: min(920px, calc(100vw - 40px));
 }
@@ -2903,7 +2344,7 @@ pre {
   font-weight: 600;
 }
 
-/* Radcon Sentinel */
+/* Radcon Sentinel / Security */
 .sentinelShell {
   display: flex;
   flex-direction: column;
@@ -2912,31 +2353,51 @@ pre {
   height: 100%;
   overflow-y: auto;
   padding-right: 3px;
+  color: var(--text);
 }
 
 .sentinelHero {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: minmax(250px, 0.75fr) minmax(560px, 1.25fr);
+  gap: 16px 24px;
   padding: 18px 20px;
-  border: 1px solid rgba(104, 160, 255, 0.22);
+  border: 1px solid rgba(104, 160, 255, 0.24);
   border-radius: 18px;
   background:
-    linear-gradient(120deg, rgba(20, 38, 68, 0.72), rgba(9, 17, 32, 0.78)),
+    linear-gradient(120deg, rgba(20, 38, 68, 0.78), rgba(9, 17, 32, 0.84)),
     radial-gradient(circle at 20% 0, rgba(97, 242, 169, 0.16), transparent 48%);
+}
+
+.sentinelThreat-attention,
+.sentinelThreat-elevated,
+.sentinelThreat-critical {
+  border-color: rgba(255, 95, 115, 0.42);
+  background:
+    linear-gradient(120deg, rgba(68, 27, 41, 0.8), rgba(20, 19, 34, 0.86)),
+    radial-gradient(circle at 20% 0, rgba(255, 95, 115, 0.16), transparent 48%);
+}
+
+.sentinelThreat-unknown_visibility {
+  border-color: rgba(255, 205, 92, 0.35);
+}
+
+.sentinelHeroCopy {
+  align-self: center;
 }
 
 .sentinelEyebrow,
 .sentinelGuardianHeading span,
+.sentinelSubCardHeading span,
+.sentinelActivityHeader > div:first-child > span,
 .sentinelAsk > div:first-child > span {
   color: var(--accentA);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
-  letter-spacing: 0.17em;
+  letter-spacing: 0.16em;
 }
 
 .sentinelHero h1 {
-  margin: 3px 0 5px;
+  margin: 4px 0 7px;
   font-size: clamp(24px, 3vw, 38px);
   line-height: 1.05;
 }
@@ -2944,23 +2405,56 @@ pre {
 .sentinelHero p {
   margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.sentinelOverall {
+.sentinelCommandSummary {
   display: grid;
-  justify-items: end;
-  align-content: center;
-  gap: 6px;
-  min-width: 180px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
 }
 
-.sentinelOverall small,
-.sentinelOverall > span:last-child,
+.sentinelCommandSummary > div {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 62px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.sentinelCommandSummary small,
+.sentinelSubtle,
 .sentinelLastCheck,
+.sentinelSubCardHeading small,
 .sentinelAsk small {
   color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.sentinelCommandSummary strong {
+  overflow: hidden;
   font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.sentinelVisibilityBoundary {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+}
+
+.sentinelVisibilityBoundary span {
+  color: var(--muted);
 }
 
 .sentinelStatus {
@@ -2973,9 +2467,9 @@ pre {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   white-space: nowrap;
 }
 
@@ -3010,8 +2504,13 @@ pre {
 
 .sentinelActions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.sentinelActions .btn {
+  min-height: 38px;
+  padding-inline: 8px;
 }
 
 .sentinelNotice {
@@ -3019,165 +2518,344 @@ pre {
   border: 1px solid rgba(97, 242, 169, 0.2);
   border-radius: 10px;
   background: rgba(97, 242, 169, 0.07);
-  color: rgba(255, 255, 255, 0.84);
   font-size: 13px;
 }
 
 .sentinelGuardianGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
   gap: 12px;
 }
 
 .sentinelGuardianCard,
-.sentinelRecordsGrid > article,
+.sentinelSubCard,
+.sentinelActivity,
 .sentinelAsk {
+  min-width: 0;
   padding: 15px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   background: rgba(0, 0, 0, 0.22);
 }
 
-.sentinelGuardianHeading {
+.sentinelGuardianHeading,
+.sentinelSubCardHeading,
+.sentinelActivityHeader,
+.sentinelAsk > div:first-child {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
-  margin-bottom: 12px;
 }
 
-.sentinelGuardianHeading > div {
+.sentinelGuardianHeading > div,
+.sentinelSubCardHeading > div,
+.sentinelActivityHeader > div:first-child {
   display: grid;
   gap: 4px;
 }
 
-.sentinelGuardianHeading strong {
-  font-size: 16px;
+.sentinelGuardianHeading strong,
+.sentinelSubCardHeading strong,
+.sentinelActivityHeader strong {
+  font-size: 15px;
 }
 
 .sentinelSignalGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 7px;
+  margin-top: 12px;
 }
 
 .sentinelSignal {
   display: grid;
   align-content: start;
   gap: 6px;
-  min-height: 92px;
+  min-height: 96px;
   padding: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 11px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.025);
 }
 
 .sentinelSignal > span:first-child,
-.sentinelWebsiteSummary span {
+.sentinelSectionHeading span,
+.sentinelMaintenanceMetrics span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  text-transform: uppercase;
   letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .sentinelSignal strong {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.35;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .sentinelLastCheck {
-  margin-top: 11px;
+  margin-top: 10px;
 }
 
-.sentinelProviderList {
+.sentinelEvidenceDetails {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
+  gap: 8px;
+  margin-top: 10px;
 }
 
-.sentinelProviderList > div,
-.sentinelWebsiteSummary {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: center;
-  min-height: 38px;
-  padding: 8px 9px;
+.sentinelDetails {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.025);
-  font-size: 12px;
 }
 
-.sentinelWebsiteSummary {
-  margin-top: 8px;
-}
-
-.sentinelWebsiteSummary strong {
+.sentinelDetails summary {
+  padding: 9px 10px;
+  cursor: pointer;
   font-size: 11px;
-  text-align: right;
+  font-weight: 800;
 }
 
-.sentinelRecordsGrid {
+.sentinelCompactList {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 0 9px 9px;
+}
+
+.sentinelCompactList > div,
+.sentinelProviderList > div,
+.sentinelWebsiteList > div:not(.sentinelSectionHeading) {
+  display: flex;
+  justify-content: space-between;
   gap: 10px;
-}
-
-.sentinelRecordsGrid article {
+  align-items: center;
   min-width: 0;
-}
-
-.sentinelRecordsGrid h2 {
-  margin: 0 0 10px;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.sentinelRecordsGrid p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.sentinelRecordRow {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 7px;
-  align-items: start;
-  padding: 7px 0;
+  padding: 7px 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
 }
 
-.sentinelRecordRow > span:last-child {
+.sentinelCompactList > div > span:first-child,
+.sentinelProviderList > div > span:first-child,
+.sentinelWebsiteList > div > span:first-child {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.sentinelRecordRow strong {
-  overflow: hidden;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sentinelRecordRow small {
+.sentinelCompactList small,
+.sentinelProviderList small,
+.sentinelWebsiteList small {
   overflow: hidden;
   color: var(--muted);
-  font-size: 10px;
-  line-height: 1.35;
+  font-size: 9px;
   text-overflow: ellipsis;
+}
+
+.sentinelCompactList p,
+.sentinelWebsiteList p {
+  margin: 5px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.sentinelProviderList,
+.sentinelWebsiteList {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.sentinelProviderList > div,
+.sentinelWebsiteList > div:not(.sentinelSectionHeading) {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sentinelSectionHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 2px;
+}
+
+.sentinelHostSupportGrid,
+.sentinelAuthorityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sentinelSubCard {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+
+.sentinelRecordEditor {
+  display: grid;
+  gap: 6px;
+  padding: 0 9px 9px;
+}
+
+.sentinelRecordEditor .pasteArea {
+  min-height: 150px;
+  max-height: 300px;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.sentinelInlineAction {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sentinelInlineAction p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.sentinelMaintenanceState,
+.sentinelLevelState {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.sentinelMaintenanceState-current,
+.sentinelLevelState-active {
+  background: rgba(97, 242, 169, 0.12);
+  color: #8affc1;
+}
+
+.sentinelMaintenanceState-attention,
+.sentinelMaintenanceState-stale {
+  background: rgba(255, 205, 92, 0.12);
+  color: #ffdc83;
+}
+
+.sentinelMaintenanceMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.sentinelMaintenanceMetrics > div {
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.sentinelMaintenanceMetrics strong {
+  font-size: 19px;
+}
+
+.sentinelActivity {
+  display: grid;
+  gap: 12px;
+}
+
+.sentinelFilterRow,
+.sentinelPromptRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.sentinelFilterRow button {
+  min-height: 29px;
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.sentinelFilterRow button.isActive {
+  border-color: rgba(97, 242, 169, 0.36);
+  background: rgba(97, 242, 169, 0.1);
+  color: #a8ffd1;
+}
+
+.sentinelActivityTable {
+  display: grid;
+}
+
+.sentinelActivityColumns,
+.sentinelActivityRow {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.85fr) minmax(170px, 1fr) minmax(150px, 0.9fr) minmax(190px, 1.2fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.sentinelActivityColumns {
+  padding: 0 10px 7px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sentinelActivityRow {
+  min-height: 56px;
+  padding: 8px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.sentinelActivityRow > span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 7px;
+  min-width: 0;
+}
+
+.sentinelActivityRow > span strong,
+.sentinelActivityRow > span small {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sentinelActivityRow strong {
+  font-size: 11px;
+}
+
+.sentinelActivityRow small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
 }
 
 .sentinelRecordDot {
+  grid-row: 1 / span 2;
   width: 8px;
   height: 8px;
-  margin-top: 4px;
+  margin-top: 3px;
   border-radius: 50%;
   background: var(--accentB);
 }
@@ -3187,16 +2865,50 @@ pre {
 .sentinelRecordDot-critical { background: #ff6f84; }
 .sentinelRecordDot-informational { background: var(--accentB); }
 
+.sentinelLevelList,
+.sentinelTriggerList {
+  display: grid;
+  gap: 5px;
+}
+
+.sentinelLevelList > div,
+.sentinelTriggerList > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 45px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sentinelLevelList span:first-child,
+.sentinelTriggerList span {
+  display: grid;
+  gap: 2px;
+}
+
+.sentinelLevelList strong,
+.sentinelTriggerList strong {
+  font-size: 11px;
+}
+
+.sentinelLevelList small,
+.sentinelTriggerList small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.sentinelTriggerList > div > span:last-child {
+  justify-items: end;
+  text-align: right;
+}
+
 .sentinelAsk {
   display: grid;
   gap: 10px;
-}
-
-.sentinelAsk > div:first-child {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
 }
 
 .sentinelAskControls {
@@ -3222,19 +2934,14 @@ pre {
 }
 
 .sentinelAnswer strong {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .sentinelAnswer p {
   margin: 5px 0;
   font-size: 13px;
-}
-
-.sentinelAnswer small {
-  color: var(--muted);
-  font-size: 10px;
 }
 
 .sentinelBoundary {
@@ -3244,36 +2951,63 @@ pre {
   padding: 8px 2px 2px;
   color: var(--muted);
   font-size: 10px;
-  text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-@media (max-width: 1200px) {
-  .sentinelActions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+@media (max-width: 1280px) {
+  .sentinelHero,
+  .sentinelGuardianGrid {
+    grid-template-columns: 1fr;
   }
 
-  .sentinelGuardianGrid,
-  .sentinelRecordsGrid {
+  .sentinelActions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .sentinelCommandSummary,
+  .sentinelSignalGrid,
+  .sentinelMaintenanceMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sentinelHostSupportGrid,
+  .sentinelAuthorityGrid,
+  .sentinelEvidenceDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .sentinelActivityColumns {
+    display: none;
+  }
+
+  .sentinelActivityRow {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 850px) {
+@media (max-width: 720px) {
   .empireTodoGrid,
   .empireTodoMetaGrid,
   .empireTodoTextFields,
-  .sentinelGuardianGrid,
-  .sentinelRecordsGrid,
+  .sentinelCommandSummary,
   .sentinelSignalGrid,
   .sentinelActions,
+  .sentinelMaintenanceMetrics,
+  .sentinelActivityRow,
   .sentinelAskControls {
     grid-template-columns: 1fr;
   }
 
   .empireTodoToolbar,
-  .sentinelHero,
-  .sentinelAsk > div:first-child {
+  .sentinelVisibilityBoundary,
+  .sentinelGuardianHeading,
+  .sentinelSubCardHeading,
+  .sentinelActivityHeader,
+  .sentinelAsk > div:first-child,
+  .sentinelInlineAction {
     align-items: stretch;
     flex-direction: column;
   }
@@ -3290,7 +3024,19 @@ pre {
     overflow: visible;
   }
 
-  .sentinelOverall {
+  .sentinelFilterRow,
+  .sentinelPromptRow {
+    justify-content: flex-start;
+  }
+
+  .sentinelLevelList > div,
+  .sentinelTriggerList > div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sentinelTriggerList > div > span:last-child {
     justify-items: start;
+    text-align: left;
   }
 }

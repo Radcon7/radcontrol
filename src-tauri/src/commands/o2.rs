@@ -95,15 +95,8 @@ fn verb_allowed(verb: &str) -> bool {
       | "sentinel.host.deep_check"
       | "sentinel.host.explain_fans"
       | "sentinel.security.check"
-      | "workstation.health.check"
-      | "workstation.health.history"
-      | "workstation.cleanup.preview"
-      | "workstation.cleanup.apply"
-      | "workstation.codex.review"
       | "workstation.updates.check"
       | "workstation.updates.history"
-      | "workstation.updates.refresh"
-      | "workstation.updates.open"
   ) {
     return true;
   }
@@ -120,7 +113,6 @@ fn verb_allowed(verb: &str) -> bool {
     "project_create.bootstrap.",
     "agent_profile.create.",
     "infrastructure_asset.create.",
-    "sentinel.action.dry_run.",
     "sentinel.ask.",
     "port_status.",
     "port_suggest.",
