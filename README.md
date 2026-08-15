@@ -27,7 +27,20 @@ RadControl owns UI layout, local presentation state, document viewing and editin
 
 ## Runtime Model
 
-The desktop app invokes the Tauri command `run_o2`, which calls `~/dev/o2/scripts/run_o2.sh` with a constrained verb allowlist. RadControl does not own shell execution, arbitrary filesystem access, Git commits, or project-formation policy.
+The desktop app invokes the Tauri command `run_o2` with a constrained verb
+allowlist. The installed production app calls
+`~/.local/share/radcontrol/o2-runtime/scripts/run_o2.sh`; that path is a
+dedicated worktree of the canonical O2 repository on current `main`, so the
+live product is independent of an operator's active feature branch and working
+directory. Debug builds use `~/dev/o2`, and only explicit E2E mode accepts an
+absolute fixture `O2_ROOT`. RadControl does not own shell execution, arbitrary
+filesystem access, Git commits, or project-formation policy.
+
+The normal desktop entry calls `~/.local/bin/radcontrol-launch.sh`, which
+directly executes the installed `~/.local/bin/radcontrol-app` release binary.
+It does not start Vite, preview, Tauri dev, WebDriver, or a TCP listener. The
+header Runtime control shows the exact app/O2 build identity and live content
+checks; data failures are reported as unavailable rather than as empty state.
 
 ## New Project
 
@@ -38,6 +51,7 @@ The desktop app invokes the Tauri command `run_o2`, which calls `~/dev/o2/script
 ```bash
 npm run lint
 npm run verify:security
+npm run verify:production-delivery
 npm run build
 cargo check --manifest-path src-tauri/Cargo.toml
 bash scripts/snapshot_repo_state.sh
@@ -67,7 +81,9 @@ npm run test:tauri-e2e
 ```
 
 The E2E harness copies only O2 scripts into a temporary root, creates a temporary static fixture and a temporary submitted project starter, then removes all fixture/runtime/root data in `finally`. It does not modify the real O2 registry, notes, or project repos.
-The `O2_ROOT` override and duplicate-instance bypass are accepted only while `RADCONTROL_E2E=1`; normal desktop launches use the canonical `~/dev/o2` root.
+The `O2_ROOT` override and duplicate-instance bypass are accepted only while
+`RADCONTROL_E2E=1`; normal desktop launches use the production O2 worktree at
+`~/.local/share/radcontrol/o2-runtime`.
 
 The test uses the official `tauri-driver` executable and, when explicitly
 authorized, must leave its app, driver, and fixture listeners stopped with the

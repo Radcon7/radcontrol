@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "radcontrol-app",
-  "version": "0.1.0",
-  "identifier": "com.radcontrol.app.dev",
+  "version": "0.1.1",
+  "identifier": "com.radcontrol.app",
   "build": {
     "beforeDevCommand": "node scripts/tauri_preflight.mjs",
     "devUrl": "http://127.0.0.1:1420",

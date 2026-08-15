@@ -33,6 +33,7 @@ verify:governed-notes
 verify:infrastructure-architecture
 verify:o2-contract
 verify:portfolio-blueprint
+verify:production-delivery
 verify:project-builder
 verify:projects-architecture
 verify:repo-index
@@ -59,10 +60,13 @@ docs/SENTINEL_PHASE1_MIGRATION.md
 index.html
 package-lock.json
 package.json
+packaging/radcontrol-launch.sh
+packaging/radcontrol.desktop
 public/tauri.svg
 public/vite.svg
 scripts/dev_local_lib.mjs
 scripts/dev_sanity_check.mjs
+scripts/install_production.sh
 scripts/o2_index_repo.sh
 scripts/o2_session_start.sh
 scripts/snapshot_repo_state.sh
@@ -186,6 +190,7 @@ src/components/projects/formationPayload.ts
 src/components/projects/helpers.ts
 src/components/projects/projectModel.ts
 src/components/projects/types.ts
+src/components/runtime/RuntimeDiagnosticsModal.tsx
 src/components/security/EmpireOperationsWorkspace.tsx
 src/components/security/SecurityTab.tsx
 src/components/sentinel/HostUpdatesPanel.tsx
@@ -209,6 +214,7 @@ tests/verify_governed_note_controller_contract.mjs
 tests/verify_infrastructure_architecture_contract.mjs
 tests/verify_o2_contract.mjs
 tests/verify_portfolio_blueprint_contract.mjs
+tests/verify_production_delivery_contract.mjs
 tests/verify_project_builder_contract.mjs
 tests/verify_projects_architecture_contract.mjs
 tests/verify_repo_index_contract.mjs

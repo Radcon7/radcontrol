@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=RadControl
+Comment=Rad Empire desktop command center
+Exec=/home/chris/.local/bin/radcontrol-launch.sh
+Icon=radcontrol-app
+Terminal=false
+Categories=Development;Utility;
+StartupNotify=true
+StartupWMClass=radcontrol-app

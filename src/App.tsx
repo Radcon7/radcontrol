@@ -12,6 +12,7 @@ import { AddProjectModal } from "./components/projects/AddProjectModal";
 
 import { AgentsTab } from "./components/agents/AgentsTab";
 import { InfrastructureTab } from "./components/agents/InfrastructureTab";
+import { RuntimeDiagnosticsModal } from "./components/runtime/RuntimeDiagnosticsModal";
 
 import type {
   AddProjectPayload,
@@ -234,6 +235,9 @@ export default function App() {
   const projectsRef = useRef<ProjectRow[]>([]);
   const [preferredProjectKey, setPreferredProjectKey] = useState<string | null>(null);
   const [showAddProject, setShowAddProject] = useState(false);
+  const [showRuntimeDiagnostics, setShowRuntimeDiagnostics] = useState(false);
+  const [registryState, setRegistryState] = useState<"loading" | "ready" | "error">("loading");
+  const [registryError, setRegistryError] = useState("");
   const [projectRootOverrides, setProjectRootOverrides] = useState<ProjectRootOverrides | undefined>();
   const beforeTabChangeSaverRef = useRef<(() => Promise<boolean>) | null>(null);
 
@@ -248,6 +252,8 @@ export default function App() {
     if (loadRegistryInFlightRef.current) return loadRegistryInFlightRef.current;
 
     loadRegistryInFlightRef.current = (async () => {
+      setRegistryState("loading");
+      setRegistryError("");
       try {
         const out = await runO2Text("list_projects");
         const parsed = parseRegistryMaybeDoubleEncoded(out ?? "");
@@ -256,15 +262,17 @@ export default function App() {
         const rows = registryToProjects(reg);
         projectsRef.current = rows;
         setProjects(rows);
+        setRegistryState("ready");
         void refreshPorts(rows);
 
         appendLog(`[registry] loaded ${rows.length} project(s)`);
         return rows;
       } catch (e) {
-        appendLog("\n[registry] failed:\n" + fmtErr(e));
-        projectsRef.current = [];
-        setProjects([]);
-        return [];
+        const message = fmtErr(e);
+        appendLog("\n[registry] failed:\n" + message);
+        setRegistryError(message);
+        setRegistryState("error");
+        return projectsRef.current;
       } finally {
         loadRegistryInFlightRef.current = null;
       }
@@ -400,10 +408,6 @@ export default function App() {
         // ignore
       }
     }
-  }
-
-  async function restartRadcontrol() {
-    void runO2("Restart RadControl + Refresh Status", "radcontrol.dev_strict");
   }
 
   const startRecheckTimerRef = useRef<number | null>(null);
@@ -868,11 +872,10 @@ export default function App() {
         <div className="headerRight">
           <button
             className="btn"
-            onClick={() => void restartRadcontrol()}
-            disabled={busy}
-            title="Restart RadControl (dev_strict) and refresh project status. Does not start/open projects."
+            onClick={() => setShowRuntimeDiagnostics(true)}
+            title="Show the installed app build, production O2 root, and live content smoke status."
           >
-            Restart RadControl
+            Runtime
           </button>
         </div>
       </header>
@@ -882,6 +885,8 @@ export default function App() {
           <>
             <ProjectsTab
               projects={projects}
+              registryLoading={registryState === "loading"}
+              registryError={registryError}
               ports={ports}
               busy={busy}
               portsBusy={portsBusy}
@@ -935,6 +940,14 @@ export default function App() {
           renderDocTab(tab)
         ) : null}
       </main>
+
+      <RuntimeDiagnosticsModal
+        open={showRuntimeDiagnostics}
+        onClose={() => setShowRuntimeDiagnostics(false)}
+        projects={projects}
+        registryState={registryState}
+        registryError={registryError}
+      />
 
       <footer className="logsBar">
         <div className="logsHeader">

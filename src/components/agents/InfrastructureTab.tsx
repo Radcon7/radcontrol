@@ -282,6 +282,8 @@ export function InfrastructureTab({
         <div className="surfaceSidebarStack">
           <InfrastructureRoster
             entries={entries}
+            loading={loading}
+            loadError={err}
             selectedEntryKey={selectedKey}
             onSelect={(entryKey) => void selectEntry(entryKey)}
           />
@@ -290,7 +292,13 @@ export function InfrastructureTab({
         <div className="surfaceCommandMain">
           {!selectedEntry ? (
             <div className="surfaceCard surfaceEmptyState surfaceEmptyStateLarge">
-              Select an infrastructure item to inspect platform status, notes, and governed coverage.
+              {loading
+                ? "Loading governed infrastructure data…"
+                : err
+                  ? "Infrastructure data is unavailable. No empty-state claim is being made."
+                  : entries.length === 0
+                    ? "No infrastructure items are configured."
+                    : "Select an infrastructure item to inspect platform status, notes, and governed coverage."}
             </div>
           ) : (
             <div className="surfaceGridProjectTop">

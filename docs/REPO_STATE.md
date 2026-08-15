@@ -55,6 +55,21 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   browser storage or RadControl-owned files.
 - The Tauri bridge exposes an allowlist of O2 actions rather than arbitrary shell or filesystem access.
 - Generated snapshots and reports are evidence, not authority and not implicit Git actions.
+- The packaged production app reads O2 from the dedicated, same-repository
+  `main` worktree at `~/.local/share/radcontrol/o2-runtime`. This stable runtime
+  and data root is independent of an operator's active O2 feature branch and
+  current working directory. Debug builds continue to use `~/dev/o2`; only
+  explicit E2E mode may override `O2_ROOT` with an absolute fixture path.
+- The normal desktop entry executes `~/.local/bin/radcontrol-launch.sh`, which
+  directly replaces itself with `~/.local/bin/radcontrol-app`. It must not call
+  Vite, preview, Tauri dev, WebDriver, or any O2 development launcher and must
+  not bind a TCP listener.
+- Runtime identity is visible from the header's Runtime control and includes
+  the app version, embedded source commit, build time, installed executable,
+  canonical O2 root and commit, governed paths, and live content checks.
+- Data request failure, loading, and genuine zero-result states are distinct.
+  Compatibility or read failures must remain visible and must not be rendered
+  as an empty governed collection.
 - `scripts/snapshot_repo_state.sh` produces `docs/_repo_snapshot.txt` without operational side effects.
 - RadControl must not be launched through localhost, Vite dev or preview,
   Tauri dev, desktop E2E, or another TCP-listening route unless the current
@@ -77,6 +92,7 @@ Use the impact-appropriate subset of:
 - `npm run verify:security`
 - `npm run build`
 - `cargo check --manifest-path src-tauri/Cargo.toml`
+- `npm run verify:production-delivery`
 - focused architecture/contract tests
 - explicitly launch-authorized `npm run test:tauri-e2e` for native workflow
   changes; never run it under ordinary verification authorization

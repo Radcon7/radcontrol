@@ -48,6 +48,22 @@ to remove unrelated Projects, Infrastructure assets, Notes modes, governance
 health, utilities, or other reachable product content. Encode intentional
 exceptions and preservation evidence in focused tests.
 
+## Live product delivery boundary
+
+RadControl is complete as a desktop product only when the normal desktop entry
+launches the installed release binary without Vite, preview, Tauri dev,
+WebDriver, or a new TCP listener. Production resolves O2 from the dedicated
+same-repository worktree at `~/.local/share/radcontrol/o2-runtime`; debug builds
+resolve `~/dev/o2`, and an absolute `O2_ROOT` override is accepted only in the
+explicit E2E mode. The production runtime root must remain on current O2
+`main`, clean before updates, and must retain O2-owned durable data.
+
+The visible product must distinguish loading, failed, and genuinely empty
+states. A failed O2 contract or data request must never be presented as an
+empty Projects, Infrastructure, To-Do, Notes, or Security collection. Source,
+CI, merge, and build success do not substitute for verification through the
+normal installed launcher when a task claims live product recovery.
+
 ## Task router
 
 | Trigger | Required local first reads | Conditional shared route |
