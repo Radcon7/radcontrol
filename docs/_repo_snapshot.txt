@@ -162,7 +162,6 @@ src/components/common/o2Contract.ts
 src/components/common/o2Files.ts
 src/components/common/useArtifactStore.ts
 src/components/common/useGovernedRecordNote.ts
-src/components/empire-utility/EmpireUtilityTab.tsx
 src/components/notes/EmpireTodoWorkspace.tsx
 src/components/notes/empireTodoApi.ts
 src/components/notes/empireTodoModel.ts
