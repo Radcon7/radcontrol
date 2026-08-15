@@ -212,7 +212,7 @@ export function EmpireTodoWorkspace({ busy, registerBeforeTabChangeSaver }: Prop
 
               <label className="empireTodoField empireTodoTitleField">
                 <span>Title</span>
-                <input className="input" value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} disabled={saving} />
+                <input className="input" data-testid="empire-todo-title" value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} disabled={saving} />
               </label>
 
               <div className="empireTodoMetaGrid">
@@ -238,7 +238,7 @@ export function EmpireTodoWorkspace({ busy, registerBeforeTabChangeSaver }: Prop
                 {TEXT_AREAS.map((field) => (
                   <label className="empireTodoField" key={field.key}>
                     <span>{field.label}</span>
-                    <textarea className="pasteArea" value={draft[field.key]} placeholder={field.placeholder} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={saving} />
+                    <textarea className="pasteArea" data-testid={`empire-todo-${field.key}`} value={draft[field.key]} placeholder={field.placeholder} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={saving} />
                   </label>
                 ))}
               </div>

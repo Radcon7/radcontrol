@@ -18,10 +18,17 @@ const bridge = await readFile(
   "utf8",
 );
 
-assert.match(notes, /Empire To-Do List/);
+assert.match(notes, /label: "Empire To-Do"/);
+assert.match(notes, /data-testid=\{`notes-mode-\$\{item\.key\}`\}/);
+const blueprintIndex = notes.indexOf('key: "empire_blueprint"');
+const todoIndex = notes.indexOf('key: "empire_todo"');
+assert.ok(blueprintIndex >= 0 && todoIndex > blueprintIndex);
+assert.doesNotMatch(notes.slice(blueprintIndex + 1, todoIndex), /key: "/);
 assert.match(notes, /<EmpireTodoWorkspace/);
 assert.match(component, /data-testid="empire-todo-workspace"/);
 assert.match(component, /data-testid="empire-todo-selected-item"/);
+assert.match(component, /data-testid="empire-todo-title"/);
+assert.match(component, /data-testid=\{`empire-todo-\$\{field\.key\}`\}/);
 for (const field of [
   "title", "status", "priority", "category", "summary", "detailedContext",
   "whyItMatters", "currentState", "nextActions", "dependencies",

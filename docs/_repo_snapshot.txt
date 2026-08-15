@@ -146,10 +146,6 @@ src/components/agents/InfrastructureNotes.tsx
 src/components/agents/InfrastructureRoster.tsx
 src/components/agents/InfrastructureRunControls.tsx
 src/components/agents/InfrastructureTab.tsx
-src/components/agents/RouterHealthPanel.tsx
-src/components/agents/WorkstationHealthPanel.tsx
-src/components/agents/WorkstationOperationsPanel.tsx
-src/components/agents/WorkstationUpdatesPanel.tsx
 src/components/agents/agentModel.ts
 src/components/agents/infrastructureModel.ts
 src/components/agents/infrastructureReports.ts
@@ -185,6 +181,7 @@ src/components/projects/formationPayload.ts
 src/components/projects/helpers.ts
 src/components/projects/projectModel.ts
 src/components/projects/types.ts
+src/components/sentinel/HostUpdatesPanel.tsx
 src/components/sentinel/SentinelTab.tsx
 src/components/sentinel/sentinelApi.ts
 src/components/sentinel/sentinelModel.ts

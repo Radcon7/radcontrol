@@ -23,15 +23,25 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   Do not reduce this surface to an opaque AI-only prompt or minimal hidden
   wizard without a later explicit product decision. This is RadControl product
   behavior, not an Empire-wide form-design standard.
-- Infrastructure: governed provider/platform assets, editable non-secret configuration notes, actions, and operational notes. The System76 asset provides separate Health & Cleanup and Updates topics backed by O2-owned bounded history and allowlisted actions.
+- Infrastructure: governed provider/platform assets, editable non-secret
+  configuration notes, actions, and operational notes. The canonical
+  `system76-workstation` record is deliberately excluded from this roster;
+  computer identity, health, monitoring, maintenance inventory, and operator
+  notes belong to Security's Host Guardian. Other infrastructure assets retain
+  the existing roster/detail workflow.
 - Agents: governed profiles, focus/scope/limits, and notes.
-- Sentinel: a RadControl command surface over O2-owned Host Guardian and
+- Security: the sole Radcon Sentinel command surface over O2-owned Host Guardian and
   Security Guardian observation, capability, trigger, event, incident, action,
   baseline, and hash-chained audit records. Sentinel never owns policy or a
-  privileged executor; v1 is Level-0 observation and dry-run only.
+  privileged executor; Phase 1 offers only manual read-only Level-0 controls,
+  while Levels 1-5 remain visibly not activated. Host Guardian reuses the
+  canonical O2 workstation configuration and note paths rather than cloning
+  workstation state into RadControl.
 - Notes and Legal: O2-backed authored document libraries and timeline records.
   Notes also includes an O2-backed structured Empire To-Do workspace whose
-  editable records live at `docs/radcontrol/empire_todo/items.json` in O2.
+  editable records live at `docs/radcontrol/empire_todo/items.json` in O2. Its
+  control appears immediately after Empire Blueprint and opens the persistent
+  two-pane roadmap.
 
 ## Persistence and execution
 

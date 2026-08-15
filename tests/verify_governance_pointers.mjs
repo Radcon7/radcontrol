@@ -29,7 +29,9 @@ assert.match(repoState, /not an Empire-wide form-design standard/);
 assert.doesNotMatch(repoState, /New Project intentionally uses an AI-only prompt/);
 assert.match(repoState, /Infrastructure: governed provider\/platform assets/);
 assert.match(repoState, /Agents: governed profiles/);
-assert.match(repoState, /Sentinel: a RadControl command surface/);
+assert.match(repoState, /Security: the sole Radcon Sentinel command surface/);
+assert.match(repoState, /Levels 1-5 remain visibly not activated/);
+assert.match(repoState, /system76-workstation[\s\S]*excluded from this roster/);
 assert.match(repoState, /structured Empire To-Do workspace/);
 
 assert.match(policyPointers, /Explicitly scoped O2 empire contracts/);

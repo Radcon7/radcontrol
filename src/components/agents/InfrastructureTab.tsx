@@ -293,7 +293,7 @@ export function InfrastructureTab({
               Select an infrastructure item to inspect platform status, notes, and governed coverage.
             </div>
           ) : (
-            <div className={`surfaceGridProjectTop ${selectedEntry.key === "system76-workstation" ? "surfaceGridProjectTopSingle" : ""}`}>
+            <div className="surfaceGridProjectTop">
               <InfrastructureDetail
                 entry={selectedEntry}
                 projects={projects}
@@ -307,18 +307,15 @@ export function InfrastructureTab({
                 configurationPath={configurationNote.path}
                 onNoteChange={governedNote.onTextChange}
                 onConfigurationChange={configurationNote.onTextChange}
-                onAppendLog={onAppendLog}
               />
-              {selectedEntry.key !== "system76-workstation" ? (
-                <InfrastructureRunControls
-                  entry={selectedEntry}
-                  disabled={loading || creating}
-                  onSnapshot={() => logInfrastructureSnapshot(selectedEntry)}
-                  onAudit={() => logInfrastructureAudit(selectedEntry)}
-                  onOpenConsole={() => openConsole(selectedEntry)}
-                  onOpenEvidence={() => logGovernedEvidence(selectedEntry)}
-                />
-              ) : null}
+              <InfrastructureRunControls
+                entry={selectedEntry}
+                disabled={loading || creating}
+                onSnapshot={() => logInfrastructureSnapshot(selectedEntry)}
+                onAudit={() => logInfrastructureAudit(selectedEntry)}
+                onOpenConsole={() => openConsole(selectedEntry)}
+                onOpenEvidence={() => logGovernedEvidence(selectedEntry)}
+              />
             </div>
           )}
         </div>

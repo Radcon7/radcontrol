@@ -42,6 +42,9 @@ async function prepareIsolatedO2Root() {
   const o2Root = path.join(tempRoot, "o2");
   const fixtureRepo = path.join(tempRoot, "fixture");
   const e2eHome = path.join(tempRoot, "home");
+  const xdgCacheHome = path.join(tempRoot, "xdg-cache");
+  const xdgConfigHome = path.join(tempRoot, "xdg-config");
+  const xdgDataHome = path.join(tempRoot, "xdg-data");
   const createdProjectRepo = path.join(e2eHome, "dev", "rad-empire", "radcon", "dev", createdProjectKey);
   const fixturePort = await unusedPort();
   const fixtureUrl = `http://127.0.0.1:${fixturePort}`;
@@ -68,9 +71,49 @@ async function prepareIsolatedO2Root() {
     infrastructureProfileKey,
     "NOTES.md",
   );
+  const empireTodoPath = path.join(
+    o2Root,
+    "docs",
+    "radcontrol",
+    "empire_todo",
+    "items.json",
+  );
+  const hostRecordDir = path.join(
+    o2Root,
+    "docs",
+    "infrastructure",
+    "assets",
+    "system76-workstation",
+  );
 
   await cp(path.join(sourceO2Root, "scripts"), path.join(o2Root, "scripts"), { recursive: true });
   await mkdir(path.join(o2Root, "registry"), { recursive: true });
+  for (const registryFile of [
+    "project-archetypes.json",
+    "empire-todo-seeds.json",
+    "sentinel-capabilities.json",
+    "sentinel-policy.json",
+    "sentinel-triggers.json",
+    "sentinel-assets.json",
+    "sentinel-adapters.json",
+  ]) {
+    await cp(
+      path.join(sourceO2Root, "registry", registryFile),
+      path.join(o2Root, "registry", registryFile),
+    );
+  }
+  await mkdir(hostRecordDir, { recursive: true });
+  await Promise.all([
+    mkdir(xdgCacheHome, { recursive: true }),
+    mkdir(xdgConfigHome, { recursive: true }),
+    mkdir(xdgDataHome, { recursive: true }),
+  ]);
+  for (const recordFile of ["CONFIGURATION.md", "NOTES.md"]) {
+    await cp(
+      path.join(sourceO2Root, "docs", "infrastructure", "assets", "system76-workstation", recordFile),
+      path.join(hostRecordDir, recordFile),
+    );
+  }
   await mkdir(path.join(fixtureRepo, "site"), { recursive: true });
   await mkdir(path.dirname(notesPath), { recursive: true });
   await writeFile(path.join(fixtureRepo, "site", "index.html"), "<main>RadControl E2E fixture</main>\n");
@@ -104,6 +147,10 @@ async function prepareIsolatedO2Root() {
     createdProjectRepo,
     infrastructureRecordDir,
     infrastructureNotesPath,
+    empireTodoPath,
+    xdgCacheHome,
+    xdgConfigHome,
+    xdgDataHome,
   };
 }
 
@@ -150,6 +197,14 @@ async function elementText(base, sessionId, id) {
   return request(base, `/session/${sessionId}/element/${id}/text`);
 }
 
+async function elementRect(base, sessionId, id) {
+  return request(base, `/session/${sessionId}/element/${id}/rect`);
+}
+
+async function elementProperty(base, sessionId, id, property) {
+  return request(base, `/session/${sessionId}/element/${id}/property/${property}`);
+}
+
 async function bodyText(base, sessionId) {
   const id = await element(base, sessionId, "body");
   return elementText(base, sessionId, id);
@@ -181,7 +236,15 @@ const base = `http://127.0.0.1:${driverPort}`;
 const driver = spawn("tauri-driver", ["--port", String(driverPort), "--native-port", String(nativePort)], {
   stdio: ["ignore", "inherit", "inherit"],
   detached: true,
-  env: { ...process.env, O2_ROOT: fixture.o2Root, RADCONTROL_E2E: "1", O2_E2E_HOME: fixture.e2eHome },
+  env: {
+    ...process.env,
+    O2_ROOT: fixture.o2Root,
+    RADCONTROL_E2E: "1",
+    O2_E2E_HOME: fixture.e2eHome,
+    XDG_CACHE_HOME: fixture.xdgCacheHome,
+    XDG_CONFIG_HOME: fixture.xdgConfigHome,
+    XDG_DATA_HOME: fixture.xdgDataHome,
+  },
 });
 let sessionId;
 try {
@@ -199,7 +262,61 @@ try {
   assert.ok(sessionId, "desktop session id is required");
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /Notes/);
+  const [empireBlueprintMode, empireTodoMode] = await Promise.all([
+    eventually(
+      () => element(base, sessionId, '[data-testid="notes-mode-empire_blueprint"]'),
+      "render Empire Blueprint mode",
+    ),
+    eventually(
+      () => element(base, sessionId, '[data-testid="notes-mode-empire_todo"]'),
+      "render Empire To-Do mode",
+    ),
+  ]);
+  const [blueprintRect, todoRect] = await Promise.all([
+    elementRect(base, sessionId, empireBlueprintMode),
+    elementRect(base, sessionId, empireTodoMode),
+  ]);
+  assert.ok(
+    todoRect.x > blueprintRect.x,
+    "Empire To-Do must render to the right of Empire Blueprint",
+  );
+  await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
+  assert.match(
+    await eventually(() => bodyText(base, sessionId), "open Empire To-Do"),
+    /EMPIRE TO-DO LIST/,
+  );
+  await click(base, sessionId, '[data-testid="empire-todo-item-radcon-sentinel"]');
+  assert.match(
+    await eventually(() => bodyText(base, sessionId), "select Sentinel roadmap item"),
+    /Build Radcon Sentinel/,
+  );
+  const empireTodoNotes = await element(
+    base,
+    sessionId,
+    '[data-testid="empire-todo-notes"]',
+  );
+  const todoProbe = "E2E roadmap draft survives selection and persistence";
+  await replaceValue(base, sessionId, empireTodoNotes, todoProbe);
+  await click(
+    base,
+    sessionId,
+    '[data-testid="empire-todo-item-new-project-build-dossier"]',
+  );
+  await eventually(async () => {
+    const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
+    const sentinelItem = todoPayload.items.find((item) => item.id === "radcon-sentinel");
+    assert.match(sentinelItem?.notes || "", new RegExp(todoProbe));
+  }, "persist Empire To-Do draft before switching items");
+  await click(base, sessionId, '[data-testid="empire-todo-item-radcon-sentinel"]');
+  const reselectedTodoNotes = await element(
+    base,
+    sessionId,
+    '[data-testid="empire-todo-notes"]',
+  );
+  assert.match(
+    await elementProperty(base, sessionId, reselectedTodoNotes, "value"),
+    new RegExp(todoProbe),
+  );
   await click(base, sessionId, '[data-testid="tab-agents"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "render Agents"),
@@ -277,6 +394,7 @@ try {
     await eventually(() => bodyText(base, sessionId), "render Infrastructure"),
     /INFRASTRUCTURE ASSETS/,
   );
+  await click(base, sessionId, '[data-testid="infrastructure-row-cloudflare"]');
   const newInfrastructure = await eventually(
     () => element(base, sessionId, '[data-testid="new-infrastructure"]'),
     "find New Infrastructure",
@@ -352,6 +470,54 @@ try {
     );
   }, "persist Infrastructure autosave into the isolated O2 root");
 
+  await click(base, sessionId, '[data-testid="tab-sentinel"]');
+  assert.match(
+    await eventually(() => bodyText(base, sessionId), "render Security command center"),
+    /Empire Security Command Center/,
+  );
+  assert.match(await bodyText(base, sessionId), /Level 0 — Observation/);
+  assert.match(await bodyText(base, sessionId), /Level 5 — Recovery/);
+  await click(base, sessionId, '[data-testid="sentinel-health-check"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /Host health evidence refreshed/);
+    assert.match(text, /ACTIVE · READ ONLY/);
+  }, "run a real read-only Host Guardian check", 30_000);
+  const hostActionRow = await eventually(
+    () => element(base, sessionId, '[data-testid="sentinel-activity"] [data-kind="action"]'),
+    "render the real Host Guardian action record",
+  );
+  assert.match(await elementProperty(base, sessionId, hostActionRow, "textContent"), /host inspect health/i);
+  await click(base, sessionId, '[data-testid="sentinel-security-check"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /NOT CONFIGURED/);
+    assert.match(text, /Security inventory refreshed/);
+  }, "run a real read-only Security Guardian check", 30_000);
+  const securityActionRow = await eventually(
+    () => element(base, sessionId, '[data-testid="sentinel-activity"] [data-kind="action"]'),
+    "render the real Security Guardian action record",
+  );
+  assert.match(
+    await elementProperty(base, sessionId, securityActionRow, "textContent"),
+    /security inspect inventory/i,
+  );
+  if (process.env.RADCONTROL_E2E_SCREENSHOT_PATH) {
+    const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`);
+    await writeFile(
+      process.env.RADCONTROL_E2E_SCREENSHOT_PATH,
+      Buffer.from(encodedScreenshot, "base64"),
+    );
+  }
+
+  await click(base, sessionId, '[data-testid="tab-infrastructure"]');
+  const infrastructureText = await eventually(
+    () => bodyText(base, sessionId),
+    "reopen Infrastructure after Security",
+  );
+  assert.doesNotMatch(infrastructureText, /System76 Workstation/);
+  assert.match(infrastructureText, /Cloudflare/);
+
   await click(base, sessionId, '[data-testid="tab-projects"]');
 
   await click(base, sessionId, '[data-testid="new-project"]');
@@ -397,7 +563,27 @@ try {
     if (!/STOPPED/.test(text)) throw new Error("fixture runtime has not stopped");
   }, "stop isolated fixture runtime", 30_000);
 
-  console.error("[e2e] passed: isolated tab switching, Agent and Infrastructure creation, governed-note autosave, project bootstrap, and runtime lifecycle");
+  console.error("[e2e] passed: Notes ordering and Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, project bootstrap, and runtime lifecycle");
+} catch (error) {
+  if (sessionId) {
+    const renderedText = await bodyText(base, sessionId).catch(() => "<body unavailable>");
+    console.error(`[e2e] rendered body at failure:\n${renderedText.slice(0, 4_000)}`);
+    if (process.env.RADCONTROL_E2E_SCREENSHOT_PATH) {
+      const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`).catch(() => null);
+      if (encodedScreenshot) {
+        await writeFile(
+          `${process.env.RADCONTROL_E2E_SCREENSHOT_PATH}.failure.png`,
+          Buffer.from(encodedScreenshot, "base64"),
+        );
+      }
+    }
+  }
+  const registryAtFailure = await readFile(
+    path.join(fixture.o2Root, "registry", "projects.json"),
+    "utf8",
+  ).catch(() => "<registry unavailable>");
+  console.error(`[e2e] projects registry at failure:\n${registryAtFailure.slice(0, 8_000)}`);
+  throw error;
 } finally {
   if (sessionId) await request(base, `/session/${sessionId}`, "DELETE").catch(() => {});
   spawnSync("bash", [path.join(fixture.o2Root, "scripts", "run_o2.sh"), `${fixtureKey}.stop`], {
