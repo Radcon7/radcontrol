@@ -21,6 +21,10 @@ import type {
 } from "./components/projects/types";
 import { fmtErr, registryToProjects } from "./components/projects/helpers";
 import { normalizeFormationStartPayload } from "./components/projects/formationPayload";
+import {
+  assertFormationLearningInheritance,
+  type FormationLearningInheritance,
+} from "./components/projects/formationLearning";
 import { copyText } from "./components/common/copyText";
 import { encodeO2JsonPayload, getE2EProjectRoots, readO2File, runO2Text } from "./components/common/o2Files";
 
@@ -209,6 +213,7 @@ type ProjectBootstrapResult = {
   runtimeKind?: string;
   preferredUrl?: string;
   preferredPort?: number | string;
+  learningInheritance?: FormationLearningInheritance;
   error?: string;
   details?: string[];
 };
@@ -722,7 +727,18 @@ export default function App() {
             throw new Error(bootstrapMessage);
           }
 
+          const learning = assertFormationLearningInheritance(
+            bootstrapParsed.learningInheritance,
+            {
+              projectKey: parsed.projectKey,
+              projectArchetype: formationPayload.projectArchetype,
+            },
+          );
+
           appendLog("[new-project] starter localhost surface bootstrapped.");
+          appendLog(
+            `[new-project] learning inheritance conformant: ${learning.productAuthorityPath}; correction, roadblock, and quality routes available; memory not inherited.`,
+          );
           if (bootstrapParsed.repoPath) {
             appendLog(`[new-project] repo path: ${bootstrapParsed.repoPath}`);
           }

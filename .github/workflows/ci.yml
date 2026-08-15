@@ -35,6 +35,8 @@ jobs:
           npm run verify:portfolio-blueprint
           npm run verify:o2-contract
           npm run verify:project-builder
+          npm run test:formation-payload
+          npm run verify:formation-learning
           npm run verify:ci-contract
           npm run verify:repo-index
           npm run verify:agents-architecture
