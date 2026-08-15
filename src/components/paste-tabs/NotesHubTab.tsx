@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DocumentLibraryPanel } from "./DocumentLibraryPanel";
 import { TimelineTab } from "./TimelineTab";
+import { EmpireTodoWorkspace } from "../notes/EmpireTodoWorkspace";
 
-type NotesMode = "notes" | "timeline" | "empire_blueprint";
+type NotesMode = "notes" | "empire_todo" | "timeline" | "empire_blueprint";
 
 type Props = {
   busy?: boolean;
@@ -19,7 +20,7 @@ type LibraryModeConfig = {
 const MODE_CONFIGS: Array<
   | LibraryModeConfig
   | {
-      key: "timeline";
+      key: "timeline" | "empire_todo";
       label: string;
     }
 > = [
@@ -28,6 +29,10 @@ const MODE_CONFIGS: Array<
     label: "Notes",
     title: "Notes",
     placeholder: "Write or edit general notes here…",
+  },
+  {
+    key: "empire_todo",
+    label: "Empire To-Do List",
   },
   {
     key: "timeline",
@@ -43,7 +48,7 @@ const MODE_CONFIGS: Array<
 
 function libraryConfigFor(mode: LibraryModeConfig["key"]): LibraryModeConfig {
   const found = MODE_CONFIGS.find((item) => item.key === mode);
-  if (!found || found.key === "timeline") {
+  if (!found || !("title" in found)) {
     throw new Error(`Missing notes mode config for ${mode}`);
   }
   return found;
@@ -52,7 +57,7 @@ function libraryConfigFor(mode: LibraryModeConfig["key"]): LibraryModeConfig {
 export function NotesHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
   const [mode, setMode] = useState<NotesMode>("notes");
   const saverRef = useRef<(() => Promise<boolean>) | null>(null);
-  const activeLibraryConfig = mode === "timeline" ? null : libraryConfigFor(mode);
+  const activeLibraryConfig = mode === "timeline" || mode === "empire_todo" ? null : libraryConfigFor(mode);
 
   const registerModeSaver = useCallback(
     (fn: (() => Promise<boolean>) | null) => {
@@ -103,6 +108,11 @@ export function NotesHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
       <div className="workspaceHubBody">
         {mode === "timeline" ? (
           <TimelineTab />
+        ) : mode === "empire_todo" ? (
+          <EmpireTodoWorkspace
+            busy={busy}
+            registerBeforeTabChangeSaver={registerModeSaver}
+          />
         ) : (
           <DocumentLibraryPanel
             tabKey={activeLibraryConfig!.key}

@@ -86,9 +86,15 @@ fn verb_allowed(verb: &str) -> bool {
       | "list_projects"
       | "empire.map"
       | "empire.sweep"
+      | "empire.todo.list"
       | "radcontrol.snapshot"
       | "radcontrol.dev_strict"
       | "router.health"
+      | "sentinel.status"
+      | "sentinel.host.check"
+      | "sentinel.host.deep_check"
+      | "sentinel.host.explain_fans"
+      | "sentinel.security.check"
       | "workstation.health.check"
       | "workstation.health.history"
       | "workstation.cleanup.preview"
@@ -114,6 +120,8 @@ fn verb_allowed(verb: &str) -> bool {
     "project_create.bootstrap.",
     "agent_profile.create.",
     "infrastructure_asset.create.",
+    "sentinel.action.dry_run.",
+    "sentinel.ask.",
     "port_status.",
     "port_suggest.",
   ];
@@ -133,21 +141,25 @@ fn verb_allowed(verb: &str) -> bool {
     && matches!(action, "dev" | "dev_strict" | "stop" | "snapshot" | "map" | "proofpack")
 }
 
-fn payload_verb_allowed(verb: &str) -> bool {
-  matches!(verb, "files.write")
+fn payload_verb_command(verb: &str) -> Option<&'static str> {
+  match verb {
+    "files.write" => Some("files.write.stdin"),
+    "empire.todo.save" => Some("empire.todo.save.stdin"),
+    _ => None,
+  }
 }
 
 #[tauri::command]
 pub fn run_o2_payload(verb: String, payload_json: String) -> RunO2Result {
   let verb = verb.trim();
-  if !payload_verb_allowed(verb) {
+  let Some(dispatch_verb) = payload_verb_command(verb) else {
     return RunO2Result { ok: false, code: 1, stdout: "".to_string(), stderr: format!("payload verb not allowed: {verb}") };
-  }
+  };
   if payload_json.len() > 1024 * 1024 {
     return RunO2Result { ok: false, code: 1, stdout: "".to_string(), stderr: "payload exceeds 1 MiB limit".to_string() };
   }
   let script = format!("{}/scripts/run_o2.sh", o2_root());
-  let child = Command::new("bash").arg(script).arg("files.write.stdin").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn();
+  let child = Command::new("bash").arg(script).arg(dispatch_verb).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn();
   let Ok(mut child) = child else { return RunO2Result { ok: false, code: 1, stdout: "".to_string(), stderr: "failed to spawn stdin O2 write".to_string() }; };
   if child.stdin.as_mut().and_then(|stdin| stdin.write_all(payload_json.as_bytes()).ok()).is_none() {
     return RunO2Result { ok: false, code: 1, stdout: "".to_string(), stderr: "failed to write stdin O2 payload".to_string() };

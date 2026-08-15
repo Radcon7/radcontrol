@@ -11,8 +11,10 @@ RadControl owns UI layout, local presentation state, document viewing and editin
 - **Projects**: governed project registry, runtime controls, repo snapshots/maps, original formation requests when available, and New Project.
 - **Infrastructure**: governed infrastructure assets and notes.
 - **Agents**: governed agent roster, attributes, scopes, and notes.
-- **Empire Utility**: empire map, snapshot, and sweep artifacts.
-- **Notes**: one authored-notes library, timeline, and empire blueprints.
+- **Sentinel**: governed Host Guardian and Security Guardian observation,
+  evidence status, correlation-ready records, policy simulation, and audit.
+- **Notes**: authored notes, the persistent Empire To-Do List, timeline, and
+  empire blueprints.
 - **Legal**: legal notes, documents, and entity structure records.
 
 ## Runtime Model

@@ -44,6 +44,10 @@ jobs:
           npm run verify:infrastructure-architecture
           npm run verify:projects-architecture
           npm run verify:tauri-e2e-contract
+          npm run test:empire-todo
+          npm run verify:empire-todo
+          npm run test:sentinel
+          npm run verify:sentinel
           npm run lint
           npm run build
           npm audit --omit=dev

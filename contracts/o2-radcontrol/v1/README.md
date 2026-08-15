@@ -18,3 +18,9 @@ per project.
 
 This validation changes no visible New Project fields. O2 remains the source
 of the evidence; RadControl does not persist a parallel policy or memory store.
+
+Additive Empire To-Do and Sentinel capabilities use the same compatibility
+handshake. Empire To-Do uses an stdin-backed validated structured save.
+Sentinel exposes fixed Level-0 observation verbs, deterministic Ask Sentinel,
+and a policy-only dry-run endpoint. No advertised Sentinel capability provides
+root, arbitrary shell, provider mutation, or a background scheduler.
