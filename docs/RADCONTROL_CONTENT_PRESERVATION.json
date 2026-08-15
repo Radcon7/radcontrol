@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "status": "accepted-recovery-evidence",
+  "goldenRadControlCommit": "b1431ac0ac5c4c0e83f794d7558d31ba0f133630",
+  "recoveryBaseCommit": "1f5785849f12e2d70b725ec8c4672587537033f4",
+  "empireOperationsSourceCommit": "b94341ce65d87f91f157780902f5ff7384c5dc0b",
+  "historicalO2RegistryCommit": "5e6e7f9cf57fded3032994da716ae6c294eb271b",
+  "currentO2RegistryCommit": "80699123d0bef8d98f8290d1d358bfa6054453fb",
+  "selectionReason": "b1431ac is the merge of RadControl PR 11: it already contains Sentinel and Empire To-Do and is the immediate parent of the Phase 1 consolidation branch merged by PR 12.",
+  "primaryDestinations": [
+    { "historical": "Projects", "final": "Projects", "action": "preserved" },
+    { "historical": "Infrastructure", "final": "Infrastructure", "action": "preserved" },
+    { "historical": "Agents", "final": "Agents", "action": "preserved; repository router health restored as an internal workspace" },
+    { "historical": "Sentinel", "final": "Security > Radcon Sentinel", "action": "intentional replacement label preserved" },
+    { "historical": "Notes", "final": "Notes", "action": "preserved" },
+    { "historical": "Legal", "final": "Legal", "action": "preserved" },
+    { "historical": "Empire Utility", "final": "Security > Empire Operations", "action": "intentional primary-destination replacement; useful report workspace restored" }
+  ],
+  "projects": {
+    "historicalRegisteredKeys": ["o2", "dqotd", "tbis", "offroad", "radstock", "radcrm", "radcontrol", "radconenterprises", "radfamily", "radwolfe", "radcalendar"],
+    "finalRegisteredKeys": ["o2", "dqotd", "tbis", "offroad", "radstock", "radcrm", "radcontrol", "radconenterprises", "radfamily", "radwolfe", "radcalendar"],
+    "historicalVisibleKeys": ["dqotd", "tbis", "offroad", "radstock", "radcrm", "radconenterprises", "radfamily", "radwolfe", "radcalendar"],
+    "finalVisibleKeys": ["dqotd", "tbis", "offroad", "radstock", "radcrm", "radconenterprises", "radfamily", "radwolfe", "radcalendar"],
+    "preexistingOperatorExclusions": ["o2", "radcontrol"],
+    "dataFlow": "O2 list_projects -> registryToProjects -> filterOperatorProjects -> ProjectRoster",
+    "action": "preserved exactly; no project data was seeded or recreated"
+  },
+  "infrastructure": [
+    { "key": "openai-codex", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
+    { "key": "cloudflare", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
+    { "key": "github", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
+    { "key": "vercel", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
+    { "key": "supabase", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
+    { "key": "resend", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
+    { "key": "google-workspace", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
+    { "key": "dqotd-workspace", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
+    { "key": "docker", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
+    { "key": "system76-workstation", "historicalState": "visible Infrastructure workspace", "finalState": "canonical O2 identity plus Security > Host Guardian; not visible in Infrastructure", "action": "migrated to Host Guardian / not visible in Infrastructure" },
+    { "key": "agent-mcp-surfaces", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
+    { "key": "unregistered-future-assets", "historicalState": "not applicable", "finalState": "visible through generic governed-record projection except the exact system76-workstation key", "action": "preservation invariant" }
+  ],
+  "notesModes": [
+    { "key": "notes", "historical": "Notes", "final": "Notes", "action": "preserved" },
+    { "key": "timeline", "historical": "Timeline", "final": "Timeline", "action": "preserved" },
+    { "key": "empire_blueprint", "historical": "Empire Blueprint", "final": "Empire Blueprint", "action": "preserved" },
+    { "key": "empire_todo", "historical": "Empire To-Do List", "final": "Empire To-Do", "action": "preserved and positioned immediately after Empire Blueprint" }
+  ],
+  "empireOperations": [
+    { "historicalFeature": "Empire Map producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Empire Map", "action": "restored from Git history" },
+    { "historicalFeature": "RadControl Snapshot producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Snapshot", "action": "restored from Git history" },
+    { "historicalFeature": "Empire Sweep producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Empire Sweep", "action": "restored from Git history" }
+  ],
+  "system76Migration": [
+    { "historicalFeature": "machine identity, configuration, notes", "finalDestination": "Security > Host Guardian > Workstation Identity + Record", "action": "migrated" },
+    { "historicalFeature": "thermal, fans, CPU, load, memory, swap, storage, disk I/O", "finalDestination": "Security > Host Guardian signals and collapsed evidence", "action": "migrated" },
+    { "historicalFeature": "processes, services, network, Docker, Supabase, startup and login evidence", "finalDestination": "Security > Host Guardian signals and collapsed evidence", "action": "migrated" },
+    { "historicalFeature": "update check and history", "finalDestination": "Security > Host Guardian > Maintenance Inventory", "action": "migrated read-only" },
+    { "historicalFeature": "repository router durability", "finalDestination": "Agents > Repository Routers", "action": "restored outside Host Guardian" },
+    { "historicalFeature": "safe cleanup preview/apply", "finalDestination": "Host Guardian maintenance migration boundary and Level 1 capability ladder", "action": "accounted for; not activated under Sentinel v1" },
+    { "historicalFeature": "catalog refresh and official updater launch", "finalDestination": "Host Guardian maintenance migration boundary", "action": "accounted for; operator-owned and not exposed under Sentinel v1" },
+    { "historicalFeature": "Terra workstation review", "finalDestination": "Host Guardian maintenance migration boundary and deterministic Ask Sentinel", "action": "superseded without live LLM or execution channel" }
+  ],
+  "rootCause": [
+    "PR 12 removed WorkstationOperationsPanel as part of the intentional System76 migration; RouterHealthPanel was nested inside that component, so unrelated repository-governance health disappeared with it.",
+    "The Phase 1 closeout then treated the old primary destination removal as authority to remove the Empire Map, Snapshot, and Sweep bridge path and shared artifact producer, even though those useful global reports had no replacement.",
+    "Project registry wiring, the ten non-workstation Infrastructure profiles, Notes modes, Legal, and their shared layout declarations were not removed; the regression was capability coupling and over-broad disposition, not project-data loss or global CSS hiding."
+  ],
+  "intentionalDeletions": [
+    "standalone Empire Utility primary tab and component",
+    "standalone System76 Infrastructure profile and workstation component stack",
+    "workstation-specific duplicate CSS",
+    "privileged or external-launch maintenance controls prohibited by Sentinel Phase 1"
+  ]
+}

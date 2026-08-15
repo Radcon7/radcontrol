@@ -29,14 +29,18 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   computer identity, health, monitoring, maintenance inventory, and operator
   notes belong to Security's Host Guardian. Other infrastructure assets retain
   the existing roster/detail workflow.
-- Agents: governed profiles, focus/scope/limits, and notes.
+- Agents: governed profiles, focus/scope/limits, and notes. Repository Routers
+  is an adjacent O2-backed workspace that restores the cross-repository
+  durability report without coupling it to the System76 host presentation.
 - Security: the sole Radcon Sentinel command surface over O2-owned Host Guardian and
   Security Guardian observation, capability, trigger, event, incident, action,
   baseline, and hash-chained audit records. Sentinel never owns policy or a
   privileged executor; Phase 1 offers only manual read-only Level-0 controls,
   while Levels 1-5 remain visibly not activated. Host Guardian reuses the
   canonical O2 workstation configuration and note paths rather than cloning
-  workstation state into RadControl.
+  workstation state into RadControl. Security also contains the restored
+  Empire Operations artifact workspace for governed Empire Map, Snapshot, and
+  Empire Sweep reports; this does not recreate an Empire Utility destination.
 - Notes and Legal: O2-backed authored document libraries and timeline records.
   Notes also includes an O2-backed structured Empire To-Do workspace whose
   editable records live at `docs/radcontrol/empire_todo/items.json` in O2. Its
@@ -80,3 +84,14 @@ Use the impact-appropriate subset of:
 The accepted Phase 1 feature disposition is recorded in
 `docs/SENTINEL_PHASE1_MIGRATION.md`; that manifest is migration evidence, not a
 second source of current product authority.
+
+## Content preservation
+
+RadControl surface replacement is selective, not destructive simplification.
+Before a broad consolidation, compare the pre-change visible product from Git
+history, classify every removed capability, and preserve unrelated registered
+Projects, Infrastructure entries, Notes modes, primary destinations, and
+operational/reference tools. A specifically authorized asset removal or tab
+replacement does not authorize collateral content loss. The recovery baseline
+and acceptance matrix live in `docs/RADCONTROL_CONTENT_PRESERVATION.json` and
+are enforced by the content-preservation tests.

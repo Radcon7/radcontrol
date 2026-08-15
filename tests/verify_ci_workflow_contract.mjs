@@ -14,6 +14,8 @@ assert.match(workflow, /npm run test:empire-todo/);
 assert.match(workflow, /npm run verify:empire-todo/);
 assert.match(workflow, /npm run test:sentinel/);
 assert.match(workflow, /npm run verify:sentinel/);
+assert.match(workflow, /npm run test:content-preservation/);
+assert.match(workflow, /npm run verify:content-preservation/);
 assert.match(workflow, /npm audit --omit=dev/);
 assert.match(workflow, /cargo clippy --manifest-path src-tauri\/Cargo\.toml -- -D warnings/);
 assert.doesNotMatch(workflow, /npm run (?:dev|preview|tauri:dev|test:tauri-e2e)(?:\s|$)/);

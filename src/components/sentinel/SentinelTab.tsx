@@ -457,6 +457,27 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
           </details>
         </section>
         <HostUpdatesPanel disabled={Boolean(busyAction)} />
+        <section className="sentinelSubCard" data-testid="host-maintenance-boundary">
+          <div className="sentinelSubCardHeading">
+            <div><span>HOST MAINTENANCE MIGRATION</span><strong>Preserved capability boundaries</strong></div>
+            <small>Phase 1 · no executor</small>
+          </div>
+          <div className="sentinelCompactList">
+            <div>
+              <span><strong>Safe cleanup</strong><small>Historical preview/apply workflow</small></span>
+              <small>Level 1 maintenance · NOT ACTIVATED</small>
+            </div>
+            <div>
+              <span><strong>Catalog refresh + official updater</strong><small>Historical maintenance workflow</small></span>
+              <small>Operator-owned · NOT EXPOSED IN PHASE 1</small>
+            </div>
+            <div>
+              <span><strong>Terra workstation review</strong><small>Historical advisory workflow</small></span>
+              <small>Superseded by deterministic Ask Sentinel</small>
+            </div>
+          </div>
+          <p className="sentinelSubtle">These functions remain accounted for without restoring the duplicate workstation UI or activating mutation authority.</p>
+        </section>
       </div>
 
       <section className="sentinelActivity" data-testid="sentinel-activity">

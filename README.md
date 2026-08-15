@@ -12,11 +12,15 @@ RadControl owns UI layout, local presentation state, document viewing and editin
 - **Infrastructure**: governed provider and platform assets and notes. The
   canonical workstation record is intentionally presented through Security's
   Host Guardian rather than as a duplicate Infrastructure destination.
-- **Agents**: governed agent roster, attributes, scopes, and notes.
+- **Agents**: governed agent roster, attributes, scopes, and notes, plus the
+  restored repository-router durability workspace backed by O2 `router.health`.
 - **Security**: the sole Radcon Sentinel destination, with governed Host
   Guardian and Security Guardian observation, truthful evidence status,
   recent activity, the capability ladder, triggers, workstation records, and
-  audit state. Phase 1 exposes read-only Level-0 checks only.
+  audit state. Its adjacent Empire Operations workspace preserves Empire Map,
+  Snapshot, and Empire Sweep artifact history and governed report controls
+  without restoring a separate Empire Utility tab. Phase 1 exposes read-only
+  Level-0 Sentinel checks only.
 - **Notes**: authored notes, timeline, Empire Blueprint, then the persistent
   Empire To-Do workspace as adjacent first-class controls.
 - **Legal**: legal notes, documents, and entity structure records.

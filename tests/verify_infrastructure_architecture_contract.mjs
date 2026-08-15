@@ -70,10 +70,10 @@ for (const deadComponent of [
   "WorkstationHealthPanel.tsx",
   "WorkstationOperationsPanel.tsx",
   "WorkstationUpdatesPanel.tsx",
-  "RouterHealthPanel.tsx",
 ]) {
   assert.equal(existsSync(new URL(deadComponent, root)), false, `${deadComponent} must be removed`);
 }
+assert.equal(existsSync(new URL("RouterHealthPanel.tsx", root)), true, "router health must remain reachable outside the removed workstation UI");
 
 const profiles = buildInfrastructureProfiles([]);
 assert.equal(profiles.some((profile) => profile.key === HOST_GUARDIAN_ASSET_KEY), false);
@@ -106,4 +106,4 @@ assert.equal(entries.some((entry) => entry.key === HOST_GUARDIAN_ASSET_KEY), fal
 assert.equal(entries.some((entry) => entry.key === "custom-provider"), true);
 assert.equal(entries.some((entry) => entry.key === "github"), true);
 
-console.log("infrastructure architecture: workstation hidden, dead UI removed, unrelated assets preserved");
+console.log("infrastructure architecture: workstation hidden, unrelated assets preserved, router health relocated");

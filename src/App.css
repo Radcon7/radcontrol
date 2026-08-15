@@ -1705,6 +1705,89 @@ pre {
   opacity: 0.8;
 }
 
+.routerHealthPanel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.routerHealthActions,
+.routerHealthSummary,
+.routerHealthList article,
+.routerHealthList article > span {
+  display: flex;
+}
+
+.routerHealthActions {
+  align-items: center;
+  gap: 8px;
+}
+
+.routerHealthState {
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.routerHealthState-healthy {
+  color: #9fffc7;
+  border-color: rgba(90, 255, 161, 0.32);
+  background: rgba(90, 255, 161, 0.08);
+}
+
+.routerHealthState-attention {
+  color: #ffd796;
+  border-color: rgba(255, 190, 92, 0.32);
+  background: rgba(255, 190, 92, 0.08);
+}
+
+.routerHealthSummary {
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.routerHealthSummary span {
+  opacity: 0.72;
+}
+
+.routerHealthList {
+  display: grid;
+  gap: 8px;
+}
+
+.routerHealthList article {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.routerHealthList article > span {
+  flex-direction: column;
+  gap: 3px;
+}
+
+.routerHealthList article > span:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.routerHealthList small {
+  opacity: 0.68;
+}
+
 .surfaceSidebarHeaderRow {
   align-items: center;
 }

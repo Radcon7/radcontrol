@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 
 const component = await readFile(new URL("../src/components/sentinel/SentinelTab.tsx", import.meta.url), "utf8");
+const security = await readFile(new URL("../src/components/security/SecurityTab.tsx", import.meta.url), "utf8");
+const operations = await readFile(new URL("../src/components/security/EmpireOperationsWorkspace.tsx", import.meta.url), "utf8");
 const updates = await readFile(new URL("../src/components/sentinel/HostUpdatesPanel.tsx", import.meta.url), "utf8");
 const model = await readFile(new URL("../src/components/sentinel/sentinelModel.ts", import.meta.url), "utf8");
 const api = await readFile(new URL("../src/components/sentinel/sentinelApi.ts", import.meta.url), "utf8");
@@ -11,14 +13,20 @@ const css = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
 const bridge = await readFile(new URL("../src-tauri/src/commands/o2.rs", import.meta.url), "utf8");
 
 assert.match(app, /sentinel: "Security"/);
+assert.match(app, /<SecurityTab/);
 assert.match(app, /data-testid=\{`tab-\$\{t\}`\}/);
 assert.doesNotMatch(app, /EmpireUtilityTab|Empire Utility/);
 assert.doesNotMatch(css, /\.empireUtility/);
 assert.equal(
   existsSync(new URL("../src/components/common/useArtifactStore.ts", import.meta.url)),
-  false,
-  "superseded Empire Utility artifact-store hook must be removed",
+  true,
+  "history-backed generated-artifact store must serve the replacement workspace",
 );
+assert.match(security, /Radcon Sentinel/);
+assert.match(security, /Empire Operations/);
+assert.match(operations, /"empire\.map"/);
+assert.match(operations, /"radcontrol\.snapshot"/);
+assert.match(operations, /"empire\.sweep"/);
 assert.match(component, /RADCON SENTINEL/);
 assert.match(component, /Empire Security Command Center/);
 assert.match(component, /HOST GUARDIAN/);
@@ -34,6 +42,9 @@ assert.match(component, /HOST_CONFIGURATION_PATH/);
 assert.match(component, /HOST_NOTES_PATH/);
 assert.match(component, /registerBeforeTabChangeSaver/);
 assert.match(component, /<HostUpdatesPanel/);
+assert.match(component, /data-testid="host-maintenance-boundary"/);
+assert.match(component, /Safe cleanup/);
+assert.match(component, /NOT ACTIVATED/);
 assert.doesNotMatch(component, /<details className="sentinelDetails" open>/);
 for (const label of [
   "Run Health Check",
@@ -75,7 +86,10 @@ assert.match(css, /\.sentinelLevelList/);
 assert.doesNotMatch(bridge, /"workstation\.(health|cleanup|codex)/);
 assert.doesNotMatch(bridge, /"workstation\.updates\.(refresh|open)"/);
 assert.doesNotMatch(bridge, /"sentinel\.action\.dry_run\./);
-assert.doesNotMatch(bridge, /"empire\.sweep"|"router\.health"/);
+assert.match(bridge, /"empire\.map"/);
+assert.match(bridge, /"radcontrol\.snapshot"/);
+assert.match(bridge, /"empire\.sweep"/);
+assert.match(bridge, /"router\.health"/);
 assert.match(bridge, /"workstation\.updates\.check"/);
 assert.match(bridge, /"workstation\.updates\.history"/);
 assert.doesNotMatch(bridge, /sudo|Command::new\([^)]*payload|shell\(true\)/);

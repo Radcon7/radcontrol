@@ -9,6 +9,10 @@ const migrationManifest = await readFile(
   new URL("docs/SENTINEL_PHASE1_MIGRATION.md", root),
   "utf8",
 );
+const preservationManifest = JSON.parse(await readFile(
+  new URL("docs/RADCONTROL_CONTENT_PRESERVATION.json", root),
+  "utf8",
+));
 const policyPointers = await readFile(
   new URL("docs/POLICY_POINTERS.md", root),
   "utf8",
@@ -30,6 +34,8 @@ assert.match(agentPointer, /current task explicitly authorizes that launch/);
 assert.match(agentPointer, /General permission[\s\S]*is not launch authorization/);
 assert.match(agentPointer, /no new listener remains afterward/);
 assert.match(agentPointer, /product-local execution authority, not an Empire-wide rule/);
+assert.match(agentPointer, /## RadControl content preservation boundary/);
+assert.match(agentPointer, /Authorization to remove one asset or replace one destination is not authority/);
 
 assert.match(repoState, /## Authority boundary/);
 assert.match(repoState, /Durable writes use O2 file or producer verbs/);
@@ -47,6 +53,8 @@ assert.match(repoState, /structured Empire To-Do workspace/);
 assert.match(repoState, /must not be launched through localhost/);
 assert.match(repoState, /publication,[\s\S]*does not grant launch authorization/);
 assert.match(repoState, /never run it under ordinary verification authorization/);
+assert.match(repoState, /## Content preservation/);
+assert.match(repoState, /RADCONTROL_CONTENT_PRESERVATION\.json/);
 
 assert.match(readme, /Do not run this E2E/);
 assert.match(readme, /tauri-driver[\s\S]*WebDriver TCP listeners/);
@@ -56,6 +64,10 @@ assert.match(migrationManifest, /Empire Utility navigation destination \| Delete
 assert.match(migrationManifest, /System76 roster item[\s\S]*Security > Host Guardian/);
 assert.match(migrationManifest, /Safe cleanup preview\/apply \| Deleted/);
 assert.match(migrationManifest, /Unknown,[\s\S]*remains visibly non-healthy/);
+assert.match(migrationManifest, /Superseded in part by the content-preservation recovery/);
+assert.match(migrationManifest, /Security > Empire Operations/);
+assert.match(migrationManifest, /Agents > Repository Routers/);
+assert.equal(preservationManifest.goldenRadControlCommit, "b1431ac0ac5c4c0e83f794d7558d31ba0f133630");
 
 assert.match(policyPointers, /Explicitly scoped O2 empire contracts/);
 assert.match(policyPointers, /radcontrol_ui_structure_doctrine_20260725\.md/);

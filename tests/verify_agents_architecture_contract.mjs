@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 
 const root = new URL("../src/components/agents/", import.meta.url);
 const parent = await readFile(new URL("AgentsTab.tsx", root), "utf8");
+const routerHealth = await readFile(new URL("RouterHealthPanel.tsx", root), "utf8");
 const model = await readFile(new URL("agentModel.ts", root), "utf8");
 
 for (const component of [
@@ -22,6 +23,10 @@ assert.doesNotMatch(parent, /className=\{`surfaceNavButton/);
 assert.match(parent, /useGovernedRecordNote/);
 assert.match(parent, /export function AgentsTab/);
 assert.match(parent, /data-testid="new-agent"/);
+assert.match(parent, /Repository Routers/);
+assert.match(parent, /<RouterHealthPanel/);
+assert.match(routerHealth, /"router\.health"/);
+assert.match(routerHealth, /data-testid="router-health-panel"/);
 assert.doesNotMatch(parent, /persistGovernedRecordNote/);
 assert.match(parent, /runO2PayloadParsedJson<CreateAgentProfileJson>/);
 
