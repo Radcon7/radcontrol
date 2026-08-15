@@ -23,6 +23,11 @@ assert.match(installer, /target\/release\/radcontrol-app/);
 assert.match(installer, /icons\/hicolor\/128x128\/apps\/radcontrol-app\.png/);
 assert.match(bridge, /\.local\/share\/radcontrol\/o2-runtime/);
 assert.match(bridge, /pub fn runtime_diagnostics/);
+assert.equal(
+  bridge.match(/\.env\("O2_ROOT", &root\)/g)?.length,
+  2,
+  "every O2 child process must be pinned to the root selected by the bridge",
+);
 assert.doesNotMatch(app, /Restart RadControl/);
 assert.match(projects, /Project data is unavailable\. No empty-state claim is being made\./);
 assert.match(infrastructure, /Infrastructure data is unavailable\. No empty-state claim is being made\./);
