@@ -21,6 +21,23 @@ governance, and do not invent or duplicate O2 behavior. After moving here from
 another repository, re-anchor, read this file, and run the RadControl query
 before editing.
 
+## RadControl launch boundary
+
+Do not launch RadControl through localhost, Vite dev or preview, Tauri dev,
+desktop E2E, or any other command that starts the app or binds a TCP listener
+unless the current task explicitly authorizes that launch. General permission
+to implement, test, build, publish, or merge is not launch authorization.
+
+Before running any E2E command, inspect the harness. If it starts RadControl, a
+fixture runtime, WebDriver, or another listener, the same explicit current-task
+authorization is required. When a launch is authorized, record the listener
+baseline first and prove that no new listener remains afterward. Do not stop or
+alter a pre-existing listener without separate authorization.
+
+Non-server checks remain allowed: contract/unit tests, lint, production builds
+that do not launch the app, Rust checks, audits, and deterministic snapshots.
+This is RadControl product-local execution authority, not an Empire-wide rule.
+
 ## Task router
 
 | Trigger | Required local first reads | Conditional shared route |
@@ -51,7 +68,7 @@ future business operator portal. RadControl owns local ephemeral view state but
 must not duplicate O2 policy or durable data in React/local storage; it must not
 become a second O2 registry, document store, or policy engine.
 
-_Last updated: 2026-08-12_
+_Last updated: 2026-08-15_
 
 ## Router identity and safety
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 
 const component = await readFile(new URL("../src/components/sentinel/SentinelTab.tsx", import.meta.url), "utf8");
@@ -12,6 +13,12 @@ const bridge = await readFile(new URL("../src-tauri/src/commands/o2.rs", import.
 assert.match(app, /sentinel: "Security"/);
 assert.match(app, /data-testid=\{`tab-\$\{t\}`\}/);
 assert.doesNotMatch(app, /EmpireUtilityTab|Empire Utility/);
+assert.doesNotMatch(css, /\.empireUtility/);
+assert.equal(
+  existsSync(new URL("../src/components/common/useArtifactStore.ts", import.meta.url)),
+  false,
+  "superseded Empire Utility artifact-store hook must be removed",
+);
 assert.match(component, /RADCON SENTINEL/);
 assert.match(component, /Empire Security Command Center/);
 assert.match(component, /HOST GUARDIAN/);
@@ -27,6 +34,7 @@ assert.match(component, /HOST_CONFIGURATION_PATH/);
 assert.match(component, /HOST_NOTES_PATH/);
 assert.match(component, /registerBeforeTabChangeSaver/);
 assert.match(component, /<HostUpdatesPanel/);
+assert.doesNotMatch(component, /<details className="sentinelDetails" open>/);
 for (const label of [
   "Run Health Check",
   "Deep Check",
@@ -67,6 +75,7 @@ assert.match(css, /\.sentinelLevelList/);
 assert.doesNotMatch(bridge, /"workstation\.(health|cleanup|codex)/);
 assert.doesNotMatch(bridge, /"workstation\.updates\.(refresh|open)"/);
 assert.doesNotMatch(bridge, /"sentinel\.action\.dry_run\./);
+assert.doesNotMatch(bridge, /"empire\.sweep"|"router\.health"/);
 assert.match(bridge, /"workstation\.updates\.check"/);
 assert.match(bridge, /"workstation\.updates\.history"/);
 assert.doesNotMatch(bridge, /sudo|Command::new\([^)]*payload|shell\(true\)/);

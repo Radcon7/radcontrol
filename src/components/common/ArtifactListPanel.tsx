@@ -1,4 +1,10 @@
-import { formatMaybeUnixTime, type FilesListItem } from "./useArtifactStore";
+import type { FilesListItem } from "./o2Files";
+
+function formatMaybeUnixTime(value?: number): string {
+  if (!value || !Number.isFinite(value)) return "—";
+  const ms = value < 1000000000000 ? value * 1000 : value;
+  return new Date(ms).toLocaleString();
+}
 
 type Props = {
   title?: string;

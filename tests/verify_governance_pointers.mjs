@@ -3,7 +3,12 @@ import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const agentPointer = await readFile(new URL("AGENTS.md", root), "utf8");
+const readme = await readFile(new URL("README.md", root), "utf8");
 const repoState = await readFile(new URL("docs/REPO_STATE.md", root), "utf8");
+const migrationManifest = await readFile(
+  new URL("docs/SENTINEL_PHASE1_MIGRATION.md", root),
+  "utf8",
+);
 const policyPointers = await readFile(
   new URL("docs/POLICY_POINTERS.md", root),
   "utf8",
@@ -19,6 +24,12 @@ for (const staleInstruction of [
 
 assert.match(agentPointer, /local ephemeral view state/);
 assert.match(agentPointer, /must not duplicate O2 policy or durable data/);
+assert.match(agentPointer, /## RadControl launch boundary/);
+assert.match(agentPointer, /Do not launch RadControl through localhost/);
+assert.match(agentPointer, /current task explicitly authorizes that launch/);
+assert.match(agentPointer, /General permission[\s\S]*is not launch authorization/);
+assert.match(agentPointer, /no new listener remains afterward/);
+assert.match(agentPointer, /product-local execution authority, not an Empire-wide rule/);
 
 assert.match(repoState, /## Authority boundary/);
 assert.match(repoState, /Durable writes use O2 file or producer verbs/);
@@ -33,6 +44,18 @@ assert.match(repoState, /Security: the sole Radcon Sentinel command surface/);
 assert.match(repoState, /Levels 1-5 remain visibly not activated/);
 assert.match(repoState, /system76-workstation[\s\S]*excluded from this roster/);
 assert.match(repoState, /structured Empire To-Do workspace/);
+assert.match(repoState, /must not be launched through localhost/);
+assert.match(repoState, /publication,[\s\S]*does not grant launch authorization/);
+assert.match(repoState, /never run it under ordinary verification authorization/);
+
+assert.match(readme, /Do not run this E2E/);
+assert.match(readme, /tauri-driver[\s\S]*WebDriver TCP listeners/);
+assert.match(readme, /Ordinary build or[\s\S]*authorization is not sufficient/);
+
+assert.match(migrationManifest, /Empire Utility navigation destination \| Deleted/);
+assert.match(migrationManifest, /System76 roster item[\s\S]*Security > Host Guardian/);
+assert.match(migrationManifest, /Safe cleanup preview\/apply \| Deleted/);
+assert.match(migrationManifest, /Unknown,[\s\S]*remains visibly non-healthy/);
 
 assert.match(policyPointers, /Explicitly scoped O2 empire contracts/);
 assert.match(policyPointers, /radcontrol_ui_structure_doctrine_20260725\.md/);

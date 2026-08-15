@@ -43,6 +43,13 @@ bash scripts/snapshot_repo_state.sh
 
 The real desktop test exercises tab switching, submits `BUILD PROJECT` into a temporary governed root, verifies the resulting starter and formation dossier, autosaves a fixture note, and runs the temporary fixture lifecycle. It is opt-in because it launches a native desktop session.
 
+Do not run this E2E, `npm run dev`, `npm run preview`, `npm run tauri:dev`, or
+another RadControl/localhost listener unless the current task explicitly
+authorizes that launch. The E2E starts `tauri-driver`, WebDriver TCP listeners,
+the native RadControl app, and a temporary fixture runtime. Ordinary build or
+test authorization is not sufficient. The non-server checks above remain the
+default verification route.
+
 Linux prerequisite, once per machine:
 
 ```bash
@@ -58,4 +65,6 @@ npm run test:tauri-e2e
 The E2E harness copies only O2 scripts into a temporary root, creates a temporary static fixture and a temporary submitted project starter, then removes all fixture/runtime/root data in `finally`. It does not modify the real O2 registry, notes, or project repos.
 The `O2_ROOT` override and duplicate-instance bypass are accepted only while `RADCONTROL_E2E=1`; normal desktop launches use the canonical `~/dev/o2` root.
 
-The test uses the official `tauri-driver` executable and leaves the fixture stopped with its original note restored.
+The test uses the official `tauri-driver` executable and, when explicitly
+authorized, must leave its app, driver, and fixture listeners stopped with the
+fixture's original note restored.

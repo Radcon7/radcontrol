@@ -1049,16 +1049,14 @@ pre {
   overflow: auto;
 }
 
-.workspaceModeRow,
-.empireUtilityModeRow {
+.workspaceModeRow {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 8px;
 }
 
-.workspaceModeButton,
-.empireUtilityModeBtn {
+.workspaceModeButton {
   appearance: none;
   flex: 0 0 auto;
   align-self: flex-start;
@@ -1077,24 +1075,16 @@ pre {
   transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
-.workspaceModeButton:hover,
-.empireUtilityModeBtn:hover {
+.workspaceModeButton:hover {
   border-color: rgba(255, 255, 255, 0.24);
   background: rgba(255, 255, 255, 0.08);
   transform: translateY(-1px);
 }
 
-.workspaceModeButtonActive,
-.empireUtilityModeBtnActive {
+.workspaceModeButtonActive {
   color: rgba(0, 0, 0, 0.92);
   background: linear-gradient(90deg, rgba(97, 242, 169, 0.96), rgba(104, 160, 255, 0.96));
   border-color: rgba(255, 255, 255, 0.22);
-}
-
-@media (max-width: 1200px) {
-  .empireUtilitySummaryGrid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 900px) {

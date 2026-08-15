@@ -52,6 +52,15 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - The Tauri bridge exposes an allowlist of O2 actions rather than arbitrary shell or filesystem access.
 - Generated snapshots and reports are evidence, not authority and not implicit Git actions.
 - `scripts/snapshot_repo_state.sh` produces `docs/_repo_snapshot.txt` without operational side effects.
+- RadControl must not be launched through localhost, Vite dev or preview,
+  Tauri dev, desktop E2E, or another TCP-listening route unless the current
+  task explicitly authorizes that launch. Implementation, build, publication,
+  or merge authorization alone does not grant launch authorization.
+- Before an authorized E2E or launch, inspect its harness, record the listener
+  baseline, and verify that no new listener remains afterward. Preserve any
+  pre-existing listener unless separately authorized to change it. Contract
+  tests, lint, non-launching production builds, Rust checks, audits, and
+  deterministic snapshots remain the default verification path.
 - A project launch opens a nonce-bearing final browser route only after its O2
   start succeeds. Embedded projects also restart their registered portal host;
   a raw listener on that port is not treated as proof of the correct host.
@@ -65,4 +74,9 @@ Use the impact-appropriate subset of:
 - `npm run build`
 - `cargo check --manifest-path src-tauri/Cargo.toml`
 - focused architecture/contract tests
-- opt-in `npm run test:tauri-e2e` for native workflow changes
+- explicitly launch-authorized `npm run test:tauri-e2e` for native workflow
+  changes; never run it under ordinary verification authorization
+
+The accepted Phase 1 feature disposition is recorded in
+`docs/SENTINEL_PHASE1_MIGRATION.md`; that manifest is migration evidence, not a
+second source of current product authority.
