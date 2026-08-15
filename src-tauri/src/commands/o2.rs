@@ -140,7 +140,11 @@ fn run_o2_command(arg: &str) -> RunO2Result {
     let root = o2_root();
     let script = format!("{}/scripts/run_o2.sh", root);
 
-    let out = Command::new("bash").arg(script).arg(arg).output();
+    let out = Command::new("bash")
+        .env("O2_ROOT", &root)
+        .arg(script)
+        .arg(arg)
+        .output();
 
     match out {
         Ok(o) => RunO2Result {
@@ -245,8 +249,10 @@ pub fn run_o2_payload(verb: String, payload_json: String) -> RunO2Result {
             stderr: "payload exceeds 1 MiB limit".to_string(),
         };
     }
-    let script = format!("{}/scripts/run_o2.sh", o2_root());
+    let root = o2_root();
+    let script = format!("{}/scripts/run_o2.sh", root);
     let child = Command::new("bash")
+        .env("O2_ROOT", &root)
         .arg(script)
         .arg(dispatch_verb)
         .stdin(Stdio::piped())
