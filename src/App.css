@@ -600,6 +600,77 @@ pre {
   background: rgba(255, 255, 255, 0.26);
 }
 
+.runtimeModalCard {
+  width: min(1280px, calc(100vw - 40px));
+}
+
+.runtimeModalBody {
+  padding: 22px 26px 28px;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.runtimeVerdict {
+  margin-top: 8px;
+}
+
+.runtimeIdentityGrid,
+.runtimeChecks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.runtimeIdentityRow,
+.runtimeCheckRow {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 11px 13px;
+}
+
+.runtimeIdentityRow {
+  display: grid;
+  grid-template-columns: 135px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.runtimeIdentityRow span,
+.runtimeCheckRow small {
+  color: var(--muted);
+}
+
+.runtimeIdentityRow code {
+  overflow-wrap: anywhere;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.runtimeCheckRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.runtimeCheckRow > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.runtimeCheckRow small {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 980px) {
+  .runtimeModalBody {
+    grid-template-columns: 1fr;
+  }
+}
+
 .modalBody label {
   display: block;
   font-size: 15px;

@@ -3,6 +3,8 @@ import type { SortMode, StatusLike } from "./projectModel";
 
 type Props = {
   projects: ProjectRow[];
+  loading: boolean;
+  loadError: string;
   selectedProjectKey: string | null;
   showRetired: boolean;
   sortMode: SortMode;
@@ -14,6 +16,8 @@ type Props = {
 
 export function ProjectRoster({
   projects,
+  loading,
+  loadError,
   selectedProjectKey,
   showRetired,
   sortMode,
@@ -54,7 +58,13 @@ export function ProjectRoster({
 
       <div className="surfaceList">
         {projects.length === 0 ? (
-          <div className="surfaceEmptyState">No projects match the current filter.</div>
+          <div className="surfaceEmptyState">
+            {loading
+              ? "Loading governed project data…"
+              : loadError
+                ? "Project data unavailable. See the error above."
+                : "No projects match the current filter."}
+          </div>
         ) : (
           projects.map((project) => {
             const status = statusForRow(project);

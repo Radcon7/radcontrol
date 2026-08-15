@@ -18,6 +18,8 @@ import type { ProjectRow, PortStatus } from "./types";
 
 type Props = {
   projects: ProjectRow[];
+  registryLoading: boolean;
+  registryError: string;
   ports: Record<number, PortStatus | undefined>;
   busy: boolean;
   portsBusy: boolean;
@@ -45,6 +47,8 @@ type LaunchDateModalState = {
 
 export function ProjectsTab({
   projects,
+  registryLoading,
+  registryError,
   ports,
   busy,
   portsBusy,
@@ -159,11 +163,17 @@ export function ProjectsTab({
   );
 
   return (
-    <SystemStateShell title="Projects" actions={actions}>
+    <SystemStateShell
+      title="Projects"
+      actions={actions}
+      error={registryError ? <>Project data unavailable: {registryError}</> : null}
+    >
       <div className="surfaceLayout">
         <div className="surfaceSidebarStack">
           <ProjectRoster
             projects={sortedProjects}
+            loading={registryLoading}
+            loadError={registryError}
             selectedProjectKey={selectedKey}
             showRetired={showRetired}
             sortMode={sortMode}
@@ -177,7 +187,13 @@ export function ProjectsTab({
         <div className="surfaceCommandMain">
           {!detail ? (
             <div className="surfaceCard surfaceEmptyState surfaceEmptyStateLarge">
-              Select a project to inspect its status and actions.
+              {registryLoading
+                ? "Loading governed project data…"
+                : registryError
+                  ? "Project data is unavailable. No empty-state claim is being made."
+                  : sortedProjects.length === 0
+                    ? "No projects match the current filter."
+                    : "Select a project to inspect its status and actions."}
             </div>
           ) : (
             <div className="surfaceGridProjectTop">

@@ -81,7 +81,12 @@ export function EmpireTodoWorkspace({ busy, registerBeforeTabChangeSaver }: Prop
         setDirty(false);
       })
       .catch((reason) => {
-        if (active) setError(reason instanceof Error ? reason.message : String(reason));
+        if (active) {
+          setItems([]);
+          setSelectedId(null);
+          setDraft(null);
+          setError(reason instanceof Error ? reason.message : String(reason));
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -181,7 +186,7 @@ export function EmpireTodoWorkspace({ busy, registerBeforeTabChangeSaver }: Prop
       <div className="empireTodoGrid">
         <aside className="empireTodoList" aria-label="Empire To-Do items">
           <div className="empireTodoListHeader">
-            <span>{items.length} durable item{items.length === 1 ? "" : "s"}</span>
+            <span>{error ? "Durable data unavailable" : `${items.length} durable item${items.length === 1 ? "" : "s"}`}</span>
             {loading ? <small>Loading…</small> : null}
           </div>
           {items.map((item) => (
@@ -199,7 +204,11 @@ export function EmpireTodoWorkspace({ busy, registerBeforeTabChangeSaver }: Prop
               </span>
             </button>
           ))}
-          {!loading && !items.length ? <div className="surfaceEmptyState">No Empire To-Do items exist yet.</div> : null}
+          {!loading && !items.length ? (
+            <div className="surfaceEmptyState">
+              {error ? "Empire To-Do data unavailable. See the error above." : "No Empire To-Do items exist yet."}
+            </div>
+          ) : null}
         </aside>
 
         <main className="empireTodoEditor" data-testid="empire-todo-selected-item">
@@ -249,7 +258,13 @@ export function EmpireTodoWorkspace({ busy, registerBeforeTabChangeSaver }: Prop
               </div>
             </>
           ) : (
-            <div className="surfaceEmptyState surfaceEmptyStateLarge">Select or create an Empire To-Do item.</div>
+            <div className="surfaceEmptyState surfaceEmptyStateLarge">
+              {loading
+                ? "Loading durable Empire To-Do data…"
+                : error
+                  ? "Empire To-Do data is unavailable. No empty-state claim is being made."
+                  : "Select or create an Empire To-Do item."}
+            </div>
           )}
         </main>
       </div>

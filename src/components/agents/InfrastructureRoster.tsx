@@ -2,12 +2,16 @@ import type { InfrastructureEntry } from "./infrastructureModel";
 
 type Props = {
   entries: InfrastructureEntry[];
+  loading: boolean;
+  loadError: string;
   selectedEntryKey: string | null;
   onSelect: (entryKey: string) => void;
 };
 
 export function InfrastructureRoster({
   entries,
+  loading,
+  loadError,
   selectedEntryKey,
   onSelect,
 }: Props) {
@@ -20,7 +24,11 @@ export function InfrastructureRoster({
       <div className="surfaceList">
         {entries.length === 0 ? (
           <div className="surfaceEmptyState">
-            No infrastructure items available yet.
+            {loading
+              ? "Loading governed infrastructure data…"
+              : loadError
+                ? "Infrastructure data unavailable. See the error above."
+                : "No infrastructure items are configured."}
           </div>
         ) : (
           entries.map((entry) => {

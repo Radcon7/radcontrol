@@ -80,6 +80,7 @@ pub fn run() {
             commands::o2::run_o2,
             commands::o2::run_o2_payload,
             commands::o2::e2e_project_roots,
+            commands::o2::runtime_diagnostics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

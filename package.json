@@ -1,7 +1,7 @@
 {
   "name": "radcontrol-app",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "tauri:preflight": "node scripts/tauri_preflight.mjs",
@@ -22,6 +22,7 @@
     "verify:infrastructure-architecture": "node --experimental-strip-types tests/verify_infrastructure_architecture_contract.mjs",
     "verify:projects-architecture": "node tests/verify_projects_architecture_contract.mjs",
     "verify:tauri-e2e-contract": "node tests/verify_tauri_e2e_contract.mjs",
+    "verify:production-delivery": "node tests/verify_production_delivery_contract.mjs",
     "test:empire-todo": "node --experimental-strip-types tests/empire_todo_behavior.mjs",
     "verify:empire-todo": "node tests/verify_empire_todo_contract.mjs",
     "test:sentinel": "node --experimental-strip-types tests/sentinel_behavior.mjs",
