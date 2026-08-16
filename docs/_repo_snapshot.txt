@@ -63,8 +63,6 @@ package-lock.json
 package.json
 packaging/radcontrol-launch.sh
 packaging/radcontrol.desktop
-public/tauri.svg
-public/vite.svg
 scripts/dev_local_lib.mjs
 scripts/dev_sanity_check.mjs
 scripts/install_production.sh
@@ -139,7 +137,6 @@ src-tauri/src/main.rs
 src-tauri/tauri.conf.json
 src/App.css
 src/App.tsx
-src/assets/react.svg
 src/components/agents/AgentBrief.tsx
 src/components/agents/AgentFocusLimits.tsx
 src/components/agents/AgentNotes.tsx
