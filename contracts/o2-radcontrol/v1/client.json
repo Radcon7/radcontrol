@@ -16,7 +16,6 @@
     "infrastructure_asset.create",
     "list_projects",
     "port_status.batch",
-    "port_suggest",
     "project.dev",
     "project.dev_strict",
     "project.map",
@@ -28,19 +27,14 @@
     "project_launch_date.set",
     "project_note.ensure",
     "project_retired.set",
-    "radcontrol.snapshot",
     "router.health",
-    "sentinel.action.dry_run",
     "sentinel.ask",
     "sentinel.host.check",
     "sentinel.host.deep_check",
     "sentinel.host.explain_fans",
     "sentinel.security.check",
     "sentinel.status",
-    "workstation.cleanup.apply",
-    "workstation.cleanup.preview",
-    "workstation.codex.review",
-    "workstation.health.check",
-    "workstation.health.history"
+    "workstation.updates.check",
+    "workstation.updates.history"
   ]
 }

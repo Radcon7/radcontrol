@@ -20,14 +20,23 @@ import type {
   ProjectRootOverrides,
   ProjectRow,
 } from "./components/projects/types";
-import { fmtErr, registryToProjects } from "./components/projects/helpers";
+import { fmtErr } from "./components/projects/helpers";
+import {
+  listGovernedProjects,
+  loadPortStatuses,
+} from "./components/projects/projectsApi";
 import { normalizeFormationStartPayload } from "./components/projects/formationPayload";
 import {
   assertFormationLearningInheritance,
   type FormationLearningInheritance,
 } from "./components/projects/formationLearning";
 import { copyText } from "./components/common/copyText";
-import { encodeO2JsonPayload, getE2EProjectRoots, readO2File, runO2Text } from "./components/common/o2Files";
+import {
+  encodeO2JsonPayload,
+  getE2EProjectRoots,
+  runO2Text,
+} from "./components/common/o2Client";
+import { readO2File } from "./components/common/o2Files";
 
 type LibraryTabKey = "notes" | "legal";
 type DocTabKey = LibraryTabKey;
@@ -97,53 +106,6 @@ export function cacheFreshLocalUrl(rawUrl: string): string {
 }
 
 
-type O2ListProjectsEnvelope = {
-  ok?: boolean;
-  projects?: unknown[];
-};
-
-function asRecord(v: unknown): Record<string, unknown> | null {
-  return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
-}
-
-
-function parseRegistryMaybeDoubleEncoded(raw: string): O2ListProjectsEnvelope {
-  let first: unknown;
-  try {
-    first = JSON.parse(raw);
-  } catch (e) {
-    throw new Error(`Registry response was not valid JSON: ${String(e)}`);
-  }
-
-  let reg: unknown = first;
-  if (typeof first === "string") {
-    try {
-      reg = JSON.parse(first);
-    } catch (e) {
-      throw new Error(
-        `Registry double-encoded JSON could not be parsed: ${String(e)}`,
-      );
-    }
-  }
-
-  if (Array.isArray(reg)) {
-    return { ok: true, projects: reg };
-  }
-
-  const envelope = asRecord(reg);
-  const projects = envelope?.projects;
-  if (!envelope || !Array.isArray(projects)) {
-    throw new Error(
-      `Registry parsed but did not match { ok, projects: [] } envelope.`,
-    );
-  }
-
-  return {
-    ok: typeof envelope.ok === "boolean" ? envelope.ok : undefined,
-    projects,
-  };
-}
-
 function extractFirstHttpUrl(s: string): string | null {
   if (!s) return null;
   const m = s.match(/https?:\/\/localhost:\d+(?:\/[^\s]*)?/);
@@ -176,10 +138,6 @@ async function tryAutoOpen(url: string) {
     // ignore
   }
 }
-
-type O2PortStatusJson = { port?: number; listening?: boolean };
-type O2PortStatusBatchJson = { ok?: boolean; ports?: O2PortStatusJson[] };
-
 
 type FormationStartResult = {
   ok?: boolean;
@@ -255,11 +213,7 @@ export default function App() {
       setRegistryState("loading");
       setRegistryError("");
       try {
-        const out = await runO2Text("list_projects");
-        const parsed = parseRegistryMaybeDoubleEncoded(out ?? "");
-        const reg = parsed.projects ?? [];
-
-        const rows = registryToProjects(reg);
+        const rows = await listGovernedProjects();
         projectsRef.current = rows;
         setProjects(rows);
         setRegistryState("ready");
@@ -297,6 +251,8 @@ export default function App() {
   const [ports, setPorts] = useState<Record<number, PortStatus | undefined>>(
     {},
   );
+  const [portStatusError, setPortStatusError] = useState("");
+  const lastPortStatusErrorRef = useRef("");
 
   function projectPorts(rows: ProjectRow[]): number[] {
     const ports = new Set<number>();
@@ -322,30 +278,29 @@ export default function App() {
 
     try {
       if (requestedPorts.length === 0) {
-        if (requestId === latestPortRefreshRef.current) setPorts({});
+        if (requestId === latestPortRefreshRef.current) {
+          setPorts({});
+          setPortStatusError("");
+          lastPortStatusErrorRef.current = "";
+        }
         return;
       }
 
-      const payload = encodeO2JsonPayload({ ports: requestedPorts });
-      const out = await runO2Text(`port_status.batch.${payload}`);
-      const parsed = JSON.parse(out) as O2PortStatusBatchJson;
-      if (!parsed.ok || !Array.isArray(parsed.ports)) {
-        throw new Error("port_status.batch returned an invalid response");
+      const next = await loadPortStatuses(requestedPorts);
+      if (requestId === latestPortRefreshRef.current) {
+        setPorts(next);
+        setPortStatusError("");
+        lastPortStatusErrorRef.current = "";
       }
-
-      const next: Record<number, PortStatus> = {};
-      parsed.ports.forEach((item) => {
-        if (typeof item.port === "number") {
-          next[item.port] = {
-            port: item.port,
-            listening: Boolean(item.listening),
-            pid: null,
-            cmd: null,
-            err: null,
-          };
+    } catch (error) {
+      if (requestId === latestPortRefreshRef.current) {
+        const message = fmtErr(error);
+        setPortStatusError(message);
+        if (lastPortStatusErrorRef.current !== message) {
+          appendLog("\n[ports] status unavailable:\n" + message);
+          lastPortStatusErrorRef.current = message;
         }
-      });
-      if (requestId === latestPortRefreshRef.current) setPorts(next);
+      }
     } finally {
       if (requestId === latestPortRefreshRef.current) setPortsBusy(false);
     }
@@ -378,6 +333,10 @@ export default function App() {
       return { pill: "pillWarn", text: "NO PORT" };
     }
 
+    if (portStatusError) {
+      return { pill: "pillWarn", text: "UNKNOWN" };
+    }
+
     const port = p.runtimePort ?? p.port;
     const s = ports[port];
     if (!s) return { pill: "pillOff", text: "STOPPED" };
@@ -387,7 +346,7 @@ export default function App() {
       : { pill: "pillOff", text: "STOPPED" };
   }
 
-  async function runO2(title: string, key?: string): Promise<string | null> {
+  async function runO2Action(title: string, key?: string): Promise<string | null> {
     if (!key || busy) return null;
 
     setBusy(true);
@@ -480,7 +439,7 @@ export default function App() {
       return false;
     }
 
-    return (await runO2(`Start ${host.label}`, host.o2StartKey)) !== null;
+    return (await runO2Action(`Start ${host.label}`, host.o2StartKey)) !== null;
   }
 
   async function startProject(p: ProjectRow) {
@@ -491,7 +450,7 @@ export default function App() {
       return;
     }
 
-    const out = await runO2(`Start ${p.label}`, p.o2StartKey);
+    const out = await runO2Action(`Start ${p.label}`, p.o2StartKey);
     if (out === null) {
       appendLog(`[projects] Launch aborted because ${p.label} did not start successfully.`);
       return;
@@ -528,7 +487,7 @@ export default function App() {
   }
 
   async function stopProjectRuntime(project: ProjectRow) {
-    await runO2(`Stop ${project.label}`, `${project.key}.stop`);
+    await runO2Action(`Stop ${project.label}`, `${project.key}.stop`);
     await loadRegistry();
   }
 
@@ -896,13 +855,13 @@ export default function App() {
               onStart={startProject}
               onLaunchWebsite={launchProjectWebsite}
               onSnapshot={(p) =>
-                void runO2(`Repo Snapshot ${p.label}`, p.o2SnapshotKey)
+                void runO2Action(`Repo Snapshot ${p.label}`, p.o2SnapshotKey)
               }
               onStop={stopProjectRuntime}
-              onMap={(p) => void runO2(`${p.label} Map`, p.o2MapKey)}
+              onMap={(p) => void runO2Action(`${p.label} Map`, p.o2MapKey)}
               onShowOriginalRequest={showOriginalProjectRequest}
               onProofPack={(p) =>
-                void runO2(`${p.label} Proof Pack`, p.o2ProofPackKey)
+                void runO2Action(`${p.label} Proof Pack`, p.o2ProofPackKey)
               }
               onSetRetired={setProjectRetired}
               onSetLaunchDate={setProjectLaunchDate}

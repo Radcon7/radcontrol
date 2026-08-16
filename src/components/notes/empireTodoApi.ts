@@ -1,7 +1,7 @@
 import {
   runO2ParsedJson,
   runO2StdinPayloadParsedJson,
-} from "../common/o2Files";
+} from "../common/o2Client";
 import type {
   EmpireTodoItem,
   EmpireTodoListResponse,

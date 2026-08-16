@@ -30,7 +30,7 @@ assert.throws(
 );
 
 const transport = await readFile(
-  new URL("../src/components/common/o2Files.ts", import.meta.url),
+  new URL("../src/components/common/o2Client.ts", import.meta.url),
   "utf8",
 );
 assert.ok(transport.includes('invokeO2Unchecked("contract_info")'));

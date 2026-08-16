@@ -36,6 +36,17 @@ directory. Debug builds use `~/dev/o2`, and only explicit E2E mode accepts an
 absolute fixture `O2_ROOT`. RadControl does not own shell execution, arbitrary
 filesystem access, Git commits, or project-formation policy.
 
+`src/components/common/o2Client.ts` is the single frontend compatibility,
+invocation, payload, and command-error boundary. File semantics remain in
+`o2Files.ts`. The Projects surface accepts only O2's versioned
+`{ ok: true, projects: [] }` response, requires each row's canonical
+archetype, repository root, and root-availability signal, and reports malformed
+registry or port responses as failures rather than silently converting them
+into empty, stopped, healthy, or valid state. O2 `registry/projects.json` is the
+single representation of each project's identity, repository root, and assigned
+archetype. RadControl's product-local visibility rule consumes that archetype;
+it is not an O2 product-presentation rule.
+
 The normal desktop entry calls `~/.local/bin/radcontrol-launch.sh`, which
 directly executes the installed `~/.local/bin/radcontrol-app` release binary.
 It does not start Vite, preview, Tauri dev, WebDriver, or a TCP listener. The
@@ -46,15 +57,21 @@ checks; data failures are reported as unavailable rather than as empty state.
 
 `BUILD PROJECT` records the governed intake in O2, then bootstraps the approved local starter repository. The form defaults to O2 Modern Web Foundation v1, captures compact capability decisions, and may name an additional real project as reference evidence. The formation record is durable under `docs/project-formation/records/<project>/`; repo-local intake and project-blueprint documents are created during bootstrap.
 
+Governed Infrastructure identity is stored once in O2 under
+`docs/infrastructure/records/<asset>/01_inventory.json`, with durable notes under
+`docs/infrastructure/assets/<asset>/`. RadControl's built-in Infrastructure
+profiles are presentation templates, not a second identity registry; new asset
+records appear without adding a copied product constant.
+
 ## Development Checks
 
 ```bash
 npm run lint
-npm run verify:security
+npm run test:contracts
 npm run verify:production-delivery
 npm run build
-cargo check --manifest-path src-tauri/Cargo.toml
-bash scripts/snapshot_repo_state.sh
+cargo test --manifest-path src-tauri/Cargo.toml
+bash scripts/snapshot_repo_state.sh --check
 ```
 
 ## Desktop E2E

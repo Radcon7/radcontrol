@@ -54,6 +54,15 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   Sentinel runtime state and audit use the O2 Sentinel contract rather than
   browser storage or RadControl-owned files.
 - The Tauri bridge exposes an allowlist of O2 actions rather than arbitrary shell or filesystem access.
+- Frontend O2 compatibility, invocation, payload encoding, and command errors
+  have one boundary in `src/components/common/o2Client.ts`; domain-specific
+  file-not-found handling remains in `o2Files.ts`.
+- The project registry projection is strict and archetype-driven. Malformed,
+  legacy-shaped, unknown-archetype, unavailable-root, or incomplete
+  runtime-status responses are visible failures, not empty collections or
+  guessed state. `registry/projects.json` remains the sole representation of a
+  project's root and assigned archetype; RadControl owns only the local
+  archetype-to-operator-visibility rule.
 - Generated snapshots and reports are evidence, not authority and not implicit Git actions.
 - The packaged production app reads O2 from the dedicated, same-repository
   `main` worktree at `~/.local/share/radcontrol/o2-runtime`. This stable runtime
@@ -89,9 +98,9 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 Use the impact-appropriate subset of:
 
 - `npm run lint`
-- `npm run verify:security`
+- `npm run test:contracts`
 - `npm run build`
-- `cargo check --manifest-path src-tauri/Cargo.toml`
+- `cargo test --manifest-path src-tauri/Cargo.toml`
 - `npm run verify:production-delivery`
 - focused architecture/contract tests
 - explicitly launch-authorized `npm run test:tauri-e2e` for native workflow

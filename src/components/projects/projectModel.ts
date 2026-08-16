@@ -41,8 +41,15 @@ export function normalizeProjectStatus(status: unknown): StatusLike {
   };
 }
 
+export function isOperatorVisibleProject(project: ProjectRow): boolean {
+  return (
+    project.archetype !== "governance" &&
+    project.archetype !== "local-control-plane"
+  );
+}
+
 export function filterOperatorProjects(projects: ProjectRow[]): ProjectRow[] {
-  return projects.filter((project) => project.key !== "o2" && project.key !== "radcontrol");
+  return projects.filter(isOperatorVisibleProject);
 }
 
 export function sortProjectRows(

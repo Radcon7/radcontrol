@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  listO2Files,
-  readO2File,
-  runO2PayloadParsedJson,
-} from "../common/o2Files";
+import { runO2PayloadParsedJson } from "../common/o2Client";
+import { listO2Files, readO2File } from "../common/o2Files";
 import { SystemStateShell } from "../common/SystemStateShell";
 import { useGovernedRecordNote } from "../common/useGovernedRecordNote";
 import { CreateInfrastructureModal } from "./CreateInfrastructureModal";

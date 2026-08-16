@@ -19,6 +19,8 @@ const consumers = await Promise.all(
 );
 
 assert.match(hook, /readO2File/);
+assert.match(hook, /loadError instanceof O2FileNotFoundError/);
+assert.doesNotMatch(hook, /reportLoadError/);
 assert.match(hook, /persistGovernedRecordNote/);
 assert.match(hook, /revisionRef/);
 assert.match(hook, /registerBeforeTabChangeSaver\(flush\)/);

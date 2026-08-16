@@ -122,7 +122,6 @@ export function ProjectsTab({
           return (latestProject || selectedProject).notesPath?.trim() || null;
         }
       : undefined,
-    reportLoadError: true,
     missingStatus: "Governed note",
     registerBeforeTabChangeSaver,
   });

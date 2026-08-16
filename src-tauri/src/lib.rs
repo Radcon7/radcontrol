@@ -6,9 +6,7 @@ use tauri_plugin_single_instance::init as single_instance;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_clipboard_manager::init());
+    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
 
     // Desktop E2E launches an isolated binary beside the normal single instance.
     let builder = if matches!(std::env::var("RADCONTROL_E2E"), Ok(value) if value == "1") {

@@ -1,4 +1,5 @@
 import type { ProjectRow } from "../projects/types";
+import { isOperatorVisibleProject } from "../projects/projectModel.ts";
 
 export type InfrastructureAsset = {
   assetKey: string;
@@ -188,10 +189,8 @@ export function parseInfrastructureAsset(
 
 export function derivePreferredProjectKeys(projects: ProjectRow[]): string[] {
   return projects
-    .filter((project) => !project.retired)
-    .map((project) => project.key)
-    .filter((key) => key !== "o2" && key !== "radcontrol")
-    .slice(0, 4);
+    .filter((project) => !project.retired && isOperatorVisibleProject(project))
+    .map((project) => project.key);
 }
 
 export function buildInfrastructureProfiles(projects: ProjectRow[]): InfrastructureProfile[] {

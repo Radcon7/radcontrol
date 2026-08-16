@@ -19,14 +19,17 @@ assert.doesNotMatch(launcher, /vite|tauri:dev|radcontrol\.dev_strict|localhost|1
 assert.match(desktop, /^Exec=\/home\/chris\/\.local\/bin\/radcontrol-launch\.sh$/m);
 assert.doesNotMatch(desktop, /vite|tauri:dev|localhost|127\.0\.0\.1/i);
 assert.match(installer, /\.local\/share\/radcontrol\/o2-runtime/);
+assert.match(installer, /registry\/project-archetypes\.json/);
 assert.match(installer, /target\/release\/radcontrol-app/);
 assert.match(installer, /icons\/hicolor\/128x128\/apps\/radcontrol-app\.png/);
 assert.match(bridge, /\.local\/share\/radcontrol\/o2-runtime/);
 assert.match(bridge, /pub fn runtime_diagnostics/);
+assert.match(bridge, /fn dispatcher_command\(root: &str, verb: &str\) -> Command/);
+assert.match(bridge, /\.env\("O2_ROOT", root\)/);
 assert.equal(
-  bridge.match(/\.env\("O2_ROOT", &root\)/g)?.length,
+  bridge.match(/dispatcher_command\(&root,/g)?.length,
   2,
-  "every O2 child process must be pinned to the root selected by the bridge",
+  "every O2 child process must use the root-pinned dispatcher constructor",
 );
 assert.doesNotMatch(app, /Restart RadControl/);
 assert.match(projects, /Project data is unavailable\. No empty-state claim is being made\./);

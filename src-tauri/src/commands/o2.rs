@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::io::Write;
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::{Command, Output, Stdio};
 
 #[derive(Serialize)]
 pub struct RunO2Result {
@@ -43,6 +43,33 @@ pub struct RuntimeDiagnostics {
 
 fn e2e_mode() -> bool {
     matches!(std::env::var("RADCONTROL_E2E"), Ok(value) if value == "1")
+}
+
+fn failed_result(message: impl Into<String>) -> RunO2Result {
+    RunO2Result {
+        ok: false,
+        code: 1,
+        stdout: String::new(),
+        stderr: message.into(),
+    }
+}
+
+fn output_result(output: Output) -> RunO2Result {
+    RunO2Result {
+        ok: output.status.success(),
+        code: output.status.code().unwrap_or(1),
+        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+    }
+}
+
+fn dispatcher_command(root: &str, verb: &str) -> Command {
+    let mut command = Command::new("bash");
+    command
+        .env("O2_ROOT", root)
+        .arg(format!("{root}/scripts/run_o2.sh"))
+        .arg(verb);
+    command
 }
 
 fn resolved_o2_root(home: &str, e2e: bool, e2e_override: Option<&str>, debug: bool) -> String {
@@ -138,27 +165,9 @@ fn run_o2_command(arg: &str) -> RunO2Result {
     // We only ever call: bash <O2_ROOT>/scripts/run_o2.sh "<verb>"
     // No freeform shell; arg is treated as a single verb string.
     let root = o2_root();
-    let script = format!("{}/scripts/run_o2.sh", root);
-
-    let out = Command::new("bash")
-        .env("O2_ROOT", &root)
-        .arg(script)
-        .arg(arg)
-        .output();
-
-    match out {
-        Ok(o) => RunO2Result {
-            ok: o.status.success(),
-            code: o.status.code().unwrap_or(1),
-            stdout: String::from_utf8_lossy(&o.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&o.stderr).to_string(),
-        },
-        Err(e) => RunO2Result {
-            ok: false,
-            code: 1,
-            stdout: "".to_string(),
-            stderr: format!("failed to spawn run_o2: {}", e),
-        },
+    match dispatcher_command(&root, arg).output() {
+        Ok(output) => output_result(output),
+        Err(error) => failed_result(format!("failed to spawn run_o2: {error}")),
     }
 }
 
@@ -170,8 +179,6 @@ fn verb_allowed(verb: &str) -> bool {
             | "empire.map"
             | "empire.sweep"
             | "empire.todo.list"
-            | "radcontrol.snapshot"
-            | "radcontrol.dev_strict"
             | "router.health"
             | "sentinel.status"
             | "sentinel.host.check"
@@ -234,65 +241,35 @@ fn payload_verb_command(verb: &str) -> Option<&'static str> {
 pub fn run_o2_payload(verb: String, payload_json: String) -> RunO2Result {
     let verb = verb.trim();
     let Some(dispatch_verb) = payload_verb_command(verb) else {
-        return RunO2Result {
-            ok: false,
-            code: 1,
-            stdout: "".to_string(),
-            stderr: format!("payload verb not allowed: {verb}"),
-        };
+        return failed_result(format!("payload verb not allowed: {verb}"));
     };
     if payload_json.len() > 1024 * 1024 {
-        return RunO2Result {
-            ok: false,
-            code: 1,
-            stdout: "".to_string(),
-            stderr: "payload exceeds 1 MiB limit".to_string(),
-        };
+        return failed_result("payload exceeds 1 MiB limit");
     }
     let root = o2_root();
-    let script = format!("{}/scripts/run_o2.sh", root);
-    let child = Command::new("bash")
-        .env("O2_ROOT", &root)
-        .arg(script)
-        .arg(dispatch_verb)
+    let child = dispatcher_command(&root, dispatch_verb)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn();
     let Ok(mut child) = child else {
-        return RunO2Result {
-            ok: false,
-            code: 1,
-            stdout: "".to_string(),
-            stderr: "failed to spawn stdin O2 write".to_string(),
-        };
+        return failed_result("failed to spawn stdin O2 command");
     };
-    if child
-        .stdin
-        .as_mut()
-        .and_then(|stdin| stdin.write_all(payload_json.as_bytes()).ok())
-        .is_none()
-    {
-        return RunO2Result {
-            ok: false,
-            code: 1,
-            stdout: "".to_string(),
-            stderr: "failed to write stdin O2 payload".to_string(),
-        };
+    let Some(mut stdin) = child.stdin.take() else {
+        let _ = child.kill();
+        let _ = child.wait();
+        return failed_result("stdin O2 command did not expose a payload pipe");
+    };
+    if let Err(error) = stdin.write_all(payload_json.as_bytes()) {
+        drop(stdin);
+        let _ = child.kill();
+        let _ = child.wait();
+        return failed_result(format!("failed to write stdin O2 payload: {error}"));
     }
+    drop(stdin);
     match child.wait_with_output() {
-        Ok(out) => RunO2Result {
-            ok: out.status.success(),
-            code: out.status.code().unwrap_or(1),
-            stdout: String::from_utf8_lossy(&out.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&out.stderr).to_string(),
-        },
-        Err(error) => RunO2Result {
-            ok: false,
-            code: 1,
-            stdout: "".to_string(),
-            stderr: format!("failed to complete stdin O2 write: {error}"),
-        },
+        Ok(output) => output_result(output),
+        Err(error) => failed_result(format!("failed to complete stdin O2 command: {error}")),
     }
 }
 
@@ -301,21 +278,11 @@ pub fn run_o2(verb: String) -> RunO2Result {
     // Defensive trim; keep it as one argument.
     let v = verb.trim().to_string();
     if v.is_empty() {
-        return RunO2Result {
-            ok: false,
-            code: 1,
-            stdout: "".to_string(),
-            stderr: "empty verb".to_string(),
-        };
+        return failed_result("empty verb");
     }
 
     if !verb_allowed(&v) {
-        return RunO2Result {
-            ok: false,
-            code: 1,
-            stdout: "".to_string(),
-            stderr: format!("verb not allowed: {}", v),
-        };
+        return failed_result(format!("verb not allowed: {v}"));
     }
 
     run_o2_command(&v)
@@ -323,7 +290,8 @@ pub fn run_o2(verb: String) -> RunO2Result {
 
 #[cfg(test)]
 mod tests {
-    use super::resolved_o2_root;
+    use super::{payload_verb_command, resolved_o2_root, run_o2, run_o2_payload, verb_allowed};
+    use std::fs;
 
     #[test]
     fn production_root_is_stable_and_independent_of_the_working_directory() {
@@ -350,6 +318,77 @@ mod tests {
         assert_eq!(
             resolved_o2_root("/home/chris", true, Some("relative/o2"), false),
             "/home/chris/.local/share/radcontrol/o2-runtime",
+        );
+    }
+
+    #[test]
+    fn project_actions_use_one_validated_allowlist_shape() {
+        for verb in [
+            "radcontrol.dev_strict",
+            "radcontrol.snapshot",
+            "future-product.stop",
+            "future-product.proofpack",
+        ] {
+            assert!(verb_allowed(verb), "expected project verb to be allowed: {verb}");
+        }
+        for verb in ["RadControl.snapshot", "rad_control.snapshot", ".snapshot", "o2.shell"] {
+            assert!(!verb_allowed(verb), "expected project verb to be denied: {verb}");
+        }
+    }
+
+    #[test]
+    fn stdin_transport_maps_only_explicit_payload_verbs() {
+        assert_eq!(payload_verb_command("files.write"), Some("files.write.stdin"));
+        assert_eq!(
+            payload_verb_command("empire.todo.save"),
+            Some("empire.todo.save.stdin")
+        );
+        assert_eq!(payload_verb_command("files.read"), None);
+    }
+
+    #[test]
+    fn process_and_stdin_failures_are_reported_without_becoming_success() {
+        let fixture_root = std::env::temp_dir().join(format!(
+            "radcontrol-stdin-write-failure-{}",
+            std::process::id(),
+        ));
+        let scripts_dir = fixture_root.join("scripts");
+        fs::create_dir_all(&scripts_dir).expect("create isolated O2 fixture scripts directory");
+        fs::write(
+            scripts_dir.join("run_o2.sh"),
+            "#!/usr/bin/env bash\necho 'fixture O2 failure' >&2\nexit 23\n",
+        )
+        .expect("write isolated O2 fixture dispatcher");
+
+        let previous_e2e = std::env::var_os("RADCONTROL_E2E");
+        let previous_root = std::env::var_os("O2_ROOT");
+        std::env::set_var("RADCONTROL_E2E", "1");
+        std::env::set_var("O2_ROOT", &fixture_root);
+        let process_result = run_o2("router.health".to_string());
+        fs::write(
+            scripts_dir.join("run_o2.sh"),
+            "#!/usr/bin/env bash\nexec 0<&-\nsleep 0.1\nexit 0\n",
+        )
+        .expect("replace fixture dispatcher for stdin failure");
+        let stdin_result = run_o2_payload("files.write".to_string(), "x".repeat(512 * 1024));
+        match previous_e2e {
+            Some(value) => std::env::set_var("RADCONTROL_E2E", value),
+            None => std::env::remove_var("RADCONTROL_E2E"),
+        }
+        match previous_root {
+            Some(value) => std::env::set_var("O2_ROOT", value),
+            None => std::env::remove_var("O2_ROOT"),
+        }
+        fs::remove_dir_all(&fixture_root).expect("remove isolated O2 fixture");
+
+        assert!(!process_result.ok);
+        assert_eq!(process_result.code, 23);
+        assert!(process_result.stderr.contains("fixture O2 failure"));
+        assert!(!stdin_result.ok);
+        assert!(
+            stdin_result.stderr.contains("failed to write stdin O2 payload"),
+            "unexpected failure: {}",
+            stdin_result.stderr,
         );
     }
 }
