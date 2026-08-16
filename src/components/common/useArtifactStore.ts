@@ -1,10 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { errMsg, runO2 } from "./o2Client";
 import {
   type FilesListItem,
-  errMsg,
   listO2Files,
   readO2File,
-  runO2,
   writeO2File,
 } from "./o2Files";
 

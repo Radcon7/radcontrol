@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { persistGovernedRecordNote } from "./governedRecordNote";
-import { readO2File } from "./o2Files";
+import { O2FileNotFoundError, readO2File } from "./o2Files";
 
 type ResolvePath = () => Promise<string | null> | string | null;
 
@@ -10,7 +10,6 @@ type Options = {
   path?: string | null;
   resolvePath?: ResolvePath;
   fallbackText?: string;
-  reportLoadError?: boolean;
   missingStatus?: string;
   debounceMs?: number;
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
@@ -35,7 +34,6 @@ export function useGovernedRecordNote({
   path: directPath = null,
   resolvePath,
   fallbackText = "",
-  reportLoadError = false,
   missingStatus = "Note will be created on first save",
   debounceMs = 700,
   registerBeforeTabChangeSaver,
@@ -54,7 +52,6 @@ export function useGovernedRecordNote({
   const loadingRef = useRef(false);
   const resolvePathRef = useRef<ResolvePath | undefined>(resolvePath);
   const fallbackTextRef = useRef(fallbackText);
-  const reportLoadErrorRef = useRef(reportLoadError);
   const savePromiseRef = useRef<Promise<boolean> | null>(null);
 
   pathRef.current = path;
@@ -62,7 +59,6 @@ export function useGovernedRecordNote({
   loadingRef.current = loading;
   resolvePathRef.current = resolvePath;
   fallbackTextRef.current = fallbackText;
-  reportLoadErrorRef.current = reportLoadError;
 
   const saveCurrentRevision = useCallback(async (): Promise<boolean> => {
     if (revisionRef.current === 0) return true;
@@ -170,7 +166,7 @@ export function useGovernedRecordNote({
           setText(fallbackTextRef.current);
           setSavedAt(null);
           setExists(false);
-          if (reportLoadErrorRef.current) {
+          if (!(loadError instanceof O2FileNotFoundError)) {
             setError(
               loadError instanceof Error ? loadError.message : String(loadError),
             );

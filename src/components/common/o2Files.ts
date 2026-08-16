@@ -1,25 +1,13 @@
-import { invoke } from "@tauri-apps/api/core";
-import { assertCompatibleO2Contract, type O2ContractInfo } from "./o2Contract";
+import {
+  O2CommandError,
+  O2_STDIN_PAYLOAD_MAX_BYTES,
+  b64urlEncodeUtf8,
+  runO2ParsedJson,
+  runO2PayloadParsedJson,
+  runO2StdinPayloadParsedJson,
+} from "./o2Client";
 
-// O2 transports authored document content through a command argument.
-export const O2_INLINE_DOCUMENT_MAX_BYTES = 1024 * 1024;
-
-export type RunO2Result = {
-  ok?: boolean;
-  code?: number;
-  stdout?: string;
-  stderr?: string;
-};
-
-export type E2EProjectRoots = {
-  radcon: string;
-  radwolfe: string;
-  other: string;
-};
-
-export async function getE2EProjectRoots(): Promise<E2EProjectRoots | null> {
-  return (await invoke("e2e_project_roots")) as E2EProjectRoots | null;
-}
+export const O2_INLINE_DOCUMENT_MAX_BYTES = O2_STDIN_PAYLOAD_MAX_BYTES;
 
 export type FilesListItem = {
   kind?: string;
@@ -80,131 +68,20 @@ function assertInlineDocumentSize(content: string): void {
   }
 }
 
-export function b64urlEncodeUtf8(value: string): string {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
-
-export function encodeO2JsonPayload(value: unknown): string {
-  return b64urlEncodeUtf8(JSON.stringify(value));
-}
-
 export function normalizeO2Path(path: string): string {
   const trimmed = (path || "").trim().replace(/^\/+/, "");
   if (!trimmed) return "";
   return trimmed.startsWith("docs/") ? trimmed : `docs/${trimmed}`;
 }
 
-async function invokeO2Unchecked(verb: string): Promise<RunO2Result> {
-  return (await invoke("run_o2", { verb })) as RunO2Result;
-}
+export class O2FileNotFoundError extends Error {
+  readonly path: string;
 
-let compatibilityPromise: Promise<O2ContractInfo> | null = null;
-
-export function ensureO2Compatibility(): Promise<O2ContractInfo> {
-  if (!compatibilityPromise) {
-    compatibilityPromise = (async () => {
-      const result = await invokeO2Unchecked("contract_info");
-      if (!result.ok) {
-        throw new Error(errMsg(result, "O2 compatibility check failed"));
-      }
-      const payload = parseO2Json<unknown>(
-        result.stdout || "",
-        "O2 contract_info returned invalid JSON",
-      );
-      return assertCompatibleO2Contract(payload);
-    })();
-    void compatibilityPromise.catch(() => {
-      compatibilityPromise = null;
-    });
+  constructor(path: string) {
+    super(`Governed O2 file not found: ${path}`);
+    this.name = "O2FileNotFoundError";
+    this.path = path;
   }
-  return compatibilityPromise;
-}
-
-export async function runO2(verb: string): Promise<RunO2Result> {
-  if (verb !== "contract_info") {
-    await ensureO2Compatibility();
-  }
-  return invokeO2Unchecked(verb);
-}
-
-export function joinO2ResultOutput(result: RunO2Result): string {
-  const stdout = (result.stdout || "").trimEnd();
-  const stderr = (result.stderr || "").trimEnd();
-  if (stdout && stderr) return `${stdout}\n${stderr}`;
-  return stdout || stderr || "";
-}
-
-export async function runO2Text(verb: string): Promise<string> {
-  const result = await runO2(verb);
-  if (!result.ok) {
-    throw new Error(errMsg(result, `${verb} failed`));
-  }
-  return joinO2ResultOutput(result);
-}
-
-export function errMsg(res: RunO2Result, fallback: string): string {
-  const stderr = (res.stderr || "").trim();
-  const stdout = (res.stdout || "").trim();
-  return stderr || stdout || fallback;
-}
-
-export function parseO2Json<T>(text: string, fallback: string): T {
-  try {
-    return JSON.parse((text || "").trim()) as T;
-  } catch {
-    throw new Error(fallback);
-  }
-}
-
-export async function runO2ParsedJson<T>(
-  verb: string,
-  errorFallback: string,
-  invalidJsonFallback: string,
-): Promise<T> {
-  const res = await runO2(verb);
-  if (!res.ok) {
-    throw new Error(errMsg(res, errorFallback));
-  }
-
-  return parseO2Json<T>(res.stdout || "", invalidJsonFallback);
-}
-
-export async function runO2PayloadParsedJson<T>(
-  verbPrefix: string,
-  payload: unknown,
-  errorFallback: string,
-  invalidJsonFallback: string,
-): Promise<T> {
-  return runO2ParsedJson<T>(
-    `${verbPrefix}.${encodeO2JsonPayload(payload)}`,
-    errorFallback,
-    invalidJsonFallback,
-  );
-}
-
-export async function runO2StdinPayloadParsedJson<T>(
-  verb: string,
-  payload: unknown,
-  errorFallback: string,
-  invalidJsonFallback: string,
-): Promise<T> {
-  const payloadJson = JSON.stringify(payload);
-  assertInlineDocumentSize(payloadJson);
-  await ensureO2Compatibility();
-  const result = await invoke<RunO2Result>("run_o2_payload", {
-    verb,
-    payloadJson,
-  });
-  if (!result.ok) throw new Error(errMsg(result, errorFallback));
-  return parseO2Json<T>(result.stdout || "", invalidJsonFallback);
 }
 
 export async function listO2Files(dir: string): Promise<FilesListJson> {
@@ -221,28 +98,40 @@ export async function listO2Files(dir: string): Promise<FilesListJson> {
 
 export async function readO2File(path: string): Promise<FilesReadJson> {
   const normalized = normalizeO2Path(path);
-  const parsed = await runO2ParsedJson<FilesReadJson>(
-    `files.read.${b64urlEncodeUtf8(normalized)}`,
-    "files.read failed",
-    "files.read returned invalid JSON",
-  );
-  if (!parsed.ok) {
-    throw new Error(parsed.error || "files.read returned error");
+  try {
+    const parsed = await runO2ParsedJson<FilesReadJson>(
+      `files.read.${b64urlEncodeUtf8(normalized)}`,
+      "files.read failed",
+      "files.read returned invalid JSON",
+    );
+    if (!parsed.ok) {
+      if (parsed.error === "file_not_found") {
+        throw new O2FileNotFoundError(normalized);
+      }
+      throw new Error(parsed.error || "files.read returned error");
+    }
+    return parsed;
+  } catch (error) {
+    if (
+      error instanceof O2CommandError &&
+      error.message.includes("[o2][ERR] file not found:")
+    ) {
+      throw new O2FileNotFoundError(normalized);
+    }
+    throw error;
   }
-  return parsed;
 }
 
 export async function writeO2File(
   payload: O2WritePayload,
 ): Promise<FilesWriteJson> {
   assertInlineDocumentSize(payload.content);
-  await ensureO2Compatibility();
-  const result = await invoke<RunO2Result>("run_o2_payload", {
-    verb: "files.write",
-    payloadJson: JSON.stringify(payload),
-  });
-  if (!result.ok) throw new Error(errMsg(result, "files.write failed"));
-  const parsed = parseO2Json<FilesWriteJson>(result.stdout || "", "files.write returned invalid JSON");
+  const parsed = await runO2StdinPayloadParsedJson<FilesWriteJson>(
+    "files.write",
+    payload,
+    "files.write failed",
+    "files.write returned invalid JSON",
+  );
   if (!parsed.ok) {
     throw new Error(parsed.error || "files.write returned error");
   }

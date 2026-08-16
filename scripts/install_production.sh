@@ -9,6 +9,7 @@ for required in \
   "$BINARY" \
   "$O2_RUNTIME/scripts/run_o2.sh" \
   "$O2_RUNTIME/registry/projects.json" \
+  "$O2_RUNTIME/registry/project-archetypes.json" \
   "$O2_RUNTIME/registry/empire-todo-seeds.json"; do
   if [[ ! -f "$required" ]]; then
     printf 'Required production artifact is missing: %s\n' "$required" >&2

@@ -14,6 +14,7 @@ export type ProjectRow = {
   kind?: ProjectKind;
   archetype?: ProjectArchetype;
   repoPath?: string;
+  repoAvailable?: boolean;
 
   // Display hints
   repoHint?: string;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { runO2ParsedJson } from "../common/o2Files";
+import { runO2ParsedJson } from "../common/o2Client";
 
 type UpdateStatus = "current" | "routine" | "attention" | "stale";
 
