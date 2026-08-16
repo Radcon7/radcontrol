@@ -167,16 +167,21 @@ pub fn terminate_active_processes() {
     }
 }
 
-pub fn apply_child_environment(command: &mut Command, root: &Path, e2e_home: Option<&Path>) {
+pub fn apply_child_environment(
+    command: &mut Command,
+    root: &Path,
+    temp_dir: &Path,
+    e2e_home: Option<&Path>,
+) {
     command
         .env_clear()
-        .env("HOME", "/home/chris")
+        .env("HOME", e2e_home.unwrap_or_else(|| Path::new("/home/chris")))
         .env("O2_ROOT", root)
         .env("PWD", root)
         .env("PATH", SAFE_PATH)
         .env("LANG", "C.UTF-8")
         .env("LC_ALL", "C.UTF-8")
-        .env("TMPDIR", "/tmp")
+        .env("TMPDIR", temp_dir)
         .env("TERM", "dumb")
         .env("NO_COLOR", "1")
         .current_dir(root);
@@ -467,7 +472,8 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::process::Command;
     use std::sync::{Arc, Barrier};
-    use std::time::Duration;
+    use std::thread;
+    use std::time::{Duration, Instant};
 
     fn fixture_script(name: &str, body: &str) -> PathBuf {
         let root = std::env::temp_dir().join(format!(
@@ -495,6 +501,15 @@ mod tests {
             stderr_bytes,
             termination_grace: Duration::from_millis(75),
         }
+    }
+
+    fn process_disappears_within(pid: u32, timeout: Duration) -> bool {
+        let process = PathBuf::from(format!("/proc/{pid}"));
+        let deadline = Instant::now() + timeout;
+        while process.exists() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(10));
+        }
+        !process.exists()
     }
 
     #[test]
@@ -541,6 +556,7 @@ mod tests {
     #[test]
     fn environment_poisoning_is_removed_before_spawn() {
         let root = Path::new("/tmp");
+        let temp_dir = Path::new("/tmp/radcontrol-private-fixture");
         let mut command = Command::new("/usr/bin/env");
         command
             .env("PATH", "/tmp/evil")
@@ -549,12 +565,14 @@ mod tests {
             .env("NODE_OPTIONS", "--require=/tmp/evil.js")
             .env("GIT_DIR", "/tmp/evil-git")
             .env("O2_ROOT", "/tmp/evil-o2");
-        apply_child_environment(&mut command, root, None);
+        apply_child_environment(&mut command, root, temp_dir, None);
         let output = command.output().expect("run canonical env utility");
         assert!(output.status.success());
         let environment = String::from_utf8(output.stdout).expect("UTF-8 environment");
         assert!(environment.contains(&format!("PATH={SAFE_PATH}")));
         assert!(environment.contains("O2_ROOT=/tmp"));
+        assert!(environment.contains("HOME=/home/chris"));
+        assert!(environment.contains("TMPDIR=/tmp/radcontrol-private-fixture"));
         for forbidden in [
             "SHELL=",
             "LD_PRELOAD=",
@@ -671,6 +689,6 @@ mod tests {
             .trim()
             .parse::<u32>()
             .expect("descendant pid");
-        assert!(!Path::new(&format!("/proc/{pid}")).exists());
+        assert!(process_disappears_within(pid, Duration::from_secs(1)));
     }
 }

@@ -31,7 +31,9 @@ The desktop app invokes the Tauri command `run_o2` with a constrained verb
 allowlist. The bridge applies fixed executables and environment, per-operation
 timeouts, bounded stdin/stdout/stderr, a four-process ceiling, process-group
 cleanup, typed failures, and O2-owned audit records for mutations and privileged
-operations. The complete threat model and limit contract are in
+operations. Child output is structurally redacted before IPC, and child temp
+files are directed to a validated private O2 runtime directory. The complete
+bridge threat model and limits are in
 [`docs/RUNTIME_TRUST_BOUNDARY.md`](docs/RUNTIME_TRUST_BOUNDARY.md). The installed production app calls
 `~/.local/share/radcontrol/o2-runtime/scripts/run_o2.sh`; that path is a
 dedicated worktree of the canonical O2 repository pinned to the O2 commit that
@@ -41,6 +43,12 @@ so the live product remains independent of active development branches and
 working directories. Debug builds use `~/dev/o2`, and only explicit E2E mode accepts an
 absolute fixture `O2_ROOT`. RadControl does not own shell execution, arbitrary
 filesystem access, Git commits, or project-formation policy.
+
+O2's Local Filesystem and Credential Boundary v1 owns the shared secret and
+credential rule: configuration may point to an external credential mechanism,
+but neither O2 nor RadControl becomes the credential store. The current desktop
+uses the user account as its security boundary; same-UID malicious software is
+not contained and privilege separation remains future Guardian/provider work.
 
 `src/components/common/o2Client.ts` is the single frontend compatibility,
 invocation, payload, and command-error boundary. File semantics remain in

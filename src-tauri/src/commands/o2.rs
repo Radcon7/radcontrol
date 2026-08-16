@@ -2,18 +2,21 @@ use super::o2_process::{
     apply_child_environment, run_bounded, terminate_active_processes as terminate_processes,
     ExecutionLimits, InvocationLimiter, ProcessFailure, ProcessOutcome,
 };
+use regex::Regex;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const BASH_EXECUTABLE: &str = "/usr/bin/bash";
 const GIT_EXECUTABLE: &str = "/usr/bin/git";
 const DEVELOPMENT_O2_ROOT: &str = "/home/chris/dev/o2";
 const PRODUCTION_O2_ROOT: &str = "/home/chris/.local/share/radcontrol/o2-runtime";
+const RUNTIME_HOME: &str = "/home/chris";
 const STDIN_PAYLOAD_MAX_BYTES: usize = 1024 * 1024;
 const VERB_MAX_BYTES: usize = 256 * 1024;
 const STDOUT_MAX_BYTES: usize = 4 * 1024 * 1024;
@@ -112,6 +115,7 @@ struct RuntimeContext {
 struct O2Paths {
     root: PathBuf,
     dispatcher: PathBuf,
+    temp_dir: PathBuf,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -261,6 +265,39 @@ fn validate_regular_file(path: &Path) -> Result<PathBuf, BridgeFailureKind> {
     Ok(canonical)
 }
 
+fn validate_directory(path: &Path) -> Result<PathBuf, BridgeFailureKind> {
+    if !path_is_lexically_canonical(path) {
+        return Err(BridgeFailureKind::ExecutableUnavailable);
+    }
+    let metadata =
+        fs::symlink_metadata(path).map_err(|_| BridgeFailureKind::ExecutableUnavailable)?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(BridgeFailureKind::ExecutableUnavailable);
+    }
+    let canonical = path
+        .canonicalize()
+        .map_err(|_| BridgeFailureKind::ExecutableUnavailable)?;
+    (canonical == path)
+        .then_some(canonical)
+        .ok_or(BridgeFailureKind::ExecutableUnavailable)
+}
+
+fn ensure_private_directory(path: &Path) -> Result<PathBuf, BridgeFailureKind> {
+    match fs::create_dir(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(_) => return Err(BridgeFailureKind::ExecutableUnavailable),
+    }
+    let canonical = validate_directory(path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&canonical, fs::Permissions::from_mode(0o700))
+            .map_err(|_| BridgeFailureKind::ExecutableUnavailable)?;
+    }
+    Ok(canonical)
+}
+
 fn validate_runtime_paths(context: &RuntimeContext) -> Result<O2Paths, BridgeFailureKind> {
     if !path_is_lexically_canonical(&context.root) {
         return Err(BridgeFailureKind::ExecutableUnavailable);
@@ -277,6 +314,11 @@ fn validate_runtime_paths(context: &RuntimeContext) -> Result<O2Paths, BridgeFai
     if canonical_root != context.root {
         return Err(BridgeFailureKind::ExecutableUnavailable);
     }
+    let runtime_home = context
+        .e2e_home
+        .as_deref()
+        .unwrap_or_else(|| Path::new(RUNTIME_HOME));
+    validate_directory(runtime_home)?;
     if !Path::new(BASH_EXECUTABLE).is_file() || !Path::new(GIT_EXECUTABLE).is_file() {
         return Err(BridgeFailureKind::ExecutableUnavailable);
     }
@@ -293,9 +335,14 @@ fn validate_runtime_paths(context: &RuntimeContext) -> Result<O2Paths, BridgeFai
         }
     }
 
+    let state_dir = ensure_private_directory(&canonical_root.join(".state"))?;
+    let bridge_state = ensure_private_directory(&state_dir.join("radcontrol-runtime"))?;
+    let temp_dir = ensure_private_directory(&bridge_state.join("tmp"))?;
+
     Ok(O2Paths {
         root: canonical_root,
         dispatcher: canonical_dispatcher,
+        temp_dir,
     })
 }
 
@@ -349,14 +396,24 @@ fn audit_limits() -> ExecutionLimits {
 
 fn dispatcher_command(paths: &O2Paths, context: &RuntimeContext, verb: &str) -> Command {
     let mut command = Command::new(BASH_EXECUTABLE);
-    apply_child_environment(&mut command, &paths.root, context.e2e_home.as_deref());
+    apply_child_environment(
+        &mut command,
+        &paths.root,
+        &paths.temp_dir,
+        context.e2e_home.as_deref(),
+    );
     command.arg(&paths.dispatcher).arg(verb);
     command
 }
 
 fn git_command(paths: &O2Paths, context: &RuntimeContext, args: &[&str]) -> Command {
     let mut command = Command::new(GIT_EXECUTABLE);
-    apply_child_environment(&mut command, &paths.root, context.e2e_home.as_deref());
+    apply_child_environment(
+        &mut command,
+        &paths.root,
+        &paths.temp_dir,
+        context.e2e_home.as_deref(),
+    );
     command.arg("-C").arg(&paths.root).args(args);
     command
 }
@@ -383,12 +440,69 @@ fn process_result(outcome: ProcessOutcome, request_id: String) -> RunO2Result {
     RunO2Result {
         ok: failure_kind.is_none(),
         code: outcome.code,
-        stdout: outcome.stdout,
-        stderr: outcome.stderr,
+        stdout: redact_sensitive_text(&outcome.stdout),
+        stderr: redact_sensitive_text(&outcome.stderr),
         failure_kind,
         request_id,
         duration_ms: u64::try_from(outcome.duration.as_millis()).unwrap_or(u64::MAX),
     }
+}
+
+fn redact_sensitive_text(value: &str) -> String {
+    static TOKEN: OnceLock<Regex> = OnceLock::new();
+    static BEARER: OnceLock<Regex> = OnceLock::new();
+    static ASSIGNMENT: OnceLock<Regex> = OnceLock::new();
+    static PRIVATE_KEY: OnceLock<Regex> = OnceLock::new();
+    static QUERY: OnceLock<Regex> = OnceLock::new();
+    static USERINFO: OnceLock<Regex> = OnceLock::new();
+    let mut redacted = TOKEN
+        .get_or_init(|| {
+            Regex::new(
+                r"(?x)\b(?:gh[pousr]_[A-Za-z0-9]{20,}|npm_[A-Za-z0-9]{20,}|re_[A-Za-z0-9_-]{20,}|ya29\.[A-Za-z0-9_-]{20,}|sk-(?:proj-)?[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{16,}|(?:AKIA|ASIA)[A-Z0-9]{16}|eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{8,})\b",
+            )
+            .expect("static token redaction pattern")
+        })
+        .replace_all(value, "<redacted-secret>")
+        .into_owned();
+    redacted = BEARER
+        .get_or_init(|| {
+            Regex::new(r"(?i)\bBearer\s+[A-Za-z0-9._~+/-]{16,}")
+                .expect("static bearer redaction pattern")
+        })
+        .replace_all(&redacted, "Bearer <redacted-secret>")
+        .into_owned();
+    redacted = ASSIGNMENT
+        .get_or_init(|| {
+            Regex::new(
+                r"(?i)\b([A-Z][A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|API_KEY|SERVICE_ROLE_KEY))\s*=\s*[^\s]+",
+            )
+            .expect("static assignment redaction pattern")
+        })
+        .replace_all(&redacted, "$1=<redacted-secret>")
+        .into_owned();
+    redacted = PRIVATE_KEY
+        .get_or_init(|| {
+            Regex::new(
+                r"(?s)-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----.*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+            )
+            .expect("static private-key redaction pattern")
+        })
+        .replace_all(&redacted, "<redacted-private-key>")
+        .into_owned();
+    redacted = QUERY
+        .get_or_init(|| {
+            Regex::new(r"(?i)([?&](?:access_token|api_key|token|secret|password)=)[^&#\s]+")
+                .expect("static query redaction pattern")
+        })
+        .replace_all(&redacted, "$1<redacted-secret>")
+        .into_owned();
+    USERINFO
+        .get_or_init(|| {
+            Regex::new(r"(?i)(://[^:/\s]+:)[^@/\s]+@")
+                .expect("static URL userinfo redaction pattern")
+        })
+        .replace_all(&redacted, "$1<redacted-secret>@")
+        .into_owned()
 }
 
 fn valid_project_key(value: &str) -> bool {
@@ -898,9 +1012,9 @@ pub(crate) fn terminate_active_processes() {
 #[cfg(test)]
 mod tests {
     use super::{
-        execute, parse_verb, resolved_o2_root, validate_runtime_paths, validate_stdin_payload,
-        AuditClass, BridgeFailureKind, InvocationSpec, ProjectAction, RuntimeContext, TimeoutClass,
-        STDIN_PAYLOAD_MAX_BYTES,
+        execute, parse_verb, payload_spec, redact_sensitive_text, resolved_o2_root,
+        validate_runtime_paths, validate_stdin_payload, AuditClass, BridgeFailureKind,
+        InvocationSpec, ProjectAction, RuntimeContext, TimeoutClass, STDIN_PAYLOAD_MAX_BYTES,
     };
     use std::fs;
     use std::path::PathBuf;
@@ -942,6 +1056,94 @@ mod tests {
             resolved_o2_root(true, Some("relative/o2"), false),
             PathBuf::from("/home/chris/.local/share/radcontrol/o2-runtime")
         );
+    }
+
+    #[test]
+    fn invalid_explicit_runtime_home_fails_closed() {
+        let root = fixture_root("invalid-home");
+        let missing = root.join("missing-home");
+        let missing_context = RuntimeContext {
+            root: root.clone(),
+            e2e_home: Some(missing),
+        };
+        assert_eq!(
+            validate_runtime_paths(&missing_context).unwrap_err(),
+            BridgeFailureKind::ExecutableUnavailable
+        );
+
+        let real_home = root.join("real-home");
+        fs::create_dir(&real_home).expect("create real fixture home");
+        let linked_home = root.join("linked-home");
+        std::os::unix::fs::symlink(&real_home, &linked_home).expect("create fixture home symlink");
+        let linked_context = RuntimeContext {
+            root: root.clone(),
+            e2e_home: Some(linked_home),
+        };
+        assert_eq!(
+            validate_runtime_paths(&linked_context).unwrap_err(),
+            BridgeFailureKind::ExecutableUnavailable
+        );
+        fs::remove_dir_all(root).expect("remove fixture");
+    }
+
+    #[test]
+    fn process_output_redaction_removes_tokens_urls_and_assignments() {
+        let token = "ghp_".to_string() + "FixtureOnlyValue1234567890";
+        let jwt = "eyJ".to_string() + "FixtureHeader12.FixturePayload12.FixtureSignature8";
+        let private_key = [
+            "-----BEGIN ",
+            "PRIVATE KEY-----\nFixturePrivateMaterial\n-----END PRIVATE KEY-----",
+        ]
+        .concat();
+        let raw = format!(
+            "Bearer {token}\nAPI_TOKEN={token}\nhttps://user:{token}@example.test/path?access_token={token}\n{jwt}\n{private_key}"
+        );
+        let redacted = redact_sensitive_text(&raw);
+        assert!(!redacted.contains(&token));
+        assert!(!redacted.contains(&jwt));
+        assert!(!redacted.contains("FixturePrivateMaterial"));
+        assert!(redacted.contains("Bearer <redacted-secret>"));
+        assert!(redacted.contains("API_TOKEN=<redacted-secret>"));
+        assert!(redacted.contains("access_token=<redacted-secret>"));
+    }
+
+    #[test]
+    fn renderer_payload_cannot_escape_through_result_or_audit_storage() {
+        let root = fixture_root("renderer-secret-boundary");
+        fs::write(
+            root.join("scripts/run_o2.sh"),
+            "#!/usr/bin/bash\nif [[ \"$1\" == radcontrol.audit.append.stdin ]]; then /usr/bin/cat > \"$O2_ROOT/audit-capture.json\"; printf '{\"ok\":true}\\n'; exit 0; fi\n/usr/bin/cat\n",
+        )
+        .expect("write echoing dispatcher");
+        let token = "ghp_".to_string() + "RendererFixtureValue1234567890";
+        let payload = format!(r#"{{"note":"Bearer {token}","API_TOKEN":"{token}"}}"#);
+        assert!(validate_stdin_payload(&payload).is_ok());
+
+        let result = execute(
+            RuntimeContext {
+                root: root.clone(),
+                e2e_home: None,
+            },
+            payload_spec("files.write").expect("supported payload operation"),
+            Some(payload.into_bytes()),
+        );
+
+        assert!(result.ok);
+        assert!(!result.stdout.contains(&token));
+        assert!(!result.stderr.contains(&token));
+        assert!(result.stdout.contains("<redacted-secret>"));
+        let audit = fs::read_to_string(root.join("audit-capture.json"))
+            .expect("read captured audit payload");
+        assert!(!audit.contains(&token));
+        assert!(!audit.contains("note"));
+        assert!(!audit.contains("API_TOKEN"));
+        assert!(root
+            .join(".state/radcontrol-runtime/tmp")
+            .read_dir()
+            .expect("read private temp directory")
+            .next()
+            .is_none());
+        fs::remove_dir_all(root).expect("remove fixture");
     }
 
     #[test]

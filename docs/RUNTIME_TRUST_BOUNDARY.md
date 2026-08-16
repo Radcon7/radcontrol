@@ -4,7 +4,7 @@ Status: Active implementation authority
 Scope: RadControl frontend to Tauri/Rust to O2 runtime execution
 Owner: RadControl (bridge) and O2 (dispatcher/audit transport)
 Reviewed: 2026-08-16
-Next review: before Round 5B implementation or 2026-11-16, whichever comes first
+Next review: before Round 5C implementation or 2026-11-16, whichever comes first
 
 ## Purpose and authority
 
@@ -12,7 +12,8 @@ RadControl owns this bridge implementation and its product-facing failure
 contract. O2 owns the dispatcher, registered project/resource identity,
 governed operations, and durable state. This boundary does not grant the
 frontend arbitrary process, shell, environment, repository-path, or filesystem
-authority.
+authority. O2 `contracts/local-credentials/v1/README.md` governs the shared
+filesystem, credential, secret-flow, redaction, and same-user boundary.
 
 This threat model was written against O2 commit
 `c7ec863831c6cf062c4d1af7313f8c97aacf6132` and RadControl commit
@@ -41,7 +42,7 @@ This threat model was written against O2 commit
 | Shell metacharacter/argument injection | Verb is one process argument; no `bash -c` in Rust | O2 static-site launch contains registry-derived `bash -lc` text | Preserve discrete argv and remove that registry-derived shell string | Metacharacter verbs/paths and static-launch source/behavior tests |
 | Process-tree cleanup failure | Failed stdin kills only the immediate child | Timeout does not exist; descendants can survive | Dedicated process group, bounded TERM/KILL cleanup, active-group shutdown hook, O2 lifecycle TERM cleanup | Hanging child and descendant PID disappearance |
 | Child survives RadControl exit | None | Normal application shutdown can leave active calls | Track only process groups created by the bridge and terminate them on normal Tauri exit | Explicit active-lineage cleanup test |
-| Sensitive data in logs/errors | Payload is not logged by the frontend | Raw output is unbounded and audit design is absent | Bounded diagnostics; audit metadata excludes payload and environment values | Secret-marker payload is absent from audit record |
+| Sensitive data in logs/errors | Payload is not logged by the frontend | Raw output is unbounded and audit design is absent | Bounded diagnostics; structural token/URL/assignment redaction before IPC; audit metadata excludes payload and environment values | Token-looking output and payload are absent from errors and audit |
 | Allowed operation becomes general execution | Finite top-level allowlist and O2 dispatcher | Broad prefixes and generic action strings are brittle | Typed operation classification, exact stdin map, finite project action enum, registry resolution | Deny arbitrary shell, executable, environment, path and unsupported verbs |
 
 ## Exposed Tauri commands
@@ -89,7 +90,7 @@ short injected time budgets; production limits are not weakened for test speed.
 | --- | --- | --- |
 | Required/overridden | `HOME=/home/chris`, `O2_ROOT=<validated root>`, `PWD=<validated root>` | Preserve the current single-user packaging contract and pin O2 identity |
 | Required/overridden | `PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` | Provide the known system toolchain without ambient path injection |
-| Required/overridden | `LANG=C.UTF-8`, `LC_ALL=C.UTF-8`, `TMPDIR=/tmp`, `TERM=dumb`, `NO_COLOR=1` | Deterministic text, temporary-file and noninteractive behavior |
+| Required/overridden | `LANG=C.UTF-8`, `LC_ALL=C.UTF-8`, `TMPDIR=<validated O2 .state/radcontrol-runtime/tmp>`, `TERM=dumb`, `NO_COLOR=1` | Deterministic text, private temporary-file and noninteractive behavior |
 | E2E-only | `RADCONTROL_E2E=1`, canonical `O2_E2E_HOME` | Preserve the explicitly isolated harness; never accepted in production/debug |
 | Removed | `SHELL`, `CDPATH`, `BASH_ENV`, `ENV`, `PROMPT_COMMAND` | Prevent shell startup/path influence |
 | Removed | `LD_PRELOAD`, `LD_LIBRARY_PATH` and other `LD_*` | Prevent loader influence |
@@ -99,9 +100,10 @@ short injected time budgets; production limits are not weakened for test speed.
 | Removed | `SSH_AUTH_SOCK`, `DOCKER_HOST`, proxy and provider variables | No exposed operation requires remote credentials or remote daemon selection |
 | Removed | all other ambient variables | The allowed O2 bridge does not require them; complete gates prove compatibility |
 
-The `/home/chris` packaging identity is intentional in Round 5A. General
-multi-user portability is a Round 5B concern, not an excuse to trust ambient
-`HOME` now.
+The `/home/chris` packaging identity is intentional and validated as a
+canonical non-symlink directory. Missing or hostile ambient `HOME` never
+selects another runtime root, executable, credential store, or temp directory.
+General multi-user portability requires a separately reviewed packaging model.
 
 ## Filesystem and symlink policy
 
@@ -111,14 +113,15 @@ lexically canonical, beneath the canonical development topology, and not a
 symlink. The registered repository directory itself may not traverse symlinked
 components. Symlinks inside a repository are not categorically forbidden;
 operation-specific containment still governs any path they touch. O2 document
-operations remain confined to the canonical O2 `docs/` tree and reject symlink
-escape.
+operations remain confined to an opened canonical O2 `docs/` descriptor;
+intermediate/final symlinks are rejected and bounded writes use same-directory
+private temporary files, durability, atomic replacement, and cleanup.
 
-Same-user replacement between final validation and kernel path lookup cannot be
-eliminated by string validation. Round 5A minimizes that window and fails on
-observable replacement; descriptor-pinned execution or a separately installed
-service boundary belongs to Round 5B if the local same-user attacker model is
-expanded.
+Same-user replacement between final validation and executable lookup is not
+contained by these controls. Document writes pin directory descriptors, but a
+malicious process already running as Chris can replace user-owned runtime code,
+repositories, credentials, and installed artifacts. Privilege separation is
+warranted before Guardian enforcement or high-impact provider mutation.
 
 ## Audit foundation
 
@@ -147,12 +150,12 @@ are real product authorities, now bounded and audited rather than harmless.
 
 | Classification | Residual risk | Owner | Trigger or review condition |
 | --- | --- | --- | --- |
-| Round 5B | A hostile same-user process can race validated pathname components between validation and kernel lookup. Process groups cannot contain a descendant that deliberately creates a new session; O2's known detached lifecycle path instead has targeted PID cleanup. | RadControl runtime + O2 execution | Evaluate descriptor-pinned execution, a dedicated service boundary, or cgroup/session containment before expanding the local attacker model or adding a new detached operation. |
-| Round 5B | The fixed `/home/chris` runtime identity is secure against ambient `HOME` poisoning but is not multi-user portable. | RadControl packaging | Replace only alongside a reviewed installer/runtime identity contract. |
+| Accepted Model A risk | A hostile same-user process can replace user-owned installed/runtime/source objects or race executable lookup. Process groups also cannot contain a descendant that deliberately creates a new session; O2's known detached lifecycle path instead has targeted PID cleanup. | RadControl runtime + O2 execution | Adopt privilege-separated Model B before Guardian enforcement, high-impact provider mutation, or any claim of same-user containment. |
+| Accepted packaging constraint | The fixed canonical `/home/chris` runtime identity rejects ambient `HOME` poisoning but is not multi-user portable. | RadControl packaging | Replace only alongside a reviewed installer/runtime identity contract. |
 | Round 5C | The retained opener permission lets compromised frontend code open arbitrary HTTPS and loopback HTTP URLs, though not files, programs, shells, or custom schemes. | RadControl product/capability policy | Reassess registry-bound URL opening before broadening URL schemes or introducing remote operator actions. |
 | Round 5C | The local hash chain makes accidental removal/reordering visible but is not immutable against the same workstation user. | O2 audit policy | Define retention, external anchoring, and operator review only if the audit becomes compliance or incident-response evidence. |
 | Round 5D | Native installed-app and abrupt-app-exit adversarial tests were not run because this round did not authorize launching a second app/runtime/listener. Deterministic Rust subprocess fixtures cover the supervisor without launching RadControl. | Release verification | Run the bounded native acceptance procedure only under explicit launch authorization and preserve the listener/runtime baseline. |
 | Accepted design risk | Tauri materializes command strings before the Rust handler can enforce its byte ceilings. A compromised renderer can still denial-of-service its own application process; the implemented limits prevent oversized input from reaching O2 but do not claim availability against a fully hostile renderer. | RadControl/Tauri boundary | Revisit only if Tauri exposes a practical pre-deserialization IPC quota or the local availability threat model expands. |
 
-Round 5A adds no schema or migration, no provider authority, no autonomous
-remediation, and no Guardian/SOC capability.
+Round 5B adds no schema or migration, provider credential broker, provider
+authority, autonomous remediation, root service, or Guardian/SOC capability.

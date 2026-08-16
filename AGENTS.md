@@ -73,7 +73,7 @@ normal installed launcher when a task claims live product recovery.
 | Always | `README.md`; `docs/REPO_STATE.md`; `docs/POLICY_POINTERS.md` | Query O2 before invasive work. |
 | UI/UX | Local architecture in `docs/REPO_STATE.md`; UI doctrine linked by `docs/POLICY_POINTERS.md` | Retrieve active UI/quality material; RadControl owns presentation only. |
 | Database/schema/migration | Persistence boundary in `docs/REPO_STATE.md` and `docs/POLICY_POINTERS.md` | O2 owns governed durable state. Use its applicable contract; do not create a RadControl-side product database or policy store. |
-| Auth/security/Tauri bridge | `docs/POLICY_POINTERS.md`; bridge and execution boundaries in local code/docs | Retrieve active security and O2/RadControl contract material; preserve the allowlisted bridge. |
+| Auth/security/Tauri bridge | `docs/POLICY_POINTERS.md`; bridge and execution boundaries in local code/docs | Retrieve `contracts/local-credentials/v1/README.md` plus task-matched security material; preserve the allowlisted bridge. |
 | Hosted delivery/Vercel | No repo-local hosted-service authority exists; RadControl is a local desktop command center | Any hosted surface is a scope expansion requiring O2 hosted-delivery retrieval and explicit design authority. |
 | Supabase/provider | `docs/POLICY_POINTERS.md` for O2-owned infrastructure actions | Provider truth and mutations remain O2-owned; use the relevant O2 data/provider contract and never duplicate credentials or state. |
 | Radcon portal/operator | RadControl's boundary in `docs/REPO_STATE.md` | RadControl is not Radcon Enterprises. Retrieve O2 action/runtime contracts only for its command-center role. |
