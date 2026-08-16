@@ -57,6 +57,10 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   shell or filesystem access. Its fixed executable/environment contract,
   resource limits, typed failures, process cleanup, audit behavior, and
   residual risks are governed by `docs/RUNTIME_TRUST_BOUNDARY.md`.
+- Shared secret exclusion, credential metadata, private temp/state modes,
+  filesystem-write rules, redaction, and the explicit same-user limitation are
+  governed once by O2 `contracts/local-credentials/v1/README.md`; RadControl
+  owns only its bridge and packaging implementation of that contract.
 - Frontend O2 compatibility, invocation, payload encoding, and command errors
   have one boundary in `src/components/common/o2Client.ts`; domain-specific
   file-not-found handling remains in `o2Files.ts`.

@@ -25,6 +25,8 @@ O2 documents override RadControl only when they declare `Authority class: Empire
   `~/dev/o2/contracts/codex-memory-verification/v1/README.md`
 - Sentinel trust, capability, evidence, audit, and activation boundary:
   `~/dev/o2/contracts/sentinel-security/v1/README.md`
+- Local filesystem, credential, secret-flow, runtime-identity, and redaction
+  boundary: `~/dev/o2/contracts/local-credentials/v1/README.md`
 - Build Me a Business maturity path:
   `~/dev/o2/docs/project-formation/BUILD_ME_A_BUSINESS_ROADMAP.md`
 - O2 implementation: `~/dev/o2/scripts/`, `~/dev/o2/registry/projects.json`, and `~/dev/o2/workspaces/`

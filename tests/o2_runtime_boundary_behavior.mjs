@@ -6,6 +6,7 @@ import {
   assertRunO2Result,
   parseO2Json,
   redactO2Verb,
+  redactSensitiveText,
 } from "../src/components/common/o2Client.ts";
 
 const success = {
@@ -57,4 +58,25 @@ assert.equal(
 );
 assert.equal(redactO2Verb("dqotd.snapshot"), "dqotd.snapshot");
 
-console.log("O2 client boundary: typed envelopes, bounded JSON, and payload redaction");
+const token = "ghp_" + "FixtureOnlyValue1234567890";
+const privateKey = [
+  "-----BEGIN ",
+  "PRIVATE KEY-----\nFixturePrivateMaterial\n-----END PRIVATE KEY-----",
+].join("");
+const credentialOutput = `Bearer ${token}\nAPI_TOKEN=${token}\nhttps://user:${token}@example.test/?access_token=${token}\n${privateKey}`;
+const redactedOutput = redactSensitiveText(credentialOutput);
+assert.doesNotMatch(redactedOutput, new RegExp(token));
+assert.match(redactedOutput, /Bearer <redacted-secret>/);
+assert.match(redactedOutput, /API_TOKEN=<redacted-secret>/);
+assert.match(redactedOutput, /access_token=<redacted-secret>/);
+assert.doesNotMatch(redactedOutput, /FixturePrivateMaterial/);
+assert.match(redactedOutput, /<redacted-private-key>/);
+const sanitizedEnvelope = assertRunO2Result({
+  ...success,
+  stdout: credentialOutput,
+  stderr: credentialOutput,
+});
+assert.doesNotMatch(sanitizedEnvelope.stdout, new RegExp(token));
+assert.doesNotMatch(sanitizedEnvelope.stderr, new RegExp(token));
+
+console.log("O2 client boundary: typed envelopes, bounded JSON, and structural redaction");

@@ -93,6 +93,28 @@ export function redactO2Verb(verb: string): string {
   return `${prefix}<redacted:${verb.length - prefix.length}chars>`;
 }
 
+export function redactSensitiveText(value: string): string {
+  return value
+    .replace(
+      /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|npm_[A-Za-z0-9]{20,}|re_[A-Za-z0-9_-]{20,}|ya29\.[A-Za-z0-9_-]{20,}|sk-(?:proj-)?[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{16,}|(?:AKIA|ASIA)[A-Z0-9]{16}|eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{8,})\b/g,
+      "<redacted-secret>",
+    )
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/-]{16,}/gi, "Bearer <redacted-secret>")
+    .replace(
+      /\b([A-Z][A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|API_KEY|SERVICE_ROLE_KEY))\s*=\s*[^\s]+/gi,
+      "$1=<redacted-secret>",
+    )
+    .replace(
+      /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g,
+      "<redacted-private-key>",
+    )
+    .replace(
+      /([?&](?:access_token|api_key|token|secret|password)=)[^&#\s]+/gi,
+      "$1<redacted-secret>",
+    )
+    .replace(/(:\/\/[^:/\s]+:)[^@/\s]+@/gi, "$1<redacted-secret>@");
+}
+
 export function assertRunO2Result(value: unknown): RunO2Result {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new O2ResponseError("O2 bridge returned a non-object response.");
@@ -132,7 +154,11 @@ export function assertRunO2Result(value: unknown): RunO2Result {
   ) {
     throw new O2ResponseError("O2 bridge returned an invalid response envelope.");
   }
-  return record as RunO2Result;
+  return {
+    ...(record as RunO2Result),
+    stdout: redactSensitiveText(record.stdout as string),
+    stderr: redactSensitiveText(record.stderr as string),
+  };
 }
 
 export async function getE2EProjectRoots(): Promise<E2EProjectRoots | null> {
