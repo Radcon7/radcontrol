@@ -6,6 +6,8 @@ use regex::Regex;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::fs;
+use std::io::Read;
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -1007,6 +1009,34 @@ pub fn run_o2(verb: String) -> RunO2Result {
 
 pub(crate) fn terminate_active_processes() {
     terminate_processes();
+}
+
+pub(crate) fn opener_registry_json() -> Result<String, String> {
+    let context =
+        runtime_context().map_err(|_| "governed O2 runtime is unavailable".to_string())?;
+    let paths = validate_runtime_paths(&context)
+        .map_err(|_| "governed O2 runtime is unavailable".to_string())?;
+    let path = paths.root.join("registry/projects.json");
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(&path)
+        .map_err(|_| "governed project registry is unavailable".to_string())?;
+    let metadata = file
+        .metadata()
+        .map_err(|_| "governed project registry is unavailable".to_string())?;
+    const REGISTRY_MAX_BYTES: u64 = 2 * 1024 * 1024;
+    if !metadata.is_file() || metadata.len() > REGISTRY_MAX_BYTES {
+        return Err("governed project registry is unavailable".to_string());
+    }
+    let mut content = String::new();
+    file.take(REGISTRY_MAX_BYTES + 1)
+        .read_to_string(&mut content)
+        .map_err(|_| "governed project registry is unavailable".to_string())?;
+    if content.len() as u64 > REGISTRY_MAX_BYTES {
+        return Err("governed project registry is unavailable".to_string());
+    }
+    Ok(content)
 }
 
 #[cfg(test)]

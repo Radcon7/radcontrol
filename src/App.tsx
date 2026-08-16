@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import "./App.css";
 import { isTauri } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import "./App.css";
 
 import { SecurityTab } from "./components/security/SecurityTab";
 
@@ -31,6 +30,7 @@ import {
   type FormationLearningInheritance,
 } from "./components/projects/formationLearning";
 import { copyText } from "./components/common/copyText";
+import { openGovernedUrl } from "./components/common/governedOpener";
 import {
   encodeO2JsonPayload,
   getE2EProjectRoots,
@@ -113,31 +113,8 @@ function extractFirstHttpUrl(s: string): string | null {
   return m ? m[0] : null;
 }
 
-function openByAnchor(url: string) {
-  const a = document.createElement("a");
-  a.href = url;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
 async function tryAutoOpen(url: string) {
-  try {
-    if (isTauri()) {
-      await openUrl(url);
-      return;
-    }
-  } catch {
-    // fall through
-  }
-
-  try {
-    openByAnchor(url);
-  } catch {
-    // ignore
-  }
+  await openGovernedUrl(url);
 }
 
 type FormationStartResult = {

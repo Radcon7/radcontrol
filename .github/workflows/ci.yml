@@ -15,12 +15,19 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: "24"
+          node-version: "24.12.0"
           cache: npm
       - name: Install Rust toolchain
-        run: rustup toolchain install stable --profile minimal && rustup default stable
+        run: rustup toolchain install 1.93.0 --profile minimal --component clippy,rustfmt
+      - name: Review pull-request dependency changes
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
       - name: Install Linux Tauri prerequisites
         run: |
           sudo apt-get update
@@ -51,6 +58,7 @@ jobs:
           npm run verify:sentinel
           npm run test:content-preservation
           npm run verify:content-preservation
+          python3 -B -m unittest tests/release_candidate_evidence_test.py -v
           npm run lint
           npm run build
           npm audit --omit=dev
@@ -58,5 +66,6 @@ jobs:
           bash scripts/snapshot_repo_state.sh --verify-idempotence
       - name: Run Rust checks
         run: |
-          cargo check --manifest-path src-tauri/Cargo.toml
-          cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+          cargo check --manifest-path src-tauri/Cargo.toml --locked
+          cargo test --manifest-path src-tauri/Cargo.toml --locked
+          cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings

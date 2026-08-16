@@ -3,6 +3,7 @@ import { runO2PayloadParsedJson } from "../common/o2Client";
 import { listO2Files, readO2File } from "../common/o2Files";
 import { SystemStateShell } from "../common/SystemStateShell";
 import { useGovernedRecordNote } from "../common/useGovernedRecordNote";
+import { openGovernedUrl } from "../common/governedOpener";
 import { CreateInfrastructureModal } from "./CreateInfrastructureModal";
 import { InfrastructureDetail } from "./InfrastructureDetail";
 import { InfrastructureRoster } from "./InfrastructureRoster";
@@ -42,16 +43,6 @@ type Props = {
   onAppendLog: (text: string) => void;
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
 };
-
-function openExternalUrl(url: string): void {
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.target = "_blank";
-  anchor.rel = "noopener noreferrer";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-}
 
 export function InfrastructureTab({
   projects,
@@ -244,7 +235,7 @@ export function InfrastructureTab({
     onAppendLog(buildGovernedEvidenceLog(entry));
   }
 
-  function openConsole(entry: InfrastructureEntry): void {
+  async function openConsole(entry: InfrastructureEntry): Promise<void> {
     if (!entry.primaryConsoleUrl) {
       onAppendLog(
         `[infrastructure] Open Console unavailable for ${entry.label}: no console URL is recorded.`,
@@ -253,7 +244,7 @@ export function InfrastructureTab({
     }
 
     try {
-      openExternalUrl(entry.primaryConsoleUrl);
+      await openGovernedUrl(entry.primaryConsoleUrl);
     } catch (error) {
       onAppendLog(
         `[infrastructure] Open Console failed for ${entry.label}: ${error instanceof Error ? error.message : String(error)}`,

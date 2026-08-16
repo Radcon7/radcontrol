@@ -57,6 +57,12 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   shell or filesystem access. Its fixed executable/environment contract,
   resource limits, typed failures, process cleanup, audit behavior, and
   residual risks are governed by `docs/RUNTIME_TRUST_BOUNDARY.md`.
+- The frontend has no raw opener capability. Browser destinations pass through
+  Rust validation: exact fixed provider hosts, exact registered HTTPS project
+  URLs, or canonical localhost/127.0.0.1 routes on a registry-declared port.
+- CI/action pins, exact release toolchains, dependency evidence, compatibility
+  pins, release-candidate manifests/external artifacts, and audit anchoring are
+  governed by `docs/SUPPLY_CHAIN.md`.
 - Shared secret exclusion, credential metadata, private temp/state modes,
   filesystem-write rules, redaction, and the explicit same-user limitation are
   governed once by O2 `contracts/local-credentials/v1/README.md`; RadControl
@@ -103,11 +109,10 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 
 ## Source and installed goldens
 
-New development starts from the accepted source `origin/main` commits. For the
-Round 5A publication, O2 source is
-`823feb9dff9757f63f4eb7fac84fa728d651d1af`; RadControl source is the
-`origin/main` commit containing this section and is reported exactly in the
-publication acceptance record.
+The Round 5C candidates start from accepted source commits O2
+`d247e5ac0f7d61054be7176f9ce81bba1dbe8195` and RadControl
+`412886419297e81dd0f96fccb9c0b22f25846c99`. Candidate work is not a new source
+golden until separately published, reviewed, and merged.
 
 The installed desktop pair intentionally remains:
 
@@ -125,7 +130,7 @@ Use the impact-appropriate subset of:
 - `npm run lint`
 - `npm run test:contracts`
 - `npm run build`
-- `cargo test --manifest-path src-tauri/Cargo.toml`
+- `cargo test --manifest-path src-tauri/Cargo.toml --locked`
 - `npm run verify:production-delivery`
 - focused architecture/contract tests
 - explicitly launch-authorized `npm run test:tauri-e2e` for native workflow

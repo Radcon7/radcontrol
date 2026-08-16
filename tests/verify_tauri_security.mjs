@@ -7,14 +7,7 @@ const capability = JSON.parse(await readFile(new URL("../src-tauri/capabilities/
 assert.equal(config.app.withGlobalTauri, false);
 assert.match(config.app.security.csp, /default-src 'self'/);
 assert.doesNotMatch(config.app.security.csp, /\x27unsafe-eval\x27/);
-assert.deepEqual(capability.permissions[0], "core:default");
-assert.equal(capability.permissions.length, 2);
-assert.equal(capability.permissions[1].identifier, "opener:allow-open-url");
-assert.deepEqual(capability.permissions[1].allow, [
-  { url: "https://*" },
-  { url: "http://127.0.0.1:*" },
-  { url: "http://localhost:*" },
-]);
+assert.deepEqual(capability.permissions, ["core:default"]);
 assert.doesNotMatch(JSON.stringify(capability.permissions), /reveal|shell:|fs:|clipboard/);
 const bridge = await readFile(new URL("../src-tauri/src/commands/o2.rs", import.meta.url), "utf8");
 const processBoundary = await readFile(new URL("../src-tauri/src/commands/o2_process.rs", import.meta.url), "utf8");
@@ -60,14 +53,26 @@ assert.match(bridge, /if e2e_mode\(\) \{/);
 assert.match(bridge, /pub fn e2e_project_roots\(\) -> Option<E2EProjectRoots>/);
 assert.match(bridge, /std::env::var\("O2_E2E_HOME"\)\.map_err/);
 const app = await readFile(new URL("../src-tauri/src/lib.rs", import.meta.url), "utf8");
+const opener = await readFile(new URL("../src-tauri/src/commands/opener.rs", import.meta.url), "utf8");
+const governedOpener = await readFile(new URL("../src/components/common/governedOpener.ts", import.meta.url), "utf8");
 assert.match(app, /if commands::o2::e2e_mode\(\)/);
 assert.doesNotMatch(app, /std::env::var\("RADCONTROL_E2E"\)/);
 assert.match(app, /commands::o2::terminate_active_processes\(\)/);
+assert.match(app, /open_js_links_on_click\(false\)/);
+assert.match(app, /commands::opener::open_governed_url/);
 assert.doesNotMatch(app, /clipboard_manager/);
+assert.match(opener, /const PROVIDER_HOSTS/);
+assert.match(opener, /URL_DENIED/);
+assert.match(opener, /matches!\(host, "localhost" \| "127\.0\.0\.1"\)/);
+assert.match(opener, /project\.port == Some\(port\)/);
+assert.match(opener, /candidate_url == parsed/);
+assert.doesNotMatch(governedOpener, /@tauri-apps\/plugin-opener|window\.open/);
+assert.match(governedOpener, /invoke<string>\("open_governed_url"/);
 const cargo = await readFile(new URL("../src-tauri/Cargo.toml", import.meta.url), "utf8");
 assert.doesNotMatch(cargo, /tauri-plugin-clipboard-manager|chrono/);
 assert.match(cargo, /serde_json = "1"/);
 assert.match(cargo, /libc = "0\.2"/);
 assert.match(cargo, /regex = "1"/);
+assert.match(cargo, /url = "2"/);
 console.log("project action allowlist: commit excluded");
 console.log("tauri security contract: ok");

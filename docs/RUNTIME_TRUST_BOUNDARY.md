@@ -4,7 +4,7 @@ Status: Active implementation authority
 Scope: RadControl frontend to Tauri/Rust to O2 runtime execution
 Owner: RadControl (bridge) and O2 (dispatcher/audit transport)
 Reviewed: 2026-08-16
-Next review: before Round 5C implementation or 2026-11-16, whichever comes first
+Next review: before Round 5D native acceptance or 2026-11-16, whichever comes first
 
 ## Purpose and authority
 
@@ -62,10 +62,16 @@ repository path, or arbitrary filesystem target from the frontend.
 | Permission | Consumer and purpose | Scope | Compromised-frontend consequence | Decision |
 | --- | --- | --- | --- | --- |
 | `core:default` | Main-window lifecycle and IPC required by Tauri | Main window only | Finite Tauri core defaults; no shell or filesystem permission | Retain |
-| `opener:allow-open-url` | Project localhost/operator URLs and registered public website URLs | `https://*`, `http://127.0.0.1:*`, `http://localhost:*` | Can open an arbitrary HTTPS or loopback URL, but not a file, shell, program path, or custom scheme | Retain as the minimum current product scope; revisit registry-bound opening in Round 5C |
 
-No shell, filesystem, reveal, clipboard, process, or unrestricted opener
-permission is enabled.
+No shell, filesystem, reveal, clipboard, process, or frontend opener permission
+is enabled. `open_governed_url` is a Rust command, not a general executable or
+URL primitive. It allows HTTPS only for exact provider hosts (`github.com`,
+`vercel.com`, `supabase.com`, `dash.cloudflare.com`, `admin.google.com`,
+`chatgpt.com`, `hub.docker.com`, and `resend.com`) or an exact registered
+project URL. HTTP requires literal `localhost` or `127.0.0.1`, an explicit
+registry-declared port, and no alternate numeric/IPv6 representation. Userinfo,
+unknown schemes/hosts, attacker subdomains, malformed input, unavailable
+registry state, and unexpected loopback ports fail explicitly.
 
 ## Process envelope
 
@@ -138,7 +144,7 @@ remediation, provider-monitoring or immutable-log system.
 ## Maximum compromised-frontend authority
 
 A fully attacker-controlled frontend can invoke only the finite Tauri commands,
-HTTP(S) URL opener scope, and governed O2 operations listed above. O2 operations
+the registry/provider-validated backend opener, and governed O2 operations listed above. O2 operations
 remain restricted to registry-resolved resources and O2-owned document paths,
 with bounded request size, runtime, output, concurrency, environment and process
 cleanup. It cannot select a shell, executable, script, environment, working
@@ -152,10 +158,10 @@ are real product authorities, now bounded and audited rather than harmless.
 | --- | --- | --- | --- |
 | Accepted Model A risk | A hostile same-user process can replace user-owned installed/runtime/source objects or race executable lookup. Process groups also cannot contain a descendant that deliberately creates a new session; O2's known detached lifecycle path instead has targeted PID cleanup. | RadControl runtime + O2 execution | Adopt privilege-separated Model B before Guardian enforcement, high-impact provider mutation, or any claim of same-user containment. |
 | Accepted packaging constraint | The fixed canonical `/home/chris` runtime identity rejects ambient `HOME` poisoning but is not multi-user portable. | RadControl packaging | Replace only alongside a reviewed installer/runtime identity contract. |
-| Round 5C | The retained opener permission lets compromised frontend code open arbitrary HTTPS and loopback HTTP URLs, though not files, programs, shells, or custom schemes. | RadControl product/capability policy | Reassess registry-bound URL opening before broadening URL schemes or introducing remote operator actions. |
-| Round 5C | The local hash chain makes accidental removal/reordering visible but is not immutable against the same workstation user. | O2 audit policy | Define retention, external anchoring, and operator review only if the audit becomes compliance or incident-response evidence. |
+| Accepted provider risk | A renderer may open any path on one of eight fixed provider hosts, and a compromised provider/account can still present hostile content. | RadControl product/capability policy | Narrow the provider path set only when stable product routes make that practical. |
+| Round 5C activation | The local chain remains same-UID mutable until an operator submits its payload-free tip to the unpublished external-anchor workflow. | O2 audit policy and RadControl GitHub workflow | Publish and invoke only under separate authorization; runtime credentials remain forbidden. |
 | Round 5D | Native installed-app and abrupt-app-exit adversarial tests were not run because this round did not authorize launching a second app/runtime/listener. Deterministic Rust subprocess fixtures cover the supervisor without launching RadControl. | Release verification | Run the bounded native acceptance procedure only under explicit launch authorization and preserve the listener/runtime baseline. |
 | Accepted design risk | Tauri materializes command strings before the Rust handler can enforce its byte ceilings. A compromised renderer can still denial-of-service its own application process; the implemented limits prevent oversized input from reaching O2 but do not claim availability against a fully hostile renderer. | RadControl/Tauri boundary | Revisit only if Tauri exposes a practical pre-deserialization IPC quota or the local availability threat model expands. |
 
-Round 5B adds no schema or migration, provider credential broker, provider
+Round 5C adds no schema or migration, provider credential broker, provider
 authority, autonomous remediation, root service, or Guardian/SOC capability.
