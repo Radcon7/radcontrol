@@ -21,6 +21,7 @@ test:content-preservation
 test:contracts
 test:empire-todo
 test:formation-payload
+test:o2-runtime-boundary
 test:sentinel
 test:tauri-e2e
 verify:agents-architecture
@@ -57,6 +58,7 @@ docs/CODEX_EXECUTION_NOTES.md
 docs/POLICY_POINTERS.md
 docs/RADCONTROL_CONTENT_PRESERVATION.json
 docs/REPO_STATE.md
+docs/RUNTIME_TRUST_BOUNDARY.md
 docs/SENTINEL_PHASE1_MIGRATION.md
 index.html
 package-lock.json
@@ -132,6 +134,7 @@ src-tauri/icons/ios/AppIcon-76x76@2x.png
 src-tauri/icons/ios/AppIcon-83.5x83.5@2x.png
 src-tauri/src/commands/mod.rs
 src-tauri/src/commands/o2.rs
+src-tauri/src/commands/o2_process.rs
 src-tauri/src/lib.rs
 src-tauri/src/main.rs
 src-tauri/tauri.conf.json
@@ -203,6 +206,7 @@ tests/content_preservation_behavior.mjs
 tests/empire_todo_behavior.mjs
 tests/formation_learning_contract.mjs
 tests/formation_payload_behavior.mjs
+tests/o2_runtime_boundary_behavior.mjs
 tests/sentinel_behavior.mjs
 tests/verify_agents_architecture_contract.mjs
 tests/verify_ci_workflow_contract.mjs

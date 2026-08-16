@@ -52,7 +52,10 @@ for (const [label, verb] of [
     assert.match(bridge, new RegExp(`"${verb.replaceAll(".", "\\.")}"`));
   }
 }
-assert.match(bridge, /"dev" \| "dev_strict" \| "stop" \| "snapshot" \| "map" \| "proofpack"/);
+assert.match(bridge, /enum ProjectAction/);
+for (const action of ["dev", "dev_strict", "stop", "snapshot", "map", "proofpack"]) {
+  assert.match(bridge, new RegExp(`"${action}" => Some\\(Self::`));
+}
 assert.equal(existsSync(new URL("src/components/common/useArtifactStore.ts", root)), true);
 assert.equal(existsSync(new URL("src/components/empire-utility/EmpireUtilityTab.tsx", root)), false);
 

@@ -9,7 +9,7 @@ pub fn run() {
     let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
 
     // Desktop E2E launches an isolated binary beside the normal single instance.
-    let builder = if matches!(std::env::var("RADCONTROL_E2E"), Ok(value) if value == "1") {
+    let builder = if commands::o2::e2e_mode() {
         builder
     } else {
         builder.plugin(single_instance(|app, _args, _cwd| {
@@ -22,7 +22,7 @@ pub fn run() {
         }))
     };
 
-    builder
+    let app = builder
         .setup(|app| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.set_fullscreen(false);
@@ -80,6 +80,15 @@ pub fn run() {
             commands::o2::e2e_project_roots,
             commands::o2::runtime_diagnostics,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|_handle, event| {
+        if matches!(
+            event,
+            tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
+        ) {
+            commands::o2::terminate_active_processes();
+        }
+    });
 }

@@ -24,8 +24,10 @@ type RuntimeDiagnostics = {
   empireTodoStorePath: string;
   dispatcherAvailable: boolean;
   projectRegistryAvailable: boolean;
+  auditTransportAvailable: boolean;
   empireTodoSeedAvailable: boolean;
   empireTodoStoreAvailable: boolean;
+  bridgeFailure?: string | null;
 };
 
 type SmokeState = {
@@ -88,6 +90,7 @@ function diagnosticRows(diagnostics: RuntimeDiagnostics): Array<[string, string]
     ["O2 runtime", `${diagnostics.o2Root} · ${diagnostics.o2GitBranch || "detached"} · ${diagnostics.o2GitSha || "unknown"}`],
     ["O2 dispatcher", diagnostics.dispatcherPath],
     ["Project registry", diagnostics.projectRegistryPath],
+    ["Bridge status", diagnostics.bridgeFailure || "ready"],
     ["To-Do seed", diagnostics.empireTodoSeedPath],
     ["To-Do store", diagnostics.empireTodoStorePath],
   ];
@@ -148,8 +151,10 @@ export function RuntimeDiagnosticsModal({
   const runtimeFilesReady = Boolean(
     diagnostics?.dispatcherAvailable &&
       diagnostics.projectRegistryAvailable &&
+      diagnostics.auditTransportAvailable &&
       diagnostics.empireTodoSeedAvailable &&
-      diagnostics.empireTodoStoreAvailable,
+      diagnostics.empireTodoStoreAvailable &&
+      !diagnostics.bridgeFailure,
   );
   const productReady =
     diagnostics?.runtimeMode === "production" &&
@@ -205,7 +210,7 @@ export function RuntimeDiagnosticsModal({
             <Check
               ok={runtimeFilesReady}
               label="Canonical O2 data root"
-              detail={runtimeFilesReady ? "Dispatcher, registry, To-Do seed, and durable store are present." : "One or more canonical runtime files are unavailable."}
+              detail={runtimeFilesReady ? "Dispatcher, registry, audit transport, To-Do seed, and durable store are present." : `Canonical runtime boundary unavailable${diagnostics?.bridgeFailure ? `: ${diagnostics.bridgeFailure}` : "."}`}
             />
             <Check
               ok={registryState === "ready" && sameSet(projectKeys, EXPECTED_PROJECT_KEYS)}

@@ -11,7 +11,7 @@ const client = await readFile(
 );
 
 assert.match(client, /O2_STDIN_PAYLOAD_MAX_BYTES = 1024 \* 1024/);
-assert.match(client, /invoke<RunO2Result>\("run_o2_payload"/);
+assert.match(client, /assertRunO2Result\([\s\S]*invoke\("run_o2_payload"/);
 assert.match(files, /O2_INLINE_DOCUMENT_MAX_BYTES = O2_STDIN_PAYLOAD_MAX_BYTES/);
 assert.match(files, /function assertInlineDocumentSize\(content: string\)/);
 assert.match(files, /assertInlineDocumentSize\(payload\.content\)/);

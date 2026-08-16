@@ -53,7 +53,10 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - Empire To-Do writes use the validated O2 `empire.todo.save` payload route;
   Sentinel runtime state and audit use the O2 Sentinel contract rather than
   browser storage or RadControl-owned files.
-- The Tauri bridge exposes an allowlist of O2 actions rather than arbitrary shell or filesystem access.
+- The Tauri bridge exposes an allowlist of O2 actions rather than arbitrary
+  shell or filesystem access. Its fixed executable/environment contract,
+  resource limits, typed failures, process cleanup, audit behavior, and
+  residual risks are governed by `docs/RUNTIME_TRUST_BOUNDARY.md`.
 - Frontend O2 compatibility, invocation, payload encoding, and command errors
   have one boundary in `src/components/common/o2Client.ts`; domain-specific
   file-not-found handling remains in `o2Files.ts`.
@@ -65,10 +68,11 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   archetype-to-operator-visibility rule.
 - Generated snapshots and reports are evidence, not authority and not implicit Git actions.
 - The packaged production app reads O2 from the dedicated, same-repository
-  `main` worktree at `~/.local/share/radcontrol/o2-runtime`. This stable runtime
-  and data root is independent of an operator's active O2 feature branch and
-  current working directory. Debug builds continue to use `~/dev/o2`; only
-  explicit E2E mode may override `O2_ROOT` with an absolute fixture path.
+  worktree at `~/.local/share/radcontrol/o2-runtime`. This stable runtime and
+  data root is pinned to the installed O2 golden matching the installed
+  RadControl binary, not automatically to source `main`. Debug builds continue
+  to use `~/dev/o2`; only explicit E2E mode may override `O2_ROOT` with an
+  absolute fixture path.
 - The normal desktop entry executes `~/.local/bin/radcontrol-launch.sh`, which
   directly replaces itself with `~/.local/bin/radcontrol-app`. It must not call
   Vite, preview, Tauri dev, WebDriver, or any O2 development launcher and must
@@ -92,6 +96,23 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - A project launch opens a nonce-bearing final browser route only after its O2
   start succeeds. Embedded projects also restart their registered portal host;
   a raw listener on that port is not treated as proof of the correct host.
+
+## Source and installed goldens
+
+New development starts from the accepted source `origin/main` commits. For the
+Round 5A publication, O2 source is
+`823feb9dff9757f63f4eb7fac84fa728d651d1af`; RadControl source is the
+`origin/main` commit containing this section and is reported exactly in the
+publication acceptance record.
+
+The installed desktop pair intentionally remains:
+
+- O2: `c7ec863831c6cf062c4d1af7313f8c97aacf6132`
+- RadControl: `178f222475b4900e57da979afbac61303c7e4c12`
+
+Source may advance ahead of installation. Never independently update the
+installed O2 runtime or installed RadControl binary. Advance both only through
+one native/install acceptance that proves the matched pair together.
 
 ## Verification
 

@@ -38,7 +38,8 @@ for (const field of [
 }
 assert.match(api, /"empire.todo.list"/);
 assert.match(api, /"empire.todo.save"/);
-assert.match(bridge, /"empire.todo.save" => Some\("empire.todo.save.stdin"\)/);
+assert.match(bridge, /"empire.todo.save" =>/);
+assert.match(bridge, /"empire.todo.save.stdin"/);
 assert.doesNotMatch(component, /localStorage/);
 
 console.log("Empire To-Do contract: two-pane O2 persistence and complete fields verified");

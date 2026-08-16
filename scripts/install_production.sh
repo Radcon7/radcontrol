@@ -8,6 +8,7 @@ readonly O2_RUNTIME="$HOME/.local/share/radcontrol/o2-runtime"
 for required in \
   "$BINARY" \
   "$O2_RUNTIME/scripts/run_o2.sh" \
+  "$O2_RUNTIME/scripts/o2_radcontrol_audit.py" \
   "$O2_RUNTIME/registry/projects.json" \
   "$O2_RUNTIME/registry/project-archetypes.json" \
   "$O2_RUNTIME/registry/empire-todo-seeds.json"; do

@@ -1,13 +1,32 @@
 import { invoke } from "@tauri-apps/api/core";
-import { assertCompatibleO2Contract, type O2ContractInfo } from "./o2Contract";
+import { assertCompatibleO2Contract, type O2ContractInfo } from "./o2Contract.ts";
 
 export const O2_STDIN_PAYLOAD_MAX_BYTES = 1024 * 1024;
+export const O2_JSON_RESPONSE_MAX_BYTES = 4 * 1024 * 1024;
+export const O2_STDERR_MAX_BYTES = 512 * 1024;
+export const O2_JSON_RESPONSE_MAX_DEPTH = 128;
+
+export type BridgeFailureKind =
+  | "INVALID_REQUEST"
+  | "UNSUPPORTED_VERB"
+  | "EXECUTABLE_UNAVAILABLE"
+  | "SPAWN_FAILURE"
+  | "STDIN_FAILURE"
+  | "TIMEOUT"
+  | "OUTPUT_LIMIT_EXCEEDED"
+  | "O2_PROCESS_FAILURE"
+  | "CONCURRENCY_LIMIT"
+  | "AUDIT_FAILURE"
+  | "INTERNAL_BRIDGE_FAILURE";
 
 export type RunO2Result = {
-  ok?: boolean;
-  code?: number;
-  stdout?: string;
-  stderr?: string;
+  ok: boolean;
+  code: number;
+  stdout: string;
+  stderr: string;
+  failureKind: BridgeFailureKind | null;
+  requestId: string;
+  durationMs: number;
 };
 
 export type E2EProjectRoots = {
@@ -23,9 +42,97 @@ export class O2CommandError extends Error {
   constructor(verb: string, result: RunO2Result, fallback: string) {
     super(errMsg(result, fallback));
     this.name = "O2CommandError";
-    this.verb = verb;
+    this.verb = redactO2Verb(verb);
     this.result = result;
   }
+}
+
+export class O2ResponseError extends Error {
+  readonly failureKind = "MALFORMED_RESPONSE" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "O2ResponseError";
+  }
+}
+
+const BRIDGE_FAILURE_KINDS = new Set<BridgeFailureKind>([
+  "INVALID_REQUEST",
+  "UNSUPPORTED_VERB",
+  "EXECUTABLE_UNAVAILABLE",
+  "SPAWN_FAILURE",
+  "STDIN_FAILURE",
+  "TIMEOUT",
+  "OUTPUT_LIMIT_EXCEEDED",
+  "O2_PROCESS_FAILURE",
+  "CONCURRENCY_LIMIT",
+  "AUDIT_FAILURE",
+  "INTERNAL_BRIDGE_FAILURE",
+]);
+
+const ENCODED_VERB_PREFIXES = [
+  "files.list.",
+  "files.read.",
+  "files.rename.",
+  "project_note.ensure.",
+  "project_retired.set.",
+  "project_launch_date.set.",
+  "project_create.start.",
+  "project_create.bootstrap.",
+  "agent_profile.create.",
+  "infrastructure_asset.create.",
+  "sentinel.ask.",
+  "port_status.batch.",
+];
+
+export function redactO2Verb(verb: string): string {
+  const prefix = ENCODED_VERB_PREFIXES.find((candidate) =>
+    verb.startsWith(candidate),
+  );
+  if (!prefix) return verb;
+  return `${prefix}<redacted:${verb.length - prefix.length}chars>`;
+}
+
+export function assertRunO2Result(value: unknown): RunO2Result {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new O2ResponseError("O2 bridge returned a non-object response.");
+  }
+  const record = value as Record<string, unknown>;
+  const failureKind = record.failureKind;
+  const stdoutBytes =
+    typeof record.stdout === "string"
+      ? new TextEncoder().encode(record.stdout).byteLength
+      : -1;
+  const stderrBytes =
+    typeof record.stderr === "string"
+      ? new TextEncoder().encode(record.stderr).byteLength
+      : -1;
+  const structurallyValid =
+    typeof record.ok === "boolean" &&
+    Number.isSafeInteger(record.code) &&
+    (record.code as number) >= -2_147_483_648 &&
+    (record.code as number) <= 2_147_483_647 &&
+    typeof record.stdout === "string" &&
+    stdoutBytes <= O2_JSON_RESPONSE_MAX_BYTES &&
+    typeof record.stderr === "string" &&
+    stderrBytes <= O2_STDERR_MAX_BYTES &&
+    (failureKind === null ||
+      (typeof failureKind === "string" &&
+        BRIDGE_FAILURE_KINDS.has(failureKind as BridgeFailureKind))) &&
+    typeof record.requestId === "string" &&
+    /^rc-[0-9]+-[0-9]+-[0-9]+$/.test(record.requestId) &&
+    Number.isSafeInteger(record.durationMs) &&
+    (record.durationMs as number) >= 0;
+  if (
+    !structurallyValid ||
+    (record.ok === true && record.code !== 0) ||
+    (record.ok === false && record.code === 0) ||
+    (record.ok === true && failureKind !== null) ||
+    (record.ok === false && failureKind === null)
+  ) {
+    throw new O2ResponseError("O2 bridge returned an invalid response envelope.");
+  }
+  return record as RunO2Result;
 }
 
 export async function getE2EProjectRoots(): Promise<E2EProjectRoots | null> {
@@ -49,7 +156,7 @@ export function encodeO2JsonPayload(value: unknown): string {
 }
 
 async function invokeO2Unchecked(verb: string): Promise<RunO2Result> {
-  return (await invoke("run_o2", { verb })) as RunO2Result;
+  return assertRunO2Result(await invoke("run_o2", { verb }));
 }
 
 let compatibilityPromise: Promise<O2ContractInfo> | null = null;
@@ -95,7 +202,7 @@ export function joinO2ResultOutput(result: RunO2Result): string {
 export async function runO2Text(verb: string): Promise<string> {
   const result = await runO2(verb);
   if (!result.ok) {
-    throw new O2CommandError(verb, result, `${verb} failed`);
+    throw new O2CommandError(verb, result, `${redactO2Verb(verb)} failed`);
   }
   return joinO2ResultOutput(result);
 }
@@ -103,14 +210,44 @@ export async function runO2Text(verb: string): Promise<string> {
 export function errMsg(result: RunO2Result, fallback: string): string {
   const stderr = (result.stderr || "").trim();
   const stdout = (result.stdout || "").trim();
-  return stderr || stdout || fallback;
+  const message = stderr || stdout || fallback;
+  const category = result.failureKind || "UNKNOWN_FAILURE";
+  return `${message} [${category}; request ${result.requestId}]`;
 }
 
 export function parseO2Json<T>(text: string, fallback: string): T {
+  const normalized = (text || "").trim();
+  if (new TextEncoder().encode(normalized).byteLength > O2_JSON_RESPONSE_MAX_BYTES) {
+    throw new O2ResponseError(
+      `${fallback}: response exceeds ${O2_JSON_RESPONSE_MAX_BYTES} bytes.`,
+    );
+  }
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (const character of normalized) {
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') inString = true;
+    else if (character === "{" || character === "[") {
+      depth += 1;
+      if (depth > O2_JSON_RESPONSE_MAX_DEPTH) {
+        throw new O2ResponseError(
+          `${fallback}: response exceeds nesting depth ${O2_JSON_RESPONSE_MAX_DEPTH}.`,
+        );
+      }
+    } else if (character === "}" || character === "]") {
+      depth -= 1;
+    }
+  }
   try {
-    return JSON.parse((text || "").trim()) as T;
+    return JSON.parse(normalized) as T;
   } catch {
-    throw new Error(fallback);
+    throw new O2ResponseError(fallback);
   }
 }
 
@@ -156,10 +293,9 @@ export async function runO2StdinPayloadParsedJson<T>(
   }
 
   await ensureO2Compatibility();
-  const result = await invoke<RunO2Result>("run_o2_payload", {
-    verb,
-    payloadJson,
-  });
+  const result = assertRunO2Result(
+    await invoke("run_o2_payload", { verb, payloadJson }),
+  );
   if (!result.ok) {
     throw new O2CommandError(verb, result, errorFallback);
   }
