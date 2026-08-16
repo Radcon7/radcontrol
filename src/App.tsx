@@ -34,6 +34,7 @@ import { copyText } from "./components/common/copyText";
 import {
   encodeO2JsonPayload,
   getE2EProjectRoots,
+  redactO2Verb,
   runO2Text,
 } from "./components/common/o2Client";
 import { readO2File } from "./components/common/o2Files";
@@ -268,42 +269,46 @@ export default function App() {
     return Array.from(ports).sort((a, b) => a - b);
   }
 
-  const latestPortRefreshRef = useRef(0);
+  const portRefreshInFlightRef = useRef<Promise<void> | null>(null);
+  const pendingPortRefreshRowsRef = useRef<ProjectRow[] | null>(null);
 
-  async function refreshPorts(rows = projectsRef.current): Promise<void> {
-    const requestId = latestPortRefreshRef.current + 1;
-    latestPortRefreshRef.current = requestId;
-    const requestedPorts = projectPorts(rows);
-    setPortsBusy(true);
+  function refreshPorts(rows = projectsRef.current): Promise<void> {
+    pendingPortRefreshRowsRef.current = rows;
+    if (portRefreshInFlightRef.current) return portRefreshInFlightRef.current;
 
-    try {
-      if (requestedPorts.length === 0) {
-        if (requestId === latestPortRefreshRef.current) {
-          setPorts({});
+    const task = (async () => {
+      setPortsBusy(true);
+      while (pendingPortRefreshRowsRef.current) {
+        const requestedRows = pendingPortRefreshRowsRef.current;
+        pendingPortRefreshRowsRef.current = null;
+        const requestedPorts = projectPorts(requestedRows);
+        try {
+          if (requestedPorts.length === 0) {
+            setPorts({});
+            setPortStatusError("");
+            lastPortStatusErrorRef.current = "";
+            continue;
+          }
+          const next = await loadPortStatuses(requestedPorts);
+          setPorts(next);
           setPortStatusError("");
           lastPortStatusErrorRef.current = "";
-        }
-        return;
-      }
-
-      const next = await loadPortStatuses(requestedPorts);
-      if (requestId === latestPortRefreshRef.current) {
-        setPorts(next);
-        setPortStatusError("");
-        lastPortStatusErrorRef.current = "";
-      }
-    } catch (error) {
-      if (requestId === latestPortRefreshRef.current) {
-        const message = fmtErr(error);
-        setPortStatusError(message);
-        if (lastPortStatusErrorRef.current !== message) {
-          appendLog("\n[ports] status unavailable:\n" + message);
-          lastPortStatusErrorRef.current = message;
+        } catch (error) {
+          const message = fmtErr(error);
+          setPortStatusError(message);
+          if (lastPortStatusErrorRef.current !== message) {
+            appendLog("\n[ports] status unavailable:\n" + message);
+            lastPortStatusErrorRef.current = message;
+          }
         }
       }
-    } finally {
-      if (requestId === latestPortRefreshRef.current) setPortsBusy(false);
-    }
+    })().finally(() => {
+      setPortsBusy(false);
+      portRefreshInFlightRef.current = null;
+      if (pendingPortRefreshRowsRef.current) void refreshPorts();
+    });
+    portRefreshInFlightRef.current = task;
+    return task;
   }
 
   useEffect(() => {
@@ -350,7 +355,7 @@ export default function App() {
     if (!key || busy) return null;
 
     setBusy(true);
-    appendLog(`\n[o2] ${title} → run_o2("${key}")\n`);
+    appendLog(`\n[o2] ${title} → run_o2("${redactO2Verb(key)}")\n`);
     try {
       const out = await runO2Text(key);
       const text = (out ?? "(no output)").toString();
@@ -502,7 +507,7 @@ export default function App() {
 
     setBusy(true);
     appendLog(
-      `\n[o2] Set lifecycle for ${project.label} → run_o2("${verb}")\n`,
+      `\n[o2] Set lifecycle for ${project.label} → run_o2("${redactO2Verb(verb)}")\n`,
     );
     try {
       const out = await runO2Text(verb);
@@ -531,7 +536,7 @@ export default function App() {
 
     setBusy(true);
     appendLog(
-      `\n[o2] Set launch date for ${project.label} → run_o2("${verb}")\n`,
+      `\n[o2] Set launch date for ${project.label} → run_o2("${redactO2Verb(verb)}")\n`,
     );
     try {
       const out = await runO2Text(verb);
@@ -559,7 +564,7 @@ export default function App() {
 
       setBusy(true);
       appendLog(
-        `\n[o2] Ensure notes for ${project.label} → run_o2("${verb}")\n`,
+        `\n[o2] Ensure notes for ${project.label} → run_o2("${redactO2Verb(verb)}")\n`,
       );
       try {
         const out = await runO2Text(verb);
@@ -611,10 +616,8 @@ export default function App() {
     const verb = `project_create.start.${encodeO2JsonPayload(formationPayload)}`;
 
     setBusy(true);
-    appendLog(
-      `[new-project:intake]\n${JSON.stringify(formationPayload, null, 2)}`,
-    );
-    appendLog(`\n[o2] Start Formation → run_o2("${verb}")\n`);
+    appendLog(`[new-project:intake] ${formationPayload.label} · payload omitted from runtime log`);
+    appendLog(`\n[o2] Start Formation → run_o2("${redactO2Verb(verb)}")\n`);
 
     try {
       const out = await runO2Text(verb);
@@ -668,7 +671,7 @@ export default function App() {
             projectKey: parsed.projectKey,
           })}`;
           appendLog(
-            `\n[o2] Bootstrap Starter Surface → run_o2("${bootstrapVerb}")\n`,
+            `\n[o2] Bootstrap Starter Surface → run_o2("${redactO2Verb(bootstrapVerb)}")\n`,
           );
 
           const bootstrapOut = await runO2Text(bootstrapVerb);

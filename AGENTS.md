@@ -55,8 +55,10 @@ launches the installed release binary without Vite, preview, Tauri dev,
 WebDriver, or a new TCP listener. Production resolves O2 from the dedicated
 same-repository worktree at `~/.local/share/radcontrol/o2-runtime`; debug builds
 resolve `~/dev/o2`, and an absolute `O2_ROOT` override is accepted only in the
-explicit E2E mode. The production runtime root must remain on current O2
-`main`, clean before updates, and must retain O2-owned durable data.
+explicit E2E mode. The production runtime root must remain clean and pinned to
+the installed O2 golden that matches the installed RadControl binary. It may
+intentionally lag source `main`; never advance either installed half
+independently. Installed updates must retain O2-owned durable data.
 
 The visible product must distinguish loading, failed, and genuinely empty
 states. A failed O2 contract or data request must never be presented as an

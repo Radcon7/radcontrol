@@ -28,11 +28,17 @@ RadControl owns UI layout, local presentation state, document viewing and editin
 ## Runtime Model
 
 The desktop app invokes the Tauri command `run_o2` with a constrained verb
-allowlist. The installed production app calls
+allowlist. The bridge applies fixed executables and environment, per-operation
+timeouts, bounded stdin/stdout/stderr, a four-process ceiling, process-group
+cleanup, typed failures, and O2-owned audit records for mutations and privileged
+operations. The complete threat model and limit contract are in
+[`docs/RUNTIME_TRUST_BOUNDARY.md`](docs/RUNTIME_TRUST_BOUNDARY.md). The installed production app calls
 `~/.local/share/radcontrol/o2-runtime/scripts/run_o2.sh`; that path is a
-dedicated worktree of the canonical O2 repository on current `main`, so the
-live product is independent of an operator's active feature branch and working
-directory. Debug builds use `~/dev/o2`, and only explicit E2E mode accepts an
+dedicated worktree of the canonical O2 repository pinned to the O2 commit that
+matches the installed RadControl binary. The installed pair may intentionally
+lag source `main` until native/install acceptance advances both halves together,
+so the live product remains independent of active development branches and
+working directories. Debug builds use `~/dev/o2`, and only explicit E2E mode accepts an
 absolute fixture `O2_ROOT`. RadControl does not own shell execution, arbitrary
 filesystem access, Git commits, or project-formation policy.
 
