@@ -6,7 +6,11 @@ use tauri_plugin_single_instance::init as single_instance;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    let builder = tauri::Builder::default().plugin(
+        tauri_plugin_opener::Builder::new()
+            .open_js_links_on_click(false)
+            .build(),
+    );
 
     // Desktop E2E launches an isolated binary beside the normal single instance.
     let builder = if commands::o2::e2e_mode() {
@@ -79,6 +83,7 @@ pub fn run() {
             commands::o2::run_o2_payload,
             commands::o2::e2e_project_roots,
             commands::o2::runtime_diagnostics,
+            commands::opener::open_governed_url,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

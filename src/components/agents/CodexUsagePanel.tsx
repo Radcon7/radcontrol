@@ -1,3 +1,5 @@
+import { openGovernedUrl } from "../common/governedOpener";
+
 export function CodexUsagePanel() {
   return (
     <section
@@ -70,14 +72,13 @@ export function CodexUsagePanel() {
         Phase 2 candidate: the local Codex app-server exposes rate-limit and usage-read methods;
         RadControl would query that local service without storing your ChatGPT session.
       </p>
-      <a
+      <button
+        type="button"
         className="btn btnSecondary"
-        href="https://chatgpt.com/codex/settings/usage"
-        target="_blank"
-        rel="noopener noreferrer"
+        onClick={() => void openGovernedUrl("https://chatgpt.com/codex/settings/usage")}
       >
         Open ChatGPT
-      </a>
+      </button>
     </section>
   );
 }

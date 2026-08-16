@@ -6,6 +6,8 @@ use regex::Regex;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::fs;
+use std::io::Read;
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -1009,6 +1011,34 @@ pub(crate) fn terminate_active_processes() {
     terminate_processes();
 }
 
+pub(crate) fn opener_registry_json() -> Result<String, String> {
+    let context =
+        runtime_context().map_err(|_| "governed O2 runtime is unavailable".to_string())?;
+    let paths = validate_runtime_paths(&context)
+        .map_err(|_| "governed O2 runtime is unavailable".to_string())?;
+    let path = paths.root.join("registry/projects.json");
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(&path)
+        .map_err(|_| "governed project registry is unavailable".to_string())?;
+    let metadata = file
+        .metadata()
+        .map_err(|_| "governed project registry is unavailable".to_string())?;
+    const REGISTRY_MAX_BYTES: u64 = 2 * 1024 * 1024;
+    if !metadata.is_file() || metadata.len() > REGISTRY_MAX_BYTES {
+        return Err("governed project registry is unavailable".to_string());
+    }
+    let mut content = String::new();
+    file.take(REGISTRY_MAX_BYTES + 1)
+        .read_to_string(&mut content)
+        .map_err(|_| "governed project registry is unavailable".to_string())?;
+    if content.len() as u64 > REGISTRY_MAX_BYTES {
+        return Err("governed project registry is unavailable".to_string());
+    }
+    Ok(content)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -1027,6 +1057,7 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("scripts")).expect("create fixture scripts");
         fs::create_dir_all(root.join("registry")).expect("create fixture registry");
+        fs::create_dir(root.join("home")).expect("create fixture home");
         fs::write(
             root.join("scripts/run_o2.sh"),
             "#!/usr/bin/env bash\nexit 0\n",
@@ -1122,7 +1153,7 @@ mod tests {
         let result = execute(
             RuntimeContext {
                 root: root.clone(),
-                e2e_home: None,
+                e2e_home: Some(root.join("home")),
             },
             payload_spec("files.write").expect("supported payload operation"),
             Some(payload.into_bytes()),
@@ -1209,7 +1240,7 @@ mod tests {
         let root = fixture_root("paths");
         let context = RuntimeContext {
             root: root.clone(),
-            e2e_home: None,
+            e2e_home: Some(root.join("home")),
         };
         assert!(validate_runtime_paths(&context).is_ok());
 
@@ -1230,7 +1261,7 @@ mod tests {
             .expect("symlink scripts directory");
         let context = RuntimeContext {
             root: root.clone(),
-            e2e_home: None,
+            e2e_home: Some(root.join("home")),
         };
         assert_eq!(
             validate_runtime_paths(&context).unwrap_err(),
@@ -1250,7 +1281,7 @@ mod tests {
         let result = execute(
             RuntimeContext {
                 root: root.clone(),
-                e2e_home: None,
+                e2e_home: Some(root.join("home")),
             },
             InvocationSpec {
                 dispatch_verb: "fixture.snapshot".to_string(),
@@ -1278,7 +1309,7 @@ mod tests {
         let result = execute(
             RuntimeContext {
                 root: root.clone(),
-                e2e_home: None,
+                e2e_home: Some(root.join("home")),
             },
             InvocationSpec {
                 dispatch_verb: "contract_info".to_string(),

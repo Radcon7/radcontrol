@@ -44,6 +44,16 @@ working directories. Debug builds use `~/dev/o2`, and only explicit E2E mode acc
 absolute fixture `O2_ROOT`. RadControl does not own shell execution, arbitrary
 filesystem access, Git commits, or project-formation policy.
 
+Browser launches also cross the Rust boundary. The renderer has no Tauri
+opener capability: a backend command permits only the fixed provider consoles
+and O2-registry-governed project URLs/loopback ports documented in
+[`docs/RUNTIME_TRUST_BOUNDARY.md`](docs/RUNTIME_TRUST_BOUNDARY.md).
+
+Source-to-artifact controls, exact toolchains, reviewed Action pins,
+dependency evidence, non-deploying release candidates, provenance, external
+audit anchors, and the 5D release boundary are defined in
+[`docs/SUPPLY_CHAIN.md`](docs/SUPPLY_CHAIN.md).
+
 O2's Local Filesystem and Credential Boundary v1 owns the shared secret and
 credential rule: configuration may point to an external credential mechanism,
 but neither O2 nor RadControl becomes the credential store. The current desktop
@@ -84,7 +94,7 @@ npm run lint
 npm run test:contracts
 npm run verify:production-delivery
 npm run build
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml --locked
 bash scripts/snapshot_repo_state.sh --check
 ```
 

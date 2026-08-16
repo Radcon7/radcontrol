@@ -39,6 +39,8 @@ Home-level legacy procedure notes such as `~/.codex/O2_CONTROL.md` and `~/.codex
 - `docs/REPO_STATE.md`: architecture and behavior boundary
 - `docs/RUNTIME_TRUST_BOUNDARY.md`: frontend-to-O2 threat model, execution
   limits, capability inventory, audit contract, and residual-risk ownership
+- `docs/SUPPLY_CHAIN.md`: source-to-artifact trust, GitHub Actions,
+  dependencies, compatibility, provenance, audit anchoring, and release policy
 - `AGENTS.md`: short agent entry pointer
 - `docs/CODEX_EXECUTION_NOTES.md`: non-authoritative environment troubleshooting
   that must not override the documents above or O2 policy
