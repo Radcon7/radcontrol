@@ -1057,6 +1057,7 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("scripts")).expect("create fixture scripts");
         fs::create_dir_all(root.join("registry")).expect("create fixture registry");
+        fs::create_dir(root.join("home")).expect("create fixture home");
         fs::write(
             root.join("scripts/run_o2.sh"),
             "#!/usr/bin/env bash\nexit 0\n",
@@ -1152,7 +1153,7 @@ mod tests {
         let result = execute(
             RuntimeContext {
                 root: root.clone(),
-                e2e_home: None,
+                e2e_home: Some(root.join("home")),
             },
             payload_spec("files.write").expect("supported payload operation"),
             Some(payload.into_bytes()),
@@ -1239,7 +1240,7 @@ mod tests {
         let root = fixture_root("paths");
         let context = RuntimeContext {
             root: root.clone(),
-            e2e_home: None,
+            e2e_home: Some(root.join("home")),
         };
         assert!(validate_runtime_paths(&context).is_ok());
 
@@ -1260,7 +1261,7 @@ mod tests {
             .expect("symlink scripts directory");
         let context = RuntimeContext {
             root: root.clone(),
-            e2e_home: None,
+            e2e_home: Some(root.join("home")),
         };
         assert_eq!(
             validate_runtime_paths(&context).unwrap_err(),
@@ -1280,7 +1281,7 @@ mod tests {
         let result = execute(
             RuntimeContext {
                 root: root.clone(),
-                e2e_home: None,
+                e2e_home: Some(root.join("home")),
             },
             InvocationSpec {
                 dispatch_verb: "fixture.snapshot".to_string(),
@@ -1308,7 +1309,7 @@ mod tests {
         let result = execute(
             RuntimeContext {
                 root: root.clone(),
-                e2e_home: None,
+                e2e_home: Some(root.join("home")),
             },
             InvocationSpec {
                 dispatch_verb: "contract_info".to_string(),
