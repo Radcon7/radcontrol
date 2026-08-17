@@ -41,8 +41,10 @@ jobs:
           npm run verify:document-transport
           npm run verify:portfolio-blueprint
           npm run verify:o2-contract
+          npm run test:o2-runtime-boundary
           npm run verify:project-builder
           npm run test:formation-payload
+          npm run test:project-intent-preview
           npm run verify:formation-learning
           npm run verify:ci-contract
           npm run verify:repo-index

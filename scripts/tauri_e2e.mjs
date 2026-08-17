@@ -527,8 +527,22 @@ try {
     const repo = await element(base, sessionId, '[data-testid="modal-project-repo"]');
     assert.equal(await elementText(base, sessionId, repo), fixture.createdProjectRepo);
   }, "apply the isolated governed project root");
-  const requestInput = await element(base, sessionId, '[data-testid="modal-project-request"]');
-  await replaceValue(base, sessionId, requestInput, "Desktop E2E verifies the governed project builder form.");
+  const intentAnswers = [
+    ["modal-project-purpose", "Build a disposable governed desktop formation fixture."],
+    ["modal-project-users", "RadControl acceptance operators"],
+    ["modal-project-problem", "The native questionnaire and O2 formation boundary need one acceptance path."],
+    ["modal-project-value", "Prove the reviewed intent reaches the generated repository unchanged."],
+    ["modal-project-success", "The exact reviewed intent is present in the bootstrapped REPO_STATE."],
+  ];
+  for (const [testId, answer] of intentAnswers) {
+    const input = await element(base, sessionId, `[data-testid="${testId}"]`);
+    await replaceValue(base, sessionId, input, answer);
+  }
+  await click(base, sessionId, '[data-testid="modal-review-project"]');
+  await eventually(
+    () => element(base, sessionId, '[data-testid="modal-project-review"]'),
+    "render the O2 Project Intent review",
+  );
   const buildButton = await element(base, sessionId, '[data-testid="modal-build-project"]');
   assert.equal(await request(base, `/session/${sessionId}/element/${buildButton}/enabled`), true);
   await click(base, sessionId, '[data-testid="modal-build-project"]');

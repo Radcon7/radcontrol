@@ -113,19 +113,6 @@ export type ProjectBuildStrategy =
   | "agent_planned_build"
   | "research_first";
 
-export type ProjectShellPreference =
-  | "o2_recommend"
-  | "dqotd_layered_tabs"
-  | "tbis_split_tabs"
-  | "offroad_brand_tabs";
-
-export type ProjectInitialSectionSet =
-  | "o2_recommend"
-  | "content_reference_tabs"
-  | "business_ops_tabs"
-  | "member_workspace_tabs"
-  | "dashboard_ops_tabs";
-
 export type ProjectFoundationBlueprint =
   | "o2_web_foundation_v1";
 
@@ -169,6 +156,8 @@ export type AddProjectPayload = {
   deliverySurface?: ProjectDeliverySurface;
   productSurface?: "standalone" | "none";
   operatorSurface?: "embedded" | "none";
+  problemStatement?: string;
+  valueProposition?: string;
   goalSummary?: string;
   intendedUsers?: string;
   domainIntent?: string;
@@ -179,13 +168,9 @@ export type AddProjectPayload = {
   needsAuthentication?: boolean;
   handlesSensitiveData?: boolean;
   launchLocalFirst?: boolean;
-  shellPreference?: ProjectShellPreference;
-  initialSectionSet?: ProjectInitialSectionSet;
   foundationBlueprint?: ProjectFoundationBlueprint;
   needsAdminSurface?: boolean;
   needsCommerceSurface?: boolean;
-  needsKnowledgeSurface?: boolean;
-  needsTimelineSurface?: boolean;
   needsPersistentData?: boolean;
   needsFileUploads?: boolean;
   needsEmailDelivery?: boolean;
@@ -194,7 +179,7 @@ export type AddProjectPayload = {
   similarityNotes?: string;
   mission?: string;
   initialConstraints?: string;
-  operatorBrief?: string;
+  approvedProjectIntentDigest?: string;
   openQuestions?: string;
 
   notes?: string;
@@ -221,6 +206,8 @@ export type NewProjectIntakePayload = {
   deliverySurface?: ProjectDeliverySurface;
   productSurface?: "standalone" | "none";
   operatorSurface?: "embedded" | "none";
+  problemStatement?: string;
+  valueProposition?: string;
   goalSummary?: string;
   intendedUsers?: string;
   domainIntent?: string;
@@ -231,13 +218,9 @@ export type NewProjectIntakePayload = {
   needsAuthentication?: boolean;
   handlesSensitiveData?: boolean;
   launchLocalFirst?: boolean;
-  shellPreference?: ProjectShellPreference;
-  initialSectionSet?: ProjectInitialSectionSet;
   foundationBlueprint?: ProjectFoundationBlueprint;
   needsAdminSurface?: boolean;
   needsCommerceSurface?: boolean;
-  needsKnowledgeSurface?: boolean;
-  needsTimelineSurface?: boolean;
   needsPersistentData?: boolean;
   needsFileUploads?: boolean;
   needsEmailDelivery?: boolean;
@@ -245,7 +228,7 @@ export type NewProjectIntakePayload = {
   needsHostedDelivery?: boolean;
   similarityNotes?: string;
   initialConstraints?: string;
-  operatorBrief?: string;
+  approvedProjectIntentDigest?: string;
   openQuestions?: string;
 };
 
