@@ -78,6 +78,9 @@ registry state, and unexpected loopback ports fail explicitly.
 - Read/status operations: 20 seconds.
 - Bounded mutations and privileged observations: 60 seconds.
 - Lifecycle, formation/bootstrap, deep observation, and report generation: 120 seconds.
+- `project_create.preview` uses the extended formation budget but is classified
+  read-only and carries no mutation audit class; start and bootstrap remain
+  explicit audited mutations.
 - Standard output: 4 MiB maximum.
 - Standard error: 512 KiB maximum.
 - Failure diagnostic returned after any bridge-supervision failure: at most 16 KiB per stream.

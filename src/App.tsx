@@ -26,6 +26,10 @@ import {
 } from "./components/projects/projectsApi";
 import { normalizeFormationStartPayload } from "./components/projects/formationPayload";
 import {
+  assertFormationPreviewResult,
+  type FormationPreviewResult,
+} from "./components/projects/projectIntentPreview";
+import {
   assertFormationLearningInheritance,
   type FormationLearningInheritance,
 } from "./components/projects/formationLearning";
@@ -34,6 +38,7 @@ import { openGovernedUrl } from "./components/common/governedOpener";
 import {
   encodeO2JsonPayload,
   getE2EProjectRoots,
+  parseO2Json,
   redactO2Verb,
   runO2Text,
 } from "./components/common/o2Client";
@@ -130,6 +135,8 @@ type FormationStartResult = {
   recommendedBuildLane?: string;
   buildAgentCandidate?: boolean;
   securityReviewRequired?: boolean;
+  projectIntent?: FormationPreviewResult["projectIntent"];
+  projectionDigest?: string;
   suggestedNextAction?: string;
   error?: string;
   details?: string[];
@@ -581,6 +588,9 @@ export default function App() {
 
   async function createProject(payload: AddProjectPayload) {
     const formationPayload = normalizeFormationStartPayload(payload);
+    if (!formationPayload.approvedProjectIntentDigest) {
+      throw new Error("Review the O2 Project Intent before building.");
+    }
 
     if (formationPayload.projectType === "website_successor" && formationPayload.baseProjectKey) {
       const rows = await loadRegistry();
@@ -608,6 +618,9 @@ export default function App() {
       }
 
       if (parsed?.ok) {
+        if (parsed.projectionDigest !== formationPayload.approvedProjectIntentDigest) {
+          throw new Error("O2 start did not preserve the reviewed Project Intent digest.");
+        }
         if (parsed.recommendedBuildLane) {
           appendLog(`[new-project] recommended lane: ${parsed.recommendedBuildLane}`);
         }
@@ -737,6 +750,23 @@ export default function App() {
     }
   }
 
+  async function previewProject(payload: AddProjectPayload): Promise<FormationPreviewResult> {
+    const formationPayload = normalizeFormationStartPayload(payload);
+    const verb = `project_create.preview.${encodeO2JsonPayload(formationPayload)}`;
+    setBusy(true);
+    appendLog(`[new-project:review] ${formationPayload.label} · payload omitted from runtime log`);
+    try {
+      const out = await runO2Text(verb);
+      const parsed = parseO2Json<unknown>(
+        out,
+        "O2 Project Intent preview returned invalid JSON",
+      );
+      return assertFormationPreviewResult(parsed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function openAddProjectModal() {
     setShowAddProject(true);
   }
@@ -854,6 +884,7 @@ export default function App() {
               open={showAddProject}
               onClose={closeAddProjectModal}
               onCreate={createProject}
+              onReview={previewProject}
               existingProjects={projects}
               projectRootOverrides={projectRootOverrides}
             />

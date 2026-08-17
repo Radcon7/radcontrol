@@ -28,6 +28,8 @@ assert.match(bridge, /"sentinel.status"/);
 assert.match(bridge, /"sentinel.host.deep_check"/);
 assert.match(bridge, /"sentinel.ask."/);
 assert.match(bridge, /"workstation.updates.check"/);
+assert.match(bridge, /"project_create.preview."/);
+assert.match(bridge, /"project-create.preview"[\s\S]*?TimeoutClass::Extended,[\s\S]*?None/);
 assert.doesNotMatch(bridge, /"sentinel.action.dry_run."/);
 assert.doesNotMatch(bridge, /"workstation.cleanup.apply"/);
 assert.doesNotMatch(bridge, /"workstation.updates.refresh"/);

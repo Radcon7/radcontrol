@@ -79,7 +79,16 @@ checks; data failures are reported as unavailable rather than as empty state.
 
 ## New Project
 
-`BUILD PROJECT` records the governed intake in O2, then bootstraps the approved local starter repository. The form defaults to O2 Modern Web Foundation v1, captures compact capability decisions, and may name an additional real project as reference evidence. The formation record is durable under `docs/project-formation/records/<project>/`; repo-local intake and project-blueprint documents are created during bootstrap.
+New Project captures explicit purpose, users or operators, problem, value,
+success, constraints, placement, and capability decisions. `REVIEW PROJECT`
+calls O2's read-only canonical Project Intent projection and displays its exact
+eight sections with project identity. The operator may return to editing.
+`BUILD PROJECT` submits the reviewed projection digest, records the governed
+intake in O2, and then bootstraps the approved local starter repository. The
+form defaults to O2 Modern Web Foundation v1 and may name an additional real
+project as reference evidence. The formation record is durable under
+`docs/project-formation/records/<project>/`; repo-local intake and project-
+blueprint documents are created during bootstrap.
 
 Governed Infrastructure identity is stored once in O2 under
 `docs/infrastructure/records/<asset>/01_inventory.json`, with durable notes under

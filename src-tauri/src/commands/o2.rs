@@ -647,6 +647,13 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
             Some(AuditClass::Mutation),
         ),
         (
+            "project_create.preview.",
+            "project-create.preview",
+            "project-formation",
+            TimeoutClass::Extended,
+            None,
+        ),
+        (
             "project_create.start.",
             "project-create.start",
             "project-formation",
@@ -1186,6 +1193,7 @@ mod tests {
             "future-product.stop",
             "future-product.proofpack",
             "files.read.ZG9jcy9ub3Rlcy5tZA",
+            "project_create.preview.e30",
             "port_status.3000",
         ] {
             assert!(parse_verb(allowed).is_ok(), "expected allowed: {allowed}");
@@ -1207,6 +1215,14 @@ mod tests {
             assert!(parse_verb(denied).is_err(), "expected denied: {denied}");
         }
         assert!(ProjectAction::parse("commit").is_none());
+    }
+
+    #[test]
+    fn project_intent_preview_is_read_only_at_the_bridge_boundary() {
+        let spec = parse_verb("project_create.preview.e30").expect("preview is allowlisted");
+        assert_eq!(spec.operation, "project-create.preview");
+        assert_eq!(spec.target, "project-formation");
+        assert_eq!(spec.audit, None);
     }
 
     #[test]

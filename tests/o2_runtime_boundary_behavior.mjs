@@ -57,6 +57,10 @@ assert.equal(
   "project_create.start.<redacted:19chars>",
 );
 assert.equal(redactO2Verb("dqotd.snapshot"), "dqotd.snapshot");
+assert.equal(
+  redactO2Verb("project_create.preview.cHJvamVjdC1pbnRlbnQ"),
+  "project_create.preview.<redacted:19chars>",
+);
 
 const token = "ghp_" + "FixtureOnlyValue1234567890";
 const privateKey = [

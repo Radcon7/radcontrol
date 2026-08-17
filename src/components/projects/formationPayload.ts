@@ -12,17 +12,19 @@ export type FormationStartPayload = {
   projectType: CanonicalProjectType;
   name: string; label: string; key: string; org: string; repoPath: string; repoHint: string;
   port?: number; url: string; mission: string; goalSummary: string; track: string;
+  problemStatement: string; valueProposition: string;
   relationship: string; technicalKind: string; baseProjectKey: string; similarProjectKey: string;
   referenceRepos: string; versionTag: string; similarityNotes: string; intent: string;
   projectClass: string; projectArchetype: ProjectArchetype; deliverySurface: ProjectDeliverySurface;
   productSurface: "standalone" | "none"; operatorSurface: "embedded" | "none";
   intendedUsers: string; domainIntent: string; googleWorkspacePlan: string; accessModel: string;
   securityPosture: string; buildStrategy: string; needsAuthentication: boolean;
-  handlesSensitiveData: boolean; launchLocalFirst: boolean; shellPreference: string;
-  initialSectionSet: string; foundationBlueprint: string; needsAdminSurface: boolean;
-  needsCommerceSurface: boolean; needsKnowledgeSurface: boolean; needsTimelineSurface: boolean;
+  handlesSensitiveData: boolean; launchLocalFirst: boolean;
+  foundationBlueprint: string; needsAdminSurface: boolean;
+  needsCommerceSurface: boolean;
   needsPersistentData: boolean; needsFileUploads: boolean; needsEmailDelivery: boolean;
-  needsOperatorSurface: boolean; needsHostedDelivery: boolean; operatorBrief: string;
+  needsOperatorSurface: boolean; needsHostedDelivery: boolean;
+  approvedProjectIntentDigest?: string;
   initialConstraints: string; notes: string;
 };
 
@@ -91,7 +93,10 @@ export function normalizeFormationStartPayload(payload: AddProjectPayload): Form
   return {
     projectType, name: (payload.label || payload.key).trim(), label: (payload.label || payload.key).trim(), key: payload.key.trim(),
     org: (payload.org || "other").trim(), repoPath: payload.repoPath.trim(), repoHint: payload.repoHint?.trim() || "",
-    port: payload.port, url: payload.url?.trim() || "", mission, goalSummary: payload.goalSummary?.trim() || "",
+    port: payload.port, url: payload.url?.trim() || "", mission,
+    problemStatement: payload.problemStatement?.trim() || "",
+    valueProposition: payload.valueProposition?.trim() || "",
+    goalSummary: payload.goalSummary?.trim() || "",
     track: "production", relationship: (payload.relationship || "new").trim(), technicalKind: (payload.kind || "other").trim(),
     baseProjectKey: payload.parentProjectKey?.trim() || "", similarProjectKey: payload.similarProjectKey?.trim() || "",
     referenceRepos: payload.referenceRepos?.trim() || "", versionTag: "", similarityNotes: payload.similarityNotes?.trim() || "",
@@ -100,15 +105,16 @@ export function normalizeFormationStartPayload(payload: AddProjectPayload): Form
     googleWorkspacePlan: payload.googleWorkspacePlan?.trim() || "unknown", accessModel: payload.accessModel?.trim() || "unknown",
     securityPosture: payload.securityPosture?.trim() || "standard", buildStrategy: payload.buildStrategy?.trim() || "guided_followup",
     needsAuthentication: Boolean(payload.needsAuthentication), handlesSensitiveData: Boolean(payload.handlesSensitiveData),
-    launchLocalFirst: Boolean(payload.launchLocalFirst), shellPreference: payload.shellPreference?.trim() || "o2_recommend",
-    initialSectionSet: payload.initialSectionSet?.trim() || "o2_recommend", foundationBlueprint: payload.foundationBlueprint?.trim() || "o2_web_foundation_v1",
+    launchLocalFirst: Boolean(payload.launchLocalFirst),
+    foundationBlueprint: payload.foundationBlueprint?.trim() || "o2_web_foundation_v1",
     needsAdminSurface: Boolean(payload.needsAdminSurface), needsCommerceSurface: Boolean(payload.needsCommerceSurface),
-    needsKnowledgeSurface: Boolean(payload.needsKnowledgeSurface), needsTimelineSurface: Boolean(payload.needsTimelineSurface),
     needsPersistentData: Boolean(payload.needsPersistentData), needsFileUploads: Boolean(payload.needsFileUploads),
     needsEmailDelivery: Boolean(payload.needsEmailDelivery), needsOperatorSurface: architecture.operatorSurface === "embedded",
     needsHostedDelivery: payload.needsHostedDelivery ?? (
       architecture.projectArchetype === "standalone-product" || architecture.projectArchetype === "portal-private-app"
-    ), operatorBrief: payload.operatorBrief?.trim() || "",
+    ), ...(payload.approvedProjectIntentDigest?.trim()
+      ? { approvedProjectIntentDigest: payload.approvedProjectIntentDigest.trim() }
+      : {}),
     initialConstraints: payload.initialConstraints?.trim() || "", notes: payload.notes?.trim() || "",
   };
 }

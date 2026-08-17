@@ -18,6 +18,7 @@ O2 documents override RadControl only when they declare `Authority class: Empire
 - UI structure: `~/dev/o2/docs/radcontrol/empire_blueprint/radcontrol_ui_structure_doctrine_20260725.md`
 - Document persistence: `~/dev/o2/docs/radcontrol/empire_blueprint/radcontrol_document_persistence_doctrine_20260727.md`
 - Project formation: `~/dev/o2/docs/project-formation/PROJECT_CREATE_START.md`
+- Current project intent: `~/dev/o2/contracts/project-intent/v1/README.md`
 - Project archetypes: `~/dev/o2/contracts/project-archetypes/v1/README.md`
 - User correction learning:
   `~/dev/o2/contracts/user-correction-learning/v1/README.md`

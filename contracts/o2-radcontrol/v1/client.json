@@ -23,6 +23,7 @@
     "project.snapshot",
     "project.stop",
     "project_create.bootstrap",
+    "project_create.preview",
     "project_create.start",
     "project_launch_date.set",
     "project_note.ensure",

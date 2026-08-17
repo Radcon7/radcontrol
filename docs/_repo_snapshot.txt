@@ -22,6 +22,7 @@ test:contracts
 test:empire-todo
 test:formation-payload
 test:o2-runtime-boundary
+test:project-intent-preview
 test:sentinel
 test:tauri-e2e
 verify:agents-architecture
@@ -197,6 +198,7 @@ src/components/projects/ProjectsTab.tsx
 src/components/projects/formationLearning.ts
 src/components/projects/formationPayload.ts
 src/components/projects/helpers.ts
+src/components/projects/projectIntentPreview.ts
 src/components/projects/projectModel.ts
 src/components/projects/projectsApi.ts
 src/components/projects/types.ts
@@ -214,6 +216,7 @@ tests/empire_todo_behavior.mjs
 tests/formation_learning_contract.mjs
 tests/formation_payload_behavior.mjs
 tests/o2_runtime_boundary_behavior.mjs
+tests/project_intent_preview_behavior.mjs
 tests/release_candidate_evidence_test.py
 tests/sentinel_behavior.mjs
 tests/verify_agents_architecture_contract.mjs

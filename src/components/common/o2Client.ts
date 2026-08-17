@@ -77,6 +77,7 @@ const ENCODED_VERB_PREFIXES = [
   "project_note.ensure.",
   "project_retired.set.",
   "project_launch_date.set.",
+  "project_create.preview.",
   "project_create.start.",
   "project_create.bootstrap.",
   "agent_profile.create.",

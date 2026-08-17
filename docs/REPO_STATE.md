@@ -15,7 +15,10 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   capability-driven formation/bootstrap entry backed by O2 Modern Web
   Foundation v1. The selected website shape records an explicit repository
   archetype before bootstrap. RadControl captures answers; O2 owns the durable
-  dossier, archetype definitions, and tailored repo-local blueprint.
+  dossier, archetype definitions, canonical Project Intent projection, and
+  tailored repo-local blueprint. Review displays O2's exact projection and
+  identity; Back to Edit returns to the questionnaire; Build is available only
+  from Review and binds the accepted projection digest before O2 writes.
   New Project intentionally presents many visible yes/no decisions, select
   controls, option boxes, architecture questions, and capability choices. O2
   or Codex may infer and recommend answers, but those recommendations assist
