@@ -30,11 +30,14 @@
     "project_retired.set",
     "router.health",
     "sentinel.ask",
+    "sentinel.host.automation.configure",
     "sentinel.host.check",
     "sentinel.host.deep_check",
     "sentinel.host.explain_fans",
     "sentinel.security.check",
     "sentinel.status",
+    "workstation.cleanup.pop_upgrade.apply",
+    "workstation.cleanup.pop_upgrade.preview",
     "workstation.updates.check",
     "workstation.updates.history"
   ]

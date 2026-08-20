@@ -2,7 +2,7 @@ import {
   runO2ParsedJson,
   runO2PayloadParsedJson,
 } from "../common/o2Client";
-import type { SentinelStatus } from "./sentinelModel";
+import type { SentinelAutomation, SentinelStatus } from "./sentinelModel";
 
 type HostCheckResponse = {
   ok: boolean;
@@ -14,6 +14,18 @@ type FanExplanationResponse = {
   ok: boolean;
   explanation: string;
   llmUsed: boolean;
+  error?: string;
+};
+
+export type PopUpgradeCleanupPreviewResponse = {
+  ok: boolean;
+  candidate: {
+    id: "service:pop-upgrade.service";
+    service: "pop-upgrade.service";
+    label?: string;
+  } | null;
+  requiresOperatorConfirmation: boolean;
+  requiresOsAuthorization: boolean;
   error?: string;
 };
 
@@ -74,5 +86,33 @@ export function askSentinel(question: string): Promise<AskSentinelResponse> {
     { question, sourceKind: "operator" },
     "Ask Sentinel failed",
     "Ask Sentinel returned invalid data",
+  );
+}
+
+export function configureHostAutomation(
+  enabled: boolean,
+  frequency: SentinelAutomation["frequency"],
+): Promise<{ ok: boolean; automation: SentinelAutomation }> {
+  return runO2PayloadParsedJson(
+    "sentinel.host.automation.configure",
+    { enabled, frequency },
+    "Host Guardian automatic observation configuration failed",
+    "Host Guardian automatic observation returned invalid data",
+  );
+}
+
+export function previewPopUpgradeCleanup(): Promise<PopUpgradeCleanupPreviewResponse> {
+  return runO2ParsedJson<PopUpgradeCleanupPreviewResponse>(
+    "workstation.cleanup.pop_upgrade.preview",
+    "Safe Cleanup preview failed",
+    "Safe Cleanup preview returned invalid data",
+  );
+}
+
+export function applyPopUpgradeCleanup(): Promise<{ ok: boolean; error?: string }> {
+  return runO2ParsedJson<{ ok: boolean; error?: string }>(
+    "workstation.cleanup.pop_upgrade.apply",
+    "Safe Cleanup did not complete",
+    "Safe Cleanup returned invalid data",
   );
 }
