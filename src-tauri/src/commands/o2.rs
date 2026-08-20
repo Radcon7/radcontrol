@@ -600,6 +600,24 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
                 audit: Some(AuditClass::Privileged),
             })
         }
+        "workstation.cleanup.pop_upgrade.preview" => {
+            return Ok(InvocationSpec {
+                dispatch_verb: verb.to_string(),
+                operation: "workstation-cleanup.pop-upgrade.preview".to_string(),
+                target: "pop-upgrade.service".to_string(),
+                timeout: TimeoutClass::Governed,
+                audit: Some(AuditClass::Privileged),
+            })
+        }
+        "workstation.cleanup.pop_upgrade.apply" => {
+            return Ok(InvocationSpec {
+                dispatch_verb: verb.to_string(),
+                operation: "workstation-cleanup.pop-upgrade.apply".to_string(),
+                target: "pop-upgrade.service".to_string(),
+                timeout: TimeoutClass::Extended,
+                audit: Some(AuditClass::Privileged),
+            })
+        }
         _ => {}
     }
 
@@ -678,6 +696,13 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
             "infrastructure_asset.create.",
             "infrastructure-asset.create",
             "infrastructure-assets",
+            TimeoutClass::Governed,
+            Some(AuditClass::Mutation),
+        ),
+        (
+            "sentinel.host.automation.configure.",
+            "sentinel.host.automation.configure",
+            "host-guardian-scheduler",
             TimeoutClass::Governed,
             Some(AuditClass::Mutation),
         ),
@@ -1195,6 +1220,9 @@ mod tests {
             "files.read.ZG9jcy9ub3Rlcy5tZA",
             "project_create.preview.e30",
             "port_status.3000",
+            "sentinel.host.automation.configure.e30",
+            "workstation.cleanup.pop_upgrade.preview",
+            "workstation.cleanup.pop_upgrade.apply",
         ] {
             assert!(parse_verb(allowed).is_ok(), "expected allowed: {allowed}");
         }

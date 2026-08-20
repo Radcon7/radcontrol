@@ -125,6 +125,19 @@ export type SentinelCapability = {
   approvalRequirement: string;
 };
 
+export type SentinelAutomation = {
+  enabled: boolean;
+  active: boolean;
+  frequency: "daily" | "twice-daily";
+  intervalSeconds: number;
+  lastSuccessfulAt: string | null;
+  lastAttemptAt: string | null;
+  lastResult: string;
+  nextDueAt: string | null;
+  overdue: boolean;
+  systemd: { available: boolean; enabled: boolean; detail: string };
+};
+
 export type SentinelStatus = {
   ok: boolean;
   overallStatus: SentinelEvidenceStatus;
@@ -147,6 +160,7 @@ export type SentinelStatus = {
   privilegedHelper: string;
   providerMutation: string;
   scheduler: string;
+  automation: SentinelAutomation;
   memoryAuthority: string;
   error?: string;
 };

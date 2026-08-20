@@ -3,24 +3,27 @@ import { useGovernedRecordNote } from "../common/useGovernedRecordNote";
 import { HostUpdatesPanel } from "./HostUpdatesPanel";
 import {
   askSentinel,
+  configureHostAutomation,
   explainFans,
   loadSentinelStatus,
+  previewPopUpgradeCleanup,
+  applyPopUpgradeCleanup,
   runHostDeepCheck,
   runHostHealthCheck,
   runSecurityCheck,
   type AskSentinelResponse,
+  type PopUpgradeCleanupPreviewResponse,
 } from "./sentinelApi";
 import {
   SENTINEL_LEVELS,
   buildSentinelActivity,
   deriveThreatState,
   filterSentinelActivity,
-  lastSentinelSweepAt,
   observationValue,
   sentinelCapabilityLevelState,
   sentinelStatusLabel,
-  threatStateLabel,
   type SentinelActivityFilter,
+  type SentinelAutomation,
   type SentinelEvidenceStatus,
   type SentinelHostState,
   type SentinelObservation,
@@ -61,7 +64,12 @@ type HostSignal = {
   status: SentinelEvidenceStatus;
   value: string;
   reason: string;
+  measuredAt?: string;
 };
+
+type OperatorHealthState = "HEALTHY" | "WARNING" | "PROBLEM" | "UNKNOWN";
+
+type InvestigationKind = "fans" | "slow" | "network" | "suspicious" | "other";
 
 type ThermalRow = {
   key?: string;
@@ -140,25 +148,40 @@ function hostSignals(host: SentinelHostState): HostSignal[] {
   const listeners = observationValue<ListenerRow[]>(metrics.listeners, []);
   const connections = observationValue<{ establishedCount?: number | null }>(metrics.connections, {});
   const services = observationValue<string[]>(metrics.services, []);
-  const startup = observationValue<string[]>(metrics.startupServices, []);
   const docker = observationValue<{ containerCount?: number; supabaseContainerCount?: number }>(metrics.docker, {});
   const fans = observationValue<Array<{ rpm?: number }>>(metrics.fans, []);
   const auth = observationValue<{ recentRecordCount?: number }>(metrics.authenticationEvents, {});
   return [
-    { key: "thermal", label: "Thermal", status: observationStatus(metrics.thermal), value: hottestThermalSummary(metrics.thermal), reason: metrics.thermal?.reason || "No thermal evidence." },
-    { key: "cpu", label: "CPU", status: observationStatus(metrics.cpu), value: typeof cpu.utilizationPercent === "number" ? `${cpu.utilizationPercent}% · ${cpu.logicalCpuCount || "?"} logical CPUs` : "No utilization sample", reason: metrics.cpu?.reason || "Current Linux CPU sample." },
-    { key: "load", label: "Load", status: observationStatus(metrics.load), value: typeof load.oneMinute === "number" ? `${load.oneMinute} / ${load.fiveMinute} · ${load.logicalCpuCount || "?"} CPUs` : "No load sample", reason: metrics.load?.reason || "Linux load averages." },
-    { key: "fans", label: "Fans", status: observationStatus(metrics.fans), value: typeof fans[0]?.rpm === "number" ? `${fans[0].rpm.toLocaleString()} RPM` : "No RPM sensor", reason: metrics.fans?.reason || "Kernel fan evidence." },
-    { key: "memory", label: "Memory", status: observationStatus(metrics.memory), value: typeof memory.availableGiB === "number" ? `${memory.usedGiB || 0} GiB used · ${memory.availableGiB} GiB free · ${memory.swapUsedGiB || 0} GiB swap` : "No memory sample", reason: metrics.memory?.reason || "Current Linux memory counters." },
-    { key: "storage", label: "Storage", status: observationStatus(metrics.filesystem), value: typeof filesystem.freeGiB === "number" ? `${filesystem.freeGiB} / ${filesystem.totalGiB} GiB free · ${filesystem.freePercent}%` : "No capacity sample", reason: metrics.filesystem?.reason || "Home filesystem capacity." },
-    { key: "disk-health", label: "Disk Health", status: observationStatus(metrics.diskHealth), value: metrics.diskHealth ? "Device metadata collected · SMART not connected" : "Not checked", reason: metrics.diskHealth?.reason || "Disk-health evidence." },
-    { key: "disk-io", label: "Disk I/O", status: observationStatus(metrics.diskIo), value: typeof diskIo.readSectors === "number" ? `${diskIo.readSectors.toLocaleString()} read · ${(diskIo.writeSectors || 0).toLocaleString()} write sectors` : "No I/O counters", reason: metrics.diskIo?.reason || "Cumulative Linux disk counters." },
-    { key: "processes", label: "Processes", status: observationStatus(metrics.processes), value: `${processes.length} bounded high-CPU rows`, reason: metrics.processes?.reason || "Process metadata with ancestry." },
-    { key: "network", label: "Network", status: observationStatus(metrics.listeners), value: `${listeners.length} listeners · ${connections.establishedCount ?? "?"} established`, reason: metrics.listeners?.reason || "Listening and established connection metadata." },
-    { key: "services", label: "Services", status: observationStatus(metrics.services), value: `${services.length} failed · ${startup.length} enabled sampled`, reason: metrics.services?.reason || "systemd state." },
-    { key: "containers", label: "Docker / Supabase", status: observationStatus(metrics.docker), value: typeof docker.containerCount === "number" ? `${docker.containerCount} containers · ${docker.supabaseContainerCount || 0} Supabase` : "No daemon evidence", reason: metrics.docker?.reason || "Local container metadata." },
-    { key: "auth", label: "Login Visibility", status: observationStatus(metrics.authenticationEvents), value: typeof auth.recentRecordCount === "number" ? `${auth.recentRecordCount} recent redacted records` : "No login evidence", reason: metrics.authenticationEvents?.reason || "Redacted local login count." },
+    { key: "thermal", label: "CPU temperature", status: observationStatus(metrics.thermal), value: hottestThermalSummary(metrics.thermal), reason: metrics.thermal?.reason || "No thermal evidence.", measuredAt: metrics.thermal?.observedAt },
+    { key: "fans", label: "Fan", status: observationStatus(metrics.fans), value: typeof fans[0]?.rpm === "number" ? `${fans[0].rpm.toLocaleString()} RPM` : "No RPM sensor", reason: metrics.fans?.reason || "Kernel fan evidence.", measuredAt: metrics.fans?.observedAt },
+    { key: "cpu", label: "CPU load", status: observationStatus(metrics.cpu), value: typeof cpu.utilizationPercent === "number" ? `${cpu.utilizationPercent}% · ${cpu.logicalCpuCount || "?"} logical CPUs` : "No utilization sample", reason: metrics.cpu?.reason || "Current Linux CPU sample.", measuredAt: metrics.cpu?.observedAt },
+    { key: "processes", label: "Top processes", status: observationStatus(metrics.processes), value: processes[0] ? `${processes[0].process || "Unknown"} · ${processes[0].cpuPercent ?? "?"}% CPU` : "No process sample", reason: metrics.processes?.reason || "Process metadata with ancestry.", measuredAt: metrics.processes?.observedAt },
+    { key: "memory", label: "Memory", status: observationStatus(metrics.memory), value: typeof memory.availableGiB === "number" ? `${memory.usedGiB || 0} GiB used · ${memory.availableGiB} GiB free · ${memory.swapUsedGiB || 0} GiB swap` : "No memory sample", reason: metrics.memory?.reason || "Current Linux memory counters.", measuredAt: metrics.memory?.observedAt },
+    { key: "services", label: "Failed services", status: observationStatus(metrics.services), value: `${services.length} failed`, reason: metrics.services?.reason || "systemd state.", measuredAt: metrics.services?.observedAt },
+    { key: "containers", label: "Docker / Supabase", status: observationStatus(metrics.docker), value: typeof docker.containerCount === "number" ? `${docker.containerCount} containers · ${docker.supabaseContainerCount || 0} Supabase` : "No daemon evidence", reason: metrics.docker?.reason || "Local container metadata.", measuredAt: metrics.docker?.observedAt },
+    { key: "storage", label: "Storage", status: observationStatus(metrics.filesystem), value: typeof filesystem.freeGiB === "number" ? `${filesystem.freeGiB} / ${filesystem.totalGiB} GiB free · ${filesystem.freePercent}%` : "No capacity sample", reason: metrics.filesystem?.reason || "Home filesystem capacity.", measuredAt: metrics.filesystem?.observedAt },
+    { key: "network", label: "Network", status: observationStatus(metrics.listeners), value: `${listeners.length} listeners · ${connections.establishedCount ?? "?"} established`, reason: metrics.listeners?.reason || "Listening and established connection metadata.", measuredAt: metrics.listeners?.observedAt },
+    { key: "load", label: "System load", status: observationStatus(metrics.load), value: typeof load.oneMinute === "number" ? `${load.oneMinute} / ${load.fiveMinute} · ${load.logicalCpuCount || "?"} CPUs` : "No load sample", reason: metrics.load?.reason || "Linux load averages.", measuredAt: metrics.load?.observedAt },
+    { key: "disk-health", label: "Disk health", status: observationStatus(metrics.diskHealth), value: metrics.diskHealth ? "Device metadata collected · SMART not connected" : "Not checked", reason: metrics.diskHealth?.reason || "Disk-health evidence.", measuredAt: metrics.diskHealth?.observedAt },
+    { key: "disk-io", label: "Disk I/O", status: observationStatus(metrics.diskIo), value: typeof diskIo.readSectors === "number" ? `${diskIo.readSectors.toLocaleString()} read · ${(diskIo.writeSectors || 0).toLocaleString()} write sectors` : "No I/O counters", reason: metrics.diskIo?.reason || "Cumulative Linux disk counters.", measuredAt: metrics.diskIo?.observedAt },
+    { key: "auth", label: "Login visibility", status: observationStatus(metrics.authenticationEvents), value: typeof auth.recentRecordCount === "number" ? `${auth.recentRecordCount} recent redacted records` : "No login evidence", reason: metrics.authenticationEvents?.reason || "Redacted local login count.", measuredAt: metrics.authenticationEvents?.observedAt },
   ];
+}
+
+function operatorHealthState(status: SentinelStatus | null): OperatorHealthState {
+  if (!status || status.host.overallStatus === "unknown") return "UNKNOWN";
+  if (["critical", "elevated"].includes(status.host.overallStatus)) return "PROBLEM";
+  if (["attention", "stale", "learning"].includes(status.host.overallStatus)) return "WARNING";
+  return status.host.overallStatus === "healthy" ? "HEALTHY" : "UNKNOWN";
+}
+
+function operatorHealthMessage(state: OperatorHealthState): string {
+  switch (state) {
+    case "HEALTHY": return "Your latest Host Guardian check found no current host issue that needs action.";
+    case "WARNING": return "Your computer is usable, but one or more current signals need a closer look.";
+    case "PROBLEM": return "Host Guardian found a current problem. Start an investigation before changing anything.";
+    default: return "Host Guardian needs a fresh health check before it can tell you whether your computer is okay.";
+  }
 }
 
 function triggerLastRun(trigger: SentinelTrigger, status: SentinelStatus): string | null {
@@ -177,6 +200,9 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<AskSentinelResponse | null>(null);
   const [activityFilter, setActivityFilter] = useState<SentinelActivityFilter>("all");
+  const [investigationOpen, setInvestigationOpen] = useState(false);
+  const [automationFrequency, setAutomationFrequency] = useState<SentinelAutomation["frequency"]>("daily");
+  const [popUpgradePreview, setPopUpgradePreview] = useState<PopUpgradeCleanupPreviewResponse | null>(null);
 
   const hostConfiguration = useGovernedRecordNote({
     recordKey: "sentinel-host-configuration",
@@ -209,7 +235,10 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
     setLoading(true);
     void loadSentinelStatus()
       .then((next) => {
-        if (active) setStatus(next);
+        if (active) {
+          setStatus(next);
+          setAutomationFrequency(next.automation.frequency);
+        }
       })
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : String(reason));
@@ -258,6 +287,23 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
     }
   }
 
+  async function investigate(kind: InvestigationKind): Promise<void> {
+    if (kind === "fans") {
+      await investigateFans();
+      return;
+    }
+    const actions: Record<Exclude<InvestigationKind, "fans">, () => Promise<void>> = {
+      slow: () => perform("investigate-slow", runHostDeepCheck, "Fresh process, service, container, and thermal evidence is ready to review."),
+      network: () => perform("investigate-network", runHostDeepCheck, "Fresh network and host evidence is ready to review."),
+      suspicious: () => perform("investigate-security", runSecurityCheck, "The read-only security inventory was refreshed. Sources without live evidence remain explicit."),
+      other: async () => {
+        setQuestion("Something else is wrong with my computer. What deterministic check should I run next?");
+        setNotice("Describe the symptom below and ask for a bounded next step. This does not invoke a live model.");
+      },
+    };
+    await actions[kind]();
+  }
+
   async function submitQuestion(): Promise<void> {
     if (!question.trim() || busyAction) return;
     setBusyAction("ask");
@@ -274,48 +320,179 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
   }
 
   const signals = useMemo(() => (status ? hostSignals(status.host) : []), [status]);
+  const primarySignals = signals.slice(0, 7);
+  const healthState = operatorHealthState(status);
   const threat = useMemo(() => deriveThreatState(status), [status]);
   const activity = useMemo(
     () => filterSentinelActivity(buildSentinelActivity(status), activityFilter),
     [activityFilter, status],
   );
-  const openIncidents = status?.recentIncidents.filter(
-    (incident) => !["closed", "resolved"].includes(incident.status.toLowerCase()),
-  ).length || 0;
   const hostMetrics = status?.host.metrics || {};
   const thermalRows = observationValue<ThermalRow[]>(hostMetrics.thermal, []);
   const processRows = observationValue<ProcessRow[]>(hostMetrics.processes, []);
   const listenerRows = observationValue<ListenerRow[]>(hostMetrics.listeners, []);
   const failedServices = observationValue<string[]>(hostMetrics.services, []);
   const docker = observationValue<{ containers?: ContainerRow[]; resourceRows?: Array<Record<string, string>> }>(hostMetrics.docker, {});
+  const automation = status?.automation;
+  const automationActive = Boolean(automation?.active);
+  const automationRequested = Boolean(automation?.enabled);
+  const automaticStatus = automationActive
+    ? `ON · ${automation?.frequency === "twice-daily" ? "Twice daily" : "Daily"}`
+    : automationRequested ? "Timer unavailable" : "OFF";
+
+  async function setAutomation(enabled: boolean, frequency = automationFrequency): Promise<void> {
+    await perform(
+      "automation",
+      () => configureHostAutomation(enabled, frequency),
+      enabled
+        ? "Automatic Host Guardian observation is enabled. It will run only when due."
+        : "Automatic Host Guardian observation is off.",
+    );
+  }
+
+  const popUpgradeIncident = status?.recentIncidents.find((incident) =>
+    incident.status.toLowerCase() === "open"
+      && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview"),
+  );
+
+  async function previewPopUpgradeRepair(): Promise<void> {
+    if (busyAction) return;
+    setBusyAction("pop-upgrade-preview");
+    setError("");
+    setNotice("");
+    try {
+      const preview = await previewPopUpgradeCleanup();
+      setPopUpgradePreview(preview);
+      await refresh();
+      setNotice(preview.ok
+        ? "Review the exact updater target below before requesting operating-system authorization."
+        : "The updater no longer meets the exact Safe Cleanup signature.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function applyPopUpgradeRepair(): Promise<void> {
+    if (busyAction || !popUpgradePreview?.ok || !popUpgradePreview.candidate) return;
+    setBusyAction("pop-upgrade-apply");
+    setError("");
+    setNotice("");
+    try {
+      const result = await applyPopUpgradeCleanup();
+      await runHostHealthCheck();
+      await refresh();
+      setPopUpgradePreview(null);
+      setNotice(result.ok
+        ? "Safe Cleanup completed. Host Guardian has been refreshed with post-repair evidence."
+        : "Safe Cleanup did not verify recovery. Host Guardian has been refreshed; review the current evidence.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusyAction(null);
+    }
+  }
 
   return (
     <section className="sentinelShell" data-testid="radcon-sentinel">
-      <header className={`sentinelHero sentinelThreat-${threat}`}>
+      <header className={`sentinelHero sentinelThreat-${threat} sentinelOperatorHero`}>
         <div className="sentinelHeroCopy">
-          <span className="sentinelEyebrow">RADCON SENTINEL</span>
-          <h1>Empire Security Command Center</h1>
-          <p>Host Guardian + Security Guardian · measured evidence · human-controlled authority · the LLM is not root.</p>
+          <span className="sentinelEyebrow">HOST GUARDIAN</span>
+          <h1>Is my computer okay?</h1>
+          <p>{operatorHealthMessage(healthState)}</p>
         </div>
-        <div className="sentinelCommandSummary" data-testid="sentinel-status-header">
-          <div><small>OVERALL</small><StatusPill status={status?.overallStatus || "unknown"} /></div>
-          <div><small>HOST</small><StatusPill status={status?.host.overallStatus || "unknown"} /></div>
-          <div><small>SECURITY</small><StatusPill status={status?.security.overallStatus || "unknown"} /></div>
-          <div><small>THREAT</small><strong>{threatStateLabel(threat)}</strong></div>
-          <div><small>LAST SWEEP</small><strong>{loading ? "Loading…" : formatDateTime(lastSentinelSweepAt(status))}</strong></div>
-          <div><small>OPEN INCIDENTS</small><strong>{openIncidents}</strong></div>
-          <div><small>PENDING ACTIONS</small><strong>{status?.pendingActions.length || 0}</strong></div>
+        <div className="sentinelOperatorSummary" data-testid="sentinel-status-header">
+          <div className={`sentinelOperatorState sentinelOperatorState-${healthState.toLowerCase()}`}><small>CURRENT HEALTH</small><strong>{healthState}</strong></div>
+          <div><small>LAST HEALTH CHECK</small><strong>{loading ? "Loading…" : formatDateTime(status?.host.checkedAt)}</strong></div>
+          <div><small>NEXT AUTOMATIC CHECK</small><strong>{automationActive ? formatDateTime(automation?.nextDueAt) : automationRequested ? "Timer unavailable" : "Not active"}</strong></div>
+          <div><small>LAST INCIDENT</small><strong>{status?.recentIncidents[0] ? formatDateTime(status.recentIncidents[0].updatedAt || status.recentIncidents[0].createdAt) : "No Sentinel incident"}</strong></div>
+          <div><small>AUTOMATIC GUARDIAN</small><strong>{automaticStatus}</strong></div>
         </div>
         <div className="sentinelVisibilityBoundary">
-          <strong>{threat === "unknown_visibility" ? "Visibility is incomplete; no active threat is inferred." : threatStateLabel(threat)}</strong>
+          <strong>Routine checks are deterministic and use no model tokens.</strong>
           <span>{status?.auditVerification.ok ? "Audit/event/incident chains verified" : "Audit integrity requires attention"}</span>
         </div>
       </header>
 
-      <div className="sentinelActions" aria-label="Sentinel manual read-only checks">
+      <div className="sentinelActions sentinelPrimaryActions" aria-label="Host Guardian actions">
         <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void perform("health", runHostHealthCheck, "Host health evidence refreshed.")} data-testid="sentinel-health-check">
           {busyAction === "health" ? "Checking…" : "Run Health Check"}
         </button>
+        <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => setInvestigationOpen((value) => !value)} data-testid="sentinel-investigate-problem">
+          Investigate a Problem
+        </button>
+        <span className="sentinelAutomationStatus">Automatic Guardian: <strong>{automaticStatus}</strong>
+          <select
+            aria-label="Automatic Host Guardian frequency"
+            value={automationFrequency}
+            disabled={Boolean(busyAction)}
+            onChange={(event) => {
+              const frequency = event.target.value as SentinelAutomation["frequency"];
+              setAutomationFrequency(frequency);
+              if (automationRequested) void setAutomation(true, frequency);
+            }}
+          >
+            <option value="daily">Daily</option>
+            <option value="twice-daily">Twice daily</option>
+          </select>
+          <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => void setAutomation(!automationRequested)} data-testid="sentinel-automation-toggle">
+            {busyAction === "automation" ? "Saving…" : automationRequested ? "Turn off" : "Turn on"}
+          </button>
+        </span>
+      </div>
+
+      {investigationOpen ? <section className="sentinelInvestigation" data-testid="sentinel-investigation-workflow">
+        <div><span>INVESTIGATE A PROBLEM</span><strong>Choose the symptom. Host Guardian starts with the smallest deterministic check.</strong></div>
+        <div className="sentinelInvestigationChoices">
+          <button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("fans")}>Fans / heat</button>
+          <button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("slow")}>Computer is slow</button>
+          <button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("network")}>Internet / network</button>
+          <button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("suspicious")}>Something suspicious</button>
+          <button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("other")}>Other</button>
+        </div>
+      </section> : null}
+
+      <section className="sentinelHealthMeasurements" data-testid="sentinel-health-measurements">
+        <div className="sentinelSectionHeading"><span>CURRENT MEASUREMENTS</span><strong>Every value shows when it was measured</strong></div>
+        <div className="sentinelSignalGrid">
+          {primarySignals.length ? primarySignals.map((signal) => (
+            <div className="sentinelSignal" key={signal.key} title={signal.reason}>
+              <span>{signal.label}</span><strong>{signal.value}</strong><StatusPill status={signal.status} /><small>{formatDateTime(signal.measuredAt || status?.host.checkedAt)}</small>
+            </div>
+          )) : <div className="surfaceEmptyState">Run a Host Guardian check to collect current evidence.</div>}
+        </div>
+      </section>
+
+      <section className="sentinelIncidentSummary" data-testid="sentinel-incident-summary">
+        <div className="sentinelSectionHeading"><span>RECENT INCIDENTS</span><strong>{status?.recentIncidents.length || 0}</strong></div>
+        {status?.recentIncidents.length ? status.recentIncidents.slice(0, 3).map((incident) => (
+          <div className="sentinelIncidentRow" key={incident.id}>
+            <span><strong>{incident.title}</strong><small>{formatDateTime(incident.updatedAt || incident.createdAt)} · {incident.severity.toUpperCase()} · {incident.status}</small></span>
+            <span>{incident.hypothesis}</span>
+          </div>
+        )) : <p className="sentinelSubtle">No Sentinel incident has been recorded yet. Health checks still retain timestamped observation and audit evidence.</p>}
+        {popUpgradeIncident ? (<div className="sentinelIncidentRow" data-testid="pop-upgrade-safe-cleanup">
+          <span><strong>Safe Cleanup available</strong><small>Exact target only · no automatic restart</small></span>
+          {!popUpgradePreview?.ok ? <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => void previewPopUpgradeRepair()}>
+            {busyAction === "pop-upgrade-preview" ? "Checking target…" : "[FIX SAFELY]"}
+          </button> : <div>
+            <strong>{popUpgradePreview.candidate?.service}</strong>
+            <small>Fresh preview complete. This next confirmation requests OS authorization.</small>
+            <div className="sentinelActions">
+              <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void applyPopUpgradeRepair()}>
+                {busyAction === "pop-upgrade-apply" ? "Authorizing…" : "Confirm restart"}
+              </button>
+              <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => setPopUpgradePreview(null)}>Cancel</button>
+            </div>
+          </div>}
+        </div>) : null}
+      </section>
+
+      <details className="sentinelDetails sentinelAdvancedDetails">
+        <summary>Advanced Sentinel details and manual checks</summary>
+        <p className="sentinelSubtle">Measured evidence, capability boundaries, and technical controls. The LLM is not root.</p>
+        <div className="sentinelActions" aria-label="Sentinel manual read-only checks">
         <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => void perform("deep", runHostDeepCheck, "Deep host evidence refreshed.")} data-testid="sentinel-deep-check">
           {busyAction === "deep" ? "Checking…" : "Deep Check"}
         </button>
@@ -334,11 +511,14 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
         <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => void investigateFans()}>
           {busyAction === "fans" ? "Investigating…" : "Why are my fans running?"}
         </button>
-      </div>
+        </div>
+      </details>
 
       {error ? <div className="panelError">{error}</div> : null}
       {notice ? <div className="sentinelNotice">{notice}</div> : null}
 
+      <details className="sentinelDetails sentinelAdvancedWorkspace">
+        <summary>Advanced evidence, activity, and Sentinel controls</summary>
       <div className="sentinelGuardianGrid">
         <article className="sentinelGuardianCard" data-testid="host-guardian">
           <div className="sentinelGuardianHeading">
@@ -348,7 +528,7 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
           <div className="sentinelSignalGrid">
             {signals.length ? signals.map((signal) => (
               <div className="sentinelSignal" key={signal.key} title={signal.reason}>
-                <span>{signal.label}</span><strong>{signal.value}</strong><StatusPill status={signal.status} />
+                <span>{signal.label}</span><strong>{signal.value}</strong><StatusPill status={signal.status} /><small>{formatDateTime(signal.measuredAt || status?.host.checkedAt)}</small>
               </div>
             )) : <div className="surfaceEmptyState">Run a Host Guardian check to collect current evidence.</div>}
           </div>
@@ -555,6 +735,7 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
         <span>Scheduler: {status?.scheduler || "disabled"}</span>
         <span>Audit: {status?.auditVerification.claim || "hash-chained-not-immutable"}</span>
       </footer>
+      </details>
     </section>
   );
 }

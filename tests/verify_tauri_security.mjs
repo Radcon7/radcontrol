@@ -32,6 +32,8 @@ assert.match(bridge, /"project_create.preview."/);
 assert.match(bridge, /"project-create.preview"[\s\S]*?TimeoutClass::Extended,[\s\S]*?None/);
 assert.doesNotMatch(bridge, /"sentinel.action.dry_run."/);
 assert.doesNotMatch(bridge, /"workstation.cleanup.apply"/);
+assert.match(bridge, /"workstation.cleanup.pop_upgrade.preview"/);
+assert.match(bridge, /"workstation.cleanup.pop_upgrade.apply"/);
 assert.doesNotMatch(bridge, /"workstation.updates.refresh"/);
 assert.doesNotMatch(bridge, /shell\(true\)/);
 assert.doesNotMatch(bridge, /files\.new"\)/);

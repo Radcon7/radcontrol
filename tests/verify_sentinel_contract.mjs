@@ -27,10 +27,25 @@ assert.match(security, /Empire Operations/);
 assert.match(operations, /"empire\.map"/);
 assert.match(operations, /"radcontrol\.snapshot"/);
 assert.match(operations, /"empire\.sweep"/);
-assert.match(component, /RADCON SENTINEL/);
-assert.match(component, /Empire Security Command Center/);
+assert.match(component, /HOST GUARDIAN/);
+assert.match(component, /Is my computer okay\?/);
 assert.match(component, /HOST GUARDIAN/);
 assert.match(component, /SECURITY GUARDIAN/);
+assert.match(component, /CURRENT HEALTH/);
+assert.match(component, /LAST HEALTH CHECK/);
+assert.match(component, /NEXT AUTOMATIC CHECK/);
+assert.match(component, /AUTOMATIC GUARDIAN/);
+assert.match(component, /sentinel-automation-toggle/);
+assert.match(component, /Daily/);
+assert.match(component, /Twice daily/);
+assert.match(component, /Routine checks are deterministic and use no model tokens/);
+assert.match(component, /Investigate a Problem/);
+assert.match(component, /Fans \/ heat/);
+assert.match(component, /Computer is slow/);
+assert.match(component, /Internet \/ network/);
+assert.match(component, /Something suspicious/);
+assert.match(component, /Every value shows when it was measured/);
+assert.match(component, /Advanced Sentinel details and manual checks/);
 assert.match(model, /UNKNOWN VISIBILITY/);
 assert.match(component, /RECENT ACTIVITY/);
 assert.match(component, /AUTHORITY/);
@@ -66,6 +81,9 @@ for (const verb of [
   "sentinel.host.explain_fans",
   "sentinel.security.check",
   "sentinel.ask",
+  "sentinel.host.automation.configure",
+  "workstation.cleanup.pop_upgrade.preview",
+  "workstation.cleanup.pop_upgrade.apply",
 ]) {
   assert.match(api, new RegExp(verb.replaceAll(".", "\\.")));
 }
@@ -83,7 +101,7 @@ assert.match(model, /sentinelCapabilityLevelState/);
 assert.doesNotMatch(css, /\.workstation[A-Z]/);
 assert.match(css, /\.sentinelActivity/);
 assert.match(css, /\.sentinelLevelList/);
-assert.doesNotMatch(bridge, /"workstation\.(health|cleanup|codex)/);
+assert.doesNotMatch(bridge, /"workstation\.(health|cleanup\.(preview|apply)|codex)/);
 assert.doesNotMatch(bridge, /"workstation\.updates\.(refresh|open)"/);
 assert.doesNotMatch(bridge, /"sentinel\.action\.dry_run\./);
 assert.match(bridge, /"empire\.map"/);
@@ -92,6 +110,11 @@ assert.match(bridge, /"empire\.sweep"/);
 assert.match(bridge, /"router\.health"/);
 assert.match(bridge, /"workstation\.updates\.check"/);
 assert.match(bridge, /"workstation\.updates\.history"/);
+assert.match(bridge, /"sentinel\.host\.automation\.configure\."/);
+assert.match(bridge, /"workstation\.cleanup\.pop_upgrade\.preview"/);
+assert.match(bridge, /"workstation\.cleanup\.pop_upgrade\.apply"/);
+assert.match(component, /\[FIX SAFELY\]/);
+assert.match(component, /Confirm restart/);
 assert.doesNotMatch(bridge, /sudo|Command::new\([^)]*payload|shell\(true\)/);
 
 console.log("Sentinel contract: Security command center, read-only Phase 1, and migrated host record verified");

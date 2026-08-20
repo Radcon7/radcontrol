@@ -9,6 +9,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 pub const SAFE_PATH: &str = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+const RADCONTROL_USER_RUNTIME_DIR: &str = "/run/user/1000";
+const RADCONTROL_USER_BUS: &str = "unix:path=/run/user/1000/bus";
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 const EXIT_PIPE_GRACE: Duration = Duration::from_millis(100);
 const FAILURE_DIAGNOSTIC_BYTES: usize = 16 * 1024;
@@ -182,6 +184,11 @@ pub fn apply_child_environment(
         .env("LANG", "C.UTF-8")
         .env("LC_ALL", "C.UTF-8")
         .env("TMPDIR", temp_dir)
+        // The bridge otherwise clears its environment. These two fixed values
+        // permit only the current user's systemd manager for the opt-in Host
+        // Guardian timer; no caller-controlled bus or environment is accepted.
+        .env("XDG_RUNTIME_DIR", RADCONTROL_USER_RUNTIME_DIR)
+        .env("DBUS_SESSION_BUS_ADDRESS", RADCONTROL_USER_BUS)
         .env("TERM", "dumb")
         .env("NO_COLOR", "1")
         .current_dir(root);

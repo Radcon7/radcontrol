@@ -68,6 +68,18 @@ const baseStatus = {
   privilegedHelper: "not-installed",
   providerMutation: "disabled",
   scheduler: "disabled",
+  automation: {
+    enabled: false,
+    active: false,
+    frequency: "daily",
+    intervalSeconds: 86400,
+    lastSuccessfulAt: null,
+    lastAttemptAt: null,
+    lastResult: "not-configured",
+    nextDueAt: null,
+    overdue: false,
+    systemd: { available: true, enabled: false, detail: "disabled" },
+  },
   memoryAuthority: "non-authoritative",
 };
 
