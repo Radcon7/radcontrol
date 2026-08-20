@@ -24,9 +24,9 @@ render() {
   git ls-files --cached --others --exclude-standard | LC_ALL=C sort -u | awk '
     /^docs\/_repo_snapshot\.txt$/ { next }
     /^docs\/_o2_repo_index\.txt$/ { next }
-    /(^|\/)(node_modules|\.next|coverage|dist|out|target|\.cache|\.temp|backups)(\/|$)/ { next }
+    /(^|\/)(node_modules|\.next|coverage|dist|out|target|\.cache|\.temp|backups|__pycache__)(\/|$)/ { next }
     /(^|\/)\.env($|\.)/ && !/(^|\/)\.env\.example$/ { next }
-    /\.(pem|key|p12|dump|tsbuildinfo)$/ { next }
+    /\.(pem|key|p12|dump|pyc|pyo|tsbuildinfo)$/ { next }
     /\.tar\.gz$/ { next }
     { print }
   ' | sed -n '1,500p'

@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const [launcher, desktop, installer, bridge, app, projects, infrastructure, todo, config, agentRules, repoState] = await Promise.all([
+const [launcher, desktop, installer, snapshotScript, gitignore, bridge, app, projects, infrastructure, todo, config, agentRules, repoState] = await Promise.all([
   readFile(new URL("../packaging/radcontrol-launch.sh", import.meta.url), "utf8"),
   readFile(new URL("../packaging/radcontrol.desktop", import.meta.url), "utf8"),
   readFile(new URL("../scripts/install_production.sh", import.meta.url), "utf8"),
+  readFile(new URL("../scripts/snapshot_repo_state.sh", import.meta.url), "utf8"),
+  readFile(new URL("../.gitignore", import.meta.url), "utf8"),
   readFile(new URL("../src-tauri/src/commands/o2.rs", import.meta.url), "utf8"),
   readFile(new URL("../src/App.tsx", import.meta.url), "utf8"),
   readFile(new URL("../src/components/projects/ProjectsTab.tsx", import.meta.url), "utf8"),
@@ -21,16 +25,22 @@ assert.doesNotMatch(launcher, /\$HOME/);
 assert.doesNotMatch(launcher, /vite|tauri:dev|radcontrol\.dev_strict|localhost|127\.0\.0\.1/i);
 assert.match(desktop, /^Exec=\/home\/chris\/\.local\/bin\/radcontrol-launch\.sh$/m);
 assert.doesNotMatch(desktop, /vite|tauri:dev|localhost|127\.0\.0\.1/i);
-assert.match(installer, /\.local\/share\/radcontrol\/o2-runtime/);
-assert.match(installer, /registry\/project-archetypes\.json/);
-assert.match(installer, /scripts\/o2_radcontrol_audit\.py/);
-assert.match(installer, /target\/release\/radcontrol-app/);
-assert.match(installer, /icons\/hicolor\/128x128\/apps\/radcontrol-app\.png/);
-assert.match(installer, /readonly EXPECTED_HOME="\/home\/chris"/);
-assert.match(installer, /Refusing to replace a symlinked production target/);
-assert.match(installer, /require_canonical_directory/);
-assert.match(installer, /Refusing unsafe production directory/);
-assert.match(installer, /Required production artifact is missing or unsafe/);
+assert.match(installer, /Refusing independent RadControl installation/);
+assert.match(installer, /one reviewed native-acceptance transaction/);
+assert.match(installer, /exit 64/);
+assert.doesNotMatch(installer, /\binstall\s+-[Dm]/);
+assert.doesNotMatch(installer, /\b(mv|cp)\s/);
+const retiredInstaller = spawnSync(
+  "bash",
+  [fileURLToPath(new URL("../scripts/install_production.sh", import.meta.url))],
+  { encoding: "utf8" },
+);
+assert.equal(retiredInstaller.status, 64);
+assert.match(retiredInstaller.stderr, /Refusing independent RadControl installation/);
+assert.match(snapshotScript, /__pycache__/);
+assert.match(snapshotScript, /pyc\|pyo/);
+assert.match(gitignore, /^__pycache__\/$/m);
+assert.match(gitignore, /^\*\.py\[cod\]$/m);
 assert.match(bridge, /\.local\/share\/radcontrol\/o2-runtime/);
 assert.match(bridge, /pub fn runtime_diagnostics/);
 assert.match(bridge, /fn dispatcher_command\(paths: &O2Paths, context: &RuntimeContext, verb: &str\) -> Command/);
