@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 
 const workflowRoot = new URL("../.github/workflows/", import.meta.url);
+const supplyChain = await readFile(new URL("../docs/SUPPLY_CHAIN.md", import.meta.url), "utf8");
 const files = (await readdir(workflowRoot)).filter((name) => name.endsWith(".yml")).sort();
 const workflows = new Map();
 for (const file of files) workflows.set(file, await readFile(new URL(file, workflowRoot), "utf8"));
@@ -42,5 +43,15 @@ assert.match(ci, /if: github\.event_name == 'pull_request'[\s\S]*dependency-revi
 assert.match(ci, /name: RadControl verification/);
 assert.equal(workflows.has("release-candidate.yml"), false);
 assert.equal(workflows.has("audit-anchor.yml"), false);
+
+assert.doesNotMatch(supplyChain, /Dependabot alerts report zero known vulnerabilities/);
+for (const advisory of [
+  "GHSA-7gmj-67g7-phm9",
+  "GHSA-7gcf-g7xr-8hxj",
+  "GHSA-cq8v-f236-94qc",
+  "GHSA-wrw7-89jp-8q8g",
+]) {
+  assert.match(supplyChain, new RegExp(advisory));
+}
 
 console.log(`workflow supply-chain contract: ${uses.length} pinned uses across ${files.length} workflows`);
