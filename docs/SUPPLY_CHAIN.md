@@ -17,6 +17,15 @@ publish a GitHub Release, create a tag, launch RadControl, or replace an install
 binary. Only a separately authorized 5D native/install acceptance may advance
 the installed O2/RadControl pair.
 
+`scripts/install_production.sh` is retained only as a fail-closed compatibility
+stub for old operator commands. It performs no filesystem mutation. The source
+tree intentionally exposes no standalone binary installer because that would
+create a parallel path around matched-pair acceptance. Each authorized native
+acceptance must instead use one reviewed transaction fixed to the exact O2 tree,
+RadControl artifact and support-file hashes; it must preflight the old and new
+pairs, recover the old pair on failure, prove a real rollback, and prove the same
+candidate can be reinstalled before the transaction is accepted.
+
 ## Reproducibility boundary
 
 - Node is exactly `24.12.0`; Rust is exactly `1.93.0` through
