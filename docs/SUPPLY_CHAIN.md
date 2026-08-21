@@ -69,20 +69,26 @@ including target-specific packages). No external Python package is introduced.
 The hosted dependency evidence records every Action identity and
 reviewed-release comment from both the RadControl and O2 source checkouts.
 
-The current npm production audit and GitHub Dependabot alerts report zero known
-vulnerabilities. RustSec informational warnings are not mislabeled as
-vulnerabilities. The 22 applicable warnings are grouped below; the Tauri
-dependency path and reachability were confirmed with `cargo tree`.
+The current npm production audit reports zero known npm vulnerabilities. That
+does not cover Cargo. On 2026-08-20 GitHub Dependabot reported four open locked-
+Cargo alerts: medium findings in `tauri`, `serde_with`, and `glib`, plus a low
+finding in `rand`. All four paths are present in the build/runtime graph. They
+are explicitly recorded below rather than being hidden by the clean npm result
+or successful CodeQL run. RustSec informational warnings are not mislabeled as
+vulnerabilities. The Tauri dependency paths and reachability were confirmed
+with `cargo tree`.
 
 | Packages / advisories | Path and reachability | Patched version | Decision and owner |
 | --- | --- | --- | --- |
+| `tauri` 2.10.0 / GHSA-7gmj-67g7-phm9 | Direct runtime dependency; the reported remote-origin IPC path is additionally constrained by RadControl's bundled-only webview and finite backend opener validation | 2.11.1 | Open medium alert. Take a reviewed compatible Tauri lock refresh and repeat full native acceptance; do not treat product hardening as a substitute for the dependency patch |
+| `serde_with` 3.16.1 / GHSA-7gcf-g7xr-8hxj | `tauri-utils`; build and runtime reachable | 3.21.0 | Open medium alert. Update with the reviewed Tauri lock refresh and rerun full gates/native acceptance |
 | `atk` 0413, `atk-sys` 0416, `gdk` 0412, `gdk-sys` 0418, `gdkwayland-sys` 0411, `gdkx11` 0417, `gdkx11-sys` 0414, `gtk` 0415, `gtk-sys` 0420, `gtk3-macros` 0419 | Tauri/Wry Linux GUI; runtime/build reachable | None; all unmaintained | Accepted upstream GTK3/Tauri risk; RadControl release owner monitors Tauri migration |
 | `fxhash` 2025-0057, `proc-macro-error` 2024-0370 | Tauri HTML tooling and GTK macros | None; unmaintained | Accepted transitive risk; dependency review watches replacement through upstream Tauri |
 | `unic-char-property` 2025-0081, `unic-char-range` 2025-0075, `unic-common` 2025-0080, `unic-ucd-ident` 2025-0100, `unic-ucd-version` 2025-0098 | `urlpattern -> tauri-utils`; build and runtime reachable | None; unmaintained | Accepted transitive risk; monitor `tauri-utils` |
 | `anyhow` 1.0.100 / 2026-0190 | Tauri core/build/plugin stack | 1.0.103 | Informational unsoundness; take a reviewed compatible lock refresh, not an ad hoc local install |
 | `event-listener` 5.4.1 / 2026-0221 | `zbus` through opener/single-instance on Linux | 5.4.2 | Same: update through reviewed lockfile maintenance and rerun full gates |
-| `rand` 0.7.3 and 0.8.5 / 2026-0097 | PHF/code-generation paths through `tauri-utils` | 0.8.6 in the 0.8 line; none in the 0.7 line | Build-path warning; update through reviewed upstream-compatible lockfile maintenance |
-| `glib` 0.18.5 / 2024-0429 | GTK/WebKit/Tauri Linux runtime | 0.20, incompatible with the retained GTK3 graph | Accepted upstream risk; do not force a partial major upgrade |
+| `rand` 0.7.3 and 0.8.5 / GHSA-cq8v-f236-94qc and 2026-0097 | PHF/code-generation paths through `tauri-utils` | 0.8.6 in the 0.8 line; none in the 0.7 line | Open low alert. Update the compatible line during reviewed lock maintenance; retain the upstream-owned 0.7 risk explicitly |
+| `glib` 0.18.5 / GHSA-wrw7-89jp-8q8g and 2024-0429 | GTK/WebKit/Tauri Linux runtime | 0.20, incompatible with the retained GTK3 graph | Open medium alert and accepted upstream risk; do not force a partial major upgrade |
 
 IDs above use the `RUSTSEC-` prefix. The monitoring owner is the RadControl
 release/dependency review. A full formal SPDX/CycloneDX generator was deferred:
