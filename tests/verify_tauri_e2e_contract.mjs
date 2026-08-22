@@ -39,7 +39,12 @@ assert.match(source, /create governed Infrastructure record inside the isolated 
 assert.match(source, /persist Infrastructure autosave into the isolated O2 root/);
 assert.match(source, /notes-mode-empire_blueprint/);
 assert.match(source, /notes-mode-empire_todo/);
-assert.match(source, /persist Empire To-Do draft before switching items/);
+assert.match(source, /persist Empire To-Do fields before switching items/);
+assert.match(source, /empire-todo-completed-view/);
+assert.match(source, /dependencyProbe/);
+assert.match(source, /dqotd-dinosaur-content/);
+assert.match(source, /restart isolated RadControl/);
+assert.match(source, /reload completed Empire To-Do item after native restart/);
 assert.match(source, /tab-sentinel/);
 assert.match(source, /sentinel-health-check/);
 assert.match(source, /sentinel-security-check/);

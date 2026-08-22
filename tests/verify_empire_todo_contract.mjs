@@ -28,6 +28,13 @@ assert.match(notes, /<EmpireTodoWorkspace/);
 assert.match(component, /data-testid="empire-todo-workspace"/);
 assert.match(component, /data-testid="empire-todo-selected-item"/);
 assert.match(component, /data-testid="empire-todo-title"/);
+assert.match(component, /data-testid="empire-todo-active-view"/);
+assert.match(component, /data-testid="empire-todo-completed-view"/);
+assert.match(component, /data-testid="empire-todo-status"/);
+assert.match(component, /data-testid="empire-todo-priority"/);
+assert.match(component, /What matters now/);
+assert.match(component, /Completed operating history/);
+assert.match(component, /Depends on:/);
 assert.match(component, /data-testid=\{`empire-todo-\$\{field\.key\}`\}/);
 for (const field of [
   "title", "status", "priority", "category", "summary", "detailedContext",
