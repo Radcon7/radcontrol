@@ -25,6 +25,8 @@
     "verify:infrastructure-architecture": "node --experimental-strip-types tests/verify_infrastructure_architecture_contract.mjs",
     "verify:projects-architecture": "node tests/verify_projects_architecture_contract.mjs",
     "verify:tauri-e2e-contract": "node tests/verify_tauri_e2e_contract.mjs",
+    "test:native-acceptance-isolation": "node --test tests/native_acceptance_isolation_behavior.mjs",
+    "test:matched-pair-transaction": "python3 -m unittest tests/matched_pair_transaction_test.py",
     "verify:production-delivery": "node tests/verify_production_delivery_contract.mjs",
     "test:empire-todo": "node --experimental-strip-types tests/empire_todo_behavior.mjs",
     "verify:empire-todo": "node tests/verify_empire_todo_contract.mjs",
@@ -32,7 +34,7 @@
     "verify:sentinel": "node tests/verify_sentinel_contract.mjs",
     "test:content-preservation": "node --experimental-strip-types tests/content_preservation_behavior.mjs",
     "verify:content-preservation": "node tests/verify_content_preservation_contract.mjs",
-    "test:contracts": "npm run verify:security && npm run verify:governance && npm run verify:document-transport && npm run verify:portfolio-blueprint && npm run verify:o2-contract && npm run test:o2-runtime-boundary && npm run verify:project-builder && npm run verify:formation-learning && npm run test:formation-payload && npm run test:project-intent-preview && npm run verify:ci-contract && npm run verify:supply-chain && npm run verify:repo-index && npm run verify:agents-architecture && npm run verify:governed-notes && npm run verify:infrastructure-architecture && npm run verify:projects-architecture && npm run verify:tauri-e2e-contract && npm run verify:production-delivery && npm run test:empire-todo && npm run verify:empire-todo && npm run test:sentinel && npm run verify:sentinel && npm run test:content-preservation && npm run verify:content-preservation",
+    "test:contracts": "npm run verify:security && npm run verify:governance && npm run verify:document-transport && npm run verify:portfolio-blueprint && npm run verify:o2-contract && npm run test:o2-runtime-boundary && npm run verify:project-builder && npm run verify:formation-learning && npm run test:formation-payload && npm run test:project-intent-preview && npm run verify:ci-contract && npm run verify:supply-chain && npm run verify:repo-index && npm run verify:agents-architecture && npm run verify:governed-notes && npm run verify:infrastructure-architecture && npm run verify:projects-architecture && npm run verify:tauri-e2e-contract && npm run test:native-acceptance-isolation && npm run test:matched-pair-transaction && npm run verify:production-delivery && npm run test:empire-todo && npm run verify:empire-todo && npm run test:sentinel && npm run verify:sentinel && npm run test:content-preservation && npm run verify:content-preservation",
     "vite:dev": "vite",
     "vite:build": "tsc && vite build",
     "vite:preview": "vite preview",
@@ -42,7 +44,8 @@
     "tauri:dev": "node scripts/tauri_dev.mjs",
     "tauri:build": "npx tauri build",
     "tauri": "npx tauri",
-    "test:tauri-e2e": "npx tauri build --no-bundle && node scripts/tauri_e2e.mjs"
+    "test:tauri-e2e": "npx tauri build --debug --no-bundle && node scripts/tauri_e2e.mjs",
+    "test:tauri-production-readonly": "node scripts/tauri_production_readonly.mjs"
   },
   "dependencies": {
     "@tauri-apps/plugin-opener": "^2",

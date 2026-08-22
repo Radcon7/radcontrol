@@ -21,10 +21,13 @@ test:content-preservation
 test:contracts
 test:empire-todo
 test:formation-payload
+test:matched-pair-transaction
+test:native-acceptance-isolation
 test:o2-runtime-boundary
 test:project-intent-preview
 test:sentinel
 test:tauri-e2e
+test:tauri-production-readonly
 verify:agents-architecture
 verify:ci-contract
 verify:content-preservation
@@ -73,6 +76,8 @@ rust-toolchain.toml
 scripts/dev_local_lib.mjs
 scripts/dev_sanity_check.mjs
 scripts/install_production.sh
+scripts/matched_pair_transaction.py
+scripts/native_acceptance_lib.mjs
 scripts/o2_index_repo.sh
 scripts/o2_session_start.sh
 scripts/release_candidate.py
@@ -80,6 +85,7 @@ scripts/snapshot_repo_state.sh
 scripts/tauri_dev.mjs
 scripts/tauri_e2e.mjs
 scripts/tauri_preflight.mjs
+scripts/tauri_production_readonly.mjs
 src-tauri/.gitignore
 src-tauri/Cargo.lock
 src-tauri/Cargo.toml
@@ -215,6 +221,8 @@ tests/content_preservation_behavior.mjs
 tests/empire_todo_behavior.mjs
 tests/formation_learning_contract.mjs
 tests/formation_payload_behavior.mjs
+tests/matched_pair_transaction_test.py
+tests/native_acceptance_isolation_behavior.mjs
 tests/o2_runtime_boundary_behavior.mjs
 tests/project_intent_preview_behavior.mjs
 tests/release_candidate_evidence_test.py

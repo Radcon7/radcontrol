@@ -1,0 +1,207 @@
+import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
+import net from "node:net";
+import os from "node:os";
+import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+import {
+  INSTALLED_O2_ROOT,
+  INSTALLED_RADCONTROL_APP,
+  assertInstalledO2Unchanged,
+  assertNoNewTcpListeners,
+  assertPortAbsent,
+  assertProcessNotRunning,
+  createBubblewrapApplication,
+  sha256File,
+  snapshotInstalledO2,
+  tcpListeners,
+} from "./native_acceptance_lib.mjs";
+
+function requiredArgument(name) {
+  const index = process.argv.indexOf(name);
+  const value = index >= 0 ? process.argv[index + 1] : "";
+  if (!value || value.startsWith("--")) throw new Error(`${name} is required`);
+  return value;
+}
+
+const app = process.env.RADCONTROL_ACCEPTANCE_APP || INSTALLED_RADCONTROL_APP;
+const expectedO2Sha = requiredArgument("--expected-o2-sha");
+const expectedRadcontrolSha = requiredArgument("--expected-radcontrol-sha");
+const expectedArtifactSha = requiredArgument("--expected-artifact-sha");
+assert.match(expectedO2Sha, /^[a-f0-9]{40}$/, "--expected-o2-sha must be a full lowercase Git SHA");
+assert.match(expectedRadcontrolSha, /^[a-f0-9]{40}$/, "--expected-radcontrol-sha must be a full lowercase Git SHA");
+assert.match(expectedArtifactSha, /^[a-f0-9]{64}$/, "--expected-artifact-sha must be a full lowercase SHA-256");
+
+function assertNativeDriver() {
+  const result = spawnSync("WebKitWebDriver", ["--help"], { stdio: "ignore" });
+  if (result.error || result.status !== 0) throw new Error("WebKitWebDriver is required for native acceptance");
+}
+
+async function unusedPort() {
+  const server = net.createServer();
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  await new Promise((resolve) => server.close(resolve));
+  return address.port;
+}
+
+async function request(base, route, method = "GET", body) {
+  const response = await fetch(`${base}${route}`, {
+    signal: AbortSignal.timeout(30_000),
+    method,
+    headers: body ? { "content-type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.value?.error) throw new Error(`${method} ${route}: ${JSON.stringify(payload)}`);
+  return payload.value;
+}
+
+async function eventually(action, description, timeoutMs = 20_000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError;
+  while (Date.now() < deadline) {
+    try { return await action(); } catch (error) { lastError = error; await delay(250); }
+  }
+  throw new Error(`${description}: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+}
+
+async function element(base, sessionId, selector) {
+  const value = await request(base, `/session/${sessionId}/element`, "POST", { using: "css selector", value: selector });
+  return value["element-6066-11e4-a52e-4f735466cecf"];
+}
+
+async function click(base, sessionId, selector) {
+  await eventually(async () => {
+    const id = await element(base, sessionId, selector);
+    await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+      script: "arguments[0].scrollIntoView({ block: 'center', inline: 'center' });",
+      args: [{ "element-6066-11e4-a52e-4f735466cecf": id }],
+    });
+    await request(base, `/session/${sessionId}/element/${id}/click`, "POST", {});
+  }, `click ${selector}`);
+}
+
+async function bodyText(base, sessionId) {
+  const id = await element(base, sessionId, "body");
+  return request(base, `/session/${sessionId}/element/${id}/text`);
+}
+
+async function stopChild(child) {
+  if (!child?.pid) return;
+  try { process.kill(-child.pid, "SIGTERM"); } catch {}
+  await Promise.race([once(child, "exit").catch(() => undefined), delay(3_000)]);
+  try { process.kill(-child.pid, "SIGKILL"); } catch {}
+}
+
+console.error("[production-readonly] preflighting exact installed pair and listener baseline");
+assertNativeDriver();
+assertProcessNotRunning("radcontrol-app");
+const installedBefore = await snapshotInstalledO2();
+assert.equal(installedBefore.head, expectedO2Sha, "installed O2 identity does not match the accepted pair");
+assert.equal(await sha256File(app), expectedArtifactSha, "production artifact SHA-256 does not match");
+const listenersBefore = tcpListeners();
+assertPortAbsent(listenersBefore, 1420);
+
+const tempRoot = await mkdtemp(path.join(os.tmpdir(), "radcontrol-production-readonly-"));
+const acceptanceHome = path.join(tempRoot, "home");
+const xdgCacheHome = path.join(tempRoot, "xdg-cache");
+const xdgConfigHome = path.join(tempRoot, "xdg-config");
+const xdgDataHome = path.join(tempRoot, "xdg-data");
+const stateOverlay = path.join(tempRoot, "o2-state");
+const dconfOverlay = path.join(tempRoot, "dconf");
+await Promise.all([
+  mkdir(acceptanceHome, { recursive: true, mode: 0o700 }),
+  mkdir(xdgCacheHome, { recursive: true, mode: 0o700 }),
+  mkdir(xdgConfigHome, { recursive: true, mode: 0o700 }),
+  mkdir(xdgDataHome, { recursive: true, mode: 0o700 }),
+  mkdir(dconfOverlay, { recursive: true, mode: 0o700 }),
+  mkdir(path.join(stateOverlay, "radcontrol-runtime", "tmp"), { recursive: true, mode: 0o700 }),
+]);
+const sandboxedApp = await createBubblewrapApplication({
+  app,
+  tempRoot,
+  home: acceptanceHome,
+  xdgCacheHome,
+  xdgConfigHome,
+  xdgDataHome,
+  overlays: [
+    { source: stateOverlay, destination: path.join(INSTALLED_O2_ROOT, ".state") },
+    { source: dconfOverlay, destination: `/run/user/${process.getuid()}/dconf` },
+  ],
+  environment: { RADCONTROL_ACCEPTANCE_READ_ONLY: "1" },
+});
+
+const driverPort = await unusedPort();
+const nativePort = await unusedPort();
+const base = `http://127.0.0.1:${driverPort}`;
+const driver = spawn("tauri-driver", ["--port", String(driverPort), "--native-port", String(nativePort)], {
+  stdio: ["ignore", "inherit", "inherit"],
+  detached: true,
+  env: process.env,
+});
+let sessionId;
+let acceptanceError;
+try {
+  await eventually(() => request(base, "/status"), "start tauri-driver");
+  const session = await request(base, "/session", "POST", {
+    capabilities: { alwaysMatch: { browserName: "wry", "tauri:options": { application: sandboxedApp } } },
+  });
+  sessionId = session.sessionId;
+  assert.ok(sessionId, "desktop session id is required");
+  await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "render installed RadControl");
+
+  await click(base, sessionId, 'button[title^="Show the installed app build"]');
+  const diagnostics = await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /LIVE PRODUCT READY/);
+    assert.match(text, /production/);
+    assert.ok(text.includes(expectedO2Sha), "production diagnostics did not render the expected O2 identity");
+    assert.ok(text.includes(expectedRadcontrolSha), "production diagnostics did not render the expected RadControl identity");
+    assert.match(text, /Projects · 9 visible/);
+    assert.match(text, /Empire To-Do · 3 durable items/);
+    assert.match(text, /Infrastructure · 10 governed profiles/);
+    assert.match(text, /Security \/ Radcon Sentinel/);
+    return text;
+  }, "render exact production runtime diagnostics");
+  await click(base, sessionId, ".runtimeModalCard .btnGhost");
+
+  await click(base, sessionId, '[data-testid="tab-notes"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /Empire Blueprint[\s\S]*Empire To-Do/);
+  await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "read durable Empire To-Do"), /Build Radcon Sentinel/);
+  await click(base, sessionId, '[data-testid="tab-infrastructure"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "render Infrastructure"), /INFRASTRUCTURE ASSETS/);
+  await click(base, sessionId, '[data-testid="tab-sentinel"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "render Sentinel"), /HOST GUARDIAN[\s\S]*CURRENT MEASUREMENTS/);
+  await click(base, sessionId, '[data-testid="tab-projects"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "return to Projects"), /DQOTD/);
+  assertPortAbsent(tcpListeners(), 1420);
+
+  console.log(JSON.stringify({
+    ok: true,
+    acceptance: "production-artifact-read-only",
+    o2Sha: installedBefore.head,
+    radcontrolSha: expectedRadcontrolSha,
+    artifactSha256: expectedArtifactSha,
+    todoSha256: installedBefore.todoSha256,
+    diagnosticsVerified: diagnostics.includes("LIVE PRODUCT READY"),
+  }));
+} catch (error) {
+  acceptanceError = error;
+} finally {
+  if (sessionId) await request(base, `/session/${sessionId}`, "DELETE").catch(() => undefined);
+  await stopChild(driver);
+  await rm(tempRoot, { recursive: true, force: true });
+  await assertInstalledO2Unchanged(installedBefore);
+  const listenersAfter = tcpListeners();
+  assertPortAbsent(listenersAfter, 1420);
+  assertNoNewTcpListeners(listenersBefore, listenersAfter);
+}
+if (acceptanceError) throw acceptanceError;

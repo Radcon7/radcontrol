@@ -106,6 +106,16 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   pre-existing listener unless separately authorized to change it. Contract
   tests, lint, non-launching production builds, Rust checks, audits, and
   deterministic snapshots remain the default verification path.
+- Exact production-artifact acceptance is read-only with respect to installed
+  O2. `scripts/tauri_production_readonly.mjs` mounts the installed O2 worktree
+  read-only, overlays `.state` with test-owned storage, invokes no mutating
+  bridge verb, and compares Git identity/cleanliness, the Empire To-Do digest,
+  and TCP listeners before and after.
+- Writable native E2E uses a debug/test-capable artifact only. Its fixture root,
+  E2E home, XDG paths, required scripts/registries, deterministic To-Do store,
+  and installed-root exclusion are canonical-path preconditions. Runtime
+  diagnostics must attest `e2e` mode and the exact fixture root before the first
+  edit. Missing files, ignored overrides, overlap, and symlink escape fail closed.
 - A project launch opens a nonce-bearing final browser route only after its O2
   start succeeds. Embedded projects also restart their registered portal host;
   a raw listener on that port is not treated as proof of the correct host.
@@ -146,6 +156,9 @@ Use the impact-appropriate subset of:
 - focused architecture/contract tests
 - explicitly launch-authorized `npm run test:tauri-e2e` for native workflow
   changes; never run it under ordinary verification authorization
+- explicitly launch-authorized `npm run test:tauri-production-readonly --
+  --expected-o2-sha <sha> --expected-radcontrol-sha <sha>
+  --expected-artifact-sha <sha>` for an exact production artifact
 
 The accepted Phase 1 feature disposition is recorded in
 `docs/SENTINEL_PHASE1_MIGRATION.md`; that manifest is migration evidence, not a

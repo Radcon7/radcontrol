@@ -20,6 +20,8 @@ assert.match(workflow, /npm run verify:sentinel/);
 assert.match(workflow, /npm run test:content-preservation/);
 assert.match(workflow, /npm run verify:content-preservation/);
 assert.match(workflow, /npm run verify:production-delivery/);
+assert.match(workflow, /npm run test:native-acceptance-isolation/);
+assert.match(workflow, /npm run test:matched-pair-transaction/);
 assert.match(workflow, /npm audit --omit=dev/);
 assert.match(workflow, /cargo test --manifest-path src-tauri\/Cargo\.toml --locked/);
 assert.match(workflow, /python3 -B -m unittest tests\/release_candidate_evidence_test\.py -v/);

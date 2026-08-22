@@ -3,8 +3,8 @@
 Status: Active implementation authority
 Scope: source, GitHub controls, CI dependencies, non-deploying release candidates, provenance, and audit anchors
 Owner: RadControl release path; O2 owns the compatibility pin and audit-chain verifier
-Reviewed: 2026-08-16
-Next review: before 5C publication or any 5D native acceptance
+Reviewed: 2026-08-22
+Next review: before the next matched-pair candidate promotion
 
 ## Trust and release statement
 
@@ -21,10 +21,33 @@ the installed O2/RadControl pair.
 stub for old operator commands. It performs no filesystem mutation. The source
 tree intentionally exposes no standalone binary installer because that would
 create a parallel path around matched-pair acceptance. Each authorized native
-acceptance must instead use one reviewed transaction fixed to the exact O2 tree,
-RadControl artifact and support-file hashes; it must preflight the old and new
-pairs, recover the old pair on failure, prove a real rollback, and prove the same
-candidate can be reinstalled before the transaction is accepted.
+acceptance must use `scripts/matched_pair_transaction.py` with one reviewed,
+release-local JSON manifest fixed to the exact old/new O2 commits and trees,
+live/staged/recovery paths, RadControl/support-file hashes, modes, and retained
+evidence hashes. The durable tool rejects noncanonical production paths,
+symlinks, dirty worktrees, non-private state, unexpected material, hash drift,
+and a running app before a swap. It atomically installs support files, transfers
+validated private state, repairs moved Git worktrees, attempts old-pair recovery
+on failure, and records the promotion, real rollback, and reinstall states.
+Release manifests remain transaction evidence; they are not a second
+compatibility registry.
+
+Production-artifact acceptance is separately durable in
+`scripts/tauri_production_readonly.mjs`. The exact artifact runs inside a
+Bubblewrap mount namespace with `/` read-only, installed O2 `.state` replaced
+by a private test-owned overlay, and only test-owned browser state writable.
+The probe invokes no save/write/rename/create/configure/lifecycle action. It
+proves exact embedded identities, nine operator-visible projects, three durable
+To-Do records, Infrastructure and Sentinel availability, primary navigation,
+installed O2 cleanliness, To-Do digest integrity, and listener cleanup.
+
+Writable persistence acceptance is not performed with a production artifact.
+`test:tauri-e2e` builds a debug/test-capable artifact, seeds a deterministic
+fixture To-Do store, canonicalizes every fixture/home/state path, excludes host
+O2 roots through a read-only outer mount, and requires the app to attest `e2e`
+plus the exact O2 root before the first mutating UI action. The negative contract
+suite reproduces installed-root selection, a missing To-Do store, an unhonored
+override, and a symlink escape as pre-mutation failures.
 
 ## Reproducibility boundary
 

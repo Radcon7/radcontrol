@@ -3,10 +3,12 @@ import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const [launcher, desktop, installer, snapshotScript, gitignore, bridge, app, projects, infrastructure, todo, config, agentRules, repoState] = await Promise.all([
+const [launcher, desktop, installer, transaction, productionProbe, snapshotScript, gitignore, bridge, app, projects, infrastructure, todo, config, agentRules, repoState, supplyChain] = await Promise.all([
   readFile(new URL("../packaging/radcontrol-launch.sh", import.meta.url), "utf8"),
   readFile(new URL("../packaging/radcontrol.desktop", import.meta.url), "utf8"),
   readFile(new URL("../scripts/install_production.sh", import.meta.url), "utf8"),
+  readFile(new URL("../scripts/matched_pair_transaction.py", import.meta.url), "utf8"),
+  readFile(new URL("../scripts/tauri_production_readonly.mjs", import.meta.url), "utf8"),
   readFile(new URL("../scripts/snapshot_repo_state.sh", import.meta.url), "utf8"),
   readFile(new URL("../.gitignore", import.meta.url), "utf8"),
   readFile(new URL("../src-tauri/src/commands/o2.rs", import.meta.url), "utf8"),
@@ -17,6 +19,7 @@ const [launcher, desktop, installer, snapshotScript, gitignore, bridge, app, pro
   readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
   readFile(new URL("../AGENTS.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/REPO_STATE.md", import.meta.url), "utf8"),
+  readFile(new URL("../docs/SUPPLY_CHAIN.md", import.meta.url), "utf8"),
 ]);
 
 assert.match(launcher, /exec "\$RADCONTROL_BINARY"/);
@@ -37,6 +40,22 @@ const retiredInstaller = spawnSync(
 );
 assert.equal(retiredInstaller.status, 64);
 assert.match(retiredInstaller.stderr, /Refusing independent RadControl installation/);
+assert.match(transaction, /class Transaction/);
+assert.match(transaction, /def preflight\(self\)/);
+assert.match(transaction, /def promote\(self\)/);
+assert.match(transaction, /def rollback\(self\)/);
+assert.match(transaction, /def reinstall\(self\)/);
+assert.match(transaction, /automatic old-pair recovery did not verify/);
+assert.match(transaction, /private state contains a symlink/);
+assert.match(transaction, /worktree is dirty/);
+assert.match(productionProbe, /snapshotInstalledO2/);
+assert.match(productionProbe, /createBubblewrapApplication/);
+assert.match(productionProbe, /assertInstalledO2Unchanged/);
+assert.match(productionProbe, /\^\[a-f0-9\]\{40\}\$/);
+assert.match(productionProbe, /text\.includes\(expectedO2Sha\)/);
+assert.match(productionProbe, /text\.includes\(expectedRadcontrolSha\)/);
+assert.doesNotMatch(productionProbe, /new RegExp\(expected/);
+assert.doesNotMatch(productionProbe, /empire\.todo\.save|files\.write|files\.rename|project_create\.(?:start|bootstrap)/);
 assert.match(snapshotScript, /__pycache__/);
 assert.match(snapshotScript, /pyc\|pyo/);
 assert.match(gitignore, /^__pycache__\/$/m);
@@ -63,5 +82,7 @@ assert.match(repoState, /radcontrol\.golden_state/);
 const goldenSection = repoState.match(/## Source and installed goldens([\s\S]*?)## Verification/)?.[1] ?? "";
 assert.doesNotMatch(goldenSection, /\b[a-f0-9]{40}\b/);
 assert.match(repoState, /Never independently update the\s+installed O2 runtime or installed RadControl\s+binary/);
+assert.match(supplyChain, /scripts\/matched_pair_transaction\.py/);
+assert.match(supplyChain, /scripts\/tauri_production_readonly\.mjs/);
 
-console.log("production delivery contract: listener-free launcher, stable O2 runtime, and build identity");
+console.log("production delivery contract: read-only native probe and durable matched-pair transaction");
