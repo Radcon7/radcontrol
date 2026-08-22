@@ -160,12 +160,12 @@ try {
   await click(base, sessionId, 'button[title^="Show the installed app build"]');
   const diagnostics = await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /LIVE PRODUCT READY/);
+    assert.match(text, /READY\s*Listener-free production mode/);
     assert.match(text, /production/);
     assert.ok(text.includes(expectedO2Sha), "production diagnostics did not render the expected O2 identity");
     assert.ok(text.includes(expectedRadcontrolSha), "production diagnostics did not render the expected RadControl identity");
     assert.match(text, /Projects · 9 visible/);
-    assert.match(text, /Empire To-Do · 3 durable items/);
+    assert.match(text, /Empire To-Do · 29 durable items/);
     assert.match(text, /Infrastructure · 10 governed profiles/);
     assert.match(text, /Security \/ Radcon Sentinel/);
     return text;
@@ -175,7 +175,26 @@ try {
   await click(base, sessionId, '[data-testid="tab-notes"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /Empire Blueprint[\s\S]*Empire To-Do/);
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "read durable Empire To-Do"), /Build Radcon Sentinel/);
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /EMPIRE TO-DO[\s\S]*What matters now[\s\S]*1 blocked item needs attention/);
+    assert.match(text, /NOW[\s\S]*BUSINESS FOUNDATION[\s\S]*CONTROL PLANE[\s\S]*DQOTD LAUNCH \/ PREMIUM[\s\S]*COMMERCIAL PROOF/);
+  }, "render grouped current Empire To-Do operating sequence");
+  await click(base, sessionId, '[data-testid="empire-todo-item-dqotd-7d-acceptance"]');
+  assert.match(
+    await eventually(() => bodyText(base, sessionId), "read blocked Empire To-Do dependencies"),
+    /DQOTD Phase 7D Acceptance[\s\S]*Blocked[\s\S]*Depends on: Delivered email verification; staging editor authorization; hosted browser acceptance/,
+  );
+  await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
+  assert.match(
+    await eventually(() => bodyText(base, sessionId), "load completed Empire To-Do operator view"),
+    /COMPLETED OPERATING HISTORY[\s\S]*No completed Empire To-Do items yet\./,
+  );
+  await click(base, sessionId, '[data-testid="empire-todo-active-view"]');
+  assert.match(
+    await eventually(() => bodyText(base, sessionId), "return to active Empire To-Do operator view"),
+    /CURRENT OPERATING SEQUENCE[\s\S]*DQOTD Phase 7D Acceptance/,
+  );
   await click(base, sessionId, '[data-testid="tab-infrastructure"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Infrastructure"), /INFRASTRUCTURE ASSETS/);
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
@@ -191,7 +210,7 @@ try {
     radcontrolSha: expectedRadcontrolSha,
     artifactSha256: expectedArtifactSha,
     todoSha256: installedBefore.todoSha256,
-    diagnosticsVerified: diagnostics.includes("LIVE PRODUCT READY"),
+    diagnosticsVerified: diagnostics.includes("Listener-free production mode"),
   }));
 } catch (error) {
   acceptanceError = error;
