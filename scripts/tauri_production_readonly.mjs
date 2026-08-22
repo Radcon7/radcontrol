@@ -30,6 +30,9 @@ const app = process.env.RADCONTROL_ACCEPTANCE_APP || INSTALLED_RADCONTROL_APP;
 const expectedO2Sha = requiredArgument("--expected-o2-sha");
 const expectedRadcontrolSha = requiredArgument("--expected-radcontrol-sha");
 const expectedArtifactSha = requiredArgument("--expected-artifact-sha");
+assert.match(expectedO2Sha, /^[a-f0-9]{40}$/, "--expected-o2-sha must be a full lowercase Git SHA");
+assert.match(expectedRadcontrolSha, /^[a-f0-9]{40}$/, "--expected-radcontrol-sha must be a full lowercase Git SHA");
+assert.match(expectedArtifactSha, /^[a-f0-9]{64}$/, "--expected-artifact-sha must be a full lowercase SHA-256");
 
 function assertNativeDriver() {
   const result = spawnSync("WebKitWebDriver", ["--help"], { stdio: "ignore" });
@@ -159,8 +162,8 @@ try {
     const text = await bodyText(base, sessionId);
     assert.match(text, /LIVE PRODUCT READY/);
     assert.match(text, /production/);
-    assert.match(text, new RegExp(expectedO2Sha));
-    assert.match(text, new RegExp(expectedRadcontrolSha));
+    assert.ok(text.includes(expectedO2Sha), "production diagnostics did not render the expected O2 identity");
+    assert.ok(text.includes(expectedRadcontrolSha), "production diagnostics did not render the expected RadControl identity");
     assert.match(text, /Projects · 9 visible/);
     assert.match(text, /Empire To-Do · 3 durable items/);
     assert.match(text, /Infrastructure · 10 governed profiles/);
