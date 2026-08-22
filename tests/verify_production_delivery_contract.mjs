@@ -57,10 +57,11 @@ assert.equal(parsedConfig.identifier, "com.radcontrol.app");
 assert.notEqual(parsedConfig.identifier, "com.radcontrol.app.dev");
 assert.match(agentRules, /pinned to\s+the installed O2 golden that matches the installed RadControl binary/);
 assert.match(agentRules, /never advance either installed half\s+independently/);
-assert.match(repoState, /d247e5ac0f7d61054be7176f9ce81bba1dbe8195/);
-assert.match(repoState, /412886419297e81dd0f96fccb9c0b22f25846c99/);
-assert.match(repoState, /c7ec863831c6cf062c4d1af7313f8c97aacf6132/);
-assert.match(repoState, /178f222475b4900e57da979afbac61303c7e4c12/);
-assert.match(repoState, /Never independently update the\s+installed O2 runtime or installed RadControl binary/);
+assert.match(repoState, /`SOURCE_GOLDEN` and `INSTALLED_GOLDEN`/);
+assert.match(repoState, /compatibility\.json/);
+assert.match(repoState, /radcontrol\.golden_state/);
+const goldenSection = repoState.match(/## Source and installed goldens([\s\S]*?)## Verification/)?.[1] ?? "";
+assert.doesNotMatch(goldenSection, /\b[a-f0-9]{40}\b/);
+assert.match(repoState, /Never independently update the\s+installed O2 runtime or installed RadControl\s+binary/);
 
 console.log("production delivery contract: listener-free launcher, stable O2 runtime, and build identity");

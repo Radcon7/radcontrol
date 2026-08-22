@@ -53,6 +53,10 @@ assert.match(repoState, /structured Empire To-Do workspace/);
 assert.match(repoState, /must not be launched through localhost/);
 assert.match(repoState, /publication,[\s\S]*does not grant launch authorization/);
 assert.match(repoState, /never run it under ordinary verification authorization/);
+assert.match(repoState, /`SOURCE_GOLDEN` and `INSTALLED_GOLDEN`/);
+assert.match(repoState, /radcontrol\.golden_state/);
+const goldenSection = repoState.match(/## Source and installed goldens([\s\S]*?)## Verification/)?.[1] ?? "";
+assert.doesNotMatch(goldenSection, /\b[a-f0-9]{40}\b/, "golden-state documentation must not copy changing commit hashes");
 assert.match(repoState, /## Content preservation/);
 assert.match(repoState, /RADCONTROL_CONTENT_PRESERVATION\.json/);
 
@@ -75,6 +79,6 @@ assert.match(policyPointers, /radcontrol_document_persistence_doctrine_20260727\
 assert.match(policyPointers, /Home-level legacy procedure notes/);
 assert.match(policyPointers, /are not tracked O2 authority/);
 assert.doesNotMatch(policyPointers, /record UI state \(tabs\/notes\) locally/);
-assert.match(policyPointers, /sentinel-security\/v1\/README\.md/);
+assert.match(policyPointers, /sentinel-security\/v2\/README\.md/);
 
 console.log("governance pointers: current O2 and RadControl authority verified");
