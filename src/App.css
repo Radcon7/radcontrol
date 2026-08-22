@@ -2397,6 +2397,37 @@ pre {
   gap: 8px;
 }
 
+.empireTodoOverview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(104, 160, 255, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(104, 160, 255, 0.11), rgba(97, 242, 169, 0.06));
+}
+
+.empireTodoOverview > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.empireTodoOverview strong {
+  font-size: 15px;
+}
+
+.empireTodoOverview span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empireTodoViewButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .empireTodoGrid {
   display: grid;
   grid-template-columns: minmax(260px, 0.38fr) minmax(0, 1fr);
@@ -2427,6 +2458,28 @@ pre {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.empireTodoGroup + .empireTodoGroup {
+  margin-top: 18px;
+}
+
+.empireTodoGroupHeading {
+  display: grid;
+  gap: 3px;
+  padding: 3px 7px 8px;
+}
+
+.empireTodoGroupHeading strong {
+  color: var(--accentA);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+
+.empireTodoGroupHeading span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .empireTodoListItem {
@@ -2466,6 +2519,13 @@ pre {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.45;
+}
+
+.empireTodoListItem em {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.35;
 }
 
 .empireTodoDot {
@@ -3359,6 +3419,7 @@ pre {
   }
 
   .empireTodoToolbar,
+  .empireTodoOverview,
   .sentinelVisibilityBoundary,
   .sentinelGuardianHeading,
   .sentinelSubCardHeading,

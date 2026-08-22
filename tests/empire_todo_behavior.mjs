@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import {
   createBlankEmpireTodo,
+  groupEmpireTodos,
+  isEmpireTodoComplete,
   mergeSavedEmpireTodo,
   selectEmpireTodoItem,
 } from "../src/components/notes/empireTodoModel.ts";
@@ -26,4 +28,14 @@ const added = mergeSavedEmpireTodo([first], saved);
 assert.equal(added.length, 2);
 assert.equal(added[1].id, second.id);
 
-console.log("Empire To-Do behavior: selection and duplicate-free save merge verified");
+const grouped = groupEmpireTodos([
+  { ...first, id: "now", title: "Now", category: "Now", status: "Blocked", priority: "Critical" },
+  { ...first, id: "business", title: "Business", category: "Business Foundation", status: "Planned", priority: "High" },
+  { ...first, id: "later", title: "Later", category: "Unclassified legacy", status: "Planned", priority: "Normal" },
+]);
+assert.deepEqual(grouped.map((group) => group.key), ["Now", "Business Foundation", "Later"]);
+assert.equal(grouped[0].items[0].id, "now");
+assert.equal(isEmpireTodoComplete({ ...first, status: "Complete" }), true);
+assert.equal(isEmpireTodoComplete(first), false);
+
+console.log("Empire To-Do behavior: selection, executive grouping, archive state, and duplicate-free save merge verified");

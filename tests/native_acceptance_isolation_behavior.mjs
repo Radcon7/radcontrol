@@ -58,7 +58,7 @@ async function createFixture() {
     writeFile(path.join(o2Root, "scripts/run_o2.sh"), "#!/usr/bin/env bash\nexit 0\n"),
     writeFile(path.join(o2Root, "scripts/o2_radcontrol_audit.py"), "# fixture\n"),
     writeFile(path.join(o2Root, "registry/project-archetypes.json"), "{}\n"),
-    writeFile(path.join(o2Root, "registry/empire-todo-seeds.json"), "{}\n"),
+    writeFile(path.join(o2Root, "registry/empire-todo-seeds.json"), `${JSON.stringify({ registryVersion: 1, items: TODO_IDS.map((id) => ({ id })) })}\n`),
     writeFile(path.join(o2Root, "registry/projects.json"), `${JSON.stringify([{
       key: "fixture",
       label: "Fixture",

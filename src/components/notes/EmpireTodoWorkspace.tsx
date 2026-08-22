@@ -4,6 +4,8 @@ import {
   createBlankEmpireTodo,
   EMPIRE_TODO_PRIORITIES,
   EMPIRE_TODO_STATUSES,
+  groupEmpireTodos,
+  isEmpireTodoComplete,
   mergeSavedEmpireTodo,
   selectEmpireTodoItem,
   type EmpireTodoItem,
@@ -55,6 +57,7 @@ export function EmpireTodoWorkspace({ busy, registerBeforeTabChangeSaver }: Prop
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
   const draftRef = useRef<EmpireTodoItem | null>(null);
   const dirtyRef = useRef(false);
   const saveInFlightRef = useRef(false);
@@ -164,18 +167,24 @@ export function EmpireTodoWorkspace({ busy, registerBeforeTabChangeSaver }: Prop
     setSavedMessage("");
   }
 
+  const activeItems = items.filter((item) => !isEmpireTodoComplete(item));
+  const completedItems = items.filter(isEmpireTodoComplete);
+  const visibleItems = showCompleted ? completedItems : activeItems;
+  const visibleGroups = groupEmpireTodos(visibleItems);
+  const blockedCount = activeItems.filter((item) => item.status === "Blocked").length;
+
   return (
     <section className="empireTodoShell" data-testid="empire-todo-workspace">
       <div className="empireTodoToolbar">
         <div>
-          <strong>EMPIRE TO-DO LIST</strong>
-          <span>O2-backed roadmap memory · editable and restart-safe</span>
+          <strong>EMPIRE TO-DO</strong>
+          <span>Executive operating sequence · O2-backed and restart-safe</span>
         </div>
         <div>
           <button className="btn btnGhost btnCompact" type="button" onClick={() => void startNewItem()} disabled={Boolean(busy) || loading || saving}>
             Add Item
           </button>
-          <button className="btn btnPrimary btnCompact" type="button" onClick={() => void persistDraft()} disabled={Boolean(busy) || loading || saving || !dirty}>
+          <button className="btn btnPrimary btnCompact" type="button" onClick={() => void persistDraft()} disabled={Boolean(busy) || loading || saving || !dirty} data-testid="empire-todo-save">
             {saving ? "Saving…" : dirty ? "Save Item" : "Saved"}
           </button>
         </div>
@@ -183,30 +192,54 @@ export function EmpireTodoWorkspace({ busy, registerBeforeTabChangeSaver }: Prop
 
       {error ? <div className="panelError">{error}</div> : null}
 
+      <div className="empireTodoOverview" aria-label="Empire To-Do view controls">
+        <div>
+          <strong>What matters now</strong>
+          <span>{blockedCount ? `${blockedCount} blocked item${blockedCount === 1 ? "" : "s"} needs attention` : "No current blocked items"}</span>
+        </div>
+        <div className="empireTodoViewButtons" role="group" aria-label="Empire To-Do completion view">
+          <button className={`btn btnCompact ${!showCompleted ? "btnPrimary" : "btnGhost"}`} type="button" onClick={() => setShowCompleted(false)} aria-pressed={!showCompleted} data-testid="empire-todo-active-view">
+            Active ({activeItems.length})
+          </button>
+          <button className={`btn btnCompact ${showCompleted ? "btnPrimary" : "btnGhost"}`} type="button" onClick={() => setShowCompleted(true)} aria-pressed={showCompleted} data-testid="empire-todo-completed-view">
+            Completed ({completedItems.length})
+          </button>
+        </div>
+      </div>
+
       <div className="empireTodoGrid">
         <aside className="empireTodoList" aria-label="Empire To-Do items">
           <div className="empireTodoListHeader">
-            <span>{error ? "Durable data unavailable" : `${items.length} durable item${items.length === 1 ? "" : "s"}`}</span>
+            <span>{error ? "Durable data unavailable" : showCompleted ? "Completed operating history" : "Current operating sequence"}</span>
             {loading ? <small>Loading…</small> : null}
           </div>
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`empireTodoListItem ${selectedId === item.id ? "isSelected" : ""}`}
-              onClick={() => void selectItem(item)}
-              data-testid={`empire-todo-item-${item.id}`}
-            >
-              <i className={`empireTodoDot empireTodoDot-${item.status.toLowerCase().replace(/ /g, "-")}`} />
-              <span>
-                <strong>{item.title}</strong>
-                <small>{item.status} · {item.priority} · {item.category}</small>
-              </span>
-            </button>
+          {visibleGroups.map((group) => (
+            <section className="empireTodoGroup" key={group.key} aria-label={group.label}>
+              <div className="empireTodoGroupHeading">
+                <strong>{group.label}</strong>
+                <span>{group.description}</span>
+              </div>
+              {group.items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`empireTodoListItem ${selectedId === item.id ? "isSelected" : ""}`}
+                  onClick={() => void selectItem(item)}
+                  data-testid={`empire-todo-item-${item.id}`}
+                >
+                  <i className={`empireTodoDot empireTodoDot-${item.status.toLowerCase().replace(/ /g, "-")}`} />
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{item.status} · {item.priority}</small>
+                    {item.dependencies ? <em>Depends on: {item.dependencies}</em> : null}
+                  </span>
+                </button>
+              ))}
+            </section>
           ))}
-          {!loading && !items.length ? (
+          {!loading && !visibleItems.length ? (
             <div className="surfaceEmptyState">
-              {error ? "Empire To-Do data unavailable. See the error above." : "No Empire To-Do items exist yet."}
+              {error ? "Empire To-Do data unavailable. See the error above." : showCompleted ? "No completed Empire To-Do items yet." : "No active Empire To-Do items exist yet."}
             </div>
           ) : null}
         </aside>
@@ -227,19 +260,19 @@ export function EmpireTodoWorkspace({ busy, registerBeforeTabChangeSaver }: Prop
               <div className="empireTodoMetaGrid">
                 <label className="empireTodoField">
                   <span>Status</span>
-                  <select className="input" value={draft.status} onChange={(event) => updateDraft("status", event.target.value as EmpireTodoItem["status"])} disabled={saving}>
+                  <select className="input" data-testid="empire-todo-status" value={draft.status} onChange={(event) => updateDraft("status", event.target.value as EmpireTodoItem["status"])} disabled={saving}>
                     {EMPIRE_TODO_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
                   </select>
                 </label>
                 <label className="empireTodoField">
                   <span>Priority</span>
-                  <select className="input" value={draft.priority} onChange={(event) => updateDraft("priority", event.target.value as EmpireTodoItem["priority"])} disabled={saving}>
+                  <select className="input" data-testid="empire-todo-priority" value={draft.priority} onChange={(event) => updateDraft("priority", event.target.value as EmpireTodoItem["priority"])} disabled={saving}>
                     {EMPIRE_TODO_PRIORITIES.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
                   </select>
                 </label>
                 <label className="empireTodoField">
                   <span>Category / area</span>
-                  <input className="input" value={draft.category} onChange={(event) => updateDraft("category", event.target.value)} disabled={saving} />
+                  <input className="input" data-testid="empire-todo-category" value={draft.category} onChange={(event) => updateDraft("category", event.target.value)} disabled={saving} />
                 </label>
               </div>
 

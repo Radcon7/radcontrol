@@ -90,11 +90,7 @@ export async function assertInstalledO2Unchanged(before) {
 
 export async function assertWritableFixtureIsolation(fixture, {
   installedO2Root = INSTALLED_O2_ROOT,
-  expectedTodoIds = [
-    "codex-memory-round4b",
-    "new-project-build-dossier",
-    "radcon-sentinel",
-  ],
+  expectedTodoIds,
 } = {}) {
   const installed = await canonicalDirectory(installedO2Root, "installed O2 root");
   const temporaryBase = await canonicalDirectory(os.tmpdir(), "system temporary root");
@@ -131,7 +127,10 @@ export async function assertWritableFixtureIsolation(fixture, {
   }
 
   const todo = JSON.parse(await readFile(path.join(o2Root, "docs/radcontrol/empire_todo/items.json"), "utf8"));
-  assert.deepEqual(todo.items?.map((item) => item.id), expectedTodoIds, "fixture Empire To-Do seed is missing or unexpected");
+  const seeds = JSON.parse(await readFile(path.join(o2Root, "registry/empire-todo-seeds.json"), "utf8"));
+  const expectedIds = expectedTodoIds ?? seeds.items?.map((item) => item.id);
+  assert.ok(Array.isArray(expectedIds), "fixture Empire To-Do seed registry must contain items");
+  assert.deepEqual(todo.items?.map((item) => item.id), expectedIds, "fixture Empire To-Do seed is missing or unexpected");
   const registry = JSON.parse(await readFile(path.join(o2Root, "registry/projects.json"), "utf8"));
   assert.ok(Array.isArray(registry) && registry.length >= 1, "fixture project registry must contain its deterministic fixture");
   for (const row of registry) {

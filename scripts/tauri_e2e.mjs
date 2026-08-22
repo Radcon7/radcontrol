@@ -226,6 +226,13 @@ async function replaceValue(base, sessionId, id, text) {
   await request(base, `/session/${sessionId}/element/${id}/value`, "POST", { text });
 }
 
+async function selectValue(base, sessionId, id, value) {
+  await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+    args: [{ "element-6066-11e4-a52e-4f735466cecf": id }, value],
+  });
+}
+
 async function elementText(base, sessionId, id) {
   return request(base, `/session/${sessionId}/element/${id}/text`);
 }
@@ -255,6 +262,19 @@ async function stopChild(child) {
   stopGroup("SIGTERM");
   await Promise.race([once(child, "exit").catch(() => undefined), delay(3_000)]);
   stopGroup("SIGKILL");
+}
+
+async function startDesktopSession(base, application) {
+  const session = await request(base, "/session", "POST", {
+    capabilities: {
+      alwaysMatch: {
+        browserName: "wry",
+        "tauri:options": { application },
+      },
+    },
+  });
+  assert.ok(session.sessionId, "desktop session id is required");
+  return session.sessionId;
 }
 
 console.error("[e2e] checking native driver");
@@ -301,16 +321,7 @@ let sessionId;
 try {
   console.error("[e2e] waiting for isolated desktop session");
   await eventually(() => request(base, "/status"), "start tauri-driver");
-  const session = await request(base, "/session", "POST", {
-    capabilities: {
-      alwaysMatch: {
-        browserName: "wry",
-        "tauri:options": { application: sandboxedApp },
-      },
-    },
-  });
-  sessionId = session.sessionId;
-  assert.ok(sessionId, "desktop session id is required");
+  sessionId = await startDesktopSession(base, sandboxedApp);
 
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "render isolated RadControl");
   await click(base, sessionId, 'button[title^="Show the installed app build"]');
@@ -343,33 +354,53 @@ try {
     "Empire To-Do must render to the right of Empire Blueprint",
   );
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
-  assert.match(
-    await eventually(() => bodyText(base, sessionId), "open Empire To-Do"),
-    /EMPIRE TO-DO LIST/,
+  await eventually(
+    async () => assert.match(
+      await bodyText(base, sessionId),
+      /EMPIRE TO-DO[\s\S]*NOW[\s\S]*BUSINESS FOUNDATION[\s\S]*CONTROL PLANE[\s\S]*DQOTD LAUNCH \/ PREMIUM[\s\S]*COMMERCIAL PROOF/,
+    ),
+    "render Empire To-Do operating sequence",
   );
-  await click(base, sessionId, '[data-testid="empire-todo-item-radcon-sentinel"]');
+  await click(base, sessionId, '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]');
   assert.match(
-    await eventually(() => bodyText(base, sessionId), "select Sentinel roadmap item"),
-    /Build Radcon Sentinel/,
+    await eventually(() => bodyText(base, sessionId), "select Operator Cockpit roadmap item"),
+    /RadControl Operator Cockpit/,
   );
+  await click(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
   const empireTodoNotes = await element(
     base,
     sessionId,
     '[data-testid="empire-todo-notes"]',
   );
-  const todoProbe = "E2E roadmap draft survives selection and persistence";
+  const empireTodoDependencies = await element(
+    base,
+    sessionId,
+    '[data-testid="empire-todo-dependencies"]',
+  );
+  const empireTodoStatus = await element(base, sessionId, '[data-testid="empire-todo-status"]');
+  const empireTodoPriority = await element(base, sessionId, '[data-testid="empire-todo-priority"]');
+  const todoProbe = "E2E roadmap draft survives governed persistence";
+  const dependencyProbe = "DQOTD Phase 7D Acceptance; hosted browser evidence";
   await replaceValue(base, sessionId, empireTodoNotes, todoProbe);
+  await replaceValue(base, sessionId, empireTodoDependencies, dependencyProbe);
+  await selectValue(base, sessionId, empireTodoStatus, "Blocked");
+  await selectValue(base, sessionId, empireTodoPriority, "Critical");
+  await click(base, sessionId, '[data-testid="empire-todo-save"]');
   await click(
     base,
     sessionId,
-    '[data-testid="empire-todo-item-new-project-build-dossier"]',
+    '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]',
   );
   await eventually(async () => {
     const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
-    const sentinelItem = todoPayload.items.find((item) => item.id === "radcon-sentinel");
-    assert.match(sentinelItem?.notes || "", new RegExp(todoProbe));
-  }, "persist Empire To-Do draft before switching items");
-  await click(base, sessionId, '[data-testid="empire-todo-item-radcon-sentinel"]');
+    const dinosaurItem = todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content");
+    assert.match(dinosaurItem?.notes || "", new RegExp(todoProbe));
+    assert.equal(dinosaurItem?.dependencies, dependencyProbe);
+    assert.equal(dinosaurItem?.status, "Blocked");
+    assert.equal(dinosaurItem?.priority, "Critical");
+    assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
+  }, "persist Empire To-Do fields before switching items");
+  await click(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
   const reselectedTodoNotes = await element(
     base,
     sessionId,
@@ -379,6 +410,35 @@ try {
     await elementProperty(base, sessionId, reselectedTodoNotes, "value"),
     new RegExp(todoProbe),
   );
+  await selectValue(base, sessionId, await element(base, sessionId, '[data-testid="empire-todo-status"]'), "Complete");
+  await click(base, sessionId, '[data-testid="empire-todo-save"]');
+  await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
+  await eventually(
+    async () => assert.match(
+      await bodyText(base, sessionId),
+      /COMPLETED OPERATING HISTORY[\s\S]*DQOTD Dinosaur Content/,
+    ),
+    "show completed Empire To-Do history",
+  );
+  await click(base, sessionId, '[data-testid="empire-todo-active-view"]');
+  await assert.rejects(
+    () => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'),
+    /POST \/session\//,
+  );
+  await request(base, `/session/${sessionId}`, "DELETE");
+  sessionId = await startDesktopSession(base, sandboxedApp);
+  await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "restart isolated RadControl");
+  await click(base, sessionId, '[data-testid="tab-notes"]');
+  await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
+  await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
+  await eventually(
+    async () => assert.match(await bodyText(base, sessionId), /DQOTD Dinosaur Content/),
+    "reload completed Empire To-Do item after native restart",
+  );
+  await eventually(async () => {
+    const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
+    assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
+  }, "preserve one Empire To-Do item after native restart");
   await click(base, sessionId, '[data-testid="tab-agents"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "render Agents"),
