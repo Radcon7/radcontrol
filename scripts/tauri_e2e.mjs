@@ -6,6 +6,16 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import {
+  INSTALLED_O2_ROOT,
+  assertInstalledO2Unchanged,
+  assertNoNewTcpListeners,
+  assertPortAbsent,
+  assertWritableFixtureIsolation,
+  createBubblewrapApplication,
+  snapshotInstalledO2,
+  tcpListeners,
+} from "./native_acceptance_lib.mjs";
 
 const fixtureKey = "radcontrol-e2e-fixture";
 const createdProjectKey = "radcontrol-e2e-draft";
@@ -14,7 +24,7 @@ const agentKey = "radcontrol-e2e-agent";
 const infrastructureLabel = "RadControl E2E Infrastructure";
 const infrastructureKey = "radcontrol-e2e-infrastructure-domain-edge";
 const infrastructureProfileKey = "cloudflare";
-const app = new URL("../src-tauri/target/release/radcontrol-app", import.meta.url).pathname;
+const app = new URL("../src-tauri/target/debug/radcontrol-app", import.meta.url).pathname;
 const sourceO2Root = process.env.O2_E2E_SOURCE_ROOT || "/home/chris/dev/o2";
 
 function assertNativeDriver() {
@@ -45,6 +55,7 @@ async function prepareIsolatedO2Root() {
   const xdgCacheHome = path.join(tempRoot, "xdg-cache");
   const xdgConfigHome = path.join(tempRoot, "xdg-config");
   const xdgDataHome = path.join(tempRoot, "xdg-data");
+  const dconfOverlay = path.join(tempRoot, "dconf");
   const createdProjectRepo = path.join(e2eHome, "dev", "rad-empire", "radcon", "dev", createdProjectKey);
   const fixturePort = await unusedPort();
   const fixtureUrl = `http://127.0.0.1:${fixturePort}`;
@@ -104,9 +115,11 @@ async function prepareIsolatedO2Root() {
   }
   await mkdir(hostRecordDir, { recursive: true });
   await Promise.all([
+    mkdir(e2eHome, { recursive: true }),
     mkdir(xdgCacheHome, { recursive: true }),
     mkdir(xdgConfigHome, { recursive: true }),
     mkdir(xdgDataHome, { recursive: true }),
+    mkdir(dconfOverlay, { recursive: true }),
   ]);
   for (const recordFile of ["CONFIGURATION.md", "NOTES.md"]) {
     await cp(
@@ -116,8 +129,10 @@ async function prepareIsolatedO2Root() {
   }
   await mkdir(path.join(fixtureRepo, "site"), { recursive: true });
   await mkdir(path.dirname(notesPath), { recursive: true });
+  await mkdir(path.dirname(empireTodoPath), { recursive: true });
   await writeFile(path.join(fixtureRepo, "site", "index.html"), "<main>RadControl E2E fixture</main>\n");
   await writeFile(notesPath, "Temporary E2E fixture note.\n");
+  await cp(path.join(o2Root, "registry", "empire-todo-seeds.json"), empireTodoPath);
   await writeFile(
     path.join(o2Root, "registry", "projects.json"),
     `${JSON.stringify([{
@@ -127,8 +142,10 @@ async function prepareIsolatedO2Root() {
       url: fixtureUrl,
       port: fixturePort,
       kind: "static",
+      archetype: "standalone-product",
       org: "other",
       state: "active",
+      retired: false,
       o2StartKey: `${fixtureKey}.dev`,
       o2SnapshotKey: `${fixtureKey}.snapshot`,
       o2MapKey: `${fixtureKey}.map`,
@@ -151,6 +168,7 @@ async function prepareIsolatedO2Root() {
     xdgCacheHome,
     xdgConfigHome,
     xdgDataHome,
+    dconfOverlay,
   };
 }
 
@@ -183,9 +201,24 @@ async function element(base, sessionId, selector) {
 }
 
 async function click(base, sessionId, selector) {
+  return eventually(async () => {
+    const id = await element(base, sessionId, selector);
+    await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+      script: "arguments[0].scrollIntoView({ block: 'center', inline: 'center' });",
+      args: [{ "element-6066-11e4-a52e-4f735466cecf": id }],
+    });
+    await request(base, `/session/${sessionId}/element/${id}/click`, "POST", {});
+    return id;
+  }, `click ${selector}`);
+}
+
+async function domClick(base, sessionId, selector) {
   const id = await eventually(() => element(base, sessionId, selector), `find ${selector}`);
-  await request(base, `/session/${sessionId}/element/${id}/click`, "POST", {});
-  return id;
+  assert.equal(await request(base, `/session/${sessionId}/element/${id}/enabled`), true);
+  await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: "arguments[0].scrollIntoView({ block: 'center', inline: 'center' }); arguments[0].click();",
+    args: [{ "element-6066-11e4-a52e-4f735466cecf": id }],
+  });
 }
 
 async function replaceValue(base, sessionId, id, text) {
@@ -230,6 +263,24 @@ console.error("[e2e] checking release binary and O2 source");
 await Promise.all([access(app), access(path.join(sourceO2Root, "scripts", "run_o2.sh"))]);
 
 const fixture = await prepareIsolatedO2Root();
+await assertWritableFixtureIsolation(fixture);
+const installedBefore = await snapshotInstalledO2();
+const listenersBefore = tcpListeners();
+assertPortAbsent(listenersBefore, 1420);
+const sandboxedApp = await createBubblewrapApplication({
+  app,
+  tempRoot: fixture.tempRoot,
+  home: fixture.e2eHome,
+  xdgCacheHome: fixture.xdgCacheHome,
+  xdgConfigHome: fixture.xdgConfigHome,
+  xdgDataHome: fixture.xdgDataHome,
+  overlays: [{ source: fixture.dconfOverlay, destination: `/run/user/${process.getuid()}/dconf` }],
+  environment: {
+    O2_ROOT: fixture.o2Root,
+    RADCONTROL_E2E: "1",
+    O2_E2E_HOME: fixture.e2eHome,
+  },
+});
 const driverPort = await unusedPort();
 const nativePort = await unusedPort();
 const base = `http://127.0.0.1:${driverPort}`;
@@ -254,12 +305,23 @@ try {
     capabilities: {
       alwaysMatch: {
         browserName: "wry",
-        "tauri:options": { application: app },
+        "tauri:options": { application: sandboxedApp },
       },
     },
   });
   sessionId = session.sessionId;
   assert.ok(sessionId, "desktop session id is required");
+
+  await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "render isolated RadControl");
+  await click(base, sessionId, 'button[title^="Show the installed app build"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /Runtime & Build/);
+    assert.match(text, /e2e/);
+    assert.match(text, new RegExp(fixture.o2Root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.doesNotMatch(text, new RegExp(INSTALLED_O2_ROOT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }, "attest isolated native runtime before writable interaction");
+  await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
   const [empireBlueprintMode, empireTodoMode] = await Promise.all([
@@ -473,7 +535,7 @@ try {
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "render Security command center"),
-    /Empire Security Command Center/,
+    /HOST GUARDIAN/,
   );
   assert.match(await bodyText(base, sessionId), /Level 0 — Observation/);
   assert.match(await bodyText(base, sessionId), /Level 5 — Recovery/);
@@ -488,7 +550,7 @@ try {
     "render the real Host Guardian action record",
   );
   assert.match(await elementProperty(base, sessionId, hostActionRow, "textContent"), /host inspect health/i);
-  await click(base, sessionId, '[data-testid="sentinel-security-check"]');
+  await domClick(base, sessionId, '[data-testid="sentinel-security-check"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
     assert.match(text, /NOT CONFIGURED/);
@@ -566,18 +628,7 @@ try {
     assert.match(await readFile(fixture.notesPath, "utf8"), /E2E autosave probe/);
   }, "persist autosave into isolated O2 root");
 
-  await click(base, sessionId, '[data-testid="launch-runtime"]');
-  await eventually(async () => {
-    const text = await bodyText(base, sessionId);
-    if (!/RUNNING/.test(text)) throw new Error("fixture runtime has not started");
-  }, "launch isolated fixture runtime", 30_000);
-  await click(base, sessionId, '[data-testid="stop-runtime"]');
-  await eventually(async () => {
-    const text = await bodyText(base, sessionId);
-    if (!/STOPPED/.test(text)) throw new Error("fixture runtime has not stopped");
-  }, "stop isolated fixture runtime", 30_000);
-
-  console.error("[e2e] passed: Notes ordering and Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, project bootstrap, and runtime lifecycle");
+  console.error("[e2e] passed: Notes ordering and Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
 } catch (error) {
   if (sessionId) {
     const renderedText = await bodyText(base, sessionId).catch(() => "<body unavailable>");
@@ -600,10 +651,10 @@ try {
   throw error;
 } finally {
   if (sessionId) await request(base, `/session/${sessionId}`, "DELETE").catch(() => {});
-  spawnSync("bash", [path.join(fixture.o2Root, "scripts", "run_o2.sh"), `${fixtureKey}.stop`], {
-    env: { ...process.env, O2_ROOT: fixture.o2Root },
-    stdio: "ignore",
-  });
   await stopChild(driver);
   await rm(fixture.tempRoot, { recursive: true, force: true });
+  await assertInstalledO2Unchanged(installedBefore);
+  const listenersAfter = tcpListeners();
+  assertPortAbsent(listenersAfter, 1420);
+  assertNoNewTcpListeners(listenersBefore, listenersAfter);
 }
