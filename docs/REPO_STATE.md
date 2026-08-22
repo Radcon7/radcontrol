@@ -112,19 +112,27 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 
 ## Source and installed goldens
 
-The Round 5C candidates start from accepted source commits O2
-`d247e5ac0f7d61054be7176f9ce81bba1dbe8195` and RadControl
-`412886419297e81dd0f96fccb9c0b22f25846c99`. Candidate work is not a new source
-golden until separately published, reviewed, and merged.
+`SOURCE_GOLDEN` and `INSTALLED_GOLDEN` are deliberately separate facts.
 
-The installed desktop pair intentionally remains:
+- `SOURCE_GOLDEN` is the accepted O2 main commit plus the exact accepted
+  RadControl source commit in O2's canonical
+  `contracts/o2-radcontrol/v1/compatibility.json` manifest. Current source-main
+  identities are Git facts; this document does not copy their changing hashes.
+- `INSTALLED_GOLDEN` is the clean installed O2 runtime commit, that runtime's
+  compatibility pin, and the RadControl source identity embedded in the
+  installed binary. It advances only through the matched-pair transaction and
+  may intentionally lag source.
 
-- O2: `c7ec863831c6cf062c4d1af7313f8c97aacf6132`
-- RadControl: `178f222475b4900e57da979afbac61303c7e4c12`
+Run `bash ~/dev/o2/scripts/run_o2.sh radcontrol.golden_state` after fetching the
+source repositories to project both states and fail if a source pin, installed
+runtime, or binary identity disagrees. The Runtime control provides the same
+installed identities in the product. Release transaction evidence remains the
+rollback record; neither this document nor a generated snapshot is another
+golden-state registry.
 
-Source may advance ahead of installation. Never independently update the
-installed O2 runtime or installed RadControl binary. Advance both only through
-one native/install acceptance that proves the matched pair together.
+Never independently update the installed O2 runtime or installed RadControl
+binary. Advance both only through one native/install acceptance that proves the
+matched pair together.
 
 ## Verification
 
