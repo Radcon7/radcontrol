@@ -55,6 +55,8 @@ assert.match(productionProbe, /\^\[a-f0-9\]\{40\}\$/);
 assert.match(productionProbe, /text\.includes\(expectedO2Sha\)/);
 assert.match(productionProbe, /text\.includes\(expectedRadcontrolSha\)/);
 assert.match(productionProbe, /Empire To-Do · 29 durable items/);
+assert.match(productionProbe, /render O2 Knowledge without mutating installed O2/);
+assert.match(productionProbe, /notes-mode-o2_knowledge/);
 assert.match(productionProbe, /grouped current Empire To-Do operating sequence/);
 assert.match(productionProbe, /read blocked Empire To-Do dependencies/);
 assert.match(productionProbe, /load completed Empire To-Do operator view/);

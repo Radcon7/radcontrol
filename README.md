@@ -21,8 +21,10 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   Snapshot, and Empire Sweep artifact history and governed report controls
   without restoring a separate Empire Utility tab. Phase 1 exposes read-only
   Level-0 Sentinel checks only.
-- **Notes**: authored notes, timeline, Empire Blueprint, then the persistent
-  Empire To-Do workspace as adjacent first-class controls.
+- **Notes**: My Notes (operator-authored scratchpad documents), Timeline, the
+  living Empire Blueprint, a read-only O2 Knowledge workspace, then the
+  persistent Empire To-Do workspace. O2 Knowledge projects canonical sources;
+  it is not a second knowledge database.
 - **Legal**: legal notes, documents, and entity structure records.
 
 ## Runtime Model

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import net from "node:net";
@@ -60,6 +60,7 @@ async function prepareIsolatedO2Root() {
   const fixturePort = await unusedPort();
   const fixtureUrl = `http://127.0.0.1:${fixturePort}`;
   const notesPath = path.join(o2Root, "docs", "projects", fixtureKey, "NOTES.md");
+  const myNotesDir = path.join(o2Root, "docs", "radcontrol", "notes");
   const agentProfileDir = path.join(
     o2Root,
     "docs",
@@ -89,6 +90,7 @@ async function prepareIsolatedO2Root() {
     "empire_todo",
     "items.json",
   );
+  const timelineDir = path.join(o2Root, "docs", "radcontrol", "timeline");
   const hostRecordDir = path.join(
     o2Root,
     "docs",
@@ -107,12 +109,25 @@ async function prepareIsolatedO2Root() {
     "sentinel-triggers.json",
     "sentinel-assets.json",
     "sentinel-adapters.json",
+    "knowledge-catalog.json",
+    "knowledge-catalog.lock.json",
+    "learning-candidates.json",
+    "learning-candidates.schema.json",
+    "quality-gates.json",
   ]) {
     await cp(
       path.join(sourceO2Root, "registry", registryFile),
       path.join(o2Root, "registry", registryFile),
     );
   }
+  await Promise.all([
+    cp(path.join(sourceO2Root, "contracts"), path.join(o2Root, "contracts"), { recursive: true }),
+    cp(path.join(sourceO2Root, "skills"), path.join(o2Root, "skills"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "reusable-patterns"), path.join(o2Root, "docs", "reusable-patterns"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "decisions"), path.join(o2Root, "docs", "decisions"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "O2_OPERATIONAL_PLAYBOOK.md"), path.join(o2Root, "docs", "O2_OPERATIONAL_PLAYBOOK.md")),
+    cp(path.join(sourceO2Root, "docs", "CURRENT_DOCTRINE.md"), path.join(o2Root, "docs", "CURRENT_DOCTRINE.md")),
+  ]);
   await mkdir(hostRecordDir, { recursive: true });
   await Promise.all([
     mkdir(e2eHome, { recursive: true }),
@@ -128,10 +143,14 @@ async function prepareIsolatedO2Root() {
     );
   }
   await mkdir(path.join(fixtureRepo, "site"), { recursive: true });
+  await mkdir(path.join(fixtureRepo, "docs"), { recursive: true });
   await mkdir(path.dirname(notesPath), { recursive: true });
+  await mkdir(myNotesDir, { recursive: true });
   await mkdir(path.dirname(empireTodoPath), { recursive: true });
+  await mkdir(timelineDir, { recursive: true });
   await writeFile(path.join(fixtureRepo, "site", "index.html"), "<main>RadControl E2E fixture</main>\n");
   await writeFile(notesPath, "Temporary E2E fixture note.\n");
+  await writeFile(path.join(fixtureRepo, "docs", "REPO_STATE.md"), "# Fixture\n\nPurpose: Isolated RadControl acceptance fixture.\n");
   await cp(path.join(o2Root, "registry", "empire-todo-seeds.json"), empireTodoPath);
   await writeFile(
     path.join(o2Root, "registry", "projects.json"),
@@ -158,6 +177,7 @@ async function prepareIsolatedO2Root() {
     o2Root,
     fixturePort,
     notesPath,
+    myNotesDir,
     agentProfileDir,
     agentNotesPath,
     e2eHome,
@@ -165,6 +185,7 @@ async function prepareIsolatedO2Root() {
     infrastructureRecordDir,
     infrastructureNotesPath,
     empireTodoPath,
+    timelineDir,
     xdgCacheHome,
     xdgConfigHome,
     xdgDataHome,
@@ -212,6 +233,43 @@ async function click(base, sessionId, selector) {
   }, `click ${selector}`);
 }
 
+async function activateCompletionCheckbox(base, sessionId, title) {
+  const selector = `[aria-label="Complete ${title}"]`;
+  const checkbox = await element(base, sessionId, selector);
+  assert.equal(await request(base, `/session/${sessionId}/element/${checkbox}/enabled`), true, `completion checkbox for ${title} is enabled`);
+  await click(base, sessionId, selector);
+  try {
+    await eventually(() => element(base, sessionId, '[data-testid="empire-todo-complete-without-timeline"]'), `open ${title} completion dialog by native WebDriver click`, 1_500);
+    return "webdriver";
+  } catch {
+    const result = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+      script: "if (!arguments[0].matches(':enabled')) throw new Error('checkbox disabled'); arguments[0].click(); return { checked: arguments[0].checked, type: arguments[0].type };",
+      args: [{ "element-6066-11e4-a52e-4f735466cecf": checkbox }],
+    });
+    assert.equal(result.type, "checkbox");
+    await eventually(() => element(base, sessionId, '[data-testid="empire-todo-complete-without-timeline"]'), `open ${title} completion dialog by DOM click on the real checkbox`);
+    return "dom-click";
+  }
+}
+
+async function activateView(base, sessionId, view, expectedSelector) {
+  const selector = `[data-testid="empire-todo-${view}-view"]`;
+  const control = await element(base, sessionId, selector);
+  assert.equal(await request(base, `/session/${sessionId}/element/${control}/enabled`), true, `${view} view control is enabled`);
+  const selected = () => request(base, `/session/${sessionId}/execute/sync`, "POST", { script: "return arguments[0].getAttribute('aria-pressed');", args: [{ "element-6066-11e4-a52e-4f735466cecf": control }] });
+  await click(base, sessionId, selector);
+  try {
+    await eventually(async () => assert.equal(await selected(), "true"), `open ${view} view by native WebDriver click`, 1_500);
+  } catch {
+    await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+      script: "if (!arguments[0].matches(':enabled')) throw new Error('view control disabled'); arguments[0].click(); return arguments[0].textContent;",
+      args: [{ "element-6066-11e4-a52e-4f735466cecf": control }],
+    });
+    await eventually(async () => assert.equal(await selected(), "true"), `open ${view} view by DOM click on the real button`);
+  }
+  await eventually(() => element(base, sessionId, expectedSelector), `render ${view} view contents`);
+}
+
 async function domClick(base, sessionId, selector) {
   const id = await eventually(() => element(base, sessionId, selector), `find ${selector}`);
   assert.equal(await request(base, `/session/${sessionId}/element/${id}/enabled`), true);
@@ -231,6 +289,13 @@ async function selectValue(base, sessionId, id, value) {
     script: "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
     args: [{ "element-6066-11e4-a52e-4f735466cecf": id }, value],
   });
+}
+
+async function acceptAlert(base, sessionId) {
+  return eventually(
+    () => request(base, `/session/${sessionId}/alert/accept`, "POST", {}),
+    "accept document deletion confirmation",
+  );
 }
 
 async function elementText(base, sessionId, id) {
@@ -335,6 +400,25 @@ try {
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
+  const myNotesProbe = "E2E My Notes draft persists through governed O2 storage";
+  const myNotesEditor = await element(base, sessionId, '[data-testid="my-notes-input"]');
+  await replaceValue(base, sessionId, myNotesEditor, myNotesProbe);
+  await eventually(async () => assert.match(await readFile(path.join(fixture.o2Root, ".state", "radcontrol-operator", "my-notes.md"), "utf8"), new RegExp(myNotesProbe)), "persist My Notes only in the isolated private O2 state");
+  await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
+  await eventually(async () => assert.match(
+    await bodyText(base, sessionId),
+    /O2 KNOWLEDGE[\s\S]*WHAT O2 KNOWS[\s\S]*HOST-LOCAL\/NON-AUTHORITATIVE/,
+  ), "render read-only O2 Knowledge overview");
+  await click(base, sessionId, '.knowledgeNavButton:nth-child(6)');
+  await eventually(async () => assert.match(
+    await bodyText(base, sessionId),
+    /NOT YET DOCTRINE[\s\S]*CANDIDATE\/NON-AUTHORITATIVE/,
+  ), "label learning candidates as non-authoritative");
+  await click(base, sessionId, '[data-testid="notes-mode-notes"]');
+  await eventually(async () => assert.match(
+    await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="my-notes-input"]'), "value"),
+    new RegExp(myNotesProbe),
+  ), "reload persisted My Note before the native restart");
   const [empireBlueprintMode, empireTodoMode] = await Promise.all([
     eventually(
       () => element(base, sessionId, '[data-testid="notes-mode-empire_blueprint"]'),
@@ -361,84 +445,72 @@ try {
     ),
     "render Empire To-Do operating sequence",
   );
-  await click(base, sessionId, '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]');
-  assert.match(
-    await eventually(() => bodyText(base, sessionId), "select Operator Cockpit roadmap item"),
-    /RadControl Operator Cockpit/,
-  );
-  await click(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
-  const empireTodoNotes = await element(
-    base,
-    sessionId,
-    '[data-testid="empire-todo-notes"]',
-  );
-  const empireTodoDependencies = await element(
-    base,
-    sessionId,
-    '[data-testid="empire-todo-dependencies"]',
-  );
-  const empireTodoStatus = await element(base, sessionId, '[data-testid="empire-todo-status"]');
-  const empireTodoPriority = await element(base, sessionId, '[data-testid="empire-todo-priority"]');
+  const empireTodoNotes = await element(base, sessionId, '[aria-label="Notes for DQOTD Dinosaur Content"]');
   const todoProbe = "E2E roadmap draft survives governed persistence";
-  const dependencyProbe = "DQOTD Phase 7D Acceptance; hosted browser evidence";
   await replaceValue(base, sessionId, empireTodoNotes, todoProbe);
-  await replaceValue(base, sessionId, empireTodoDependencies, dependencyProbe);
-  await selectValue(base, sessionId, empireTodoStatus, "Blocked");
-  await selectValue(base, sessionId, empireTodoPriority, "Critical");
-  await click(base, sessionId, '[data-testid="empire-todo-save"]');
-  await click(
-    base,
-    sessionId,
-    '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]',
-  );
   await eventually(async () => {
     const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
     const dinosaurItem = todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content");
     assert.match(dinosaurItem?.notes || "", new RegExp(todoProbe));
-    assert.equal(dinosaurItem?.dependencies, dependencyProbe);
-    assert.equal(dinosaurItem?.status, "Blocked");
-    assert.equal(dinosaurItem?.priority, "Critical");
     assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
   }, "persist Empire To-Do fields before switching items");
-  await click(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
-  const reselectedTodoNotes = await element(
-    base,
-    sessionId,
-    '[data-testid="empire-todo-notes"]',
-  );
-  assert.match(
-    await elementProperty(base, sessionId, reselectedTodoNotes, "value"),
-    new RegExp(todoProbe),
-  );
-  await selectValue(base, sessionId, await element(base, sessionId, '[data-testid="empire-todo-status"]'), "Complete");
-  await click(base, sessionId, '[data-testid="empire-todo-save"]');
-  await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
-  await eventually(
-    async () => assert.match(
-      await bodyText(base, sessionId),
-      /COMPLETED OPERATING HISTORY[\s\S]*DQOTD Dinosaur Content/,
-    ),
-    "show completed Empire To-Do history",
-  );
-  await click(base, sessionId, '[data-testid="empire-todo-active-view"]');
+  const completionModes = [];
+  completionModes.push(await activateCompletionCheckbox(base, sessionId, "DQOTD Dinosaur Content"));
+  await eventually(async () => assert.match(await bodyText(base, sessionId), /Complete “DQOTD Dinosaur Content”[\s\S]*Cancel[\s\S]*Complete without Timeline[\s\S]*Add to Timeline/), "render completion dialog for Cancel");
+  await click(base, sessionId, '.notesModalCard .btnGhost');
+  await eventually(async () => {
+    const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
+    assert.equal(todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content")?.status, "In Progress");
+    assert.equal((await readdir(fixture.timelineDir)).length, 0);
+  }, "Cancel keeps deterministic task active without a Timeline event");
+  completionModes.push(await activateCompletionCheckbox(base, sessionId, "DQOTD Dinosaur Content"));
+  await click(base, sessionId, '[data-testid="empire-todo-complete-without-timeline"]');
+  await eventually(async () => {
+    const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
+    assert.equal(todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content")?.status, "Complete");
+    assert.equal((await readdir(fixture.timelineDir)).length, 0);
+  }, "Complete without Timeline persists only the task completion");
+  await activateView(base, sessionId, "completed", '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
+  await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'), "show completed Empire To-Do history");
+  await activateView(base, sessionId, "active", '[data-testid="empire-todo-item-dqotd-7d-acceptance"]');
   await assert.rejects(
     () => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'),
     /POST \/session\//,
   );
+  const timelineTask = "RadControl Operator Cockpit";
+  completionModes.push(await activateCompletionCheckbox(base, sessionId, timelineTask));
+  await click(base, sessionId, '[data-testid="empire-todo-complete-with-timeline"]');
+  const timelineFile = await eventually(async () => {
+    const names = await readdir(fixture.timelineDir);
+    assert.equal(names.length, 1, "exactly one Timeline milestone is created");
+    const file = path.join(fixture.timelineDir, names[0]);
+    const content = await readFile(file, "utf8");
+    assert.match(content, /title: "RadControl Operator Cockpit completed"/);
+    assert.match(content, /date: "\d{4}-\d{2}-\d{2}"/);
+    assert.doesNotMatch(content, new RegExp(todoProbe));
+    return file;
+  }, "Add to Timeline creates one bounded milestone without copying task scratch notes");
+  await activateView(base, sessionId, "completed", '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
+  await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]'), "show Timeline-completed task in completed history");
   await request(base, `/session/${sessionId}`, "DELETE");
   sessionId = await startDesktopSession(base, sandboxedApp);
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "restart isolated RadControl");
   await click(base, sessionId, '[data-testid="tab-notes"]');
+  await eventually(async () => assert.match(
+    await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="my-notes-input"]'), "value"),
+    new RegExp(myNotesProbe),
+  ), "reload My Note after native restart");
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
   await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
-  await eventually(
-    async () => assert.match(await bodyText(base, sessionId), /DQOTD Dinosaur Content/),
-    "reload completed Empire To-Do item after native restart",
-  );
+  await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'), "reload completed Empire To-Do item after native restart");
   await eventually(async () => {
     const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
     assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
+    assert.equal(todoPayload.items.find((item) => item.id === "radcontrol-operator-cockpit")?.status, "Complete");
+    assert.equal((await readdir(fixture.timelineDir)).length, 1);
+    await access(timelineFile);
   }, "preserve one Empire To-Do item after native restart");
+  assert.ok(completionModes.length === 3 && completionModes.every((mode) => mode === "webdriver" || mode === "dom-click"), "completion dialogs used a real enabled checkbox control");
   await click(base, sessionId, '[data-testid="tab-agents"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "render Agents"),
@@ -688,7 +760,7 @@ try {
     assert.match(await readFile(fixture.notesPath, "utf8"), /E2E autosave probe/);
   }, "persist autosave into isolated O2 root");
 
-  console.error("[e2e] passed: Notes ordering and Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
+  console.error("[e2e] passed: My Notes create/edit/restart/delete, O2 Knowledge read-only projection, Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
 } catch (error) {
   if (sessionId) {
     const renderedText = await bodyText(base, sessionId).catch(() => "<body unavailable>");

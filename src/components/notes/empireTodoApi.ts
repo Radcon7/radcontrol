@@ -26,3 +26,7 @@ export async function saveEmpireTodo(
     "Empire To-Do save returned invalid data",
   );
 }
+
+export async function completeEmpireTodo(itemId: string, timeline: { title: string; notes: string } | null): Promise<EmpireTodoSaveResponse> {
+  return runO2StdinPayloadParsedJson<EmpireTodoSaveResponse>("empire.todo.complete", { itemId, timeline }, "Could not complete the Empire To-Do item", "Empire To-Do completion returned invalid data");
+}

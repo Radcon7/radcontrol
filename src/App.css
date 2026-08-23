@@ -1235,6 +1235,117 @@ pre {
   overflow: hidden;
 }
 
+.notesAuthorityCallout {
+  padding: 9px 12px;
+  border: 1px solid rgba(104, 160, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(104, 160, 255, 0.07);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.knowledgeWorkspace {
+  display: grid;
+  min-height: 0;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(12, 17, 30, 0.68);
+}
+
+.knowledgeHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(110deg, rgba(74, 123, 225, 0.13), rgba(23, 33, 54, 0.2));
+}
+
+.knowledgeHeader h2,
+.knowledgeHeader p,
+.knowledgeCard h3,
+.knowledgeRow h3,
+.knowledgeCompactRow h3,
+.knowledgeSection h3 {
+  margin: 0;
+}
+
+.knowledgeHeader h2 { font-size: 24px; }
+.knowledgeHeader p { max-width: 720px; margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.knowledgeEyebrow,
+.knowledgeDetailEyebrow { color: var(--accentB); font-size: 10px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+
+.knowledgeBody { display: grid; grid-template-columns: 215px minmax(0, 1fr); min-height: 0; }
+.knowledgeNav { display: grid; align-content: start; gap: 3px; padding: 9px; border-right: 1px solid rgba(255, 255, 255, 0.08); background: rgba(5, 9, 18, 0.28); }
+.knowledgeNavButton { display: grid; gap: 2px; padding: 9px 10px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--muted); text-align: left; cursor: pointer; }
+.knowledgeNavButton span { color: var(--text); font-size: 12px; font-weight: 800; }
+.knowledgeNavButton small { font-size: 8px; letter-spacing: 0.06em; opacity: 0.7; }
+.knowledgeNavButton:hover { border-color: rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.035); }
+.knowledgeNavButtonActive { border-color: rgba(104, 160, 255, 0.32); background: rgba(104, 160, 255, 0.12); }
+.knowledgeNavButtonActive span { color: #c6dcff; }
+
+.knowledgeDetail { min-width: 0; max-height: 670px; overflow: auto; padding: 18px 20px 24px; }
+.knowledgeDetailEyebrow { margin-bottom: 8px; }
+.knowledgeIntro { max-width: 920px; margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.knowledgeIntro code, .knowledgeSource code, .knowledgeTable code { color: #a8c7ff; font-family: var(--mono, ui-monospace, monospace); font-size: 0.92em; overflow-wrap: anywhere; }
+.knowledgeGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.knowledgeCard, .knowledgeRow, .knowledgeCompactRow { border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 11px; background: rgba(255, 255, 255, 0.025); }
+.knowledgeCard { padding: 14px; }
+.knowledgeCardTop { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.knowledgeCard h3, .knowledgeRow h3, .knowledgeCompactRow h3 { font-size: 13px; }
+.knowledgeCard p, .knowledgeRow p, .knowledgeCompactRow p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.52; }
+.knowledgeFacts { display: grid; gap: 7px; margin: 12px 0; }
+.knowledgeFacts div { display: grid; gap: 1px; }
+.knowledgeFacts dt { color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+.knowledgeFacts dd { margin: 0; font-size: 11px; line-height: 1.45; }
+.knowledgeSource { margin-top: 10px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.knowledgeAuthority { display: inline-flex; max-width: 100%; padding: 3px 6px; border: 1px solid rgba(255, 255, 255, 0.13); border-radius: 999px; color: var(--muted); font-size: 9px; font-weight: 800; line-height: 1.2; text-transform: uppercase; }
+.knowledgeAuthorityempirecontract, .knowledgeAuthorityempirelaw, .knowledgeAuthorityauthoritative { border-color: rgba(97, 242, 169, 0.38); color: #a8ffd1; }
+.knowledgeAuthoritycandidate, .knowledgeAuthoritycandidatenonauthoritative, .knowledgeAuthorityhostlocal, .knowledgeAuthorityreference { border-color: rgba(255, 206, 115, 0.34); color: #ffdb94; }
+.knowledgeAuthorityrepoauthority { border-color: rgba(104, 160, 255, 0.38); color: #bbd2ff; }
+.knowledgeList { display: grid; gap: 9px; }
+.knowledgeRow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(170px, 0.34fr); gap: 16px; padding: 13px 14px; }
+.knowledgeRow aside { display: grid; align-content: start; gap: 6px; }
+.knowledgeTags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.knowledgeTags span { max-width: 100%; padding: 3px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.06); color: var(--muted); font-size: 9px; overflow-wrap: anywhere; }
+.knowledgeFreshness { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.knowledgeToolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.knowledgeToolbar .input { flex: 1; min-width: 180px; }
+.knowledgeToolbar span { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.knowledgeTableWrap { overflow: auto; border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 10px; }
+.knowledgeTable { width: 100%; border-collapse: collapse; font-size: 11px; }
+.knowledgeTable th { padding: 9px 10px; color: var(--muted); font-size: 9px; letter-spacing: 0.06em; text-align: left; text-transform: uppercase; }
+.knowledgeTable td { padding: 9px 10px; border-top: 1px solid rgba(255, 255, 255, 0.07); vertical-align: top; }
+.knowledgeTable small { display: block; margin-top: 3px; color: var(--muted); }
+.knowledgeLifecycle { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; color: #bdd4ff; font-size: 11px; }
+.knowledgeCompactRow { padding: 12px 14px; }
+.knowledgeCompactRow .knowledgeAuthority { margin-top: 8px; }
+.knowledgeSection { display: grid; gap: 9px; margin-top: 22px; }
+.knowledgePrinciples { display: grid; gap: 10px; margin: 16px 0 0; padding-left: 22px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.knowledgeGateList { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.knowledgeGateList li { display: grid; gap: 2px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.07); font-size: 11px; }
+.knowledgeGateList span, .knowledgeGateList small { color: var(--muted); }
+.knowledgeEmpty, .knowledgeLoading, .knowledgeFailure { padding: 18px; border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 10px; color: var(--muted); }
+.knowledgeFailure { display: grid; gap: 8px; }
+.knowledgeFailure p { margin: 0; font-size: 12px; }
+
+@media (max-width: 980px) {
+  .knowledgeBody { grid-template-columns: 1fr; }
+  .knowledgeNav { grid-template-columns: repeat(3, minmax(0, 1fr)); border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+  .knowledgeDetail { max-height: none; }
+}
+
+@media (max-width: 720px) {
+  .knowledgeHeader, .knowledgeToolbar, .knowledgeRow { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }
+  .knowledgeNav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .knowledgeGrid { grid-template-columns: 1fr; }
+  .knowledgeHeader { flex-direction: column; }
+  .knowledgeToolbar span { white-space: normal; }
+}
+
 .workspaceHubBody {
   flex: 1;
   min-height: 0;
@@ -2608,6 +2719,8 @@ pre {
   color: var(--text);
   font-weight: 600;
 }
+
+.scratchpadShell,.blueprintShell{display:grid;gap:14px;min-height:520px}.scratchpadHeading{display:flex;align-items:center;justify-content:space-between;gap:16px}.scratchpadHeading>div:first-child{display:grid;gap:4px}.scratchpadHeading span{color:var(--muted);font-size:.85rem}.scratchpadHeading>div:last-child{display:flex;align-items:center;gap:10px}.scratchpadArea{width:100%;min-height:480px;resize:vertical;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);padding:20px;font:500 1rem/1.6 var(--font-sans)}.blueprintArticle{max-width:980px;max-height:68vh;overflow:auto;padding:22px;border:1px solid var(--line);border-radius:12px;background:var(--panel);line-height:1.65}.blueprintArticle h1{font-size:1.65rem}.blueprintArticle h2{margin-top:1.8rem;font-size:1.15rem}.blueprintArticle li{margin:8px 0 8px 22px}.empireTodoRows{display:grid;gap:14px}.empireTodoRow{display:grid;grid-template-columns:auto minmax(190px,1fr) minmax(330px,2fr) auto;gap:12px;align-items:start;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}.empireTodoRow input[type=checkbox]{margin-top:12px;width:18px;height:18px}.empireTodoRowMain{display:grid;gap:7px}.empireTodoRowMain span,.empireTodoRow small{color:var(--muted);font-size:.78rem}.empireTodoInlineNotes{min-height:88px;resize:vertical}
 
 /* Radcon Sentinel / Security */
 .sentinelShell {

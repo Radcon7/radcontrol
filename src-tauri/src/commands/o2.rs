@@ -558,6 +558,8 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
         "contract_info" => return Ok(read("contract.info", "o2-runtime")),
         "list_projects" => return Ok(read("project.list", "project-registry")),
         "empire.todo.list" => return Ok(read("empire-todo.list", "empire-todo")),
+        "radcontrol.scratchpad.read" => return Ok(read("radcontrol-scratchpad.read", "radcontrol-scratchpad")),
+        "knowledge.operator_workspace" => return Ok(read("knowledge.operator-workspace", "o2-knowledge")),
         "router.health" => return Ok(read("router.health", "registered-routers")),
         "sentinel.status" => return Ok(read("sentinel.status", "sentinel")),
         "workstation.updates.history" => {
@@ -639,6 +641,13 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
         (
             "files.rename.",
             "files.rename",
+            "o2-documents",
+            TimeoutClass::Governed,
+            Some(AuditClass::Mutation),
+        ),
+        (
+            "files.delete.",
+            "files.delete",
             "o2-documents",
             TimeoutClass::Governed,
             Some(AuditClass::Mutation),
@@ -766,6 +775,8 @@ fn payload_spec(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
     let (dispatch, operation, target) = match verb {
         "files.write" => ("files.write.stdin", "files.write", "o2-documents"),
         "empire.todo.save" => ("empire.todo.save.stdin", "empire-todo.save", "empire-todo"),
+        "empire.todo.complete" => ("empire.todo.complete.stdin", "empire-todo.complete", "empire-todo"),
+        "radcontrol.scratchpad.write" => ("radcontrol.scratchpad.write.stdin", "radcontrol.scratchpad.write", "radcontrol-scratchpad"),
         _ => return Err(BridgeFailureKind::UnsupportedVerb),
     };
     Ok(InvocationSpec {
@@ -1223,6 +1234,7 @@ mod tests {
             "sentinel.host.automation.configure.e30",
             "workstation.cleanup.pop_upgrade.preview",
             "workstation.cleanup.pop_upgrade.apply",
+            "knowledge.operator_workspace",
         ] {
             assert!(parse_verb(allowed).is_ok(), "expected allowed: {allowed}");
         }

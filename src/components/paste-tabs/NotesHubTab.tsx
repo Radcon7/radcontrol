@@ -1,44 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DocumentLibraryPanel } from "./DocumentLibraryPanel";
 import { TimelineTab } from "./TimelineTab";
 import { EmpireTodoWorkspace } from "../notes/EmpireTodoWorkspace";
+import { O2KnowledgeWorkspace } from "../notes/O2KnowledgeWorkspace";
+import { MyNotesScratchpad } from "../notes/MyNotesScratchpad";
+import { BlueprintWorkspace } from "../notes/BlueprintWorkspace";
 
-type NotesMode = "notes" | "empire_todo" | "timeline" | "empire_blueprint";
+type NotesMode = "notes" | "empire_todo" | "timeline" | "empire_blueprint" | "o2_knowledge";
 
 type Props = {
   busy?: boolean;
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
 };
 
-type LibraryModeConfig = {
-  key: Extract<NotesMode, "notes" | "empire_blueprint">;
-  label: string;
-  title: string;
-  placeholder: string;
-};
-
 const MODE_CONFIGS: Array<
-  | LibraryModeConfig
-  | {
-      key: "timeline" | "empire_todo";
+  {
+      key: NotesMode;
       label: string;
     }
 > = [
-  {
-    key: "notes",
-    label: "Notes",
-    title: "Notes",
-    placeholder: "Write or edit general notes here…",
-  },
+  { key: "notes", label: "My Notes" },
   {
     key: "timeline",
     label: "Timeline",
   },
+  { key: "empire_blueprint", label: "Empire Blueprint" },
   {
-    key: "empire_blueprint",
-    label: "Empire Blueprint",
-    title: "Empire Blueprint",
-    placeholder: "Write or edit empire blueprint notes here…",
+    key: "o2_knowledge",
+    label: "O2 Knowledge",
   },
   {
     key: "empire_todo",
@@ -46,18 +34,9 @@ const MODE_CONFIGS: Array<
   },
 ];
 
-function libraryConfigFor(mode: LibraryModeConfig["key"]): LibraryModeConfig {
-  const found = MODE_CONFIGS.find((item) => item.key === mode);
-  if (!found || !("title" in found)) {
-    throw new Error(`Missing notes mode config for ${mode}`);
-  }
-  return found;
-}
-
 export function NotesHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
   const [mode, setMode] = useState<NotesMode>("notes");
   const saverRef = useRef<(() => Promise<boolean>) | null>(null);
-  const activeLibraryConfig = mode === "timeline" || mode === "empire_todo" ? null : libraryConfigFor(mode);
 
   const registerModeSaver = useCallback(
     (fn: (() => Promise<boolean>) | null) => {
@@ -109,20 +88,14 @@ export function NotesHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
       <div className="workspaceHubBody">
         {mode === "timeline" ? (
           <TimelineTab />
+        ) : mode === "o2_knowledge" ? (
+          <O2KnowledgeWorkspace />
         ) : mode === "empire_todo" ? (
           <EmpireTodoWorkspace
             busy={busy}
             registerBeforeTabChangeSaver={registerModeSaver}
           />
-        ) : (
-          <DocumentLibraryPanel
-            tabKey={activeLibraryConfig!.key}
-            title={activeLibraryConfig!.title}
-            placeholder={activeLibraryConfig!.placeholder}
-            busy={busy}
-            registerBeforeTabChangeSaver={registerModeSaver}
-          />
-        )}
+        ) : mode === "notes" ? <MyNotesScratchpad registerBeforeTabChangeSaver={registerModeSaver} /> : <BlueprintWorkspace registerBeforeTabChangeSaver={registerModeSaver} />}
       </div>
     </section>
   );

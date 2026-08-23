@@ -74,6 +74,7 @@ const ENCODED_VERB_PREFIXES = [
   "files.list.",
   "files.read.",
   "files.rename.",
+  "files.delete.",
   "project_note.ensure.",
   "project_retired.set.",
   "project_launch_date.set.",

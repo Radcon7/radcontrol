@@ -173,7 +173,13 @@ try {
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /Empire Blueprint[\s\S]*Empire To-Do/);
+  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge[\s\S]*Empire To-Do/);
+  await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /O2 KNOWLEDGE[\s\S]*WHAT O2 KNOWS[\s\S]*host-local\/non-authoritative/);
+    assert.match(text, /Canonical source/);
+  }, "render O2 Knowledge without mutating installed O2");
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
