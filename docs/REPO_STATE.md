@@ -44,21 +44,26 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   workstation state into RadControl. Security also contains the restored
   Empire Operations artifact workspace for governed Empire Map, Snapshot, and
   Empire Sweep reports; this does not recreate an Empire Utility destination.
-- Notes and Legal: Notes distinguishes My Notes (operator-authored O2 documents,
-  explicitly not Empire authority), Timeline, Empire Blueprint, read-only O2
-  Knowledge, and the O2-backed structured Empire To-Do workspace. My Notes use
-  `docs/radcontrol/notes/`; Blueprint uses `docs/radcontrol/empire_blueprint/`;
-  To-Do records live at `docs/radcontrol/empire_todo/items.json`. O2 Knowledge
+- Notes and Legal: Notes distinguishes My Notes (one private persistent O2
+  runtime scratchpad, explicitly not Empire authority), Timeline, one living
+  Empire Blueprint owner manual, read-only O2 Knowledge, and the O2-backed
+  structured Empire To-Do workspace. My Notes use
+  `.state/radcontrol-operator/my-notes.md`; Blueprint uses its single canonical
+  `docs/radcontrol/empire_blueprint/empire_blueprint_20260822.md`; To-Do records
+  live at `docs/radcontrol/empire_todo/items.json`. O2 Knowledge
   reads a deterministic O2 projection at request time and owns no RadControl
   knowledge cache, registry, or database.
 
 ## Persistence and execution
 
 - Durable writes use O2 file or producer verbs; React/local storage is not document truth.
-  My Notes and Blueprint use the contained O2 document-library routes
-  (`files.write`, `files.rename`, and explicit `files.delete`); O2 Knowledge is
+  My Notes use a dedicated private O2 runtime producer and must survive source
+  checkout plus matched-pair promotion, rollback, and reinstall without a commit.
+  Blueprint is one intentionally edited O2 document, not a library; O2 Knowledge is
   read-only through `knowledge.operator_workspace`.
 - Empire To-Do writes use the validated O2 `empire.todo.save` payload route;
+  completion offers exactly one governed Timeline milestone or an explicit
+  no-Timeline completion choice before marking the item complete.
   Sentinel runtime state and audit use the O2 Sentinel contract rather than
   browser storage or RadControl-owned files.
 - The Tauri bridge exposes an allowlist of O2 actions rather than arbitrary

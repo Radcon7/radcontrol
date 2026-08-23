@@ -18,8 +18,8 @@ for (const label of [
 ]) assert.ok(workspace.includes(label), `missing O2 Knowledge category: ${label}`);
 
 assert.match(notes, /label: "My Notes"/);
-assert.match(notes, /operator-authored O2 documents/);
-assert.match(notes, /not canonical Empire authority/);
+assert.match(notes, /MyNotesScratchpad/);
+assert.match(notes, /BlueprintWorkspace/);
 assert.match(notes, /<O2KnowledgeWorkspace/);
 assert.match(api, /knowledge\.operator_workspace/);
 assert.match(api, /projection !== "read-only"/);

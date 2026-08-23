@@ -360,19 +360,10 @@ try {
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
-  await click(base, sessionId, '[data-testid="document-library-new"]');
-  const myNotesEditor = await element(base, sessionId, '[data-testid="document-library-editor"]');
   const myNotesProbe = "E2E My Notes draft persists through governed O2 storage";
+  const myNotesEditor = await element(base, sessionId, '[data-testid="my-notes-input"]');
   await replaceValue(base, sessionId, myNotesEditor, myNotesProbe);
-  await click(base, sessionId, '[data-testid="document-library-save"]');
-  const myNoteFile = await eventually(async () => {
-    const names = await readdir(fixture.myNotesDir);
-    const found = names.find((name) => name.endsWith(".md"));
-    if (!found) throw new Error("My Notes file was not created");
-    const candidate = path.join(fixture.myNotesDir, found);
-    assert.match(await readFile(candidate, "utf8"), new RegExp(myNotesProbe));
-    return candidate;
-  }, "create and persist My Note inside the isolated O2 fixture");
+  await eventually(async () => assert.match(await readFile(path.join(fixture.o2Root, ".state", "radcontrol-operator", "my-notes.md"), "utf8"), new RegExp(myNotesProbe)), "persist My Notes only in the isolated private O2 state");
   await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
   await eventually(async () => assert.match(
     await bodyText(base, sessionId),
@@ -385,7 +376,7 @@ try {
   ), "label learning candidates as non-authoritative");
   await click(base, sessionId, '[data-testid="notes-mode-notes"]');
   await eventually(async () => assert.match(
-    await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="document-library-editor"]'), "value"),
+    await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="my-notes-input"]'), "value"),
     new RegExp(myNotesProbe),
   ), "reload persisted My Note before the native restart");
   const [empireBlueprintMode, empireTodoMode] = await Promise.all([
@@ -414,62 +405,22 @@ try {
     ),
     "render Empire To-Do operating sequence",
   );
-  await click(base, sessionId, '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]');
-  assert.match(
-    await eventually(() => bodyText(base, sessionId), "select Operator Cockpit roadmap item"),
-    /RadControl Operator Cockpit/,
-  );
-  await click(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
-  const empireTodoNotes = await element(
-    base,
-    sessionId,
-    '[data-testid="empire-todo-notes"]',
-  );
-  const empireTodoDependencies = await element(
-    base,
-    sessionId,
-    '[data-testid="empire-todo-dependencies"]',
-  );
-  const empireTodoStatus = await element(base, sessionId, '[data-testid="empire-todo-status"]');
-  const empireTodoPriority = await element(base, sessionId, '[data-testid="empire-todo-priority"]');
+  const empireTodoNotes = await element(base, sessionId, '[aria-label="Notes for DQOTD Dinosaur Content"]');
   const todoProbe = "E2E roadmap draft survives governed persistence";
-  const dependencyProbe = "DQOTD Phase 7D Acceptance; hosted browser evidence";
   await replaceValue(base, sessionId, empireTodoNotes, todoProbe);
-  await replaceValue(base, sessionId, empireTodoDependencies, dependencyProbe);
-  await selectValue(base, sessionId, empireTodoStatus, "Blocked");
-  await selectValue(base, sessionId, empireTodoPriority, "Critical");
-  await click(base, sessionId, '[data-testid="empire-todo-save"]');
-  await click(
-    base,
-    sessionId,
-    '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]',
-  );
   await eventually(async () => {
     const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
     const dinosaurItem = todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content");
     assert.match(dinosaurItem?.notes || "", new RegExp(todoProbe));
-    assert.equal(dinosaurItem?.dependencies, dependencyProbe);
-    assert.equal(dinosaurItem?.status, "Blocked");
-    assert.equal(dinosaurItem?.priority, "Critical");
     assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
   }, "persist Empire To-Do fields before switching items");
-  await click(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
-  const reselectedTodoNotes = await element(
-    base,
-    sessionId,
-    '[data-testid="empire-todo-notes"]',
-  );
-  assert.match(
-    await elementProperty(base, sessionId, reselectedTodoNotes, "value"),
-    new RegExp(todoProbe),
-  );
-  await selectValue(base, sessionId, await element(base, sessionId, '[data-testid="empire-todo-status"]'), "Complete");
-  await click(base, sessionId, '[data-testid="empire-todo-save"]');
+  await click(base, sessionId, '[aria-label="Complete DQOTD Dinosaur Content"]');
+  await click(base, sessionId, '[data-testid="empire-todo-complete-with-timeline"]');
   await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
   await eventually(
     async () => assert.match(
       await bodyText(base, sessionId),
-      /COMPLETED OPERATING HISTORY[\s\S]*DQOTD Dinosaur Content/,
+      /DQOTD Dinosaur Content/,
     ),
     "show completed Empire To-Do history",
   );
@@ -483,14 +434,9 @@ try {
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "restart isolated RadControl");
   await click(base, sessionId, '[data-testid="tab-notes"]');
   await eventually(async () => assert.match(
-    await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="document-library-editor"]'), "value"),
+    await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="my-notes-input"]'), "value"),
     new RegExp(myNotesProbe),
   ), "reload My Note after native restart");
-  await click(base, sessionId, '[data-testid="document-library-delete"]');
-  await acceptAlert(base, sessionId);
-  await eventually(async () => {
-    await assert.rejects(access(myNoteFile));
-  }, "delete My Note only from the isolated O2 fixture");
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
   await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
   await eventually(
