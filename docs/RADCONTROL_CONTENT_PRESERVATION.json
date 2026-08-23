@@ -50,6 +50,11 @@
     { "historicalFeature": "RadControl Snapshot producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Snapshot", "action": "restored from Git history" },
     { "historicalFeature": "Empire Sweep producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Empire Sweep", "action": "restored from Git history" }
   ],
+  "securityControlRoom": [
+    { "historicalFeature": "Host Guardian summary, telemetry, incidents, activity, automation, records, and safe cleanup", "finalDestination": "Security > Radcon Sentinel", "action": "preserved and consolidated; duplicate summary telemetry removed" },
+    { "historicalFeature": "Security Guardian provider and website inventory", "finalDestination": "Security > Security Guardian", "action": "promoted from a buried advanced card to a first-class subtab" },
+    { "historicalFeature": "Empire Map, Snapshot, and Sweep artifacts", "finalDestination": "Security > Empire Operations", "action": "preserved with an added truthful operational overview" }
+  ],
   "system76Migration": [
     { "historicalFeature": "machine identity, configuration, notes", "finalDestination": "Security > Host Guardian > Workstation Identity + Record", "action": "migrated" },
     { "historicalFeature": "thermal, fans, CPU, load, memory, swap, storage, disk I/O", "finalDestination": "Security > Host Guardian signals and collapsed evidence", "action": "migrated" },

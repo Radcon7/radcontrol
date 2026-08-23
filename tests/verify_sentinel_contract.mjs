@@ -2,119 +2,106 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 
-const component = await readFile(new URL("../src/components/sentinel/SentinelTab.tsx", import.meta.url), "utf8");
-const security = await readFile(new URL("../src/components/security/SecurityTab.tsx", import.meta.url), "utf8");
-const operations = await readFile(new URL("../src/components/security/EmpireOperationsWorkspace.tsx", import.meta.url), "utf8");
-const updates = await readFile(new URL("../src/components/sentinel/HostUpdatesPanel.tsx", import.meta.url), "utf8");
-const model = await readFile(new URL("../src/components/sentinel/sentinelModel.ts", import.meta.url), "utf8");
-const api = await readFile(new URL("../src/components/sentinel/sentinelApi.ts", import.meta.url), "utf8");
-const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
-const css = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
-const bridge = await readFile(new URL("../src-tauri/src/commands/o2.rs", import.meta.url), "utf8");
+const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+const [component, guardian, security, operations, updates, model, api, app, css, bridge, client] = await Promise.all([
+  read("src/components/sentinel/SentinelTab.tsx"),
+  read("src/components/sentinel/SecurityGuardianTab.tsx"),
+  read("src/components/security/SecurityTab.tsx"),
+  read("src/components/security/EmpireOperationsWorkspace.tsx"),
+  read("src/components/sentinel/HostUpdatesPanel.tsx"),
+  read("src/components/sentinel/sentinelModel.ts"),
+  read("src/components/sentinel/sentinelApi.ts"),
+  read("src/App.tsx"),
+  read("src/App.css"),
+  read("src-tauri/src/commands/o2.rs"),
+  read("contracts/o2-radcontrol/v1/client.json"),
+]);
 
 assert.match(app, /sentinel: "Security"/);
 assert.match(app, /<SecurityTab/);
-assert.match(app, /data-testid=\{`tab-\$\{t\}`\}/);
 assert.doesNotMatch(app, /EmpireUtilityTab|Empire Utility/);
 assert.doesNotMatch(css, /\.empireUtility/);
-assert.equal(
-  existsSync(new URL("../src/components/common/useArtifactStore.ts", import.meta.url)),
-  true,
-  "history-backed generated-artifact store must serve the replacement workspace",
-);
-assert.match(security, /Radcon Sentinel/);
-assert.match(security, /Empire Operations/);
-assert.match(operations, /"empire\.map"/);
-assert.match(operations, /"radcontrol\.snapshot"/);
-assert.match(operations, /"empire\.sweep"/);
-assert.match(component, /HOST GUARDIAN/);
+assert.equal(existsSync(new URL("../src/components/common/useArtifactStore.ts", import.meta.url)), true);
+
+for (const label of ["Radcon Sentinel", "Empire Operations", "Security Guardian"]) assert.match(security, new RegExp(label));
+for (const mode of ["sentinel", "empire_operations", "security_guardian"]) assert.match(security, new RegExp(`key: "${mode}"`));
+assert.match(security, /<SecurityGuardianTab/);
+
+assert.match(component, /RADCON SENTINEL · THIS COMPUTER/);
 assert.match(component, /Is my computer okay\?/);
-assert.match(component, /HOST GUARDIAN/);
-assert.match(component, /SECURITY GUARDIAN/);
-assert.match(component, /CURRENT HEALTH/);
-assert.match(component, /LAST HEALTH CHECK/);
-assert.match(component, /NEXT AUTOMATIC CHECK/);
+assert.match(component, /RECENT GUARDIAN ACTIVITY/);
+assert.ok(component.indexOf("Is my computer okay?") < component.indexOf("RECENT GUARDIAN ACTIVITY"));
+assert.ok(component.indexOf("RECENT GUARDIAN ACTIVITY") < component.indexOf("CURRENT MEASUREMENTS"));
+assert.match(component, /latest 20 maximum/);
+assert.match(component, /guardianActivityScroll/);
+assert.match(css, /guardianActivityRow-attention/);
+assert.match(component, /Investigate \/ Fix/);
+assert.match(component, /actionable \? <button/);
+assert.match(component, /diagnoseObservation/);
+assert.match(component, /GPU temperature/);
+assert.match(component, /Baseline learning/);
+assert.match(component, /Number\.isFinite\(gpuTemperature\) \? `\$\{gpuTemperature\}°C`/);
+assert.match(component, /Refreshes every 60 seconds/);
+assert.match(component, /window\.setInterval\(\(\) => void sample\(\), 60_000\)/);
+assert.match(component, /not written to durable history/);
+assert.match(component, /Routine checks are deterministic and use no model tokens/);
+assert.match(component, /LAST DURABLE CHECK/);
+assert.match(component, /NEXT SEMANTIC OBSERVATION/);
 assert.match(component, /AUTOMATIC GUARDIAN/);
 assert.match(component, /sentinel-automation-toggle/);
-assert.match(component, /Daily/);
 assert.match(component, /Twice daily/);
-assert.match(component, /Routine checks are deterministic and use no model tokens/);
+assert.match(component, /Run Health Check/);
 assert.match(component, /Investigate a Problem/);
-assert.match(component, /Fans \/ heat/);
-assert.match(component, /Computer is slow/);
-assert.match(component, /Internet \/ network/);
-assert.match(component, /Something suspicious/);
-assert.match(component, /Every value shows when it was measured/);
-assert.match(component, /Advanced Sentinel details and manual checks/);
-assert.match(model, /UNKNOWN VISIBILITY/);
-assert.match(component, /RECENT ACTIVITY/);
-assert.match(component, /AUTHORITY/);
-assert.match(component, /TRIGGERS \+ SCHEDULES/);
+assert.match(component, /Advanced evidence, controls, and workstation records/);
+assert.match(component, /Sensor sources, thresholds, processes, services, and provenance/);
+assert.doesNotMatch(component, /SECURITY GUARDIAN/);
+assert.doesNotMatch(component, /REGISTERED WEBSITES/);
 assert.match(component, /The LLM is not root/i);
-assert.match(component, /Registry presence never counts as live health/i);
 assert.match(component, /Execution permitted: NO · LLM connected: NO/);
 assert.match(component, /HOST_CONFIGURATION_PATH/);
 assert.match(component, /HOST_NOTES_PATH/);
-assert.match(component, /registerBeforeTabChangeSaver/);
 assert.match(component, /<HostUpdatesPanel/);
 assert.match(component, /data-testid="host-maintenance-boundary"/);
 assert.match(component, /Safe cleanup/);
-assert.match(component, /NOT ACTIVATED/);
+assert.match(component, /Confirm restart/);
 assert.doesNotMatch(component, /<details className="sentinelDetails" open>/);
-for (const label of [
-  "Run Health Check",
-  "Deep Check",
-  "Check Security",
-  "Refresh",
-  "Check Docker",
-  "Check Network",
-]) {
-  assert.match(component, new RegExp(label));
-}
-for (const filter of ["All", "Events", "Actions", "Incidents", "Host", "Security"]) {
-  assert.match(component, new RegExp(`label: "${filter}"`));
-}
+
+assert.match(guardian, /WEBSITES \+ FULL TECHNOLOGY ESTATE/);
+assert.match(guardian, /VISIBILITY NOW/);
+assert.match(guardian, /CONTROL READINESS/);
+assert.match(guardian, /Not connected yet/);
+assert.match(guardian, /Lock Down RCE/);
+assert.match(guardian, /server-owned, authenticated, confirmed, logged, and reversible/);
+assert.match(guardian, /Hiding a tab is not security enforcement/);
+assert.match(guardian, /Refresh Security Inventory/);
+assert.doesNotMatch(guardian, /<button[^>]*>\s*Lock Down RCE/);
+
+for (const label of ["SOURCE GOLDEN", "INSTALLED GOLDEN", "AUTOMATION HEALTH", "REGISTRY + TOPOLOGY", "SECURITY + AUDIT", "CI + CODEQL"]) assert.match(operations, new RegExp(label.replaceAll("+", "\\+")));
+assert.match(operations, /Not connected yet/);
+for (const verb of ["radcontrol.golden_state", "router.health", "sentinel.status", "empire.map", "radcontrol.snapshot", "empire.sweep"]) assert.match(operations, new RegExp(verb.replaceAll(".", "\\.")));
+
 for (const verb of [
-  "sentinel.status",
-  "sentinel.host.check",
-  "sentinel.host.deep_check",
-  "sentinel.host.explain_fans",
-  "sentinel.security.check",
-  "sentinel.ask",
-  "sentinel.host.automation.configure",
-  "workstation.cleanup.pop_upgrade.preview",
-  "workstation.cleanup.pop_upgrade.apply",
-]) {
-  assert.match(api, new RegExp(verb.replaceAll(".", "\\.")));
-}
+  "sentinel.status", "sentinel.host.current", "sentinel.host.check", "sentinel.host.deep_check",
+  "sentinel.host.explain_fans", "sentinel.host.investigate", "sentinel.security.check", "sentinel.ask",
+  "sentinel.host.automation.configure", "workstation.cleanup.pop_upgrade.preview", "workstation.cleanup.pop_upgrade.apply",
+]) assert.match(api, new RegExp(verb.replaceAll(".", "\\.")));
 assert.doesNotMatch(api, /sentinel\.action\.dry_run/);
-assert.doesNotMatch(component, /Prepare Lockdown|sentinel\.action\.dry_run/);
-assert.match(updates, /workstation\.updates\.check/);
-assert.match(updates, /workstation\.updates\.history/);
-assert.match(updates, /refreshes no catalogs and installs nothing/);
-assert.doesNotMatch(updates, /workstation\.updates\.(refresh|open)|window\.confirm/);
+assert.match(model, /recentHostObservations/);
+assert.match(model, /SentinelCurrentMeasurements/);
 assert.match(model, /level: 0, label: "Observation"/);
 assert.match(model, /level: 5, label: "Recovery"/);
-assert.match(model, /deriveThreatState/);
-assert.match(model, /buildSentinelActivity/);
-assert.match(model, /sentinelCapabilityLevelState/);
-assert.doesNotMatch(css, /\.workstation[A-Z]/);
-assert.match(css, /\.sentinelActivity/);
-assert.match(css, /\.sentinelLevelList/);
-assert.doesNotMatch(bridge, /"workstation\.(health|cleanup\.(preview|apply)|codex)/);
-assert.doesNotMatch(bridge, /"workstation\.updates\.(refresh|open)"/);
-assert.doesNotMatch(bridge, /"sentinel\.action\.dry_run\./);
-assert.match(bridge, /"empire\.map"/);
-assert.match(bridge, /"radcontrol\.snapshot"/);
-assert.match(bridge, /"empire\.sweep"/);
-assert.match(bridge, /"router\.health"/);
-assert.match(bridge, /"workstation\.updates\.check"/);
-assert.match(bridge, /"workstation\.updates\.history"/);
-assert.match(bridge, /"sentinel\.host\.automation\.configure\."/);
-assert.match(bridge, /"workstation\.cleanup\.pop_upgrade\.preview"/);
-assert.match(bridge, /"workstation\.cleanup\.pop_upgrade\.apply"/);
-assert.match(component, /\[FIX SAFELY\]/);
-assert.match(component, /Confirm restart/);
-assert.doesNotMatch(bridge, /sudo|Command::new\([^)]*payload|shell\(true\)/);
 
-console.log("Sentinel contract: Security command center, read-only Phase 1, and migrated host record verified");
+assert.match(updates, /workstation\.updates\.check/);
+assert.match(updates, /workstation\.updates\.history/);
+assert.doesNotMatch(updates, /workstation\.updates\.(refresh|open)|window\.confirm/);
+assert.match(css, /\.guardianActivityScroll/);
+assert.match(css, /overflow-y: auto/);
+assert.match(css, /\.securityControlRoom \.sentinelShell small/);
+assert.match(css, /font-size: 12\.5px/);
+
+for (const verb of ["radcontrol.golden_state", "sentinel.status", "sentinel.host.current", "sentinel.host.investigate.", "sentinel.host.automation.configure.", "workstation.cleanup.pop_upgrade.preview", "workstation.cleanup.pop_upgrade.apply"]) assert.match(bridge, new RegExp(`"${verb.replaceAll(".", "\\.")}`));
+assert.doesNotMatch(bridge, /"sentinel\.action\.dry_run\./);
+assert.doesNotMatch(bridge, /sudo|Command::new\([^)]*payload|shell\(true\)/);
+for (const capability of ["radcontrol.golden_state", "sentinel.host.current", "sentinel.host.investigate"]) assert.match(client, new RegExp(capability.replaceAll(".", "\\.")));
+
+console.log("Sentinel contract: three Security control rooms, bounded host activity, truthful estate visibility, and explicit diagnosis verified");

@@ -35,15 +35,18 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - Agents: governed profiles, focus/scope/limits, and notes. Repository Routers
   is an adjacent O2-backed workspace that restores the cross-repository
   durability report without coupling it to the System76 host presentation.
-- Security: the sole Radcon Sentinel command surface over O2-owned Host Guardian and
-  Security Guardian observation, capability, trigger, event, incident, action,
-  baseline, and hash-chained audit records. Sentinel never owns policy or a
-  privileged executor; Phase 1 offers only manual read-only Level-0 controls,
-  while Levels 1-5 remain visibly not activated. Host Guardian reuses the
-  canonical O2 workstation configuration and note paths rather than cloning
-  workstation state into RadControl. Security also contains the restored
-  Empire Operations artifact workspace for governed Empire Map, Snapshot, and
-  Empire Sweep reports; this does not recreate an Empire Utility destination.
+- Security: three first-class subtabs over O2-owned truth. Radcon Sentinel is
+  the workstation control room: health first, bounded durable Guardian activity
+  second, then one token-free foreground measurement home and advanced evidence.
+  Empire Operations combines deterministic matched-pair, automation, audit, and
+  topology truth with governed Map, Snapshot, and Sweep artifacts. Security
+  Guardian owns websites and full technology-estate visibility, promotes the
+  existing provider/site inventory, and labels unwired user/auth/threat/commerce
+  sources and controls as not connected. Sentinel never owns policy or a
+  privileged executor; only an explicit anomalous-observation investigation may
+  invoke the read-only diagnostic advisor, and repair remains separately
+  previewed and confirmed. Levels 1-5 remain visibly not activated. Host records
+  and all durable Sentinel state remain O2-owned.
 - Notes and Legal: Notes distinguishes My Notes (one private persistent O2
   runtime scratchpad, explicitly not Empire authority), Timeline, one living
   Empire Blueprint owner manual, read-only O2 Knowledge, and the O2-backed

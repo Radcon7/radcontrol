@@ -665,37 +665,41 @@ try {
   }, "persist Infrastructure autosave into the isolated O2 root");
 
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
-  assert.match(
-    await eventually(() => bodyText(base, sessionId), "render Security command center"),
-    /HOST GUARDIAN/,
-  );
-  assert.match(await bodyText(base, sessionId), /Level 0 — Observation/);
-  assert.match(await bodyText(base, sessionId), /Level 5 — Recovery/);
+  const securityText = await eventually(() => bodyText(base, sessionId), "render Security control room");
+  assert.match(securityText, /RADCON SENTINEL/);
+  assert.match(securityText, /Empire Operations/);
+  assert.match(securityText, /Security Guardian/);
+  assert.match(securityText, /Is my computer okay\?/);
+  assert.match(securityText, /RECENT GUARDIAN ACTIVITY/);
+  assert.match(securityText, /CURRENT MEASUREMENTS/);
   await click(base, sessionId, '[data-testid="sentinel-health-check"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
     assert.match(text, /Host health evidence refreshed/);
-    assert.match(text, /ACTIVE · READ ONLY/);
+    assert.match(text, /GPU TEMPERATURE/);
+    assert.match(text, /Foreground reading/);
   }, "run a real read-only Host Guardian check", 30_000);
-  const hostActionRow = await eventually(
-    () => element(base, sessionId, '[data-testid="sentinel-activity"] [data-kind="action"]'),
-    "render the real Host Guardian action record",
+  const hostObservationRow = await eventually(
+    () => element(base, sessionId, '[data-testid="guardian-activity-row"]'),
+    "render the durable Host Guardian observation",
   );
-  assert.match(await elementProperty(base, sessionId, hostActionRow, "textContent"), /host inspect health/i);
-  await domClick(base, sessionId, '[data-testid="sentinel-security-check"]');
+  assert.match(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /Operator check|Automatic observation/);
+
+  await click(base, sessionId, '[data-testid="security-mode-security_guardian"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "render Security Guardian workspace"), /WEBSITES \+ FULL TECHNOLOGY ESTATE/);
+  await domClick(base, sessionId, '[data-testid="security-guardian-check"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /NOT CONFIGURED/);
-    assert.match(text, /Security inventory refreshed/);
+    assert.match(text, /NOT CONNECTED YET/i);
+    assert.match(text, /Lock Down RCE/);
+    assert.match(text, /0 live read-only adapters/i);
   }, "run a real read-only Security Guardian check", 30_000);
-  const securityActionRow = await eventually(
-    () => element(base, sessionId, '[data-testid="sentinel-activity"] [data-kind="action"]'),
-    "render the real Security Guardian action record",
-  );
-  assert.match(
-    await elementProperty(base, sessionId, securityActionRow, "textContent"),
-    /security inspect inventory/i,
-  );
+  await click(base, sessionId, '[data-testid="security-mode-empire_operations"]');
+  const operationsText = await eventually(() => bodyText(base, sessionId), "render Empire Operations truth overview");
+  assert.match(operationsText, /IS THE EMPIRE MACHINERY FUNCTIONING\?/);
+  assert.match(operationsText, /SOURCE GOLDEN/);
+  assert.match(operationsText, /CI \+ CODEQL/);
+  await click(base, sessionId, '[data-testid="security-mode-sentinel"]');
   if (process.env.RADCONTROL_E2E_SCREENSHOT_PATH) {
     const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`);
     await writeFile(

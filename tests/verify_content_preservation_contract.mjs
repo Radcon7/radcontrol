@@ -4,11 +4,12 @@ import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
-const [app, agents, routers, security, operations, notes, css, bridge, authority, repoState] = await Promise.all([
+const [app, agents, routers, security, guardian, operations, notes, css, bridge, authority, repoState] = await Promise.all([
   read("src/App.tsx"),
   read("src/components/agents/AgentsTab.tsx"),
   read("src/components/agents/RouterHealthPanel.tsx"),
   read("src/components/security/SecurityTab.tsx"),
+  read("src/components/sentinel/SecurityGuardianTab.tsx"),
   read("src/components/security/EmpireOperationsWorkspace.tsx"),
   read("src/components/paste-tabs/NotesHubTab.tsx"),
   read("src/App.css"),
@@ -39,8 +40,13 @@ assert.doesNotMatch(app, /EmpireUtilityTab|empire_utility/);
 
 assert.match(security, /Radcon Sentinel/);
 assert.match(security, /Empire Operations/);
+assert.match(security, /Security Guardian/);
 assert.match(security, /<SentinelTab/);
 assert.match(security, /<EmpireOperationsWorkspace/);
+assert.match(security, /<SecurityGuardianTab/);
+assert.match(guardian, /PROVIDERS \+ SECURITY SYSTEMS/);
+assert.match(guardian, /REGISTERED WEBSITES \+ APPS/);
+assert.match(guardian, /Not connected yet/);
 for (const [label, verb] of [
   ["Empire Map", "empire.map"],
   ["Snapshot", "radcontrol.snapshot"],
