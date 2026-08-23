@@ -44,15 +44,20 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   workstation state into RadControl. Security also contains the restored
   Empire Operations artifact workspace for governed Empire Map, Snapshot, and
   Empire Sweep reports; this does not recreate an Empire Utility destination.
-- Notes and Legal: O2-backed authored document libraries and timeline records.
-  Notes also includes an O2-backed structured Empire To-Do workspace whose
-  editable records live at `docs/radcontrol/empire_todo/items.json` in O2. Its
-  control appears immediately after Empire Blueprint and opens the persistent
-  two-pane roadmap.
+- Notes and Legal: Notes distinguishes My Notes (operator-authored O2 documents,
+  explicitly not Empire authority), Timeline, Empire Blueprint, read-only O2
+  Knowledge, and the O2-backed structured Empire To-Do workspace. My Notes use
+  `docs/radcontrol/notes/`; Blueprint uses `docs/radcontrol/empire_blueprint/`;
+  To-Do records live at `docs/radcontrol/empire_todo/items.json`. O2 Knowledge
+  reads a deterministic O2 projection at request time and owns no RadControl
+  knowledge cache, registry, or database.
 
 ## Persistence and execution
 
 - Durable writes use O2 file or producer verbs; React/local storage is not document truth.
+  My Notes and Blueprint use the contained O2 document-library routes
+  (`files.write`, `files.rename`, and explicit `files.delete`); O2 Knowledge is
+  read-only through `knowledge.operator_workspace`.
 - Empire To-Do writes use the validated O2 `empire.todo.save` payload route;
   Sentinel runtime state and audit use the O2 Sentinel contract rather than
   browser storage or RadControl-owned files.

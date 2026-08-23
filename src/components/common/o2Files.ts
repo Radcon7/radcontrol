@@ -60,6 +60,16 @@ export type O2RenamePayload = {
   toPath: string;
 };
 
+export type O2DeleteJson = {
+  ok?: boolean;
+  path?: string;
+  error?: string;
+};
+
+export type O2DeletePayload = {
+  path: string;
+};
+
 function assertInlineDocumentSize(content: string): void {
   if (new TextEncoder().encode(content).byteLength > O2_INLINE_DOCUMENT_MAX_BYTES) {
     throw new Error(
@@ -149,6 +159,21 @@ export async function renameO2File(
   );
   if (!parsed.ok) {
     throw new Error(parsed.error || "files.rename returned error");
+  }
+  return parsed;
+}
+
+export async function deleteO2File(
+  payload: O2DeletePayload,
+): Promise<O2DeleteJson> {
+  const parsed = await runO2PayloadParsedJson<O2DeleteJson>(
+    "files.delete",
+    payload,
+    "files.delete failed",
+    "files.delete returned invalid JSON",
+  );
+  if (!parsed.ok) {
+    throw new Error(parsed.error || "files.delete returned error");
   }
   return parsed;
 }

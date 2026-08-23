@@ -3,6 +3,7 @@ import { copyText } from "../common/copyText";
 import { ArtifactListPanel } from "../common/ArtifactListPanel";
 import {
   type FilesListItem,
+  deleteO2File,
   listO2Files,
   normalizeO2Path,
   readO2File,
@@ -173,6 +174,29 @@ export function DocumentLibraryPanel({
 
   async function handleCopyCurrent(): Promise<void> {
     await copyText(draftText ?? "");
+  }
+
+  async function deleteCurrent(): Promise<void> {
+    const path = currentPath ? normalizeO2Path(currentPath) : "";
+    if (!path || saving || renaming || loading) return;
+    if (!window.confirm(`Delete ${baseNameFromPath(path)}? This removes the governed document from the working tree.`)) return;
+    setSaving(true);
+    setErr("");
+    try {
+      await deleteO2File({ path });
+      setCurrentPath(null);
+      setCurrentName("");
+      setDraftText("");
+      setIsDirty(false);
+      setIsCreatingNew(false);
+      rememberLastActivePath(null);
+      hasAutoOpenedRef.current = false;
+      await refreshList();
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSaving(false);
+    }
   }
 
   useEffect(() => {
@@ -497,6 +521,7 @@ export function DocumentLibraryPanel({
           onClick={startNewDoc}
           disabled={loading || saving || renaming}
           title="Start a new named document"
+          data-testid="document-library-new"
         >
           New Entry
         </button>
@@ -505,6 +530,7 @@ export function DocumentLibraryPanel({
           onClick={() => void saveCurrent()}
           disabled={!canSave}
           title="Save document through O2 files.write"
+          data-testid="document-library-save"
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -516,6 +542,16 @@ export function DocumentLibraryPanel({
           title="Copy current editor text"
         >
           Copy
+        </button>
+        <button
+          type="button"
+          className="btn btnDanger btnCompact"
+          onClick={() => void deleteCurrent()}
+          disabled={!currentPath || !canSave}
+          title="Delete the current O2 document after confirmation"
+          data-testid="document-library-delete"
+        >
+          Delete
         </button>
       </div>
 
@@ -541,6 +577,7 @@ export function DocumentLibraryPanel({
               placeholder={placeholder ?? "Write here..."}
               spellCheck={false}
               className="pasteArea workspaceTextAreaFill"
+              data-testid="document-library-editor"
             />
           </div>
         </div>

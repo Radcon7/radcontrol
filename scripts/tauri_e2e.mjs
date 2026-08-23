@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import net from "node:net";
@@ -60,6 +60,7 @@ async function prepareIsolatedO2Root() {
   const fixturePort = await unusedPort();
   const fixtureUrl = `http://127.0.0.1:${fixturePort}`;
   const notesPath = path.join(o2Root, "docs", "projects", fixtureKey, "NOTES.md");
+  const myNotesDir = path.join(o2Root, "docs", "radcontrol", "notes");
   const agentProfileDir = path.join(
     o2Root,
     "docs",
@@ -107,12 +108,25 @@ async function prepareIsolatedO2Root() {
     "sentinel-triggers.json",
     "sentinel-assets.json",
     "sentinel-adapters.json",
+    "knowledge-catalog.json",
+    "knowledge-catalog.lock.json",
+    "learning-candidates.json",
+    "learning-candidates.schema.json",
+    "quality-gates.json",
   ]) {
     await cp(
       path.join(sourceO2Root, "registry", registryFile),
       path.join(o2Root, "registry", registryFile),
     );
   }
+  await Promise.all([
+    cp(path.join(sourceO2Root, "contracts"), path.join(o2Root, "contracts"), { recursive: true }),
+    cp(path.join(sourceO2Root, "skills"), path.join(o2Root, "skills"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "reusable-patterns"), path.join(o2Root, "docs", "reusable-patterns"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "decisions"), path.join(o2Root, "docs", "decisions"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "O2_OPERATIONAL_PLAYBOOK.md"), path.join(o2Root, "docs", "O2_OPERATIONAL_PLAYBOOK.md")),
+    cp(path.join(sourceO2Root, "docs", "CURRENT_DOCTRINE.md"), path.join(o2Root, "docs", "CURRENT_DOCTRINE.md")),
+  ]);
   await mkdir(hostRecordDir, { recursive: true });
   await Promise.all([
     mkdir(e2eHome, { recursive: true }),
@@ -128,10 +142,13 @@ async function prepareIsolatedO2Root() {
     );
   }
   await mkdir(path.join(fixtureRepo, "site"), { recursive: true });
+  await mkdir(path.join(fixtureRepo, "docs"), { recursive: true });
   await mkdir(path.dirname(notesPath), { recursive: true });
+  await mkdir(myNotesDir, { recursive: true });
   await mkdir(path.dirname(empireTodoPath), { recursive: true });
   await writeFile(path.join(fixtureRepo, "site", "index.html"), "<main>RadControl E2E fixture</main>\n");
   await writeFile(notesPath, "Temporary E2E fixture note.\n");
+  await writeFile(path.join(fixtureRepo, "docs", "REPO_STATE.md"), "# Fixture\n\nPurpose: Isolated RadControl acceptance fixture.\n");
   await cp(path.join(o2Root, "registry", "empire-todo-seeds.json"), empireTodoPath);
   await writeFile(
     path.join(o2Root, "registry", "projects.json"),
@@ -158,6 +175,7 @@ async function prepareIsolatedO2Root() {
     o2Root,
     fixturePort,
     notesPath,
+    myNotesDir,
     agentProfileDir,
     agentNotesPath,
     e2eHome,
@@ -231,6 +249,13 @@ async function selectValue(base, sessionId, id, value) {
     script: "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
     args: [{ "element-6066-11e4-a52e-4f735466cecf": id }, value],
   });
+}
+
+async function acceptAlert(base, sessionId) {
+  return eventually(
+    () => request(base, `/session/${sessionId}/alert/accept`, "POST", {}),
+    "accept document deletion confirmation",
+  );
 }
 
 async function elementText(base, sessionId, id) {
@@ -335,6 +360,34 @@ try {
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
+  await click(base, sessionId, '[data-testid="document-library-new"]');
+  const myNotesEditor = await element(base, sessionId, '[data-testid="document-library-editor"]');
+  const myNotesProbe = "E2E My Notes draft persists through governed O2 storage";
+  await replaceValue(base, sessionId, myNotesEditor, myNotesProbe);
+  await click(base, sessionId, '[data-testid="document-library-save"]');
+  const myNoteFile = await eventually(async () => {
+    const names = await readdir(fixture.myNotesDir);
+    const found = names.find((name) => name.endsWith(".md"));
+    if (!found) throw new Error("My Notes file was not created");
+    const candidate = path.join(fixture.myNotesDir, found);
+    assert.match(await readFile(candidate, "utf8"), new RegExp(myNotesProbe));
+    return candidate;
+  }, "create and persist My Note inside the isolated O2 fixture");
+  await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
+  await eventually(async () => assert.match(
+    await bodyText(base, sessionId),
+    /O2 KNOWLEDGE[\s\S]*WHAT O2 KNOWS[\s\S]*HOST-LOCAL\/NON-AUTHORITATIVE/,
+  ), "render read-only O2 Knowledge overview");
+  await click(base, sessionId, '.knowledgeNavButton:nth-child(6)');
+  await eventually(async () => assert.match(
+    await bodyText(base, sessionId),
+    /NOT YET DOCTRINE[\s\S]*CANDIDATE\/NON-AUTHORITATIVE/,
+  ), "label learning candidates as non-authoritative");
+  await click(base, sessionId, '[data-testid="notes-mode-notes"]');
+  await eventually(async () => assert.match(
+    await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="document-library-editor"]'), "value"),
+    new RegExp(myNotesProbe),
+  ), "reload persisted My Note before the native restart");
   const [empireBlueprintMode, empireTodoMode] = await Promise.all([
     eventually(
       () => element(base, sessionId, '[data-testid="notes-mode-empire_blueprint"]'),
@@ -429,6 +482,15 @@ try {
   sessionId = await startDesktopSession(base, sandboxedApp);
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "restart isolated RadControl");
   await click(base, sessionId, '[data-testid="tab-notes"]');
+  await eventually(async () => assert.match(
+    await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="document-library-editor"]'), "value"),
+    new RegExp(myNotesProbe),
+  ), "reload My Note after native restart");
+  await click(base, sessionId, '[data-testid="document-library-delete"]');
+  await acceptAlert(base, sessionId);
+  await eventually(async () => {
+    await assert.rejects(access(myNoteFile));
+  }, "delete My Note only from the isolated O2 fixture");
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
   await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
   await eventually(
@@ -688,7 +750,7 @@ try {
     assert.match(await readFile(fixture.notesPath, "utf8"), /E2E autosave probe/);
   }, "persist autosave into isolated O2 root");
 
-  console.error("[e2e] passed: Notes ordering and Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
+  console.error("[e2e] passed: My Notes create/edit/restart/delete, O2 Knowledge read-only projection, Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
 } catch (error) {
   if (sessionId) {
     const renderedText = await bodyText(base, sessionId).catch(() => "<body unavailable>");
