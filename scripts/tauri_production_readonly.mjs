@@ -177,7 +177,7 @@ try {
   await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /O2 KNOWLEDGE[\s\S]*WHAT O2 KNOWS[\s\S]*host-local\/non-authoritative/);
+    assert.match(text, /O2 KNOWLEDGE[\s\S]*WHAT O2 KNOWS[\s\S]*HOST-LOCAL\/NON-AUTHORITATIVE/);
     assert.match(text, /Canonical source/);
   }, "render O2 Knowledge without mutating installed O2");
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
