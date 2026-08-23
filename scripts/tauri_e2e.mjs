@@ -90,6 +90,7 @@ async function prepareIsolatedO2Root() {
     "empire_todo",
     "items.json",
   );
+  const timelineDir = path.join(o2Root, "docs", "radcontrol", "timeline");
   const hostRecordDir = path.join(
     o2Root,
     "docs",
@@ -146,6 +147,7 @@ async function prepareIsolatedO2Root() {
   await mkdir(path.dirname(notesPath), { recursive: true });
   await mkdir(myNotesDir, { recursive: true });
   await mkdir(path.dirname(empireTodoPath), { recursive: true });
+  await mkdir(timelineDir, { recursive: true });
   await writeFile(path.join(fixtureRepo, "site", "index.html"), "<main>RadControl E2E fixture</main>\n");
   await writeFile(notesPath, "Temporary E2E fixture note.\n");
   await writeFile(path.join(fixtureRepo, "docs", "REPO_STATE.md"), "# Fixture\n\nPurpose: Isolated RadControl acceptance fixture.\n");
@@ -183,6 +185,7 @@ async function prepareIsolatedO2Root() {
     infrastructureRecordDir,
     infrastructureNotesPath,
     empireTodoPath,
+    timelineDir,
     xdgCacheHome,
     xdgConfigHome,
     xdgDataHome,
@@ -228,6 +231,43 @@ async function click(base, sessionId, selector) {
     await request(base, `/session/${sessionId}/element/${id}/click`, "POST", {});
     return id;
   }, `click ${selector}`);
+}
+
+async function activateCompletionCheckbox(base, sessionId, title) {
+  const selector = `[aria-label="Complete ${title}"]`;
+  const checkbox = await element(base, sessionId, selector);
+  assert.equal(await request(base, `/session/${sessionId}/element/${checkbox}/enabled`), true, `completion checkbox for ${title} is enabled`);
+  await click(base, sessionId, selector);
+  try {
+    await eventually(() => element(base, sessionId, '[data-testid="empire-todo-complete-without-timeline"]'), `open ${title} completion dialog by native WebDriver click`, 1_500);
+    return "webdriver";
+  } catch {
+    const result = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+      script: "if (!arguments[0].matches(':enabled')) throw new Error('checkbox disabled'); arguments[0].click(); return { checked: arguments[0].checked, type: arguments[0].type };",
+      args: [{ "element-6066-11e4-a52e-4f735466cecf": checkbox }],
+    });
+    assert.equal(result.type, "checkbox");
+    await eventually(() => element(base, sessionId, '[data-testid="empire-todo-complete-without-timeline"]'), `open ${title} completion dialog by DOM click on the real checkbox`);
+    return "dom-click";
+  }
+}
+
+async function activateView(base, sessionId, view, expectedSelector) {
+  const selector = `[data-testid="empire-todo-${view}-view"]`;
+  const control = await element(base, sessionId, selector);
+  assert.equal(await request(base, `/session/${sessionId}/element/${control}/enabled`), true, `${view} view control is enabled`);
+  const selected = () => request(base, `/session/${sessionId}/execute/sync`, "POST", { script: "return arguments[0].getAttribute('aria-pressed');", args: [{ "element-6066-11e4-a52e-4f735466cecf": control }] });
+  await click(base, sessionId, selector);
+  try {
+    await eventually(async () => assert.equal(await selected(), "true"), `open ${view} view by native WebDriver click`, 1_500);
+  } catch {
+    await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+      script: "if (!arguments[0].matches(':enabled')) throw new Error('view control disabled'); arguments[0].click(); return arguments[0].textContent;",
+      args: [{ "element-6066-11e4-a52e-4f735466cecf": control }],
+    });
+    await eventually(async () => assert.equal(await selected(), "true"), `open ${view} view by DOM click on the real button`);
+  }
+  await eventually(() => element(base, sessionId, expectedSelector), `render ${view} view contents`);
 }
 
 async function domClick(base, sessionId, selector) {
@@ -414,21 +454,44 @@ try {
     assert.match(dinosaurItem?.notes || "", new RegExp(todoProbe));
     assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
   }, "persist Empire To-Do fields before switching items");
-  await click(base, sessionId, '[aria-label="Complete DQOTD Dinosaur Content"]');
-  await click(base, sessionId, '[data-testid="empire-todo-complete-with-timeline"]');
-  await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
-  await eventually(
-    async () => assert.match(
-      await bodyText(base, sessionId),
-      /DQOTD Dinosaur Content/,
-    ),
-    "show completed Empire To-Do history",
-  );
-  await click(base, sessionId, '[data-testid="empire-todo-active-view"]');
+  const completionModes = [];
+  completionModes.push(await activateCompletionCheckbox(base, sessionId, "DQOTD Dinosaur Content"));
+  await eventually(async () => assert.match(await bodyText(base, sessionId), /Complete “DQOTD Dinosaur Content”[\s\S]*Cancel[\s\S]*Complete without Timeline[\s\S]*Add to Timeline/), "render completion dialog for Cancel");
+  await click(base, sessionId, '.notesModalCard .btnGhost');
+  await eventually(async () => {
+    const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
+    assert.equal(todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content")?.status, "In Progress");
+    assert.equal((await readdir(fixture.timelineDir)).length, 0);
+  }, "Cancel keeps deterministic task active without a Timeline event");
+  completionModes.push(await activateCompletionCheckbox(base, sessionId, "DQOTD Dinosaur Content"));
+  await click(base, sessionId, '[data-testid="empire-todo-complete-without-timeline"]');
+  await eventually(async () => {
+    const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
+    assert.equal(todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content")?.status, "Complete");
+    assert.equal((await readdir(fixture.timelineDir)).length, 0);
+  }, "Complete without Timeline persists only the task completion");
+  await activateView(base, sessionId, "completed", '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
+  await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'), "show completed Empire To-Do history");
+  await activateView(base, sessionId, "active", '[data-testid="empire-todo-item-dqotd-7d-acceptance"]');
   await assert.rejects(
     () => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'),
     /POST \/session\//,
   );
+  const timelineTask = "RadControl Operator Cockpit";
+  completionModes.push(await activateCompletionCheckbox(base, sessionId, timelineTask));
+  await click(base, sessionId, '[data-testid="empire-todo-complete-with-timeline"]');
+  const timelineFile = await eventually(async () => {
+    const names = await readdir(fixture.timelineDir);
+    assert.equal(names.length, 1, "exactly one Timeline milestone is created");
+    const file = path.join(fixture.timelineDir, names[0]);
+    const content = await readFile(file, "utf8");
+    assert.match(content, /title: "RadControl Operator Cockpit completed"/);
+    assert.match(content, /date: "\d{4}-\d{2}-\d{2}"/);
+    assert.doesNotMatch(content, new RegExp(todoProbe));
+    return file;
+  }, "Add to Timeline creates one bounded milestone without copying task scratch notes");
+  await activateView(base, sessionId, "completed", '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
+  await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]'), "show Timeline-completed task in completed history");
   await request(base, `/session/${sessionId}`, "DELETE");
   sessionId = await startDesktopSession(base, sandboxedApp);
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "restart isolated RadControl");
@@ -439,14 +502,15 @@ try {
   ), "reload My Note after native restart");
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
   await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
-  await eventually(
-    async () => assert.match(await bodyText(base, sessionId), /DQOTD Dinosaur Content/),
-    "reload completed Empire To-Do item after native restart",
-  );
+  await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'), "reload completed Empire To-Do item after native restart");
   await eventually(async () => {
     const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
     assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
+    assert.equal(todoPayload.items.find((item) => item.id === "radcontrol-operator-cockpit")?.status, "Complete");
+    assert.equal((await readdir(fixture.timelineDir)).length, 1);
+    assert.ok(await access(timelineFile));
   }, "preserve one Empire To-Do item after native restart");
+  assert.ok(completionModes.length === 3 && completionModes.every((mode) => mode === "webdriver" || mode === "dom-click"), "completion dialogs used a real enabled checkbox control");
   await click(base, sessionId, '[data-testid="tab-agents"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "render Agents"),
