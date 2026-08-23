@@ -508,7 +508,7 @@ try {
     assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
     assert.equal(todoPayload.items.find((item) => item.id === "radcontrol-operator-cockpit")?.status, "Complete");
     assert.equal((await readdir(fixture.timelineDir)).length, 1);
-    assert.ok(await access(timelineFile));
+    await access(timelineFile);
   }, "preserve one Empire To-Do item after native restart");
   assert.ok(completionModes.length === 3 && completionModes.every((mode) => mode === "webdriver" || mode === "dom-click"), "completion dialogs used a real enabled checkbox control");
   await click(base, sessionId, '[data-testid="tab-agents"]');
