@@ -14,13 +14,13 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   Host Guardian rather than as a duplicate Infrastructure destination.
 - **Agents**: governed agent roster, attributes, scopes, and notes, plus the
   restored repository-router durability workspace backed by O2 `router.health`.
-- **Security**: the sole Radcon Sentinel destination, with governed Host
-  Guardian and Security Guardian observation, truthful evidence status,
-  recent activity, the capability ladder, triggers, workstation records, and
-  audit state. Its adjacent Empire Operations workspace preserves Empire Map,
-  Snapshot, and Empire Sweep artifact history and governed report controls
-  without restoring a separate Empire Utility tab. Phase 1 exposes read-only
-  Level-0 Sentinel checks only.
+- **Security**: a three-destination control room. Radcon Sentinel owns this
+  computer's health summary, bounded durable Guardian activity, token-free
+  foreground measurements, and advanced host evidence. Empire Operations
+  projects current O2/RadControl matched-pair, automation, audit, and topology
+  truth alongside Empire Map, Snapshot, and Sweep artifacts. Security Guardian
+  is the first-class websites and technology-estate surface; unwired provider,
+  auth, user, threat, and commerce signals are explicitly not connected.
 - **Notes**: My Notes (operator-authored scratchpad documents), Timeline, the
   living Empire Blueprint, a read-only O2 Knowledge workspace, then the
   persistent Empire To-Do workspace. O2 Knowledge projects canonical sources;

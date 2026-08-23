@@ -76,6 +76,43 @@ export type SentinelEvent = {
   observedValues?: Record<string, unknown>;
 };
 
+export type SentinelHostMeasurements = {
+  cpuTemperatureC?: number | null;
+  cpuTemperatureLabel?: string | null;
+  gpuTemperatureC?: number | null;
+  gpuName?: string | null;
+  fanRpm?: number | null;
+  cpuPercent?: number | null;
+  loadOneMinute?: number | null;
+  memoryAvailableGiB?: number | null;
+  diskFreePercent?: number | null;
+  failedServiceCount?: number | null;
+};
+
+export type SentinelHostObservation = SentinelEvent & {
+  guardian: "host";
+  observedValues?: {
+    overallStatus?: SentinelEvidenceStatus;
+    metricStatuses?: Record<string, SentinelEvidenceStatus>;
+    keyMeasurements?: SentinelHostMeasurements;
+    anomalies?: string[];
+    actionOccurred?: boolean;
+    repairOccurred?: boolean;
+    relatedActions?: string[];
+  };
+};
+
+export type SentinelCurrentMeasurements = {
+  ok: boolean;
+  guardian: "host";
+  measuredAt: string;
+  metrics: Record<string, SentinelObservation>;
+  summary: SentinelHostMeasurements;
+  persisted: false;
+  llmUsed: false;
+  source: "foreground-read-only";
+};
+
 export type SentinelIncident = {
   id: string;
   title: string;
@@ -144,6 +181,7 @@ export type SentinelStatus = {
   host: SentinelHostState;
   security: SentinelSecurityState;
   recentEvents: SentinelEvent[];
+  recentHostObservations: SentinelHostObservation[];
   recentIncidents: SentinelIncident[];
   pendingActions: SentinelActionRecord[];
   recentActions: SentinelActionRecord[];

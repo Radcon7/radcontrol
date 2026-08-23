@@ -561,7 +561,9 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
         "radcontrol.scratchpad.read" => return Ok(read("radcontrol-scratchpad.read", "radcontrol-scratchpad")),
         "knowledge.operator_workspace" => return Ok(read("knowledge.operator-workspace", "o2-knowledge")),
         "router.health" => return Ok(read("router.health", "registered-routers")),
+        "radcontrol.golden_state" => return Ok(read("radcontrol.golden-state", "matched-pair")),
         "sentinel.status" => return Ok(read("sentinel.status", "sentinel")),
+        "sentinel.host.current" => return Ok(read("sentinel.host.current", "workstation")),
         "workstation.updates.history" => {
             return Ok(read("workstation-updates.history", "workstation"))
         }
@@ -720,6 +722,13 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
             "sentinel.ask",
             "sentinel",
             TimeoutClass::Governed,
+            Some(AuditClass::Privileged),
+        ),
+        (
+            "sentinel.host.investigate.",
+            "sentinel.host.investigate",
+            "bounded-host-evidence",
+            TimeoutClass::Extended,
             Some(AuditClass::Privileged),
         ),
         (

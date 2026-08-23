@@ -2,7 +2,11 @@ import {
   runO2ParsedJson,
   runO2PayloadParsedJson,
 } from "../common/o2Client";
-import type { SentinelAutomation, SentinelStatus } from "./sentinelModel";
+import type {
+  SentinelAutomation,
+  SentinelCurrentMeasurements,
+  SentinelStatus,
+} from "./sentinelModel";
 
 type HostCheckResponse = {
   ok: boolean;
@@ -45,6 +49,31 @@ export function loadSentinelStatus(): Promise<SentinelStatus> {
     "sentinel.status",
     "Could not load Sentinel status",
     "Sentinel status returned invalid data",
+  );
+}
+
+export function loadCurrentHostMeasurements(): Promise<SentinelCurrentMeasurements> {
+  return runO2ParsedJson<SentinelCurrentMeasurements>(
+    "sentinel.host.current",
+    "Could not refresh current host measurements",
+    "Current Host Guardian measurements returned invalid data",
+  );
+}
+
+export function investigateHostObservation(observationId: string): Promise<{
+  ok: boolean;
+  observationId: string;
+  diagnosis: string;
+  jobId: string;
+  llmUsed: true;
+  repairExecuted: false;
+  nextStep: string;
+}> {
+  return runO2PayloadParsedJson(
+    "sentinel.host.investigate",
+    { observationId },
+    "The governed Host Guardian diagnosis did not complete",
+    "Host Guardian diagnosis returned invalid data",
   );
 }
 

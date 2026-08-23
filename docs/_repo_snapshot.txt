@@ -66,6 +66,7 @@ docs/POLICY_POINTERS.md
 docs/RADCONTROL_CONTENT_PRESERVATION.json
 docs/REPO_STATE.md
 docs/RUNTIME_TRUST_BOUNDARY.md
+docs/SECURITY_CONTROL_ROOM_PHASE7E3A.md
 docs/SENTINEL_PHASE1_MIGRATION.md
 docs/SUPPLY_CHAIN.md
 index.html
@@ -218,6 +219,7 @@ src/components/runtime/RuntimeDiagnosticsModal.tsx
 src/components/security/EmpireOperationsWorkspace.tsx
 src/components/security/SecurityTab.tsx
 src/components/sentinel/HostUpdatesPanel.tsx
+src/components/sentinel/SecurityGuardianTab.tsx
 src/components/sentinel/SentinelTab.tsx
 src/components/sentinel/sentinelApi.ts
 src/components/sentinel/sentinelModel.ts
