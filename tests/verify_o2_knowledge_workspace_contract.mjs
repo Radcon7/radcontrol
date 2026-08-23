@@ -15,7 +15,7 @@ for (const label of [
   "Overview", "Project Intent", "Project Registry", "Knowledge Catalog",
   "Playbooks", "Learning Candidates", "Memory", "Skills", "Patterns",
   "Contracts + Decisions", "Empire Rules", "Quality Gates",
-]) assert.match(workspace, new RegExp(label.replace(/[+]/g, "\\+")));
+]) assert.ok(workspace.includes(label), `missing O2 Knowledge category: ${label}`);
 
 assert.match(notes, /label: "My Notes"/);
 assert.match(notes, /operator-authored O2 documents/);
