@@ -183,23 +183,22 @@ try {
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /EMPIRE TO-DO[\s\S]*What matters now[\s\S]*1 blocked item needs attention/);
+    assert.match(text, /EMPIRE TO-DO[\s\S]*What matters now[\s\S]*1 blocked item[\s\S]*ActiveCompleted/);
     assert.match(text, /NOW[\s\S]*BUSINESS FOUNDATION[\s\S]*CONTROL PLANE[\s\S]*DQOTD LAUNCH \/ PREMIUM[\s\S]*COMMERCIAL PROOF/);
   }, "render grouped current Empire To-Do operating sequence");
-  await click(base, sessionId, '[data-testid="empire-todo-item-dqotd-7d-acceptance"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "read blocked Empire To-Do dependencies"),
-    /DQOTD Phase 7D Acceptance[\s\S]*Blocked[\s\S]*Depends on: Delivered email verification; staging editor authorization; hosted browser acceptance/,
+    /Blocked[\s\S]*Depends on: Delivered email verification; staging editor authorization; hosted browser acceptance/,
   );
   await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "load completed Empire To-Do operator view"),
-    /COMPLETED OPERATING HISTORY[\s\S]*No completed Empire To-Do items yet\./,
+    /ActiveCompleted[\s\S]*No completed items\./,
   );
   await click(base, sessionId, '[data-testid="empire-todo-active-view"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "return to active Empire To-Do operator view"),
-    /CURRENT OPERATING SEQUENCE[\s\S]*DQOTD Phase 7D Acceptance/,
+    /NOW[\s\S]*Blocked[\s\S]*Depends on: Delivered email verification; staging editor authorization; hosted browser acceptance/,
   );
   await click(base, sessionId, '[data-testid="tab-infrastructure"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Infrastructure"), /INFRASTRUCTURE ASSETS/);
