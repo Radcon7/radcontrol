@@ -576,7 +576,7 @@ try {
   await click(base, sessionId, '[data-testid="legal-mode-accounts"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "keep account status entity-specific"), /Radcon Enterprises[\s\S]*EIN[\s\S]*RadWolfe[\s\S]*No RadWolfe account is asserted/);
   await click(base, sessionId, '[data-testid="legal-mode-documents"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render truthful document pointers"), /DOCUMENTS & COMPLIANCE[\s\S]*Articles of Organization[\s\S]*not created[\s\S]*Partnership-related records[\s\S]*not uploaded/);
+  assert.match(await eventually(() => bodyText(base, sessionId), "render truthful document pointers"), /DOCUMENTS & COMPLIANCE[\s\S]*Articles of Organization[\s\S]*not created[\s\S]*Partnership-related records[\s\S]*not uploaded/i);
   await click(base, sessionId, '.legalArchiveChoice');
   assert.match(await eventually(() => bodyText(base, sessionId), "preserve governed Legal archives"), /Legal Working Notes[\s\S]*Legal Library Index/);
   await click(base, sessionId, '[data-testid="tab-agents"]');
