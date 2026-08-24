@@ -107,6 +107,7 @@ export type SentinelCurrentMeasurements = {
   guardian: "host";
   measuredAt: string;
   metrics: Record<string, SentinelObservation>;
+  rules?: Array<Record<string, unknown>>;
   summary: SentinelHostMeasurements;
   persisted: false;
   llmUsed: false;

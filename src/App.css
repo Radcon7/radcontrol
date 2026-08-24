@@ -53,7 +53,7 @@
 
 .securityControlRoom .sentinelShell small,
 .securityControlRoom .workspaceShell small {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -63,7 +63,7 @@
 .securityControlRoom .sentinelActivityHeader > div:first-child > span,
 .securityControlRoom .sentinelAsk > div:first-child > span,
 .securityControlRoom .sentinelSectionHeading > span {
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.12em;
 }
 
@@ -81,7 +81,7 @@
 
 .securityControlRoom .sentinelOperatorSummary small,
 .securityControlRoom .sentinelOperatorSummary strong {
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .securityControlRoom .sentinelOperatorSummary strong {
@@ -128,6 +128,10 @@
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.guardianActivityToggle {
+  justify-self: start;
 }
 
 .guardianActivityRow {
@@ -202,7 +206,7 @@
 }
 
 .securityControlRoom .sentinelSignal > span:first-child {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .securityControlRoom .sentinelSignal strong {
@@ -283,7 +287,7 @@
 .securityGuardianControlGrid article > span,
 .empireOperationsSignalGrid article > span {
   color: #ffd796;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -300,6 +304,54 @@
 
 .empireOperationsSignalGrid article > strong {
   font-size: 15px;
+}
+
+.securityControlRoom .sentinelAdvancedWorkspace {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sentinelAdvancedHeading {
+  display: grid;
+  gap: 5px;
+}
+
+.sentinelAdvancedHeading > span {
+  color: #ffd796;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.sentinelAdvancedHeading > strong {
+  font-size: 18px;
+}
+
+.sentinelDiagnostics {
+  display: grid;
+  gap: 10px;
+}
+
+.sentinelAutomationControl {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid rgba(104, 160, 255, 0.35);
+  border-radius: 10px;
+  background: rgba(104, 160, 255, 0.08);
+}
+
+.sentinelAutomationControl > small {
+  grid-column: 1 / -1;
+}
+
+.sentinelTechnicalDetails .sentinelBoundary {
+  margin-top: 10px;
 }
 
 @media (max-width: 1100px) {

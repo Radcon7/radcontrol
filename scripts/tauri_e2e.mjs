@@ -672,18 +672,26 @@ try {
   assert.match(securityText, /Is my computer okay\?/);
   assert.match(securityText, /RECENT GUARDIAN ACTIVITY/);
   assert.match(securityText, /CURRENT MEASUREMENTS/);
+  assert.match(securityText, /ADVANCED SYSTEM INFORMATION/);
+  assert.match(securityText, /QUICK ANSWERS/);
+  assert.doesNotMatch(securityText, /Advanced evidence, controls, and workstation records/);
   await click(base, sessionId, '[data-testid="sentinel-health-check"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
     assert.match(text, /Host health evidence refreshed/);
     assert.match(text, /GPU TEMPERATURE/);
     assert.match(text, /Foreground reading/);
+    assert.match(text, /SENSORS & SYSTEM EVIDENCE/);
+    assert.match(text, /AUTOMATION & SCHEDULES/);
   }, "run a real read-only Host Guardian check", 30_000);
+  const durableStatus = await element(base, sessionId, '[data-testid="sentinel-status-header"]');
+  assert.match(await elementProperty(base, sessionId, durableStatus, "textContent"), /DURABLE FRESHNESS/);
   const hostObservationRow = await eventually(
     () => element(base, sessionId, '[data-testid="guardian-activity-row"]'),
     "render the durable Host Guardian observation",
   );
   assert.match(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /Operator check|Automatic observation/);
+  assert.doesNotMatch(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /No recorded anomaly/);
 
   await click(base, sessionId, '[data-testid="security-mode-security_guardian"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Security Guardian workspace"), /WEBSITES \+ FULL TECHNOLOGY ESTATE/);
