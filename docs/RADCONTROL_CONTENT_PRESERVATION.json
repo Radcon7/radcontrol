@@ -45,6 +45,14 @@
     { "key": "empire_blueprint", "historical": "Empire Blueprint", "final": "Empire Blueprint", "action": "preserved" },
     { "key": "empire_todo", "historical": "Empire To-Do List", "final": "Empire To-Do", "action": "preserved and positioned immediately after Empire Blueprint" }
   ],
+  "legalModes": [
+    { "key": "structure", "historical": "Portfolio Blueprint", "final": "Structure", "action": "renamed and redesigned as the first/default legal and portal relationship view" },
+    { "key": "formation", "historical": "legal planning inside Portfolio Blueprint and notes", "final": "Formation", "action": "merged into a truthful two-workstream operator sequence" },
+    { "key": "addresses", "historical": "not a first-class view", "final": "Addresses & Agent", "action": "added as the explicit three-address model over the existing O2 planning record" },
+    { "key": "brands", "historical": "portfolio records", "final": "Brands & Ventures", "action": "reclassified to separate Radcon-owned names from the parallel RadWolfe venture" },
+    { "key": "accounts", "historical": "legal planning notes", "final": "Business Accounts", "action": "merged into entity-specific truthful planning states" },
+    { "key": "documents", "historical": "Legal Notes, Legal Documents, Legal Entity Structure Drawing", "final": "Documents & Compliance", "action": "three governed archives preserved as embedded subviews" }
+  ],
   "empireOperations": [
     { "historicalFeature": "Empire Map producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Empire Map", "action": "restored from Git history" },
     { "historicalFeature": "RadControl Snapshot producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Snapshot", "action": "restored from Git history" },

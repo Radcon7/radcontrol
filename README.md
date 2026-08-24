@@ -25,7 +25,12 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   living Empire Blueprint, a read-only O2 Knowledge workspace, then the
   persistent Empire To-Do workspace. O2 Knowledge projects canonical sources;
   it is not a second knowledge database.
-- **Legal**: legal notes, documents, and entity structure records.
+- **Legal**: an O2-backed executive workspace for Structure, Formation,
+  Addresses & Agent, Brands & Ventures, Business Accounts, and Documents &
+  Compliance. Radcon Enterprises and RadWolfe remain parallel legal/business
+  boundaries; RCE portal access is shown separately as operating access, not
+  ownership. Existing legal notes, imported documents, and historical
+  structure drawings remain governed archives inside Documents & Compliance.
 
 ## Runtime Model
 

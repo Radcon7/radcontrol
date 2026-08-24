@@ -70,7 +70,15 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   `docs/radcontrol/empire_blueprint/empire_blueprint_20260822.md`; To-Do records
   live at `docs/radcontrol/empire_todo/items.json`. O2 Knowledge
   reads a deterministic O2 projection at request time and owns no RadControl
-  knowledge cache, registry, or database.
+  knowledge cache, registry, or database. Legal is a six-view executive
+  workspace over the single O2 portfolio blueprint: Structure is first and
+  default, followed by Formation, Addresses & Agent, Brands & Ventures,
+  Business Accounts, and Documents & Compliance. Its legal diagram keeps
+  Radcon Enterprises and the separate RadWolfe partnership parallel, while a
+  visually distinct portal panel explains least-privilege operating access as
+  not ownership. The three existing legal document libraries remain available
+  as governed archive subviews inside Documents & Compliance rather than as
+  competing top-level truth surfaces.
 
 ## Persistence and execution
 
@@ -78,7 +86,9 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   My Notes use a dedicated private O2 runtime producer and must survive source
   checkout plus matched-pair promotion, rollback, and reinstall without a commit.
   Blueprint is one intentionally edited O2 document, not a library; O2 Knowledge is
-  read-only through `knowledge.operator_workspace`.
+  read-only through `knowledge.operator_workspace`. Legal reads the validated
+  O2 `docs/portfolio/PORTFOLIO_BLUEPRINT.json` projection. It owns no browser
+  legal registry and preserves existing archive writes through O2 file verbs.
 - Empire To-Do writes use the validated O2 `empire.todo.save` payload route;
   completion offers exactly one governed Timeline milestone or an explicit
   no-Timeline completion choice before marking the item complete.
