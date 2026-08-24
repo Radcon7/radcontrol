@@ -38,6 +38,21 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - Security: three first-class subtabs over O2-owned truth. Radcon Sentinel is
   the workstation control room: health first, bounded durable Guardian activity
   second, then one token-free foreground measurement home and advanced evidence.
+  Its top answer distinguishes the latest durable result and its governed
+  freshness from foreground measurements; missing or learning evidence does not
+  make a recent durable result stale. O2 owns health severity and sensor
+  authority, while RadControl presents baseline maturity only as secondary
+  comparison metadata. The Sentinel order is fixed as “Is my computer okay?”,
+  “Recent Guardian Activity”, “Current Measurements”, then “Advanced System
+  Information”. Activity is bounded to 20 durable records but initially shows a
+  compact recent set; legacy records and retained Attention/UNKNOWN states must
+  state exactly what evidence is absent. Investigation is available only for a
+  retained anomaly, and repair remains unavailable without current evidence.
+  Automatic Guardian has one compact authoritative control, rather than
+  repeated status/control copies. Advanced information is naturally reachable
+  beneath its divider, with technical metadata kept at the bottom. Operator
+  text and controls use readable normal-size type; density comes from hierarchy,
+  not tiny text.
   Empire Operations combines deterministic matched-pair, automation, audit, and
   topology truth with governed Map, Snapshot, and Sweep artifacts. Security
   Guardian owns websites and full technology-estate visibility, promotes the
