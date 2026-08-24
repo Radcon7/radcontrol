@@ -5,9 +5,15 @@ const source = await readFile(new URL("../scripts/tauri_e2e.mjs", import.meta.ur
 const isolation = await readFile(new URL("../scripts/native_acceptance_lib.mjs", import.meta.url), "utf8");
 const productionProbe = await readFile(new URL("../scripts/tauri_production_readonly.mjs", import.meta.url), "utf8");
 const devLauncherSource = await readFile(new URL("../scripts/tauri_dev.mjs", import.meta.url), "utf8");
+const productionConfig = JSON.parse(await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"));
+const e2eConfig = JSON.parse(await readFile(new URL("../src-tauri/tauri.e2e.conf.json", import.meta.url), "utf8"));
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
-assert.equal(packageJson.scripts["test:tauri-e2e"], "npx tauri build --debug --no-bundle && node scripts/tauri_e2e.mjs");
+assert.equal(packageJson.scripts["test:tauri-e2e"], "npx tauri build --debug --no-bundle --config src-tauri/tauri.e2e.conf.json && node scripts/tauri_e2e.mjs");
 assert.equal(packageJson.scripts["test:tauri-production-readonly"], "node scripts/tauri_production_readonly.mjs");
+assert.equal(e2eConfig.app.windows[0].minWidth, 500);
+assert.equal(e2eConfig.app.windows[0].minHeight, 500);
+assert.equal(e2eConfig.app.windows[0].resizable, true);
+assert.equal(productionConfig.app.windows[0].minWidth, 1500);
 assert.match(source, /mkdtemp\(/);
 assert.match(source, /prepareIsolatedO2Root/);
 assert.match(source, /target\/debug\/radcontrol-app/);

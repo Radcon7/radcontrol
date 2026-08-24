@@ -45,7 +45,7 @@
     "tauri:dev": "node scripts/tauri_dev.mjs",
     "tauri:build": "npx tauri build",
     "tauri": "npx tauri",
-    "test:tauri-e2e": "npx tauri build --debug --no-bundle && node scripts/tauri_e2e.mjs",
+    "test:tauri-e2e": "npx tauri build --debug --no-bundle --config src-tauri/tauri.e2e.conf.json && node scripts/tauri_e2e.mjs",
     "test:tauri-production-readonly": "node scripts/tauri_production_readonly.mjs"
   },
   "dependencies": {

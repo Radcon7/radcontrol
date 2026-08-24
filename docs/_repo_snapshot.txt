@@ -153,6 +153,7 @@ src-tauri/src/commands/opener.rs
 src-tauri/src/lib.rs
 src-tauri/src/main.rs
 src-tauri/tauri.conf.json
+src-tauri/tauri.e2e.conf.json
 src/App.css
 src/App.tsx
 src/components/agents/AgentBrief.tsx

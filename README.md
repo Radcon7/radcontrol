@@ -119,7 +119,7 @@ bash scripts/snapshot_repo_state.sh --check
 Native acceptance is intentionally split into two classes:
 
 - `npm run test:tauri-production-readonly -- --expected-o2-sha <sha> --expected-radcontrol-sha <sha> --expected-artifact-sha <sha>` runs the exact production artifact. It mounts installed O2 read-only, replaces `.state` with a test-owned overlay, records installed Git/To-Do/listener evidence, exercises only read paths, and proves installed state is unchanged afterward.
-- `npm run test:tauri-e2e` builds a debug/test-capable native artifact and exercises persistence only after canonical fixture, home/state, seed, installed-cleanliness, and in-app runtime-identity checks succeed.
+- `npm run test:tauri-e2e` builds a debug/test-capable native artifact with an acceptance-only resizable-window override, then exercises persistence and responsive presentation only after canonical fixture, home/state, seed, installed-cleanliness, and in-app runtime-identity checks succeed. The production window minimum remains unchanged.
 
 The writable desktop test exercises tab switching, submits `BUILD PROJECT` into a temporary governed root, verifies the resulting starter and formation dossier, and autosaves deterministic fixture records. It is opt-in because it launches a native desktop session. Project runtime lifecycle is a separate product/runtime concern and is not part of this isolation-focused acceptance class.
 
