@@ -203,7 +203,68 @@ try {
   await click(base, sessionId, '[data-testid="tab-infrastructure"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Infrastructure"), /INFRASTRUCTURE ASSETS/);
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render Sentinel"), /HOST GUARDIAN[\s\S]*CURRENT MEASUREMENTS/);
+  const sentinelText = await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/);
+    assert.match(text, /Is my computer okay\?[\s\S]*RECENT GUARDIAN ACTIVITY[\s\S]*CURRENT MEASUREMENTS[\s\S]*Advanced evidence, controls, and workstation records/);
+    assert.match(text, /Refreshes every 60 seconds[\s\S]*Deterministic, token-free, and not written to durable history/);
+    assert.match(text, /GPU TEMPERATURE[\s\S]*(Sensor unavailable|°C)/);
+    assert.match(text, /Additional depth and provenance—not a second copy of current summary measurements/);
+    return text;
+  }, "render the installed Radcon Sentinel control room");
+  assert.equal((sentinelText.match(/CURRENT MEASUREMENTS/g) || []).length, 1, "Current Measurements must have one primary home");
+  const sentinelPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `
+      const activity = document.querySelector('.guardianActivityScroll');
+      const small = document.querySelector('.securityControlRoom .sentinelShell small');
+      const investigateButtons = document.querySelectorAll('[data-testid="guardian-investigate-fix"]');
+      const anomalyRows = document.querySelectorAll('.guardianActivityRow-attention, .guardianActivityRow-elevated, .guardianActivityRow-critical');
+      return {
+        activityOverflowY: activity ? getComputedStyle(activity).overflowY : null,
+        smallFontSize: small ? Number.parseFloat(getComputedStyle(small).fontSize) : null,
+        investigateButtonCount: investigateButtons.length,
+        anomalyRowCount: anomalyRows.length,
+      };
+    `,
+    args: [],
+  });
+  assert.equal(sentinelPresentation.activityOverflowY, "auto", "Recent Guardian Activity must be visibly bounded and scrollable");
+  assert.ok(sentinelPresentation.smallFontSize >= 12.5, "Security supporting typography must remain readable");
+  assert.ok(sentinelPresentation.investigateButtonCount <= sentinelPresentation.anomalyRowCount, "Investigate / Fix must not appear on normal rows");
+
+  await click(base, sessionId, '[data-testid="security-mode-empire_operations"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /IS THE EMPIRE MACHINERY FUNCTIONING\?[\s\S]*SOURCE GOLDEN[\s\S]*INSTALLED GOLDEN[\s\S]*AUTOMATION HEALTH[\s\S]*REGISTRY \+ TOPOLOGY[\s\S]*SECURITY \+ AUDIT/);
+    assert.ok(
+      text.includes(`O2 ${expectedO2Sha.slice(0, 9)} · RadControl ${expectedRadcontrolSha.slice(0, 9)}`),
+      "Empire Operations did not render the exact accepted source pair",
+    );
+    assert.match(text, /CI \+ CODEQLNot connected yet/);
+    assert.match(text, /Empire Map[\s\S]*Snapshot[\s\S]*Empire Sweep/);
+  }, "render truthful installed Empire Operations");
+
+  await click(base, sessionId, '[data-testid="security-mode-security_guardian"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /WEBSITES \+ FULL TECHNOLOGY ESTATE[\s\S]*VISIBILITY NOW[\s\S]*PROVIDERS \+ SECURITY SYSTEMS[\s\S]*REGISTERED WEBSITES \+ APPS/);
+    assert.match(text, /CONTROL READINESS[\s\S]*View User Activity[\s\S]*Authentication Logs[\s\S]*Security Events[\s\S]*Suspicious Activity[\s\S]*Lock Down RCE[\s\S]*Maintenance \/ Restrict Access/);
+    assert.match(text, /Not connected yet/i);
+  }, "render truthful installed Security Guardian");
+  const futureControlButtonCount = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: "return document.querySelectorAll('[data-testid=\"security-guardian-controls\"] button').length;",
+    args: [],
+  });
+  assert.equal(futureControlButtonCount, 0, "unwired Security Guardian controls must not be executable buttons");
+
+  await request(base, `/session/${sessionId}/refresh`, "POST", {});
+  await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "refresh installed RadControl");
+  await click(base, sessionId, '[data-testid="tab-sentinel"]');
+  assert.match(
+    await eventually(() => bodyText(base, sessionId), "restore selected Security subtab after refresh/remount"),
+    /WEBSITES \+ FULL TECHNOLOGY ESTATE[\s\S]*Security Guardian/,
+  );
+  await click(base, sessionId, '[data-testid="security-mode-sentinel"]');
   await click(base, sessionId, '[data-testid="tab-projects"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "return to Projects"), /DQOTD/);
   assertPortAbsent(tcpListeners(), 1420);
