@@ -566,7 +566,7 @@ try {
     return value;
   }, "render the legal ownership diagram responsively");
   assert.ok(mobileColumns.diagram);
-  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1280, height: 900 });
+  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
   await click(base, sessionId, '[data-testid="legal-mode-formation"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render separate formation workstreams"), /Radcon Enterprises formation[\s\S]*RadWolfe formalization[\s\S]*Form RadWolfe LLC if chosen/);
   await click(base, sessionId, '[data-testid="legal-mode-addresses"]');
