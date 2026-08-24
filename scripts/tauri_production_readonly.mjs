@@ -205,11 +205,12 @@ try {
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
   const sentinelText = await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/);
-    assert.match(text, /Is my computer okay\?[\s\S]*RECENT GUARDIAN ACTIVITY[\s\S]*CURRENT MEASUREMENTS[\s\S]*Advanced evidence, controls, and workstation records/);
-    assert.match(text, /Refreshes every 60 seconds[\s\S]*Deterministic, token-free, and not written to durable history/);
-    assert.match(text, /GPU TEMPERATURE[\s\S]*(Sensor unavailable|°C)/);
-    assert.match(text, /Additional depth and provenance—not a second copy of current summary measurements/);
+    assert.ok(/Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/.test(text), "Security control-room navigation is missing");
+    assert.ok(/Is my computer okay\?[\s\S]*RECENT GUARDIAN ACTIVITY[\s\S]*CURRENT MEASUREMENTS[\s\S]*ADVANCED SYSTEM INFORMATION/.test(text), "Sentinel primary hierarchy is incorrect");
+    assert.ok(!text.includes("Advanced evidence, controls, and workstation records"), "The retired Advanced umbrella disclosure is still rendered");
+    assert.ok(/Refreshes every 60 seconds[\s\S]*Deterministic, token-free, and not written to durable history/.test(text), "Foreground measurement persistence boundary is missing");
+    assert.ok(/GPU TEMPERATURE[\s\S]*(Sensor unavailable|°C)/.test(text), "GPU measurement truth is missing");
+    assert.ok(text.includes("Additional depth and provenance—not a second copy of Current Measurements."), "Advanced evidence boundary is missing");
     return text;
   }, "render the installed Radcon Sentinel control room");
   assert.equal((sentinelText.match(/CURRENT MEASUREMENTS/g) || []).length, 1, "Current Measurements must have one primary home");
