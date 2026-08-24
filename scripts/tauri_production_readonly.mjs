@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import net from "node:net";
@@ -122,8 +122,9 @@ await Promise.all([
   mkdir(xdgConfigHome, { recursive: true, mode: 0o700 }),
   mkdir(xdgDataHome, { recursive: true, mode: 0o700 }),
   mkdir(dconfOverlay, { recursive: true, mode: 0o700 }),
-  mkdir(path.join(stateOverlay, "radcontrol-runtime", "tmp"), { recursive: true, mode: 0o700 }),
 ]);
+await cp(path.join(INSTALLED_O2_ROOT, ".state"), stateOverlay, { recursive: true, preserveTimestamps: true });
+await mkdir(path.join(stateOverlay, "radcontrol-runtime", "tmp"), { recursive: true, mode: 0o700 });
 const sandboxedApp = await createBubblewrapApplication({
   app,
   tempRoot,
@@ -205,11 +206,13 @@ try {
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
   const sentinelText = await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/);
-    assert.match(text, /Is my computer okay\?[\s\S]*RECENT GUARDIAN ACTIVITY[\s\S]*CURRENT MEASUREMENTS[\s\S]*Advanced evidence, controls, and workstation records/);
-    assert.match(text, /Refreshes every 60 seconds[\s\S]*Deterministic, token-free, and not written to durable history/);
-    assert.match(text, /GPU TEMPERATURE[\s\S]*(Sensor unavailable|°C)/);
-    assert.match(text, /Additional depth and provenance—not a second copy of current summary measurements/);
+    assert.ok(/Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/.test(text), "Security control-room navigation is missing");
+    assert.ok(/Is my computer okay\?[\s\S]*RECENT GUARDIAN ACTIVITY[\s\S]*CURRENT MEASUREMENTS[\s\S]*ADVANCED SYSTEM INFORMATION/.test(text), "Sentinel primary hierarchy is incorrect");
+    assert.ok(!text.includes("Advanced evidence, controls, and workstation records"), "The retired Advanced umbrella disclosure is still rendered");
+    assert.ok(/Refreshes every 60 seconds[\s\S]*Deterministic, token-free, and not written to durable history/.test(text), "Foreground measurement persistence boundary is missing");
+    assert.ok(/GPU TEMPERATURE[\s\S]*(Sensor unavailable|°C)/.test(text), "GPU measurement truth is missing");
+    assert.ok(text.includes("Additional depth and provenance—not a second copy of Current Measurements."), "Advanced evidence boundary is missing");
+    assert.ok(/QUICK ANSWERS[\s\S]*No AI model used\.[\s\S]*Get Quick Answer/.test(text), "Deterministic Quick Answers boundary is missing");
     return text;
   }, "render the installed Radcon Sentinel control room");
   assert.equal((sentinelText.match(/CURRENT MEASUREMENTS/g) || []).length, 1, "Current Measurements must have one primary home");
@@ -219,9 +222,19 @@ try {
       const small = document.querySelector('.securityControlRoom .sentinelShell small');
       const investigateButtons = document.querySelectorAll('[data-testid="guardian-investigate-fix"]');
       const anomalyRows = document.querySelectorAll('.guardianActivityRow-attention, .guardianActivityRow-elevated, .guardianActivityRow-critical');
+      const shell = document.querySelector('.securityControlRoom .sentinelShell');
+      const importantReading = document.querySelector('.securityControlRoom .sentinelSignal strong');
       return {
         activityOverflowY: activity ? getComputedStyle(activity).overflowY : null,
         smallFontSize: small ? Number.parseFloat(getComputedStyle(small).fontSize) : null,
+        normalFontSize: shell ? Number.parseFloat(getComputedStyle(shell).fontSize) : null,
+        importantReadingFontSize: importantReading ? Number.parseFloat(getComputedStyle(importantReading).fontSize) : null,
+        activityRowCount: document.querySelectorAll('[data-testid="guardian-activity-row"]').length,
+        olderActivityToggleCount: document.querySelectorAll('.guardianActivityToggle').length,
+        automationControlCount: document.querySelectorAll('.sentinelAutomationControl').length,
+        automationSelectCount: document.querySelectorAll('.sentinelAutomationControl select').length,
+        automationToggleCount: document.querySelectorAll('[data-testid="sentinel-automation-toggle"]').length,
+        advancedUmbrellaCount: document.querySelectorAll('details.sentinelAdvancedWorkspace').length,
         investigateButtonCount: investigateButtons.length,
         anomalyRowCount: anomalyRows.length,
       };
@@ -229,8 +242,26 @@ try {
     args: [],
   });
   assert.equal(sentinelPresentation.activityOverflowY, "auto", "Recent Guardian Activity must be visibly bounded and scrollable");
-  assert.ok(sentinelPresentation.smallFontSize >= 12.5, "Security supporting typography must remain readable");
+  assert.equal(sentinelPresentation.activityRowCount, 6, "Recent Guardian Activity must initially show six records");
+  assert.equal(sentinelPresentation.olderActivityToggleCount, 1, "Older Guardian history must remain explicitly reachable");
+  assert.equal(sentinelPresentation.automationControlCount, 1, "Automatic Guardian must have one authoritative control surface");
+  assert.equal(sentinelPresentation.automationSelectCount, 1, "Automatic Guardian must have one frequency selector");
+  assert.equal(sentinelPresentation.automationToggleCount, 1, "Automatic Guardian must have one enable control");
+  assert.equal(sentinelPresentation.advancedUmbrellaCount, 0, "Advanced System Information must not be hidden by an umbrella disclosure");
+  assert.ok(sentinelPresentation.normalFontSize >= 14, "Security operator text must remain approximately 14px or larger");
+  assert.ok(sentinelPresentation.smallFontSize >= 13, "Security supporting typography must remain approximately 13px or larger");
+  assert.ok(sentinelPresentation.importantReadingFontSize >= 18, "Important measurements must remain visually prominent");
   assert.ok(sentinelPresentation.investigateButtonCount <= sentinelPresentation.anomalyRowCount, "Investigate / Fix must not appear on normal rows");
+  await click(base, sessionId, '.guardianActivityToggle');
+  const expandedActivity = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `return {
+      rowCount: document.querySelectorAll('[data-testid="guardian-activity-row"]').length,
+      text: document.querySelector('[data-testid="recent-guardian-activity"]')?.textContent || '',
+    };`,
+    args: [],
+  });
+  assert.equal(expandedActivity.rowCount, 20, "Expanded Guardian history must remain bounded to the latest 20 records");
+  assert.ok(/Legacy observation|Attention was recorded|Result was unknown/.test(expandedActivity.text), "Legacy or incomplete Guardian evidence must be described truthfully");
 
   await click(base, sessionId, '[data-testid="security-mode-empire_operations"]');
   await eventually(async () => {
