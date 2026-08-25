@@ -48,17 +48,17 @@ function StepBadge({ state }: { state: FormationStepState }) {
   return <span className={stepClass[state]}>{portfolioStatusLabel(state)}</span>;
 }
 
-function RecordCard({ record, testId }: { record: PortfolioRecord; testId?: string }) {
+function DiagramNode({ record, testId, className = "", compact = false }: { record: PortfolioRecord; testId?: string; className?: string; compact?: boolean }) {
   return (
-    <article className="legalRecordCard" data-testid={testId}>
+    <article className={`legalGraphNode ${className}`} data-testid={testId}>
       <div className="legalCardTopline">
         <span>{record.kind.replace(/-/g, " ")}</span>
         <StatusBadge status={record.status} />
       </div>
       <h4>{record.label}</h4>
-      <p>{record.role}</p>
+      {compact ? null : <p>{record.role}</p>}
       <strong>{record.relationship}</strong>
-      <small>{record.notes}</small>
+      {compact ? null : <small>{record.notes}</small>}
     </article>
   );
 }
@@ -75,58 +75,48 @@ function StructureView({ blueprint }: { blueprint: PortfolioBlueprintRecord }) {
 
   return (
     <div className="legalViewStack">
-      <section className="legalBoundaryBanner">
-        <div>
-          <span>LEGAL / BUSINESS STRUCTURE</span>
-          <strong>Two parallel boundaries. No ownership line connects them.</strong>
-        </div>
-        <p>Formation and relationship badges are planning states, not filing evidence.</p>
-      </section>
-
       <section className="legalStructureDiagram" data-testid="legal-ownership-diagram" aria-label="Legal and business structure">
-        <article className="legalStructureLane legalStructureLaneRadcon" data-testid="legal-radcon-entity">
-          <header>
-            <span>RADCON-OWNED PORTFOLIO</span>
-            <StatusBadge status={radcon.status} />
-          </header>
-          <h2>{radcon.label}</h2>
-          <p>{radcon.role}</p>
-          <div className="legalOwnershipStem" aria-hidden="true" />
-          <div className="legalOwnedBusinessGrid">
+        <article className="legalGraphLane legalGraphLaneRadcon" data-testid="legal-radcon-lane">
+          <div className="legalGraphLaneLabel">OWNERSHIP / BUSINESS LANE</div>
+          <DiagramNode record={radcon} testId="legal-radcon-entity" className="legalGraphEntityNode legalGraphEntityNodeRadcon" compact />
+          <div className="legalGraphConnector legalGraphConnectorOwnership" data-testid="legal-ownership-connector-radcon" data-connector="radcon-to-businesses" aria-hidden="true">
+            <span className="legalGraphConnectorTrunk" />
+            <span className="legalGraphConnectorBranch" />
+          </div>
+          <div className="legalGraphChildren legalGraphBusinessChildren">
             {primary.map((record) => (
-              <RecordCard
+              <DiagramNode
                 key={record.key}
                 record={record}
-                testId={record.key === "offroad" ? "legal-offroad-node" : undefined}
+                testId={`legal-${record.key}-node`}
+                className="legalGraphChildNode"
+                compact
               />
             ))}
           </div>
-          <div className="legalProjectCluster">
-            <span>OTHER AUTHORITATIVE RADCON PROJECTS</span>
-            <div>{other.map((record) => <strong key={record.key}>{record.label}</strong>)}</div>
-            <small>Projects and portal workspaces are not automatically legal entities or DBAs.</small>
-          </div>
-          <div className="legalSupportRail" aria-label="Radcon support relationships">
-            {structure.supportRelationships.map((support) => (
-              <article key={support.key}>
-                <div><strong>{support.label}</strong><StatusBadge status={support.status} /></div>
-                <span>{support.role}</span>
-                <small>{support.detail}</small>
-              </article>
-            ))}
+          <div className="legalGraphSupportGroup" aria-label="Radcon support relationships">
+            <div className="legalGraphConnector legalGraphConnectorSupport" data-testid="legal-support-connector-radcon" data-connector="radcon-to-support-services" aria-hidden="true">
+              <span className="legalGraphConnectorTrunk" />
+              <span className="legalGraphConnectorBranch" />
+            </div>
+            <div className="legalSupportRail">
+              {structure.supportRelationships.map((support) => (
+                <article key={support.key}>
+                  <div><strong>{support.label}</strong><StatusBadge status={support.status} /></div>
+                  <span>{support.role}</span>
+                  <small>{support.detail}</small>
+                </article>
+              ))}
+            </div>
           </div>
         </article>
 
-        <article className="legalStructureLane legalStructureLaneVenture" data-testid="legal-radwolfe-venture">
-          <header>
-            <span>PARALLEL VENTURE</span>
-            <StatusBadge status={radwolfe.status} />
-          </header>
-          <h2>{radwolfe.label}</h2>
-          <p>{radwolfe.role}</p>
+        <article className="legalGraphLane legalGraphLaneVenture" data-testid="legal-radwolfe-lane">
+          <div className="legalGraphLaneLabel">PARALLEL REAL-ESTATE LANE</div>
+          <DiagramNode record={radwolfe} testId="legal-radwolfe-venture" className="legalGraphEntityNode legalGraphEntityNodeVenture" compact />
           <div className="legalVentureBoundary">SEPARATE FROM RADCON ENTERPRISES</div>
-          <div className="legalOwnershipStem" aria-hidden="true" />
-          <RecordCard record={property} />
+          <div className="legalGraphConnector legalGraphConnectorOwnership legalGraphConnectorSingle" data-testid="legal-ownership-connector-radwolfe" data-connector="radwolfe-to-townhouse" aria-hidden="true"><span className="legalGraphConnectorTrunk" /></div>
+          <div className="legalGraphChildren legalGraphPropertyChildren"><DiagramNode record={property} testId="legal-townhouse-node" className="legalGraphChildNode" compact /></div>
           <div className="legalTruthNote">
             <strong>No RadWolfe LLC today</strong>
             <p>No partner names, percentages, title structure, tax treatment, or entity terms are asserted.</p>
@@ -136,26 +126,34 @@ function StructureView({ blueprint }: { blueprint: PortfolioBlueprintRecord }) {
 
       <section className="portalAccessPanel" data-testid="legal-portal-access-diagram">
         <header>
-          <div><span>SHARED OPERATING PORTAL</span><h3>{portal.label}</h3></div>
+          <div><span>RCE OPERATING ACCESS — NOT OWNERSHIP</span><h3>{portal.label}</h3></div>
           <StatusBadge status={portal.status} />
         </header>
         <div className="portalBoundaryLabel">{portal.relationshipLabel}</div>
-        <p>{portal.summary}</p>
-        <div className="portalAccessGrid">
-          <div className="portalRoleColumn">
-            {portal.roles.map((role) => (
-              <article key={role.label}>
-                <div><strong>{role.label}</strong><StatusBadge status={role.status} /></div>
-                <p>{role.access}</p>
-              </article>
-            ))}
-          </div>
-          <div className="portalWorkspaceColumn">
-            <span>POSSIBLE AUTHORIZED WORKSPACES</span>
-            <ul>{portal.workspaceLabels.map((label) => <li key={label}>{label}</li>)}</ul>
+        <div className="portalAccessDiagram">
+          <div className="portalAccessHub">RCE PORTAL<span>{portal.summary}</span></div>
+          <div className="portalAccessConnector" data-testid="legal-portal-access-connector" data-connector="rce-portal-to-access-roles" aria-hidden="true"><span /></div>
+          <div className="portalAccessGrid">
+            <div className="portalRoleColumn">
+              {portal.roles.map((role) => (
+                <article key={role.label}>
+                  <div><strong>{role.label}</strong><StatusBadge status={role.status} /></div>
+                  <p>{role.access}</p>
+                </article>
+              ))}
+            </div>
+            <div className="portalWorkspaceColumn">
+              <span>POSSIBLE AUTHORIZED WORKSPACES</span>
+              <ul>{portal.workspaceLabels.map((label) => <li key={label}>{label}</li>)}</ul>
+            </div>
           </div>
         </div>
         <footer><strong>{portal.accountBoundary}</strong><span>{portal.futurePublicSite}</span></footer>
+      </section>
+      <section className="legalProjectCluster legalProjectClusterSecondary">
+        <span>OTHER AUTHORITATIVE RADCON PROJECTS</span>
+        <div>{other.map((record) => <strong key={record.key}>{record.label}</strong>)}</div>
+        <small>Projects and portal workspaces are not automatically legal entities or DBAs.</small>
       </section>
     </div>
   );
@@ -312,11 +310,12 @@ export function PortfolioBlueprint({ view }: { view: LegalOperatorView }) {
 
   return (
     <section className="legalOperatorWorkspace" aria-label="Legal operating foundation">
+      {view === "structure" ? content : null}
       <header className="legalWorkspaceHeader">
         <div><span>O2 GOVERNED PLANNING REFERENCE</span><strong>{blueprint.title}</strong><small>Reviewed {blueprint.reviewedAt} · internal planning, not legal advice or filing proof</small></div>
         <button type="button" className="btn btnGhost btnCompact" onClick={() => void refresh()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button>
       </header>
-      {content}
+      {view === "structure" ? null : content}
     </section>
   );
 }

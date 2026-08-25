@@ -1742,40 +1742,65 @@ pre {
 .legalStatusNotFormed,.legalStatusNotFiled { color: #c8d0df; background: rgba(200,208,223,.11); }
 .legalStatusSelected,.legalStatusReady { color: #b6e9ff; background: rgba(84,197,255,.15); }
 .legalStatusNeedsVerification { color: #ffd38a; background: rgba(255,193,106,.16); }
-.legalStructureDiagram { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(330px,.65fr); gap: 14px; align-items: stretch; }
-.legalStructureLane { position: relative; display: grid; align-content: start; gap: 13px; min-width: 0; padding: 20px; overflow: hidden; }
-.legalStructureLaneRadcon { border-color: rgba(104,160,255,.32); background: linear-gradient(145deg,rgba(45,72,119,.22),rgba(255,255,255,.03)); }
-.legalStructureLaneVenture { border-color: rgba(195,146,255,.32); background: linear-gradient(145deg,rgba(94,47,122,.2),rgba(255,255,255,.03)); }
-.legalStructureLane>header,.portalAccessPanel>header,.legalCardTopline,.legalBrandCard>.legalCardTopline,.legalAddressCard>.legalCardTopline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.legalStructureLane>header>span,.legalCardTopline>span { color: var(--muted2); font-size: 13px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
-.legalStructureLane h2 { font-size: clamp(24px,2.7vw,35px); line-height: 1.08; }
-.legalStructureLane>p { color: var(--muted); font-size: 15px; }
-.legalOwnershipStem { justify-self: center; width: 2px; height: 22px; background: linear-gradient(var(--accentA),rgba(104,160,255,.15)); }
-.legalOwnedBusinessGrid { position: relative; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
-.legalOwnedBusinessGrid::before { content: ""; position: absolute; top: -12px; right: 16%; left: 16%; border-top: 2px solid rgba(104,160,255,.45); }
-.legalRecordCard { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 14px; border: 1px solid rgba(255,255,255,.11); border-radius: 12px; background: rgba(6,14,27,.48); }
-.legalRecordCard h4 { font-size: 17px; line-height: 1.25; }
-.legalRecordCard p,.legalRecordCard small { color: var(--muted); font-size: 14px; }
-.legalRecordCard>strong { font-size: 14px; }
+.legalStructureDiagram { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; padding: 20px; border: 1px solid rgba(255,255,255,.1); border-radius: var(--radius-md); background: radial-gradient(circle at 50% 0,rgba(104,160,255,.11),transparent 46%),rgba(5,13,27,.62); }
+.legalGraphLane { position: relative; display: grid; align-content: start; gap: 10px; min-width: 0; padding: 14px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(5,14,28,.55); }
+.legalGraphLaneRadcon { border-color: rgba(104,160,255,.42); }
+.legalGraphLaneVenture { border-color: rgba(195,146,255,.42); }
+.legalGraphLaneLabel { color: var(--muted2); font-size: 13px; font-weight: 900; letter-spacing: .09em; text-align: center; text-transform: uppercase; }
+.portalAccessPanel>header,.legalCardTopline,.legalBrandCard>.legalCardTopline,.legalAddressCard>.legalCardTopline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.legalCardTopline>span { color: var(--muted2); font-size: 13px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.legalGraphNode { position: relative; display: grid; align-content: start; gap: 5px; min-width: 0; padding: 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: rgba(6,14,27,.84); box-shadow: 0 10px 22px rgba(0,0,0,.14); }
+.legalGraphEntityNode { min-height: 92px; padding: 12px; text-align: center; }
+.legalGraphEntityNodeRadcon { border-color: rgba(104,160,255,.58); background: linear-gradient(155deg,rgba(64,111,184,.32),rgba(7,16,31,.88)); }
+.legalGraphEntityNodeVenture { border-color: rgba(195,146,255,.58); background: linear-gradient(155deg,rgba(132,69,172,.3),rgba(18,10,30,.88)); }
+.legalGraphNode h4 { font-size: 16px; line-height: 1.25; }
+.legalGraphEntityNode h4 { font-size: clamp(18px,1.55vw,22px); }
+.legalGraphChildNode { padding: 9px; }
+.legalGraphNode p,.legalGraphNode small { color: var(--muted); font-size: 14px; }
+.legalGraphNode>strong { font-size: 14px; }
+.legalGraphConnector { position: relative; height: 34px; min-width: 0; }
+.legalGraphConnectorTrunk,.legalGraphConnectorBranch { position: absolute; display: block; background: rgba(136,187,255,.78); }
+.legalGraphConnectorTrunk { top: 0; bottom: 0; left: 50%; width: 2px; transform: translateX(-50%); }
+.legalGraphConnectorBranch { right: 16.5%; bottom: 0; left: 16.5%; height: 2px; }
+.legalGraphConnectorSingle { height: 22px; }
+.legalGraphConnectorSingle .legalGraphConnectorTrunk { background: rgba(218,170,255,.8); }
+.legalGraphBusinessChildren,.legalGraphPropertyChildren { display: grid; position: relative; gap: 10px; padding-top: 16px; }
+.legalGraphBusinessChildren { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.legalGraphPropertyChildren { grid-template-columns: 1fr; }
+.legalGraphChildren>.legalGraphNode::before { position: absolute; top: -17px; left: 50%; width: 2px; height: 17px; background: rgba(136,187,255,.78); content: ""; transform: translateX(-50%); }
+.legalGraphPropertyChildren>.legalGraphNode::before { background: rgba(218,170,255,.8); }
 .legalProjectCluster { display: grid; gap: 9px; padding: 14px; border: 1px dashed rgba(104,160,255,.35); border-radius: 12px; }
+.legalProjectClusterSecondary { max-width: 880px; width: 100%; margin: 0 auto; }
 .legalProjectCluster>span { color: var(--muted2); font-size: 13px; font-weight: 850; letter-spacing: .08em; }
 .legalProjectCluster>div { display: flex; flex-wrap: wrap; gap: 7px; }
 .legalProjectCluster>div>strong { padding: 6px 9px; border-radius: 8px; background: rgba(104,160,255,.12); font-size: 14px; }
 .legalProjectCluster small { color: var(--muted); font-size: 13px; }
-.legalSupportRail { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
-.legalSupportRail article { display: grid; gap: 5px; padding: 12px; border: 1px dashed rgba(255,193,106,.32); border-radius: 11px; background: rgba(255,193,106,.055); }
+.legalGraphSupportGroup { display: grid; gap: 4px; margin-top: 0; padding-top: 8px; border-top: 1px solid rgba(255,193,106,.23); }
+.legalGraphConnectorSupport { height: 18px; }
+.legalGraphConnectorSupport .legalGraphConnectorTrunk { border-left: 2px dashed rgba(255,193,106,.88); background: transparent; }
+.legalGraphConnectorSupport .legalGraphConnectorBranch { border-top: 2px dashed rgba(255,193,106,.88); background: transparent; }
+.legalSupportRail { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; padding-top: 8px; }
+.legalSupportRail article { display: grid; gap: 3px; padding: 8px; border: 1px dashed rgba(255,193,106,.32); border-radius: 11px; background: rgba(255,193,106,.055); }
+.legalSupportRail article { position: relative; }
+.legalSupportRail article::before { position: absolute; top: -9px; left: 50%; height: 9px; border-left: 2px dashed rgba(255,193,106,.88); content: ""; }
 .legalSupportRail article>div { display: flex; align-items: flex-start; justify-content: space-between; gap: 7px; }
 .legalSupportRail span,.legalSupportRail small { color: var(--muted); font-size: 13px; }
 .legalVentureBoundary { padding: 9px 11px; border-radius: 9px; color: #e1c4ff; background: rgba(195,146,255,.13); font-size: 13px; font-weight: 900; letter-spacing: .08em; text-align: center; }
 .legalTruthNote { display: grid; gap: 5px; padding: 14px 16px; border: 1px solid rgba(255,193,106,.27); border-radius: 12px; background: rgba(255,193,106,.06); }
 .legalTruthNote strong { color: #ffd38a; font-size: 15px; }
 .legalTruthNote p { color: var(--muted); font-size: 14px; }
-.portalAccessPanel { display: grid; gap: 13px; padding: 20px; border-color: rgba(83,214,190,.32); background: linear-gradient(140deg,rgba(23,96,85,.2),rgba(255,255,255,.03)); }
+.portalAccessPanel { display: grid; gap: 11px; max-width: 880px; margin: 0 auto; padding: 16px 18px; border-color: rgba(83,214,190,.32); background: linear-gradient(140deg,rgba(23,96,85,.2),rgba(255,255,255,.03)); }
 .portalAccessPanel header>div { display: grid; gap: 3px; }
 .portalAccessPanel header span { color: #83ead6; font-size: 13px; font-weight: 900; letter-spacing: .1em; }
 .portalAccessPanel header h3 { font-size: 22px; }
 .portalBoundaryLabel { width: fit-content; padding: 7px 10px; border: 1px solid rgba(83,214,190,.38); border-radius: 999px; color: #98f0df; background: rgba(83,214,190,.1); font-size: 13px; font-weight: 900; letter-spacing: .08em; }
-.portalAccessPanel>p { color: var(--muted); font-size: 15px; }
+.portalAccessDiagram { display: grid; gap: 8px; }
+.portalAccessHub { justify-self: center; display: grid; gap: 3px; min-width: min(100%,260px); padding: 10px 16px; border: 1px solid rgba(83,214,190,.48); border-radius: 10px; color: #b6f6e9; background: rgba(15,78,70,.36); font-size: 16px; font-weight: 900; letter-spacing: .06em; text-align: center; }
+.portalAccessHub span { color: var(--muted); font-size: 13px; font-weight: 650; letter-spacing: normal; }
+.portalAccessConnector { position: relative; height: 24px; }
+.portalAccessConnector::before,.portalAccessConnector span { position: absolute; display: block; content: ""; }
+.portalAccessConnector::before { top: 0; bottom: 0; left: 50%; border-left: 2px solid rgba(83,214,190,.75); }
+.portalAccessConnector span { right: 25%; bottom: 0; left: 25%; border-top: 2px solid rgba(83,214,190,.75); }
 .portalAccessGrid { display: grid; grid-template-columns: minmax(300px,.85fr) minmax(340px,1.15fr); gap: 12px; }
 .portalRoleColumn { display: grid; gap: 9px; }
 .portalRoleColumn article,.portalWorkspaceColumn { display: grid; gap: 7px; padding: 13px; border: 1px solid rgba(255,255,255,.1); border-radius: 11px; background: rgba(5,19,24,.45); }
@@ -1845,7 +1870,7 @@ pre {
 
 @media (max-width: 1100px) {
   .legalStructureDiagram,.legalAddressGrid { grid-template-columns: 1fr; }
-  .legalStructureLaneVenture { min-height: 0; }
+  .legalGraphLaneVenture { min-height: 0; }
   .legalSupportRail { grid-template-columns: repeat(3,minmax(210px,1fr)); overflow-x: auto; }
 }
 
@@ -1857,8 +1882,10 @@ pre {
 }
 
 @media (max-width: 620px) {
-  .legalOwnedBusinessGrid { grid-template-columns: 1fr; }
-  .legalOwnedBusinessGrid::before { display: none; }
+  .legalGraphBusinessChildren { grid-template-columns: 1fr; }
+  .legalGraphConnectorBranch { display: none; }
+  .legalGraphBusinessChildren>.legalGraphNode { margin-left: 14px; }
+  .legalGraphBusinessChildren>.legalGraphNode::before { top: 50%; left: -14px; width: 14px; height: 2px; background: rgba(136,187,255,.78); transform: none; }
   .legalSupportRail { grid-template-columns: 1fr; overflow: visible; }
   .portalWorkspaceColumn ul { grid-template-columns: 1fr; }
   .legalWorkstream li { grid-template-columns: 28px minmax(0,1fr); }
