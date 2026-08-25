@@ -76,7 +76,12 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   Business Accounts, and Documents & Compliance. Its legal diagram keeps
   Radcon Enterprises and the separate RadWolfe partnership parallel, while a
   visually distinct portal panel explains least-privilege operating access as
-  not ownership. The three existing legal document libraries remain available
+  not ownership. Structure opens directly into a first-screen connected graph:
+  Radcon Enterprises and RadWolfe are equal, parallel top-level lanes; solid
+  wires denote ownership/containment, dashed wires denote Radcon support,
+  service, and address relationships, and no ownership wire may cross between
+  the two lanes. The smaller RCE access diagram remains below that graph and
+  must never be mistaken for ownership. The three existing legal document libraries remain available
   as governed archive subviews inside Documents & Compliance rather than as
   competing top-level truth surfaces.
 
