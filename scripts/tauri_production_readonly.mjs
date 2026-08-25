@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import net from "node:net";
@@ -166,7 +166,7 @@ try {
     assert.ok(text.includes(expectedO2Sha), "production diagnostics did not render the expected O2 identity");
     assert.ok(text.includes(expectedRadcontrolSha), "production diagnostics did not render the expected RadControl identity");
     assert.match(text, /Projects · 9 visible/);
-    assert.match(text, /Empire To-Do · 29 durable items/);
+    assert.match(text, /Empire To-Do · 34 durable items/);
     assert.match(text, /Infrastructure · 10 governed profiles/);
     assert.match(text, /Security \/ Radcon Sentinel/);
     return text;
@@ -201,6 +201,107 @@ try {
     await eventually(() => bodyText(base, sessionId), "return to active Empire To-Do operator view"),
     /NOW[\s\S]*Blocked[\s\S]*Depends on: Delivered email verification; staging editor authorization; hosted browser acceptance/,
   );
+
+  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
+  await click(base, sessionId, '[data-testid="tab-legal"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /StructureFormationAddresses & AgentBrands & VenturesBusiness AccountsDocuments & Compliance/);
+    assert.match(text, /OWNERSHIP \/ BUSINESS LANE[\s\S]*Radcon Enterprises LLC[\s\S]*Offroad Croquet/);
+    assert.match(text, /PARALLEL REAL-ESTATE LANE[\s\S]*RadWolfe[\s\S]*Jointly owned rental townhouse/);
+    assert.match(text, /THRIVE Holly Springs[\s\S]*Northwest Registered Agent[\s\S]*Private owner address/);
+    assert.match(text, /RCE OPERATING ACCESS — NOT OWNERSHIP[\s\S]*OPERATING ACCESS — NOT OWNERSHIP/);
+    assert.match(text, /Actual address intentionally hidden/);
+  }, "render installed Legal Structure and support relationships");
+  const legalStructurePresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `
+      const diagram = document.querySelector('[data-testid="legal-ownership-diagram"]');
+      const radcon = document.querySelector('[data-testid="legal-radcon-entity"]');
+      const radwolfe = document.querySelector('[data-testid="legal-radwolfe-venture"]');
+      const children = ['dqotd', 'tbis', 'offroad'].map((key) => document.querySelector('[data-testid="legal-' + key + '-node"]'));
+      const townhouse = document.querySelector('[data-testid="legal-townhouse-node"]');
+      const ownership = document.querySelector('[data-testid="legal-ownership-connector-radcon"] .legalGraphConnectorBranch');
+      const townhouseConnector = document.querySelector('[data-testid="legal-ownership-connector-radwolfe"] .legalGraphConnectorTrunk');
+      const support = document.querySelector('[data-testid="legal-support-connector-radcon"] .legalGraphConnectorBranch');
+      const supportCards = [...document.querySelectorAll('.legalSupportRail article')];
+      const portal = document.querySelector('[data-testid="legal-portal-access-diagram"]');
+      const portalConnector = document.querySelector('[data-testid="legal-portal-access-connector"] span');
+      const shell = document.querySelector('.legalOperatorWorkspace');
+      const supporting = document.querySelector('.legalOperatorWorkspace small');
+      const structureMode = document.querySelector('[data-testid="legal-mode-structure"]');
+      const rect = (element) => element ? element.getBoundingClientRect() : null;
+      const diagramRect = rect(diagram);
+      const ownershipRect = rect(ownership);
+      const townhouseConnectorRect = rect(townhouseConnector);
+      const supportRect = rect(support);
+      const portalRect = rect(portal);
+      const privateCard = supportCards.find((card) => card.textContent?.includes('Private owner address'));
+      return {
+        laneCount: diagram ? diagram.querySelectorAll(':scope > [data-testid$="-lane"]').length : 0,
+        graphIsFirstWorkspaceContent: Boolean(shell && diagram && diagram.parentElement?.firstElementChild === diagram),
+        graphVisibleImmediately: Boolean(diagramRect && diagramRect.top < window.innerHeight && diagramRect.height > 0),
+        parallelTopDelta: radcon && radwolfe ? Math.abs(radcon.getBoundingClientRect().top - radwolfe.getBoundingClientRect().top) : null,
+        topNodesSideBySide: Boolean(radcon && radwolfe && radcon.getBoundingClientRect().right < radwolfe.getBoundingClientRect().left),
+        radconChildrenBelow: Boolean(radcon && children.every(Boolean) && children.every((node) => node.getBoundingClientRect().top > radcon.getBoundingClientRect().bottom)),
+        townhouseBelowRadwolfe: Boolean(radwolfe && townhouse && townhouse.getBoundingClientRect().top > radwolfe.getBoundingClientRect().bottom),
+        ownershipConnectorGeometry: Boolean(ownershipRect && ownershipRect.width > 80 && ownershipRect.height >= 2 && getComputedStyle(ownership).backgroundColor !== 'rgba(0, 0, 0, 0)'),
+        townhouseConnectorGeometry: Boolean(townhouseConnectorRect && townhouseConnectorRect.height > 20 && getComputedStyle(townhouseConnector).backgroundColor !== 'rgba(0, 0, 0, 0)'),
+        supportConnectorGeometry: Boolean(supportRect && supportRect.width > 80 && getComputedStyle(support).borderTopStyle === 'dashed'),
+        supportLabels: supportCards.map((card) => card.querySelector('strong')?.textContent || ''),
+        privateAddressHidden: Boolean(privateCard && privateCard.textContent?.includes('Actual address intentionally hidden')),
+        crossOwnershipConnectors: document.querySelectorAll('[data-connector="radcon-radwolfe"]').length,
+        portalIsSeparateAndBelow: Boolean(diagramRect && portalRect && portalRect.top >= diagramRect.bottom && portalConnector && portalConnector.getBoundingClientRect().width > 0),
+        normalFontSize: shell ? Number.parseFloat(getComputedStyle(shell).fontSize) : null,
+        supportingFontSize: supporting ? Number.parseFloat(getComputedStyle(supporting).fontSize) : null,
+        structureSelected: structureMode ? structureMode.classList.contains('workspaceModeButtonActive') : false,
+      };
+    `,
+    args: [],
+  });
+  assert.equal(legalStructurePresentation.laneCount, 2, "installed Legal ownership diagram must render two parallel lanes");
+  assert.equal(legalStructurePresentation.graphIsFirstWorkspaceContent, true, "installed Legal graph must be first beneath the tab controls");
+  assert.equal(legalStructurePresentation.graphVisibleImmediately, true, "installed Legal graph must be visible above the fold");
+  assert.ok(legalStructurePresentation.parallelTopDelta !== null && legalStructurePresentation.parallelTopDelta < 80, "installed Radcon and RadWolfe structures must begin in parallel");
+  assert.equal(legalStructurePresentation.topNodesSideBySide, true, "installed Radcon and RadWolfe top nodes must be side-by-side");
+  assert.equal(legalStructurePresentation.radconChildrenBelow, true, "installed DQOTD, TBIS, and Offroad nodes must be below Radcon");
+  assert.equal(legalStructurePresentation.townhouseBelowRadwolfe, true, "installed townhouse must be below RadWolfe");
+  assert.equal(legalStructurePresentation.ownershipConnectorGeometry, true, "installed Radcon ownership connector must have visible geometry");
+  assert.equal(legalStructurePresentation.townhouseConnectorGeometry, true, "installed townhouse ownership connector must have visible geometry");
+  assert.equal(legalStructurePresentation.supportConnectorGeometry, true, "installed support relationships must use visible dashed geometry");
+  assert.deepEqual(legalStructurePresentation.supportLabels, ["THRIVE Holly Springs", "Northwest Registered Agent", "Private owner address"]);
+  assert.equal(legalStructurePresentation.privateAddressHidden, true, "installed Legal structure must not reveal the private residence");
+  assert.equal(legalStructurePresentation.crossOwnershipConnectors, 0, "installed Legal structure must not connect Radcon ownership to RadWolfe");
+  assert.equal(legalStructurePresentation.portalIsSeparateAndBelow, true, "installed RCE access diagram must be separate and secondary");
+  assert.ok(legalStructurePresentation.normalFontSize >= 14, "installed Legal normal text must remain readable");
+  assert.ok(legalStructurePresentation.supportingFontSize >= 13, "installed Legal supporting text must remain readable");
+  assert.equal(legalStructurePresentation.structureSelected, true, "installed Legal view must default to Structure");
+  if (process.env.RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH) {
+    const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`);
+    await writeFile(process.env.RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH, Buffer.from(encodedScreenshot, "base64"));
+  }
+  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 600, height: 900 });
+  const mobileLayout = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `const diagram = document.querySelector('[data-testid="legal-ownership-diagram"]'); return { columns: diagram ? getComputedStyle(diagram).gridTemplateColumns : null, width: window.innerWidth };`,
+    args: [],
+  });
+  if (mobileLayout.width <= 1100) {
+    assert.ok(mobileLayout.columns && !mobileLayout.columns.includes(" "), "installed Legal diagram must preserve hierarchy in one responsive column");
+  } else {
+    assert.ok(mobileLayout.width >= 1500, "installed native window may skip responsive rendering only when its governed minimum width clamps the request");
+  }
+  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
+  for (const [selector, expected] of [
+    ['[data-testid="legal-mode-formation"]', /Radcon Enterprises formation[\s\S]*RadWolfe formalization/],
+    ['[data-testid="legal-mode-addresses"]', /Actual street address intentionally absent[\s\S]*Northwest Registered Agent/],
+    ['[data-testid="legal-mode-brands"]', /RADCON-OWNED BRANDS \/ BUSINESSES \/ PROJECTS[\s\S]*PARALLEL VENTURE/],
+    ['[data-testid="legal-mode-accounts"]', /Radcon Enterprises[\s\S]*EIN[\s\S]*RadWolfe/],
+    ['[data-testid="legal-mode-documents"]', /DOCUMENTS & COMPLIANCE[\s\S]*Articles of Organization/],
+  ]) {
+    await click(base, sessionId, selector);
+    assert.match(await eventually(() => bodyText(base, sessionId), `render installed ${selector}`), expected);
+  }
+  assert.match(await eventually(() => bodyText(base, sessionId), "preserve installed Legal archives"), /Legal working notes[\s\S]*Imported documents[\s\S]*Historical structures/);
+
   await click(base, sessionId, '[data-testid="tab-infrastructure"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Infrastructure"), /INFRASTRUCTURE ASSETS/);
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
