@@ -25,7 +25,12 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   living Empire Blueprint, a read-only O2 Knowledge workspace, then the
   persistent Empire To-Do workspace. O2 Knowledge projects canonical sources;
   it is not a second knowledge database.
-- **Legal**: legal notes, documents, and entity structure records.
+- **Legal**: an O2-backed executive workspace for Structure, Formation,
+  Addresses & Agent, Brands & Ventures, Business Accounts, and Documents &
+  Compliance. Radcon Enterprises and RadWolfe remain parallel legal/business
+  boundaries; RCE portal access is shown separately as operating access, not
+  ownership. Existing legal notes, imported documents, and historical
+  structure drawings remain governed archives inside Documents & Compliance.
 
 ## Runtime Model
 
@@ -114,7 +119,7 @@ bash scripts/snapshot_repo_state.sh --check
 Native acceptance is intentionally split into two classes:
 
 - `npm run test:tauri-production-readonly -- --expected-o2-sha <sha> --expected-radcontrol-sha <sha> --expected-artifact-sha <sha>` runs the exact production artifact. It mounts installed O2 read-only, replaces `.state` with a test-owned overlay, records installed Git/To-Do/listener evidence, exercises only read paths, and proves installed state is unchanged afterward.
-- `npm run test:tauri-e2e` builds a debug/test-capable native artifact and exercises persistence only after canonical fixture, home/state, seed, installed-cleanliness, and in-app runtime-identity checks succeed.
+- `npm run test:tauri-e2e` builds a debug/test-capable native artifact with an acceptance-only resizable-window override, then exercises persistence and responsive presentation only after canonical fixture, home/state, seed, installed-cleanliness, and in-app runtime-identity checks succeed. The production window minimum remains unchanged.
 
 The writable desktop test exercises tab switching, submits `BUILD PROJECT` into a temporary governed root, verifies the resulting starter and formation dossier, and autosaves deterministic fixture records. It is opt-in because it launches a native desktop session. Project runtime lifecycle is a separate product/runtime concern and is not part of this isolation-focused acceptance class.
 

@@ -123,6 +123,11 @@ async function prepareIsolatedO2Root() {
   await Promise.all([
     cp(path.join(sourceO2Root, "contracts"), path.join(o2Root, "contracts"), { recursive: true }),
     cp(path.join(sourceO2Root, "skills"), path.join(o2Root, "skills"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "portfolio"), path.join(o2Root, "docs", "portfolio"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "radcontrol", "empire_blueprint"), path.join(o2Root, "docs", "radcontrol", "empire_blueprint"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "radcontrol", "legal_notes"), path.join(o2Root, "docs", "radcontrol", "legal_notes"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "radcontrol", "legal_documents"), path.join(o2Root, "docs", "radcontrol", "legal_documents"), { recursive: true }),
+    cp(path.join(sourceO2Root, "docs", "radcontrol", "legal_entity_structure"), path.join(o2Root, "docs", "radcontrol", "legal_entity_structure"), { recursive: true }),
     cp(path.join(sourceO2Root, "docs", "reusable-patterns"), path.join(o2Root, "docs", "reusable-patterns"), { recursive: true }),
     cp(path.join(sourceO2Root, "docs", "decisions"), path.join(o2Root, "docs", "decisions"), { recursive: true }),
     cp(path.join(sourceO2Root, "docs", "O2_OPERATIONAL_PLAYBOOK.md"), path.join(o2Root, "docs", "O2_OPERATIONAL_PLAYBOOK.md")),
@@ -511,6 +516,69 @@ try {
     await access(timelineFile);
   }, "preserve one Empire To-Do item after native restart");
   assert.ok(completionModes.length === 3 && completionModes.every((mode) => mode === "webdriver" || mode === "dom-click"), "completion dialogs used a real enabled checkbox control");
+  await click(base, sessionId, '[data-testid="tab-legal"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /StructureFormationAddresses & AgentBrands & VenturesBusiness AccountsDocuments & Compliance/);
+    assert.match(text, /LEGAL \/ BUSINESS STRUCTURE[\s\S]*Radcon Enterprises LLC[\s\S]*Offroad Croquet/);
+    assert.match(text, /PARALLEL VENTURE[\s\S]*RadWolfe[\s\S]*Jointly owned rental townhouse/);
+    assert.match(text, /SHARED OPERATING PORTAL[\s\S]*OPERATING ACCESS — NOT OWNERSHIP/);
+  }, "render corrected Legal Structure and portal-access diagrams");
+  const legalStructurePresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `
+      const diagram = document.querySelector('[data-testid="legal-ownership-diagram"]');
+      const radcon = document.querySelector('[data-testid="legal-radcon-entity"]');
+      const radwolfe = document.querySelector('[data-testid="legal-radwolfe-venture"]');
+      const offroad = document.querySelector('[data-testid="legal-offroad-node"]');
+      const shell = document.querySelector('.legalOperatorWorkspace');
+      const supporting = document.querySelector('.legalOperatorWorkspace small');
+      const structureMode = document.querySelector('[data-testid="legal-mode-structure"]');
+      return {
+        laneCount: diagram ? diagram.children.length : 0,
+        parallelTopDelta: radcon && radwolfe ? Math.abs(radcon.getBoundingClientRect().top - radwolfe.getBoundingClientRect().top) : null,
+        radconContainsOffroad: Boolean(radcon && offroad && radcon.contains(offroad)),
+        radconContainsRadwolfe: Boolean(radcon && radwolfe && radcon.contains(radwolfe)),
+        normalFontSize: shell ? Number.parseFloat(getComputedStyle(shell).fontSize) : null,
+        supportingFontSize: supporting ? Number.parseFloat(getComputedStyle(supporting).fontSize) : null,
+        structureSelected: structureMode ? structureMode.classList.contains('workspaceModeButtonActive') : false,
+      };
+    `,
+    args: [],
+  });
+  assert.equal(legalStructurePresentation.laneCount, 2, "Legal ownership diagram must render exactly two parallel lanes");
+  assert.ok(legalStructurePresentation.parallelTopDelta !== null && legalStructurePresentation.parallelTopDelta < 80, "Radcon and RadWolfe must begin as parallel visual structures");
+  assert.equal(legalStructurePresentation.radconContainsOffroad, true, "Offroad Croquet must render beneath Radcon Enterprises");
+  assert.equal(legalStructurePresentation.radconContainsRadwolfe, false, "RadWolfe must not render inside the Radcon ownership lane");
+  assert.ok(legalStructurePresentation.normalFontSize >= 14, "Legal normal text must remain readable");
+  assert.ok(legalStructurePresentation.supportingFontSize >= 13, "Legal supporting text must remain readable");
+  assert.equal(legalStructurePresentation.structureSelected, true, "Structure must be the default Legal view");
+  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 600, height: 900 });
+  const mobileColumns = await eventually(async () => {
+    const value = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+      script: `
+        const diagram = document.querySelector('[data-testid="legal-ownership-diagram"]');
+        const addresses = document.querySelector('[data-testid="legal-three-address-model"]');
+        return { diagram: diagram ? getComputedStyle(diagram).gridTemplateColumns : null, addresses: addresses ? getComputedStyle(addresses).gridTemplateColumns : null };
+      `,
+      args: [],
+    });
+    assert.ok(value.diagram && !value.diagram.includes(" "), "mobile ownership diagram must collapse to one column");
+    return value;
+  }, "render the legal ownership diagram responsively");
+  assert.ok(mobileColumns.diagram);
+  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
+  await click(base, sessionId, '[data-testid="legal-mode-formation"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "render separate formation workstreams"), /Radcon Enterprises formation[\s\S]*RadWolfe formalization[\s\S]*Form RadWolfe LLC if chosen/);
+  await click(base, sessionId, '[data-testid="legal-mode-addresses"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "render the three-address model"), /Private owner address[\s\S]*Actual street address intentionally absent[\s\S]*300 S Main St, Suite 212[\s\S]*Northwest Registered Agent/);
+  await click(base, sessionId, '[data-testid="legal-mode-brands"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "separate brands from the parallel venture"), /RADCON-OWNED BRANDS \/ BUSINESSES \/ PROJECTS[\s\S]*Offroad Croquet[\s\S]*PARALLEL VENTURE[\s\S]*RadWolfe/);
+  await click(base, sessionId, '[data-testid="legal-mode-accounts"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "keep account status entity-specific"), /Radcon Enterprises[\s\S]*EIN[\s\S]*RadWolfe[\s\S]*No RadWolfe account is asserted/);
+  await click(base, sessionId, '[data-testid="legal-mode-documents"]');
+  assert.match(await eventually(() => bodyText(base, sessionId), "render truthful document pointers"), /DOCUMENTS & COMPLIANCE[\s\S]*Articles of Organization[\s\S]*not created[\s\S]*Partnership-related records[\s\S]*not uploaded/i);
+  await click(base, sessionId, '.legalArchiveChoice');
+  assert.match(await eventually(() => bodyText(base, sessionId), "preserve governed Legal archives"), /Legal Working Notes[\s\S]*Legal Library Index/);
   await click(base, sessionId, '[data-testid="tab-agents"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "render Agents"),
