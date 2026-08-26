@@ -47,7 +47,7 @@ export type AgentProfileDraft = {
 
 export const PROFILES_DIR = "docs/agent-profiles";
 export const DEFAULT_CONTEXT_ARTIFACT =
-  "docs/radcontrol/empire_blueprint/radcontrol_transition_blueprint_20260724.md";
+  "docs/radcontrol/empire_blueprint/empire_blueprint_20260822.md";
 
 export function isProfileArtifact(path: string): boolean {
   return path.startsWith(`${PROFILES_DIR}/`) && path.endsWith("/01_profile.json");

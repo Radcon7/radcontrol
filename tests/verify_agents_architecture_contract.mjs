@@ -35,5 +35,11 @@ assert.match(model, /export type AgentProfileDraft =/);
 assert.match(model, /export function normalizeAgentProfile/);
 assert.match(model, /export function sortAgentProfiles/);
 assert.match(model, /export function notePathForProfile/);
+assert.match(
+  model,
+  /DEFAULT_CONTEXT_ARTIFACT =\s*\n\s*"docs\/radcontrol\/empire_blueprint\/empire_blueprint_20260822\.md"/,
+);
+assert.match(model, /contextArtifact: DEFAULT_CONTEXT_ARTIFACT/);
+assert.doesNotMatch(model, /radcontrol_transition_blueprint_20260724\.md/);
 
 console.log("agents architecture contract: typed model/view boundary verified");
