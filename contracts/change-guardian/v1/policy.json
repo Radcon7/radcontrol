@@ -1,0 +1,162 @@
+{
+  "contractVersion": "1",
+  "policyId": "radcontrol-change-guardian-v1",
+  "pathClasses": [
+    {
+      "class": "generated/snapshot",
+      "globs": ["docs/_repo_snapshot.txt", "dist/**", "coverage/**", ".next/**", ".cache/**", "tmp/**", "src-tauri/target/**", "*.log", "**/*.log", "*.tmp", "**/*.tmp"]
+    },
+    {
+      "class": "o2-client/protocol",
+      "globs": ["src/components/common/o2Client.ts", "src/components/common/o2Contract.ts", "src/components/common/o2Files.ts", "src/**/*Api.ts", "contracts/o2-radcontrol/**", "tests/verify_o2_contract.mjs", "tests/o2_runtime_boundary_behavior.mjs"]
+    },
+    {
+      "class": "tauri/native/security",
+      "globs": ["src-tauri/**", "src/components/security/**", "src/components/sentinel/**", "scripts/tauri*.mjs", "tests/*tauri*.mjs", "tests/*sentinel*.mjs", "tests/verify_tauri_security.mjs"]
+    },
+    {
+      "class": "contracts/governance",
+      "globs": ["AGENTS.md", "contracts/**", "docs/**", "tests/verify_governance_pointers.mjs", "tests/verify_ci_workflow_contract.mjs"]
+    },
+    {
+      "class": "workflow/release",
+      "globs": [".github/**", "scripts/install*.sh", "scripts/*production*.mjs", "scripts/*release*", "tests/verify_production_delivery_contract.mjs", "tests/verify_supply_chain_contract.mjs"]
+    },
+    {
+      "class": "dependency/build-config",
+      "globs": ["package.json", "package-lock.json", "npm-shrinkwrap.json", "tsconfig*.json", "vite.config.*", "eslint.config.*", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri*.json"]
+    },
+    {
+      "class": "migration/data-authority",
+      "globs": ["migrations/**", "supabase/**", "prisma/**", "**/schema.sql", "**/*.migration.*"]
+    },
+    {
+      "class": "product/test",
+      "globs": ["tests/*.mjs", "tests/*.ts", "tests/*.tsx", "tests/**/*.mjs", "tests/**/*.ts", "tests/**/*.tsx"]
+    },
+    {
+      "class": "product/model",
+      "globs": ["src/*.ts", "src/**/*.ts"]
+    },
+    {
+      "class": "product/ui",
+      "globs": ["src/**/*.tsx", "src/**/*.css", "src/*.tsx", "src/*.css"]
+    },
+    {
+      "class": "unknown",
+      "globs": ["**"]
+    }
+  ],
+  "contentTriggers": [
+    {
+      "id": "direct-o2-or-tauri-invocation",
+      "class": "o2-client/protocol",
+      "paths": ["src/**"],
+      "regex": "\\b(?:invokeO2Unchecked|invokeO2|runO2Action|runO2ParsedJson|invoke)\\s*\\("
+    },
+    {
+      "id": "browser-owned-durable-state",
+      "class": "migration/data-authority",
+      "paths": ["src/**"],
+      "regex": "\\b(?:localStorage|sessionStorage|indexedDB)\\b"
+    },
+    {
+      "id": "native-process-or-unsafe-html",
+      "class": "tauri/native/security",
+      "paths": ["src/**"],
+      "regex": "(?:node:child_process|child_process|dangerouslySetInnerHTML|Deno\\.Command|Bun\\.spawn)"
+    },
+    {
+      "id": "tauri-capability-import",
+      "class": "tauri/native/security",
+      "paths": ["src/**"],
+      "regex": "(?:\\bfrom\\s*[\"']@tauri-apps/api/(?:core|tauri)[\"']|\\brequire\\s*\\(\\s*[\"']@tauri-apps/api/(?:core|tauri)[\"']\\s*\\))",
+      "flags": "i"
+    },
+    {
+      "id": "direct-network-capability",
+      "class": "tauri/native/security",
+      "paths": ["src/**"],
+      "regex": "\\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\\s*\\("
+    },
+    {
+      "id": "cookie-or-auth-capability",
+      "class": "tauri/native/security",
+      "paths": ["src/**"],
+      "regex": "(?:\\bdocument\\.cookie\\b|\\b(?:authorization|set-cookie|cookie)\\s*[:=]|\\b(?:get|set|delete)(?:Cookie|Session|AuthToken)\\s*\\()",
+      "flags": "i"
+    },
+    {
+      "id": "credential-or-secret-capability",
+      "class": "tauri/native/security",
+      "paths": ["src/**"],
+      "regex": "\\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|private[_-]?key|password|credential(?:s)?)\\b",
+      "flags": "i"
+    },
+    {
+      "id": "sql-schema-or-persistence-capability",
+      "class": "migration/data-authority",
+      "paths": ["src/**"],
+      "regex": "(?:\\b(?:create|alter|drop)\\s+table\\b|\\b(?:insert\\s+into|delete\\s+from)\\b|\\bselect\\b.{0,120}\\bfrom\\b|\\b(?:primary\\s+key|foreign\\s+key|references)\\b|\\b(?:prisma|supabase)\\s*\\.|\\.(?:from|rpc)\\s*\\()",
+      "flags": "i"
+    }
+  ],
+  "securityRelevantIgnoredGlobs": [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    ".npmrc",
+    "**/.npmrc"
+  ],
+  "allowedClasses": ["product/ui", "product/model", "product/test"],
+  "escalateClasses": ["o2-client/protocol", "tauri/native/security", "contracts/governance", "workflow/release", "dependency/build-config", "migration/data-authority", "unknown"],
+  "failClasses": ["generated/snapshot"],
+  "profiles": {
+    "product/ui": {"baseGates": ["typecheck"], "surfaceGateKinds": ["contract"]},
+    "product/model": {"baseGates": ["typecheck"], "surfaceGateKinds": ["behavior", "contract"]},
+    "product/test": {"baseGates": ["typecheck"], "surfaceGateKinds": ["contract"]}
+  },
+  "surfaces": [
+    {
+      "id": "projects",
+      "globs": ["src/components/projects/**", "tests/*project*"],
+      "gates": {"behavior": "content-preservation-behavior", "contract": "projects-contract"}
+    },
+    {
+      "id": "empire-todo",
+      "globs": ["src/components/notes/EmpireTodo*", "src/components/notes/empireTodo*", "tests/*empire_todo*"],
+      "gates": {"behavior": "empire-todo-behavior", "contract": "empire-todo-contract"}
+    },
+    {
+      "id": "infrastructure",
+      "globs": ["src/components/agents/*Infrastructure*", "src/components/agents/infrastructure*", "tests/*infrastructure*"],
+      "gates": {"behavior": "content-preservation-behavior", "contract": "infrastructure-contract"}
+    },
+    {
+      "id": "agents",
+      "globs": ["src/components/agents/Agent*", "src/components/agents/agentModel.ts", "tests/*agents*"],
+      "gates": {"contract": "agents-contract"}
+    },
+    {
+      "id": "governed-notes",
+      "globs": ["src/components/notes/Blueprint*", "src/components/notes/MyNotes*", "src/components/notes/myNotes*", "tests/*governed_note*"],
+      "gates": {"contract": "governed-notes-contract"}
+    },
+    {
+      "id": "o2-knowledge",
+      "globs": ["src/components/notes/O2Knowledge*", "src/components/notes/o2Knowledge*", "tests/*o2_knowledge*"],
+      "gates": {"contract": "o2-knowledge-contract"}
+    },
+    {
+      "id": "legal-portfolio",
+      "globs": ["src/components/paste-tabs/**", "tests/*portfolio_blueprint*"],
+      "gates": {"contract": "portfolio-contract"}
+    },
+    {
+      "id": "application-shell",
+      "globs": ["src/App.tsx", "src/App.css", "src/main.tsx", "src/components/common/*.tsx", "tests/*content_preservation*"],
+      "gates": {"contract": "content-preservation-contract"}
+    }
+  ]
+}
