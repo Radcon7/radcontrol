@@ -35,6 +35,7 @@
     "verify:sentinel": "node tests/verify_sentinel_contract.mjs",
     "test:content-preservation": "node --experimental-strip-types tests/content_preservation_behavior.mjs",
     "verify:content-preservation": "node tests/verify_content_preservation_contract.mjs",
+    "verify:change-guardian-policy": "node tests/verify_change_guardian_policy.mjs",
     "test:contracts": "npm run verify:security && npm run verify:governance && npm run verify:document-transport && npm run verify:portfolio-blueprint && npm run verify:o2-contract && npm run test:o2-runtime-boundary && npm run verify:project-builder && npm run verify:formation-learning && npm run test:formation-payload && npm run test:project-intent-preview && npm run verify:ci-contract && npm run verify:supply-chain && npm run verify:repo-index && npm run verify:agents-architecture && npm run verify:governed-notes && npm run verify:o2-knowledge-workspace && npm run verify:infrastructure-architecture && npm run verify:projects-architecture && npm run verify:tauri-e2e-contract && npm run test:native-acceptance-isolation && npm run test:matched-pair-transaction && npm run verify:production-delivery && npm run test:empire-todo && npm run verify:empire-todo && npm run test:sentinel && npm run verify:sentinel && npm run test:content-preservation && npm run verify:content-preservation",
     "vite:dev": "vite",
     "vite:build": "tsc && vite build",

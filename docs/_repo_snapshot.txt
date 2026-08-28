@@ -29,6 +29,7 @@ test:sentinel
 test:tauri-e2e
 test:tauri-production-readonly
 verify:agents-architecture
+verify:change-guardian-policy
 verify:ci-contract
 verify:content-preservation
 verify:document-transport
@@ -59,6 +60,7 @@ BOUNDED FILE INVENTORY
 .vscode/extensions.json
 AGENTS.md
 README.md
+contracts/change-guardian/v1/policy.json
 contracts/o2-radcontrol/v1/README.md
 contracts/o2-radcontrol/v1/client.json
 docs/CODEX_EXECUTION_NOTES.md
@@ -237,6 +239,7 @@ tests/project_intent_preview_behavior.mjs
 tests/release_candidate_evidence_test.py
 tests/sentinel_behavior.mjs
 tests/verify_agents_architecture_contract.mjs
+tests/verify_change_guardian_policy.mjs
 tests/verify_ci_workflow_contract.mjs
 tests/verify_content_preservation_contract.mjs
 tests/verify_document_transport_contract.mjs
