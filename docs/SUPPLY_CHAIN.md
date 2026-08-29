@@ -25,9 +25,15 @@ acceptance must use `scripts/matched_pair_transaction.py` with one reviewed,
 release-local version-2 JSON transaction manifest fixed to the exact old O2
 commit/tree and binary digest, exact new O2 and RadControl commits/trees and
 binary digest, live/staged/recovery paths, support-file hashes, modes, and
-retained evidence hashes. Transaction schema version 1 is accepted only for a
-real rollback of an already-promoted legacy pair; it cannot preflight, promote,
-or reinstall a candidate. Preflight requires exactly one authoritative
+retained evidence hashes. Version-2 manifests do not control the process
+identity: the stopped gate invokes fixed `/usr/bin/pgrep` in a minimal
+environment for the canonical `radcontrol-app` name. Schema version 1 retains
+that legacy field only for exact historical compatibility and accepts only
+`radcontrol-app`. Transaction schema version 1 is accepted only for a
+real rollback of an already-promoted legacy pair whose fixed stage layout,
+`new-live-final` state, parked pair, two final-cycle state backups, files, and
+evidence remain intact; it cannot preflight, promote, or reinstall a candidate.
+Preflight requires exactly one authoritative
 `release-manifest.json`, validates its embedded governed lifecycle admission,
 and proves that its protected O2 source, accepted RadControl source, artifact,
 candidate O2 compatibility pin, and canonical O2 workflow bytes all agree with
@@ -37,9 +43,13 @@ durable tool also rejects noncanonical production paths, symlinks, dirty
 worktrees, non-private state, unexpected material, hash drift, and a running
 app. It atomically installs support files, transfers validated private state,
 repairs moved Git worktrees, attempts old-pair recovery on failure, and records
-the promotion, real rollback, and reinstall states. Reinstall is admitted only
-from exact `old-live` transaction state and, before any mutation, revalidates
-the retained candidate files, evidence hashes, release admission, compatibility
+the promotion, real rollback, and reinstall states. Operator rollback is
+admitted only from exact `new-live` state and, before any mutation, revalidates
+the live/parked pair, retained files and evidence, and original release
+admission. Internal recovery during a failed promotion remains a separate path.
+Reinstall is admitted only from exact `old-live` transaction state and, before
+any mutation, revalidates the retained candidate files, evidence hashes,
+release admission, compatibility
 pin, workflow-file digest, and parked new O2 pair. It does not substitute the
 current remote branch, provider state, or a newly generated manifest for those
 retained bytes. Release manifests remain transaction evidence; they are not a

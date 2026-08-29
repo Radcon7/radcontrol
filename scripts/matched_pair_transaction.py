@@ -39,6 +39,9 @@ NEW_PAIR_KEYS = {"o2Commit", "o2Tree", "radcontrolSourceSha", "radcontrolSourceT
 V1_PAIR_KEYS = {"o2Commit", "o2Tree"}
 SHA256_KEYS = {"binarySha256"}
 TRUSTED_GIT = "/usr/bin/git"
+TRUSTED_PGREP = "/usr/bin/pgrep"
+PRODUCTION_PROCESS_NAME = "radcontrol-app"
+TEST_PROCESS_NAME = "radcontrol-test"
 TRUSTED_GIT_ENV = {
     "PATH": "/usr/local/bin:/usr/bin:/bin",
     "LANG": "C.UTF-8",
@@ -48,6 +51,11 @@ TRUSTED_GIT_ENV = {
     "GIT_TERMINAL_PROMPT": "0",
     "GIT_OPTIONAL_LOCKS": "0",
     "GIT_NO_REPLACE_OBJECTS": "1",
+}
+TRUSTED_PROCESS_ENV = {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
 }
 
 
@@ -131,21 +139,28 @@ def fsync_directory(path: Path) -> None:
 
 def load_manifest(path: Path, action: str) -> dict[str, Any]:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise fail(f"transaction manifest is unavailable or malformed: {error}") from error
+        payload, _ = capture_evidence_json(
+            path, "transaction manifest", maximum=1024 * 1024
+        )
+    except ReleaseEvidenceError as error:
+        raise fail(str(error)) from error
     if not isinstance(payload, dict) or payload.get("schemaVersion") not in {1, 2}:
         raise fail("transaction manifest schemaVersion must be 1 or 2")
     schema_version = payload["schemaVersion"]
     if schema_version == 1 and action != "rollback":
         raise fail("transaction schemaVersion 1 is recovery-only and supports only rollback")
-    expected = {"schemaVersion", "transactionId", "primaryO2Repository", "processName", "live", "stage", "oldPair", "newPair"}
+    expected = {
+        "schemaVersion", "transactionId", "primaryO2Repository", "live", "stage",
+        "oldPair", "newPair",
+    }
+    if schema_version == 1:
+        expected.add("processName")
     if set(payload) != expected:
         raise fail("transaction manifest has an unexpected top-level shape")
     if not isinstance(payload["transactionId"], str) or not payload["transactionId"].replace("-", "").isalnum():
         raise fail("transactionId must contain only letters, numbers, and hyphens")
-    if not isinstance(payload["processName"], str) or not payload["processName"]:
-        raise fail("processName is required")
+    if schema_version == 1 and payload["processName"] != PRODUCTION_PROCESS_NAME:
+        raise fail("legacy transaction processName must be exactly radcontrol-app")
     pair_keys = (
         {"oldPair": OLD_PAIR_KEYS, "newPair": NEW_PAIR_KEYS}
         if schema_version == 2
@@ -163,13 +178,13 @@ def load_manifest(path: Path, action: str) -> dict[str, Any]:
 
 
 class Transaction:
-    def __init__(self, manifest: dict[str, Any], test_root: Path | None):
+    def __init__(self, manifest: dict[str, Any], test_root: Path | None, manifest_path: Path):
         try:
             self.manifest = manifest
             self.schema_version = manifest["schemaVersion"]
             self.transaction_id = manifest["transactionId"]
             self.primary = Path(manifest["primaryO2Repository"])
-            self.process_name = manifest["processName"]
+            self.manifest_path = manifest_path
             self.live = manifest["live"]
             self.stage = manifest["stage"]
             self.old_pair = manifest["oldPair"]
@@ -234,7 +249,7 @@ class Transaction:
                 raise fail(f"live.files.{key}.mode is unsupported")
 
         paths = [
-            self.primary, self.live_o2, *self.live_files.values(), self.stage_root,
+            self.manifest_path, self.primary, self.live_o2, *self.live_files.values(), self.stage_root,
             self.candidate_o2, self.new_parked_o2, self.new_failed_o2,
             self.old_parked_o2, self.state_backups, self.state_file,
             *(row["path"] for row in self.candidate_files.values()),
@@ -243,6 +258,23 @@ class Transaction:
         ]
         for candidate in paths:
             require_absolute(candidate, "transaction path")
+        expected_stage_paths = {
+            self.manifest_path: self.stage_root / "transaction-manifest.json",
+            self.candidate_o2: self.stage_root / "candidate-o2",
+            self.new_parked_o2: self.stage_root / "new-parked-o2",
+            self.new_failed_o2: self.stage_root / "new-failed-o2",
+            self.old_parked_o2: self.stage_root / "old-parked-o2",
+            self.state_backups: self.stage_root / "state-backups",
+            self.state_file: self.stage_root / "transaction-state",
+        }
+        for actual, expected in expected_stage_paths.items():
+            if actual != expected:
+                raise fail(f"transaction stage lineage path is not canonical: {actual}")
+        for key in FILE_KEYS:
+            if self.candidate_files[key]["path"] != self.stage_root / "candidate-files" / key:
+                raise fail(f"candidateFiles.{key} path is not canonical for the transaction stage")
+            if self.rollback_files[key]["path"] != self.stage_root / "rollback-files" / key:
+                raise fail(f"rollbackFiles.{key} path is not canonical for the transaction stage")
         if self.test_root:
             root = existing_directory(self.test_root, "test transaction root")
             if any(candidate != root and not inside(candidate, root) for candidate in paths):
@@ -268,11 +300,22 @@ class Transaction:
                     raise fail("all production transaction material must stay under stage.root")
 
     def assert_stopped(self) -> None:
-        completed = subprocess.run(["pgrep", "-x", self.process_name], capture_output=True, text=True)
+        process_name = TEST_PROCESS_NAME if self.test_root else PRODUCTION_PROCESS_NAME
+        completed = subprocess.run(
+            [TRUSTED_PGREP, "-x", process_name],
+            env=TRUSTED_PROCESS_ENV,
+            capture_output=True,
+            text=True,
+        )
         if completed.returncode == 0 and completed.stdout.strip():
-            raise fail(f"refusing transaction: {self.process_name} is running")
+            raise fail(f"refusing transaction: {process_name} is running")
         if completed.returncode not in {0, 1}:
-            raise fail(f"could not determine whether {self.process_name} is running")
+            raise fail(f"could not determine whether {process_name} is running")
+
+    def assert_stage_private(self) -> None:
+        existing_directory(self.stage_root, "transaction stage root")
+        if self.stage_root.stat().st_mode & 0o077:
+            raise fail("transaction stage root must be private (0700)")
 
     def assert_worktree(self, root: Path, pair: dict[str, str], label: str) -> None:
         existing_directory(root, label)
@@ -479,6 +522,7 @@ class Transaction:
         if temporary.exists() or temporary.is_symlink():
             raise fail("transaction state temporary already exists")
         with temporary.open("x", encoding="utf-8") as handle:
+            os.chmod(temporary, 0o600)
             handle.write(f"{value}\n")
             handle.flush()
             os.fsync(handle.fileno())
@@ -512,9 +556,7 @@ class Transaction:
 
     def preflight(self) -> None:
         self.assert_stopped()
-        existing_directory(self.stage_root, "transaction stage root")
-        if self.stage_root.stat().st_mode & 0o077:
-            raise fail("transaction stage root must be private (0700)")
+        self.assert_stage_private()
         self.assert_pair(self.old_pair, self.rollback_files, "old pair")
         self.assert_worktree(self.candidate_o2, self.new_pair, "candidate O2")
         self.assert_private_state(self.candidate_o2)
@@ -556,15 +598,37 @@ class Transaction:
 
     def rollback(self) -> None:
         self.assert_stopped()
+        self.assert_stage_private()
+        if self.schema_version == 2:
+            self.assert_transaction_state("new-live")
+        else:
+            self.assert_transaction_state("new-live-final")
+            if self.candidate_o2.exists() or self.new_parked_o2.exists():
+                raise fail("legacy rollback requires the retained final-cycle stage layout")
+            self.assert_private_state_directory(
+                self.state_backups / "old-before-rollback"
+            )
+            self.assert_private_state_directory(
+                self.state_backups / "new-before-reinstall"
+            )
         self.assert_pair(self.new_pair, self.candidate_files, "new pair")
         self.assert_worktree(self.old_parked_o2, self.old_pair, "parked old O2")
         self.assert_private_state(self.old_parked_o2)
+        self.assert_file_set(self.candidate_files, "candidate")
+        self.assert_file_set(self.rollback_files, "rollback")
+        self.assert_evidence()
+        if self.schema_version == 2:
+            self.assert_release_admission(self.live_o2)
         if self.new_parked_o2.exists():
             raise fail("new parked O2 already exists")
         self.sync_private_state(
             self.live_o2,
             self.old_parked_o2,
-            self.state_backups / "old-before-rollback",
+            self.state_backups / (
+                "old-before-rollback"
+                if self.schema_version == 2
+                else "old-before-legacy-final-rollback"
+            ),
         )
         try:
             self.write_state("rollback-started")
@@ -582,6 +646,7 @@ class Transaction:
         self.assert_stopped()
         if self.schema_version != 2:
             raise fail("reinstall requires transaction schemaVersion 2")
+        self.assert_stage_private()
         self.assert_transaction_state("old-live")
         self.assert_pair(self.old_pair, self.rollback_files, "old pair")
         self.assert_worktree(self.new_parked_o2, self.new_pair, "parked new O2")
@@ -621,7 +686,9 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     try:
-        transaction = Transaction(load_manifest(args.manifest, args.action), args.test_root)
+        transaction = Transaction(
+            load_manifest(args.manifest, args.action), args.test_root, args.manifest
+        )
         getattr(transaction, args.action)()
         print(json.dumps({"ok": True, "action": args.action, "transactionId": transaction.transaction_id}, sort_keys=True))
         return 0

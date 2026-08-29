@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -186,7 +187,6 @@ class MatchedPairTransactionTests(unittest.TestCase):
             "schemaVersion": 2,
             "transactionId": "fixture-transaction",
             "primaryO2Repository": str(self.primary),
-            "processName": "radcontrol-transaction-fixture-never-running",
             "live": {
                 "o2Root": str(self.live_o2),
                 "files": {
@@ -222,7 +222,7 @@ class MatchedPairTransactionTests(unittest.TestCase):
                 "binarySha256": digest(self.candidate_files["binary"]),
             },
         }
-        self.manifest = self.root / "transaction.json"
+        self.manifest = self.stage / "transaction-manifest.json"
         self.manifest.write_text(json.dumps(manifest), encoding="utf-8")
 
     def tearDown(self):
@@ -258,6 +258,47 @@ class MatchedPairTransactionTests(unittest.TestCase):
 
     def write_transaction(self, payload: dict) -> None:
         self.manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    def convert_to_v1(self) -> None:
+        payload = self.transaction_payload()
+        payload["schemaVersion"] = 1
+        payload["processName"] = "radcontrol-app"
+        payload["oldPair"] = {
+            "o2Commit": payload["oldPair"]["o2Commit"],
+            "o2Tree": payload["oldPair"]["o2Tree"],
+        }
+        payload["newPair"] = {
+            "o2Commit": payload["newPair"]["o2Commit"],
+            "o2Tree": payload["newPair"]["o2Tree"],
+        }
+        self.write_transaction(payload)
+
+    def start_named_process(self, name: str) -> subprocess.Popen[str]:
+        process = subprocess.Popen(
+            [
+                "/usr/bin/python3",
+                "-c",
+                (
+                    "import ctypes,time; "
+                    f"ctypes.CDLL(None).prctl(15, {name.encode()!r}, 0, 0, 0); "
+                    "time.sleep(30)"
+                ),
+            ],
+            text=True,
+        )
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            found = subprocess.run(
+                ["/usr/bin/pgrep", "-x", name], capture_output=True, text=True
+            )
+            if str(process.pid) in found.stdout.split():
+                return process
+            if process.poll() is not None:
+                break
+            time.sleep(0.05)
+        process.terminate()
+        process.wait(timeout=3)
+        self.fail(f"fixture process did not acquire name {name}")
 
     def release_payload(self) -> dict:
         return json.loads(self.release_manifest.read_text(encoding="utf-8"))
@@ -300,7 +341,9 @@ class MatchedPairTransactionTests(unittest.TestCase):
 
     def test_failed_promotion_recovers_and_verifies_old_pair(self):
         transaction = transaction_module.Transaction(
-            transaction_module.load_manifest(self.manifest, "promote"), self.root
+            transaction_module.load_manifest(self.manifest, "promote"),
+            self.root,
+            self.manifest,
         )
         original_install = transaction_module.Transaction.install_files
         failed = False
@@ -349,41 +392,144 @@ class MatchedPairTransactionTests(unittest.TestCase):
         self.assertIn("SHA-256 does not match", completed.stderr)
         self.assert_live(self.old_commit, "old")
 
-    def test_schema_v1_is_recovery_only(self):
+    def test_direct_v2_rollback_requires_new_live_state(self):
+        self.action("promote")
+        (self.stage / "transaction-state").unlink()
+        completed = self.action_result("rollback")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("transaction state is unavailable or invalid", completed.stderr)
+        self.assert_live(self.new_commit, "new")
+
+    def test_v2_rollback_rejects_arbitrary_transaction_state(self):
+        self.action("promote")
+        (self.stage / "transaction-state").write_text("caller-authored\n", encoding="utf-8")
+        completed = self.action_result("rollback")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("transaction state must be exactly new-live", completed.stderr)
+        self.assert_live(self.new_commit, "new")
+
+    def test_v2_rollback_rejects_live_pair_outside_retained_lineage(self):
+        self.action("promote")
         payload = self.transaction_payload()
-        payload["schemaVersion"] = 1
+        payload["newPair"]["o2Commit"] = self.old_commit
+        payload["newPair"]["o2Tree"] = self.old_tree
+        self.write_transaction(payload)
+        completed = self.action_result("rollback")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("live new pair O2 commit does not match", completed.stderr)
+        self.assert_live(self.new_commit, "new")
+
+    def test_v2_rollback_rejects_changed_retained_release_evidence(self):
+        self.action("promote")
+        self.release_manifest.write_text(
+            self.release_manifest.read_text(encoding="utf-8") + " ", encoding="utf-8"
+        )
+        completed = self.action_result("rollback")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("SHA-256 does not match", completed.stderr)
+        self.assert_live(self.new_commit, "new")
+
+    def test_fresh_swapped_v2_rollback_with_invalid_admission_fails(self):
+        payload = self.transaction_payload()
         payload["oldPair"] = {
-            "o2Commit": payload["oldPair"]["o2Commit"],
-            "o2Tree": payload["oldPair"]["o2Tree"],
+            "o2Commit": self.new_commit,
+            "o2Tree": self.new_tree,
+            "binarySha256": digest(self.candidate_files["binary"]),
         }
         payload["newPair"] = {
-            "o2Commit": payload["newPair"]["o2Commit"],
-            "o2Tree": payload["newPair"]["o2Tree"],
+            "o2Commit": self.old_commit,
+            "o2Tree": self.old_tree,
+            "radcontrolSourceSha": self.old_radcontrol_sha,
+            "radcontrolSourceTree": self.old_radcontrol_tree,
+            "binarySha256": digest(self.rollback_files["binary"]),
         }
         self.write_transaction(payload)
+        os.replace(self.candidate_o2, self.stage / "old-parked-o2")
+        (self.stage / "transaction-state").write_text("new-live\n", encoding="utf-8")
+        release = self.release_payload()
+        release["lifecycleAdmission"]["state"] = "LIVE"
+        self.write_release(release)
+        completed = self.action_result("rollback")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("binary identity conflicts with the transaction pair", completed.stderr)
+        self.assert_live(self.old_commit, "old")
+
+    def test_schema_v1_is_recovery_only(self):
+        self.convert_to_v1()
         for action in ("preflight", "promote", "reinstall"):
             with self.subTest(action=action):
                 completed = self.action_result(action)
                 self.assertNotEqual(completed.returncode, 0)
                 self.assertIn("recovery-only and supports only rollback", completed.stderr)
 
-    def test_schema_v1_rolls_back_an_existing_new_live_pair(self):
-        self.action("promote")
-        (self.stage / "transaction-state").write_text("new-live-final\n", encoding="utf-8")
+    def test_fresh_fabricated_v1_rollback_without_historical_state_fails(self):
+        self.convert_to_v1()
+        completed = self.action_result("rollback")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("transaction state is unavailable or invalid", completed.stderr)
+        self.assert_live(self.old_commit, "old")
+
+    def test_swapped_v1_rollback_without_retained_final_cycle_fails(self):
         payload = self.transaction_payload()
         payload["schemaVersion"] = 1
-        payload["oldPair"] = {
-            "o2Commit": payload["oldPair"]["o2Commit"],
-            "o2Tree": payload["oldPair"]["o2Tree"],
-        }
-        payload["newPair"] = {
-            "o2Commit": payload["newPair"]["o2Commit"],
-            "o2Tree": payload["newPair"]["o2Tree"],
-        }
+        payload["processName"] = "radcontrol-app"
+        payload["oldPair"] = {"o2Commit": self.new_commit, "o2Tree": self.new_tree}
+        payload["newPair"] = {"o2Commit": self.old_commit, "o2Tree": self.old_tree}
         self.write_transaction(payload)
+        (self.stage / "transaction-state").write_text("new-live-final\n", encoding="utf-8")
+        completed = self.action_result("rollback")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("retained final-cycle stage layout", completed.stderr)
+        self.assert_live(self.old_commit, "old")
+
+    def test_schema_v1_rolls_back_an_existing_new_live_pair(self):
+        self.action("promote")
+        self.action("rollback")
+        self.action("reinstall")
+        self.convert_to_v1()
         self.action("rollback")
         self.assert_live(self.old_commit, "old")
         self.assertEqual((self.stage / "transaction-state").read_text().strip(), "old-live")
+
+    def test_running_transaction_fixture_blocks_preflight_even_with_poisoned_path(self):
+        fake_bin = self.root / "fake-bin"
+        fake_bin.mkdir()
+        fake_pgrep = fake_bin / "pgrep"
+        fake_pgrep.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        fake_pgrep.chmod(0o755)
+        process = self.start_named_process("radcontrol-test")
+        try:
+            environment = dict(os.environ)
+            environment["PATH"] = f"{fake_bin}:{environment.get('PATH', '')}"
+            completed = self.action_result("preflight", environment=environment)
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("radcontrol-test is running", completed.stderr)
+            self.assert_live(self.old_commit, "old")
+        finally:
+            process.terminate()
+            process.wait(timeout=3)
+
+    def test_schema_v2_rejects_manifest_controlled_process_name(self):
+        self.assertEqual(transaction_module.PRODUCTION_PROCESS_NAME, "radcontrol-app")
+        payload = self.transaction_payload()
+        payload["processName"] = "caller-selected-name"
+        self.write_transaction(payload)
+        completed = self.action_result("preflight")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("unexpected top-level shape", completed.stderr)
+
+    def test_unrelated_process_name_does_not_block_preflight(self):
+        process = self.start_named_process("unrelated-test")
+        try:
+            completed = self.action_result("preflight")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+        finally:
+            process.terminate()
+            process.wait(timeout=3)
+
+    def test_stopped_transaction_fixture_passes_preflight(self):
+        completed = self.action_result("preflight")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_trusted_git_ignores_replace_refs_and_ambient_configuration(self):
         run("git", "replace", self.new_commit, self.old_commit, cwd=self.primary)
