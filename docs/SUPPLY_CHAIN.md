@@ -22,15 +22,21 @@ stub for old operator commands. It performs no filesystem mutation. The source
 tree intentionally exposes no standalone binary installer because that would
 create a parallel path around matched-pair acceptance. Each authorized native
 acceptance must use `scripts/matched_pair_transaction.py` with one reviewed,
-release-local JSON manifest fixed to the exact old/new O2 commits and trees,
-live/staged/recovery paths, RadControl/support-file hashes, modes, and retained
-evidence hashes. The durable tool rejects noncanonical production paths,
-symlinks, dirty worktrees, non-private state, unexpected material, hash drift,
-and a running app before a swap. It atomically installs support files, transfers
-validated private state, repairs moved Git worktrees, attempts old-pair recovery
-on failure, and records the promotion, real rollback, and reinstall states.
-Release manifests remain transaction evidence; they are not a second
-compatibility registry.
+release-local version-2 JSON transaction manifest fixed to the exact old/new O2
+commits and trees, accepted RadControl source commits and trees, installed
+binary digests, live/staged/recovery paths, support-file hashes, modes, and
+retained evidence hashes. Preflight requires exactly one authoritative
+`release-manifest.json`, validates its embedded governed lifecycle admission,
+and proves that its protected O2 source, accepted RadControl source, artifact,
+candidate O2 compatibility pin, and canonical O2 workflow bytes all agree with
+the candidate worktree and transaction `newPair`. Missing, duplicate,
+unsupported, unadmitted, or conflicting evidence fails before any swap. The
+durable tool also rejects noncanonical production paths, symlinks, dirty
+worktrees, non-private state, unexpected material, hash drift, and a running
+app. It atomically installs support files, transfers validated private state,
+repairs moved Git worktrees, attempts old-pair recovery on failure, and records
+the promotion, real rollback, and reinstall states. Release manifests remain
+transaction evidence; they are not a second compatibility registry.
 
 Production-artifact acceptance is separately durable in
 `scripts/tauri_production_readonly.mjs`. The exact artifact runs inside a
@@ -135,10 +141,19 @@ with `--no-bundle`; then emits:
 - `evidence/dependency-manifest.json`;
 - `system-packages.txt`.
 
-The manifest identifies both source SHAs, artifact filename and SHA-256, UTC
-build time, workflow/run identity, Node/Rust versions, and both lockfile
-digests. A second read-only job downloads and re-hashes the artifact and
-evidence. The package is retained by GitHub Actions for 90 days.
+The version-2 manifest identifies both source SHAs, artifact filename and
+SHA-256, UTC build time, Node/Rust versions, and both lockfile digests. It also
+embeds the O2-produced `o2-radcontrol-release-admission/v1` object rather than
+minting lifecycle status in RadControl. That admission must name
+`RELEASE_CANDIDATE` from `REMOTE_SOURCE_ACCEPTED`, carry internally consistent
+`SOURCE_ACCEPTED` review and protected-publication identities, bind the
+canonical compatibility manifest and O2 workflow bytes, and identify the
+workflow run. `scripts/release_candidate.py` and the matched-pair transaction
+share the small semantic validator for this contract. The admission object is
+part of the existing release manifest; it is not another release manifest,
+compatibility authority, or transaction record. A second read-only job
+downloads and re-hashes the artifact and evidence. The package is retained by
+GitHub Actions for 90 days.
 
 GitHub artifact attestations are not available to this user-owned private O2
 repository on the current GitHub Pro plan; GitHub requires Enterprise Cloud

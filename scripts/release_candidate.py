@@ -13,6 +13,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from release_evidence import (
+    RELEASE_MANIFEST_SCHEMA,
+    ReleaseEvidenceError,
+    validate_release_admission,
+    validate_release_manifest,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -20,8 +27,7 @@ ACTION = re.compile(r"^\s*-?\s*uses:\s*([^\s@]+)@([0-9a-f]{40})\s*(?:#\s*(.+))?$
 MAX_ARTIFACT_BYTES = 1024 * 1024 * 1024
 
 
-class EvidenceError(ValueError):
-    pass
+EvidenceError = ReleaseEvidenceError
 
 
 def sha256(path: Path, maximum: int | None = None) -> str:
@@ -156,17 +162,23 @@ def create(args: argparse.Namespace) -> None:
     artifact = Path(args.artifact).resolve()
     output = Path(args.output).resolve()
     artifact_hash = sha256(artifact, MAX_ARTIFACT_BYTES)
+    admission = load_json(Path(args.lifecycle_admission).resolve())
+    validate_release_admission(
+        admission,
+        o2_sha=o2_sha,
+        radcontrol_sha=rad_sha,
+        artifact_sha256=artifact_hash,
+    )
     dependencies = dependency_manifest(rad_sha, o2_sha, Path(args.o2_root) if args.o2_root else None)
     dependency_path = output / "dependency-manifest.json"
     write_json(dependency_path, dependencies)
     system_packages = [line.strip() for line in Path(args.system_packages).read_text().splitlines() if line.strip()]
     manifest = {
-        "schema": "radcontrol-release-candidate/v1",
+        "schema": RELEASE_MANIFEST_SCHEMA,
         "radcontrolSourceSha": rad_sha,
         "compatibleO2SourceSha": o2_sha,
         "artifact": {"filename": artifact.name, "sha256": artifact_hash},
         "buildTimestamp": args.timestamp,
-        "workflowIdentity": args.workflow,
         "toolchain": {"node": args.node_version, "rust": args.rust_version},
         "lockfiles": {
             "package-lock.json": sha256(ROOT / "package-lock.json"),
@@ -178,9 +190,15 @@ def create(args: argparse.Namespace) -> None:
             "sha256": sha256(dependency_path),
             "format": "deterministic dependency manifest; not a formal SBOM",
         },
+        "lifecycleAdmission": admission,
     }
-    if not args.timestamp.endswith("Z") or not args.workflow.strip():
-        raise EvidenceError("build timestamp and workflow identity must be explicit")
+    validate_release_manifest(
+        manifest,
+        o2_sha=o2_sha,
+        radcontrol_sha=rad_sha,
+        artifact_filename=artifact.name,
+        artifact_sha256=artifact_hash,
+    )
     write_json(output / "release-manifest.json", manifest)
     print(json.dumps({"ok": True, "artifactSha256": artifact_hash}, sort_keys=True))
 
@@ -192,15 +210,15 @@ def verify(args: argparse.Namespace) -> None:
     evidence = Path(args.evidence).resolve()
     manifest = load_json(evidence / "release-manifest.json")
     dependencies = load_json(evidence / "dependency-manifest.json")
-    if manifest.get("schema") != "radcontrol-release-candidate/v1":
-        raise EvidenceError("release manifest schema is unsupported")
-    if manifest.get("radcontrolSourceSha") != rad_sha or manifest.get("compatibleO2SourceSha") != o2_sha:
-        raise EvidenceError("release manifest source identity mismatch")
-    expected_artifact = manifest.get("artifact")
-    if not isinstance(expected_artifact, dict) or expected_artifact.get("filename") != artifact.name:
-        raise EvidenceError("release manifest artifact identity mismatch")
-    if expected_artifact.get("sha256") != sha256(artifact, MAX_ARTIFACT_BYTES):
-        raise EvidenceError("release artifact SHA-256 mismatch")
+    artifact_hash = sha256(artifact, MAX_ARTIFACT_BYTES)
+    validate_release_manifest(
+        manifest,
+        o2_sha=o2_sha,
+        radcontrol_sha=rad_sha,
+        artifact_filename=artifact.name,
+        artifact_sha256=artifact_hash,
+    )
+    expected_artifact = manifest["artifact"]
     dep_record = manifest.get("dependencyManifest")
     if not isinstance(dep_record, dict) or dep_record.get("filename") != "dependency-manifest.json":
         raise EvidenceError("dependency evidence identity mismatch")
@@ -223,7 +241,7 @@ def parser() -> argparse.ArgumentParser:
     create_parser.add_argument("--radcontrol-sha", required=True)
     create_parser.add_argument("--o2-sha", required=True)
     create_parser.add_argument("--timestamp", required=True)
-    create_parser.add_argument("--workflow", required=True)
+    create_parser.add_argument("--lifecycle-admission", required=True)
     create_parser.add_argument("--node-version", required=True)
     create_parser.add_argument("--rust-version", required=True)
     create_parser.add_argument("--system-packages", required=True)

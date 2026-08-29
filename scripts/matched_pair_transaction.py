@@ -14,6 +14,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from release_evidence import (
+    COMPATIBILITY_PATH,
+    WORKFLOW_PATH,
+    ReleaseEvidenceError,
+    validate_release_manifest,
+)
+
 
 PRODUCTION_LIVE = {
     "o2Root": Path("/home/chris/.local/share/radcontrol/o2-runtime"),
@@ -25,7 +32,8 @@ PRODUCTION_LIVE = {
 PRODUCTION_STAGE_PARENT = Path("/home/chris/.local/share/radcontrol")
 PRODUCTION_PRIMARY_O2 = Path("/home/chris/dev/o2")
 FILE_KEYS = ("binary", "launcher", "desktop", "icon")
-PAIR_KEYS = {"o2Commit", "o2Tree"}
+PAIR_KEYS = {"o2Commit", "o2Tree", "radcontrolSourceSha", "radcontrolSourceTree", "binarySha256"}
+SHA256_KEYS = {"binarySha256"}
 
 
 class TransactionError(RuntimeError):
@@ -106,8 +114,8 @@ def load_manifest(path: Path) -> dict[str, Any]:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise fail(f"transaction manifest is unavailable or malformed: {error}") from error
-    if not isinstance(payload, dict) or payload.get("schemaVersion") != 1:
-        raise fail("transaction manifest schemaVersion must be 1")
+    if not isinstance(payload, dict) or payload.get("schemaVersion") != 2:
+        raise fail("transaction manifest schemaVersion must be 2")
     expected = {"schemaVersion", "transactionId", "primaryO2Repository", "processName", "live", "stage", "oldPair", "newPair"}
     if set(payload) != expected:
         raise fail("transaction manifest has an unexpected top-level shape")
@@ -118,9 +126,11 @@ def load_manifest(path: Path) -> dict[str, Any]:
     for name in ("oldPair", "newPair"):
         pair = payload.get(name)
         if not isinstance(pair, dict) or set(pair) != PAIR_KEYS:
-            raise fail(f"{name} must contain exact O2 commit and tree identities")
-        if any(not isinstance(value, str) or len(value) != 40 for value in pair.values()):
-            raise fail(f"{name} identities must be full 40-character Git hashes")
+            raise fail(f"{name} must contain exact O2, RadControl, and binary identities")
+        for key, value in pair.items():
+            expected_length = 64 if key in SHA256_KEYS else 40
+            if not isinstance(value, str) or len(value) != expected_length or any(character not in "0123456789abcdef" for character in value):
+                raise fail(f"{name}.{key} must be a full lowercase {expected_length}-character hash")
     return payload
 
 
@@ -170,10 +180,17 @@ class Transaction:
         if not isinstance(raw, list) or not raw:
             raise fail("stage.evidence must contain at least one fixed evidence file")
         result = []
+        paths: set[Path] = set()
         for index, row in enumerate(raw):
             if not isinstance(row, dict) or set(row) != {"path", "sha256"}:
                 raise fail(f"stage.evidence[{index}] must contain path and sha256")
-            result.append({"path": Path(row["path"]), "sha256": row["sha256"]})
+            path = Path(row["path"])
+            if path in paths:
+                raise fail("stage.evidence must not contain duplicate paths")
+            if not isinstance(row["sha256"], str) or len(row["sha256"]) != 64 or any(character not in "0123456789abcdef" for character in row["sha256"]):
+                raise fail(f"stage.evidence[{index}].sha256 must be a full lowercase SHA-256")
+            paths.add(path)
+            result.append({"path": path, "sha256": row["sha256"]})
         return result
 
     def _validate_shape_and_scope(self) -> None:
@@ -266,7 +283,102 @@ class Transaction:
             if sha256(candidate) != row["sha256"]:
                 raise fail(f"release evidence {index} SHA-256 does not match")
 
+    def load_evidence_json(self, path: Path, label: str) -> dict[str, Any]:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise fail(f"{label} is malformed JSON: {error}") from error
+        if not isinstance(payload, dict):
+            raise fail(f"{label} must be a JSON object")
+        return payload
+
+    def release_manifest_path(self) -> Path:
+        canonical = [row["path"] for row in self.evidence if row["path"].name == "release-manifest.json"]
+        if not canonical:
+            raise fail("stage.evidence is missing the canonical release-manifest.json")
+        if len(canonical) != 1:
+            raise fail("stage.evidence contains duplicate release-manifest.json entries")
+        authoritative = list(canonical)
+        for row in self.evidence:
+            path = row["path"]
+            if path in canonical or path.suffix != ".json":
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            schema = payload.get("schema") if isinstance(payload, dict) else None
+            if isinstance(schema, str) and schema.startswith("radcontrol-release-candidate/"):
+                authoritative.append(path)
+        if len(authoritative) != 1:
+            raise fail("stage.evidence contains ambiguous authoritative release manifests")
+        return canonical[0]
+
+    def assert_release_admission(self) -> None:
+        release_path = existing_file(self.release_manifest_path(), "canonical release manifest")
+        manifest = self.load_evidence_json(release_path, "release manifest")
+        binary = self.candidate_files["binary"]
+        try:
+            validate_release_manifest(
+                manifest,
+                o2_sha=self.new_pair["o2Commit"],
+                radcontrol_sha=self.new_pair["radcontrolSourceSha"],
+                artifact_filename=binary["path"].name,
+                artifact_sha256=binary["sha256"],
+            )
+        except ReleaseEvidenceError as error:
+            raise fail(str(error)) from error
+
+        admission = manifest["lifecycleAdmission"]
+        review = admission["reviewEvidence"]
+        publication = admission["publicationEvidence"]
+        if publication["o2Source"]["protectedTree"] != self.new_pair["o2Tree"]:
+            raise fail("release admission O2 tree does not match transaction newPair")
+        if review["radcontrolSource"]["tree"] != self.new_pair["radcontrolSourceTree"]:
+            raise fail("release admission RadControl tree does not match transaction newPair")
+        if binary["sha256"] != self.new_pair["binarySha256"]:
+            raise fail("candidate binary does not match transaction newPair binary identity")
+
+        compatibility_path = self.candidate_o2 / COMPATIBILITY_PATH
+        compatibility_path = existing_file(compatibility_path, "candidate O2 compatibility manifest")
+        if sha256(compatibility_path) != admission["compatibility"]["sha256"]:
+            raise fail("candidate O2 compatibility manifest SHA-256 does not match release admission")
+        compatibility = self.load_evidence_json(compatibility_path, "candidate O2 compatibility manifest")
+        expected_compatibility_keys = {
+            "schemaVersion", "protocol", "radcontrolSourceSha", "clientContractPath", "clientContractSha256"
+        }
+        if set(compatibility) != expected_compatibility_keys or compatibility.get("schemaVersion") != 1 or compatibility.get("protocol") != "o2-radcontrol":
+            raise fail("candidate O2 compatibility manifest has an unsupported shape")
+        if compatibility.get("clientContractPath") != "contracts/o2-radcontrol/v1/client.json":
+            raise fail("candidate O2 compatibility client contract path is not canonical")
+        client_digest = compatibility.get("clientContractSha256")
+        if not isinstance(client_digest, str) or len(client_digest) != 64 or any(character not in "0123456789abcdef" for character in client_digest):
+            raise fail("candidate O2 compatibility client contract SHA-256 is malformed")
+        if compatibility.get("radcontrolSourceSha") != self.new_pair["radcontrolSourceSha"]:
+            raise fail("candidate O2 compatibility pin does not match transaction newPair RadControl source")
+        if compatibility.get("radcontrolSourceSha") != admission["compatibility"]["radcontrolSourceSha"]:
+            raise fail("candidate O2 compatibility pin conflicts with release admission")
+
+        workflow_path = existing_file(self.candidate_o2 / WORKFLOW_PATH, "candidate O2 release workflow")
+        if sha256(workflow_path) != admission["workflow"]["fileSha256"]:
+            raise fail("candidate O2 release workflow SHA-256 does not match release admission")
+
+        dependency_path = release_path.parent / manifest["dependencyManifest"]["filename"]
+        dependency_rows = [row for row in self.evidence if row["path"] == dependency_path]
+        if len(dependency_rows) != 1:
+            raise fail("stage.evidence must contain exactly one release dependency manifest")
+        dependency_path = existing_file(dependency_path, "release dependency manifest")
+        if sha256(dependency_path) != manifest["dependencyManifest"]["sha256"]:
+            raise fail("release dependency manifest SHA-256 does not match")
+        dependency = self.load_evidence_json(dependency_path, "release dependency manifest")
+        if dependency.get("schema") != "radcontrol-dependencies/v1":
+            raise fail("release dependency manifest schema is unsupported")
+        if dependency.get("compatibleO2SourceSha") != self.new_pair["o2Commit"] or dependency.get("radcontrolSourceSha") != self.new_pair["radcontrolSourceSha"]:
+            raise fail("release dependency manifest source identity mismatch")
+
     def assert_pair(self, pair: dict[str, str], rows: dict[str, dict[str, Any]], label: str) -> None:
+        if rows["binary"]["sha256"] != pair["binarySha256"]:
+            raise fail(f"{label} binary identity conflicts with the transaction pair")
         self.assert_worktree(self.live_o2, pair, f"live {label} O2")
         self.assert_private_state(self.live_o2)
         for key in FILE_KEYS:
@@ -352,6 +464,7 @@ class Transaction:
         self.assert_file_set(self.candidate_files, "candidate")
         self.assert_file_set(self.rollback_files, "rollback")
         self.assert_evidence()
+        self.assert_release_admission()
         for candidate in (self.old_parked_o2, self.new_parked_o2, self.new_failed_o2):
             if candidate.exists():
                 raise fail(f"preflight destination already exists: {candidate}")

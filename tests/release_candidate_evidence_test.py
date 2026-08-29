@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import tempfile
@@ -11,6 +12,58 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/release_candidate.py"
 RAD_SHA = "4" * 40
 O2_SHA = "d" * 40
+RAD_TREE = "5" * 40
+O2_TREE = "e" * 40
+PROTECTED_RAD_SHA = "6" * 40
+
+
+def digest_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def admission(artifact_sha256: str) -> dict[str, object]:
+    reviewed_o2 = {"commit": O2_SHA, "tree": O2_TREE}
+    reviewed_radcontrol = {"commit": RAD_SHA, "tree": RAD_TREE}
+    return {
+        "schema": "o2-radcontrol-release-admission/v1",
+        "state": "RELEASE_CANDIDATE",
+        "admittedFrom": "REMOTE_SOURCE_ACCEPTED",
+        "reviewEvidence": {
+            "state": "SOURCE_ACCEPTED",
+            "o2Source": reviewed_o2,
+            "radcontrolSource": reviewed_radcontrol,
+        },
+        "publicationEvidence": {
+            "state": "REMOTE_SOURCE_ACCEPTED",
+            "o2Source": {
+                "acceptedCommit": O2_SHA,
+                "acceptedTree": O2_TREE,
+                "protectedCommit": O2_SHA,
+                "protectedTree": O2_TREE,
+            },
+            "radcontrolSource": {
+                "acceptedCommit": RAD_SHA,
+                "acceptedTree": RAD_TREE,
+                "protectedCommit": PROTECTED_RAD_SHA,
+                "protectedTree": RAD_TREE,
+            },
+        },
+        "compatibility": {
+            "path": "contracts/o2-radcontrol/v1/compatibility.json",
+            "sha256": "7" * 64,
+            "radcontrolSourceSha": RAD_SHA,
+        },
+        "artifactSha256": artifact_sha256,
+        "workflow": {
+            "repository": "Radcon7/o2",
+            "path": ".github/workflows/radcontrol-release-candidate.yml",
+            "ref": "refs/heads/main",
+            "sourceCommit": O2_SHA,
+            "fileSha256": "8" * 64,
+            "runId": "12345",
+            "runAttempt": "1",
+        },
+    }
 
 
 class ReleaseCandidateEvidenceTests(unittest.TestCase):
@@ -22,13 +75,17 @@ class ReleaseCandidateEvidenceTests(unittest.TestCase):
     def create(self, temporary: Path, o2_root: Path | None = None) -> tuple[Path, Path]:
         artifact = temporary / "radcontrol-app"
         artifact.write_bytes(b"reviewed release candidate\n")
+        admission_path = temporary / "lifecycle-admission.json"
+        admission_path.write_text(
+            json.dumps(admission(digest_bytes(artifact.read_bytes()))), encoding="utf-8"
+        )
         packages = temporary / "system-packages.txt"
         packages.write_text("libwebkit2gtk-4.1-dev=1\npatchelf=2\n", encoding="utf-8")
         evidence = temporary / "evidence"
         arguments = [
             "create", "--artifact", str(artifact), "--output", str(evidence),
             "--radcontrol-sha", RAD_SHA, "--o2-sha", O2_SHA,
-            "--timestamp", "2026-08-16T00:00:00Z", "--workflow", "Radcon7/radcontrol/release-candidate@refs/heads/main",
+            "--timestamp", "2026-08-16T00:00:00Z", "--lifecycle-admission", str(admission_path),
             "--node-version", "v24.12.0", "--rust-version", "rustc 1.93.0",
             "--system-packages", str(packages),
         ]
@@ -50,6 +107,8 @@ class ReleaseCandidateEvidenceTests(unittest.TestCase):
             manifest = json.loads((evidence / "release-manifest.json").read_text())
             self.assertEqual(manifest["radcontrolSourceSha"], RAD_SHA)
             self.assertEqual(manifest["compatibleO2SourceSha"], O2_SHA)
+            self.assertEqual(manifest["schema"], "radcontrol-release-candidate/v2")
+            self.assertEqual(manifest["lifecycleAdmission"]["state"], "RELEASE_CANDIDATE")
             self.assertEqual(self.verify(artifact, evidence).returncode, 0)
 
     def test_tampered_artifact_fails(self) -> None:
@@ -82,6 +141,37 @@ class ReleaseCandidateEvidenceTests(unittest.TestCase):
             dependency = evidence / "dependency-manifest.json"
             dependency.write_text(dependency.read_text() + " ", encoding="utf-8")
             self.assertNotEqual(self.verify(artifact, evidence).returncode, 0)
+
+    def test_unadmitted_lifecycle_states_fail_closed(self) -> None:
+        for state in (
+            "SOURCE_CANDIDATE",
+            "SOURCE_ACCEPTED",
+            "REMOTE_SOURCE_ACCEPTED",
+            "INSTALLED",
+            "LIVE",
+            "arbitrary",
+            "",
+        ):
+            with self.subTest(state=state), tempfile.TemporaryDirectory() as directory:
+                temporary = Path(directory)
+                artifact = temporary / "radcontrol-app"
+                artifact.write_bytes(b"reviewed release candidate\n")
+                payload = admission(digest_bytes(artifact.read_bytes()))
+                payload["state"] = state
+                admission_path = temporary / "lifecycle-admission.json"
+                admission_path.write_text(json.dumps(payload), encoding="utf-8")
+                packages = temporary / "system-packages.txt"
+                packages.write_text("patchelf=2\n", encoding="utf-8")
+                result = self.run_script(
+                    "create", "--artifact", str(artifact), "--output", str(temporary / "evidence"),
+                    "--radcontrol-sha", RAD_SHA, "--o2-sha", O2_SHA,
+                    "--timestamp", "2026-08-16T00:00:00Z",
+                    "--lifecycle-admission", str(admission_path),
+                    "--node-version", "v24.12.0", "--rust-version", "rustc 1.93.0",
+                    "--system-packages", str(packages),
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("state must be RELEASE_CANDIDATE", result.stdout)
 
 
 if __name__ == "__main__":

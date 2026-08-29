@@ -85,6 +85,7 @@ scripts/native_acceptance_lib.mjs
 scripts/o2_index_repo.sh
 scripts/o2_session_start.sh
 scripts/release_candidate.py
+scripts/release_evidence.py
 scripts/snapshot_repo_state.sh
 scripts/tauri_dev.mjs
 scripts/tauri_e2e.mjs
