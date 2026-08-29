@@ -3,7 +3,7 @@
 Status: Active implementation authority
 Scope: source, GitHub controls, CI dependencies, non-deploying release candidates, provenance, and audit anchors
 Owner: RadControl release path; O2 owns the compatibility pin and audit-chain verifier
-Reviewed: 2026-08-22
+Reviewed: 2026-08-29
 Next review: before the next matched-pair candidate promotion
 
 ## Trust and release statement
@@ -22,15 +22,38 @@ stub for old operator commands. It performs no filesystem mutation. The source
 tree intentionally exposes no standalone binary installer because that would
 create a parallel path around matched-pair acceptance. Each authorized native
 acceptance must use `scripts/matched_pair_transaction.py` with one reviewed,
-release-local JSON manifest fixed to the exact old/new O2 commits and trees,
-live/staged/recovery paths, RadControl/support-file hashes, modes, and retained
-evidence hashes. The durable tool rejects noncanonical production paths,
-symlinks, dirty worktrees, non-private state, unexpected material, hash drift,
-and a running app before a swap. It atomically installs support files, transfers
-validated private state, repairs moved Git worktrees, attempts old-pair recovery
-on failure, and records the promotion, real rollback, and reinstall states.
-Release manifests remain transaction evidence; they are not a second
-compatibility registry.
+release-local version-2 JSON transaction manifest fixed to the exact old O2
+commit/tree and binary digest, exact new O2 and RadControl commits/trees and
+binary digest, live/staged/recovery paths, support-file hashes, modes, and
+retained evidence hashes. Version-2 manifests do not control the process
+identity: the stopped gate invokes fixed `/usr/bin/pgrep` in a minimal
+environment for the canonical `radcontrol-app` name. Schema version 1 retains
+that legacy field only for exact historical compatibility and accepts only
+`radcontrol-app`. Transaction schema version 1 is accepted only for a
+real rollback of an already-promoted legacy pair whose fixed stage layout,
+`new-live-final` state, parked pair, two final-cycle state backups, files, and
+evidence remain intact; it cannot preflight, promote, or reinstall a candidate.
+Preflight requires exactly one authoritative
+`release-manifest.json`, validates its embedded governed lifecycle admission,
+and proves that its protected O2 source, accepted RadControl source, artifact,
+candidate O2 compatibility pin, and canonical O2 workflow bytes all agree with
+the candidate worktree and transaction `newPair`. Missing, duplicate,
+unsupported, unadmitted, or conflicting evidence fails before any swap. The
+durable tool also rejects noncanonical production paths, symlinks, dirty
+worktrees, non-private state, unexpected material, hash drift, and a running
+app. It atomically installs support files, transfers validated private state,
+repairs moved Git worktrees, attempts old-pair recovery on failure, and records
+the promotion, real rollback, and reinstall states. Operator rollback is
+admitted only from exact `new-live` state and, before any mutation, revalidates
+the live/parked pair, retained files and evidence, and original release
+admission. Internal recovery during a failed promotion remains a separate path.
+Reinstall is admitted only from exact `old-live` transaction state and, before
+any mutation, revalidates the retained candidate files, evidence hashes,
+release admission, compatibility
+pin, workflow-file digest, and parked new O2 pair. It does not substitute the
+current remote branch, provider state, or a newly generated manifest for those
+retained bytes. Release manifests remain transaction evidence; they are not a
+second compatibility registry.
 
 Production-artifact acceptance is separately durable in
 `scripts/tauri_production_readonly.mjs`. The exact artifact runs inside a
@@ -120,33 +143,52 @@ adding and trusting another generator solely for the label is disproportionate.
 `dependency-manifest.json`, tied by SHA-256 and exact source identities to
 `release-manifest.json`.
 
-## Release-candidate workflow
+## Release-candidate receiving contract and current producer state
 
-The manual workflow is O2-owned because O2 is private while RadControl is
-public. A RadControl-scoped workflow token cannot read private O2, and adding a
-cross-repository PAT would weaken the credential boundary. The O2 workflow
-checks out itself and the exact public RadControl commit from O2's canonical
-compatibility manifest, without retained credentials, and refuses a source or
-contract-digest mismatch. It runs contracts, audits, locked Rust gates, and snapshots; builds
-with `--no-bundle`; then emits:
+The intended manual workflow is O2-owned because O2 is private while RadControl
+is public. A RadControl-scoped workflow token cannot read private O2, and adding
+a cross-repository PAT would weaken the credential boundary. RadControl now
+defines and fail-closes the version-2 receiving contract, but current accepted
+O2 source does **not** yet emit the version-2 manifest or the governed lifecycle
+admission. Therefore this source is not, by itself, an admissible release
+candidate and cannot advance an installed pair. O2 producer implementation,
+review, and protected publication are separate prerequisites.
+
+Once an accepted O2 producer exists, it must check out itself and the exact
+public RadControl commit from O2's canonical compatibility manifest, without
+retained credentials, refuse a source or contract-digest mismatch, run the
+declared gates, build with `--no-bundle`, and emit:
 
 - `radcontrol-app`;
 - `evidence/release-manifest.json`;
 - `evidence/dependency-manifest.json`;
 - `system-packages.txt`.
 
-The manifest identifies both source SHAs, artifact filename and SHA-256, UTC
-build time, workflow/run identity, Node/Rust versions, and both lockfile
-digests. A second read-only job downloads and re-hashes the artifact and
-evidence. The package is retained by GitHub Actions for 90 days.
+The version-2 receiving schema identifies both source SHAs, artifact filename
+and SHA-256, UTC build time, Node/Rust versions, and both lockfile digests. It
+requires an O2-produced `o2-radcontrol-release-admission/v1` object rather than
+minting lifecycle status in RadControl. That admission must name
+`RELEASE_CANDIDATE` from `REMOTE_SOURCE_ACCEPTED`, carry internally consistent
+`SOURCE_ACCEPTED` review and protected-publication identities, bind the
+canonical compatibility manifest and O2 workflow bytes, and include workflow
+run metadata as correlation only. A run ID and attempt are neither a provider
+attestation nor authenticated provenance and cannot replace review,
+publication, content hashes, or lifecycle admission.
+`scripts/release_candidate.py` and the matched-pair transaction share the small
+semantic validator for this contract. The admission object is part of the
+existing release manifest; it is not another release manifest, compatibility
+authority, or transaction record. A second read-only job downloads and
+re-hashes the artifact and evidence. When produced, the package is retained by
+GitHub Actions for 90 days.
 
+No existing O2 or RadControl provider-attestation/signing path was found.
 GitHub artifact attestations are not available to this user-owned private O2
 repository on the current GitHub Pro plan; GitHub requires Enterprise Cloud
 for private-repository attestations. Moving the build to public RadControl
 would lose authenticated access to the O2 pin, so 5C deliberately records this
 gap instead of adding a PAT or claiming an unverifiable attestation. These
-hosted artifacts do not exist until the candidates are separately published
-and the O2 manual workflow succeeds.
+hosted artifacts do not exist until the producer is implemented and accepted,
+the candidates are separately published, and the O2 manual workflow succeeds.
 
 ## External audit anchor
 
