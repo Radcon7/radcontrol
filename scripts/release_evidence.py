@@ -3,17 +3,21 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+import os
 import re
+import stat
+from pathlib import Path
 from typing import Any
 
 
 RELEASE_MANIFEST_SCHEMA = "radcontrol-release-candidate/v2"
 ADMISSION_SCHEMA = "o2-radcontrol-release-admission/v1"
 COMPATIBILITY_PATH = "contracts/o2-radcontrol/v1/compatibility.json"
-WORKFLOW_REPOSITORY = "Radcon7/o2"
 WORKFLOW_PATH = ".github/workflows/radcontrol-release-candidate.yml"
-WORKFLOW_REF = "refs/heads/main"
 DEPENDENCY_FORMAT = "deterministic dependency manifest; not a formal SBOM"
+MAX_EVIDENCE_BYTES = 16 * 1024 * 1024
 
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -23,6 +27,73 @@ POSITIVE_INTEGER = re.compile(r"^[1-9][0-9]*$")
 
 class ReleaseEvidenceError(ValueError):
     pass
+
+
+def capture_evidence_bytes(
+    path: Path,
+    label: str,
+    *,
+    expected_sha256: str | None = None,
+    maximum: int = MAX_EVIDENCE_BYTES,
+) -> tuple[bytes, str]:
+    """Read bounded evidence once so identity and interpretation use identical bytes."""
+    if not path.is_absolute() or ".." in path.parts:
+        raise ReleaseEvidenceError(f"{label} must be an absolute lexical path")
+    try:
+        before = path.lstat()
+        canonical = path.resolve(strict=True)
+    except OSError as error:
+        raise ReleaseEvidenceError(f"{label} is unavailable: {error}") from error
+    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or canonical != path:
+        raise ReleaseEvidenceError(f"{label} must be one canonical non-symlink regular file")
+    if before.st_size > maximum:
+        raise ReleaseEvidenceError(f"{label} exceeds its {maximum}-byte size bound")
+
+    descriptor = -1
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        opened = os.fstat(descriptor)
+        if (
+            opened.st_dev != before.st_dev
+            or opened.st_ino != before.st_ino
+            or not stat.S_ISREG(opened.st_mode)
+            or opened.st_nlink != 1
+            or opened.st_size > maximum
+        ):
+            raise ReleaseEvidenceError(f"{label} changed before it could be captured safely")
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            payload = stream.read(maximum + 1)
+    except OSError as error:
+        raise ReleaseEvidenceError(f"{label} could not be captured safely: {error}") from error
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if len(payload) > maximum:
+        raise ReleaseEvidenceError(f"{label} exceeds its {maximum}-byte size bound")
+    digest = hashlib.sha256(payload).hexdigest()
+    if expected_sha256 is not None and digest != expected_sha256:
+        raise ReleaseEvidenceError(f"{label} SHA-256 does not match")
+    return payload, digest
+
+
+def capture_evidence_json(
+    path: Path,
+    label: str,
+    *,
+    expected_sha256: str | None = None,
+    maximum: int = MAX_EVIDENCE_BYTES,
+) -> tuple[dict[str, Any], str]:
+    payload, digest = capture_evidence_bytes(
+        path, label, expected_sha256=expected_sha256, maximum=maximum
+    )
+    try:
+        value = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ReleaseEvidenceError(f"{label} is malformed JSON: {error}") from error
+    if not isinstance(value, dict):
+        raise ReleaseEvidenceError(f"{label} must be a JSON object")
+    return value, digest
 
 
 def _object(value: Any, keys: set[str], label: str) -> dict[str, Any]:
@@ -72,9 +143,9 @@ def validate_release_admission(
             "admittedFrom",
             "reviewEvidence",
             "publicationEvidence",
-            "compatibility",
+            "compatibilitySha256",
             "artifactSha256",
-            "workflow",
+            "workflowCorrelation",
         },
         "lifecycleAdmission",
     )
@@ -127,34 +198,22 @@ def validate_release_admission(
     if published_radcontrol["protectedTree"] != published_radcontrol["acceptedTree"]:
         raise ReleaseEvidenceError("protected RadControl publication tree does not equal the accepted tree")
 
-    compatibility = _object(
-        admission["compatibility"],
-        {"path", "sha256", "radcontrolSourceSha"},
-        "lifecycleAdmission.compatibility",
-    )
-    if compatibility["path"] != COMPATIBILITY_PATH:
-        raise ReleaseEvidenceError("lifecycle admission compatibility path is not canonical")
-    _sha256(compatibility["sha256"], "lifecycleAdmission.compatibility.sha256")
-    _sha40(compatibility["radcontrolSourceSha"], "lifecycleAdmission.compatibility.radcontrolSourceSha")
-    if compatibility["radcontrolSourceSha"] != reviewed_radcontrol["commit"]:
-        raise ReleaseEvidenceError("lifecycle admission compatibility pin conflicts with accepted RadControl source")
+    _sha256(admission["compatibilitySha256"], "lifecycleAdmission.compatibilitySha256")
 
     admitted_artifact = _sha256(admission["artifactSha256"], "lifecycleAdmission.artifactSha256")
     workflow = _object(
-        admission["workflow"],
-        {"repository", "path", "ref", "sourceCommit", "fileSha256", "runId", "runAttempt"},
-        "lifecycleAdmission.workflow",
+        admission["workflowCorrelation"],
+        {"sourceCommit", "fileSha256", "runId", "runAttempt"},
+        "lifecycleAdmission.workflowCorrelation",
     )
-    if workflow["repository"] != WORKFLOW_REPOSITORY or workflow["path"] != WORKFLOW_PATH or workflow["ref"] != WORKFLOW_REF:
-        raise ReleaseEvidenceError("lifecycle admission workflow provenance is not canonical")
-    _sha40(workflow["sourceCommit"], "lifecycleAdmission.workflow.sourceCommit")
-    _sha256(workflow["fileSha256"], "lifecycleAdmission.workflow.fileSha256")
+    _sha40(workflow["sourceCommit"], "lifecycleAdmission.workflowCorrelation.sourceCommit")
+    _sha256(workflow["fileSha256"], "lifecycleAdmission.workflowCorrelation.fileSha256")
     if not isinstance(workflow["runId"], str) or not POSITIVE_INTEGER.fullmatch(workflow["runId"]):
-        raise ReleaseEvidenceError("lifecycle admission workflow runId must be a positive integer string")
+        raise ReleaseEvidenceError("lifecycle admission workflow correlation runId must be a positive integer string")
     if not isinstance(workflow["runAttempt"], str) or not POSITIVE_INTEGER.fullmatch(workflow["runAttempt"]):
-        raise ReleaseEvidenceError("lifecycle admission workflow runAttempt must be a positive integer string")
+        raise ReleaseEvidenceError("lifecycle admission workflow correlation runAttempt must be a positive integer string")
     if workflow["sourceCommit"] != published_o2["protectedCommit"]:
-        raise ReleaseEvidenceError("workflow source commit conflicts with protected O2 publication")
+        raise ReleaseEvidenceError("workflow correlation source commit conflicts with protected O2 publication")
 
     if o2_sha is not None and published_o2["protectedCommit"] != o2_sha:
         raise ReleaseEvidenceError("lifecycle admission O2 source identity mismatch")

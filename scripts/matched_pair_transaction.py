@@ -18,6 +18,8 @@ from release_evidence import (
     COMPATIBILITY_PATH,
     WORKFLOW_PATH,
     ReleaseEvidenceError,
+    capture_evidence_bytes,
+    capture_evidence_json,
     validate_release_manifest,
 )
 
@@ -32,8 +34,21 @@ PRODUCTION_LIVE = {
 PRODUCTION_STAGE_PARENT = Path("/home/chris/.local/share/radcontrol")
 PRODUCTION_PRIMARY_O2 = Path("/home/chris/dev/o2")
 FILE_KEYS = ("binary", "launcher", "desktop", "icon")
-PAIR_KEYS = {"o2Commit", "o2Tree", "radcontrolSourceSha", "radcontrolSourceTree", "binarySha256"}
+OLD_PAIR_KEYS = {"o2Commit", "o2Tree", "binarySha256"}
+NEW_PAIR_KEYS = {"o2Commit", "o2Tree", "radcontrolSourceSha", "radcontrolSourceTree", "binarySha256"}
+V1_PAIR_KEYS = {"o2Commit", "o2Tree"}
 SHA256_KEYS = {"binarySha256"}
+TRUSTED_GIT = "/usr/bin/git"
+TRUSTED_GIT_ENV = {
+    "PATH": "/usr/local/bin:/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_CONFIG_GLOBAL": "/dev/null",
+    "GIT_TERMINAL_PROMPT": "0",
+    "GIT_OPTIONAL_LOCKS": "0",
+    "GIT_NO_REPLACE_OBJECTS": "1",
+}
 
 
 class TransactionError(RuntimeError):
@@ -44,11 +59,16 @@ def fail(message: str) -> TransactionError:
     return TransactionError(message)
 
 
-def run(*args: str, cwd: Path | None = None) -> str:
-    completed = subprocess.run(args, cwd=cwd, capture_output=True, text=True)
+def git_run(repository: Path, *args: str) -> str:
+    completed = subprocess.run(
+        [TRUSTED_GIT, "-C", str(repository), *args],
+        env=TRUSTED_GIT_ENV,
+        capture_output=True,
+        text=True,
+    )
     if completed.returncode != 0:
         detail = (completed.stderr or completed.stdout).strip()[:400]
-        raise fail(f"{' '.join(args)} failed: {detail}")
+        raise fail(f"trusted git {' '.join(args)} failed: {detail}")
     return completed.stdout.strip()
 
 
@@ -109,13 +129,16 @@ def fsync_directory(path: Path) -> None:
         os.close(descriptor)
 
 
-def load_manifest(path: Path) -> dict[str, Any]:
+def load_manifest(path: Path, action: str) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise fail(f"transaction manifest is unavailable or malformed: {error}") from error
-    if not isinstance(payload, dict) or payload.get("schemaVersion") != 2:
-        raise fail("transaction manifest schemaVersion must be 2")
+    if not isinstance(payload, dict) or payload.get("schemaVersion") not in {1, 2}:
+        raise fail("transaction manifest schemaVersion must be 1 or 2")
+    schema_version = payload["schemaVersion"]
+    if schema_version == 1 and action != "rollback":
+        raise fail("transaction schemaVersion 1 is recovery-only and supports only rollback")
     expected = {"schemaVersion", "transactionId", "primaryO2Repository", "processName", "live", "stage", "oldPair", "newPair"}
     if set(payload) != expected:
         raise fail("transaction manifest has an unexpected top-level shape")
@@ -123,10 +146,15 @@ def load_manifest(path: Path) -> dict[str, Any]:
         raise fail("transactionId must contain only letters, numbers, and hyphens")
     if not isinstance(payload["processName"], str) or not payload["processName"]:
         raise fail("processName is required")
+    pair_keys = (
+        {"oldPair": OLD_PAIR_KEYS, "newPair": NEW_PAIR_KEYS}
+        if schema_version == 2
+        else {"oldPair": V1_PAIR_KEYS, "newPair": V1_PAIR_KEYS}
+    )
     for name in ("oldPair", "newPair"):
         pair = payload.get(name)
-        if not isinstance(pair, dict) or set(pair) != PAIR_KEYS:
-            raise fail(f"{name} must contain exact O2, RadControl, and binary identities")
+        if not isinstance(pair, dict) or set(pair) != pair_keys[name]:
+            raise fail(f"{name} has an unexpected identity shape for schemaVersion {schema_version}")
         for key, value in pair.items():
             expected_length = 64 if key in SHA256_KEYS else 40
             if not isinstance(value, str) or len(value) != expected_length or any(character not in "0123456789abcdef" for character in value):
@@ -138,6 +166,7 @@ class Transaction:
     def __init__(self, manifest: dict[str, Any], test_root: Path | None):
         try:
             self.manifest = manifest
+            self.schema_version = manifest["schemaVersion"]
             self.transaction_id = manifest["transactionId"]
             self.primary = Path(manifest["primaryO2Repository"])
             self.process_name = manifest["processName"]
@@ -247,11 +276,11 @@ class Transaction:
 
     def assert_worktree(self, root: Path, pair: dict[str, str], label: str) -> None:
         existing_directory(root, label)
-        if run("git", "-C", str(root), "rev-parse", "HEAD") != pair["o2Commit"]:
+        if git_run(root, "rev-parse", "HEAD") != pair["o2Commit"]:
             raise fail(f"{label} commit does not match the manifest")
-        if run("git", "-C", str(root), "rev-parse", "HEAD^{tree}") != pair["o2Tree"]:
+        if git_run(root, "rev-parse", "HEAD^{tree}") != pair["o2Tree"]:
             raise fail(f"{label} tree does not match the manifest")
-        if run("git", "-C", str(root), "status", "--porcelain"):
+        if git_run(root, "status", "--porcelain"):
             raise fail(f"{label} worktree is dirty")
 
     def assert_private_state_directory(self, state_root: Path) -> None:
@@ -279,18 +308,12 @@ class Transaction:
 
     def assert_evidence(self) -> None:
         for index, row in enumerate(self.evidence):
-            candidate = existing_file(row["path"], f"release evidence {index}")
-            if sha256(candidate) != row["sha256"]:
-                raise fail(f"release evidence {index} SHA-256 does not match")
-
-    def load_evidence_json(self, path: Path, label: str) -> dict[str, Any]:
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise fail(f"{label} is malformed JSON: {error}") from error
-        if not isinstance(payload, dict):
-            raise fail(f"{label} must be a JSON object")
-        return payload
+            try:
+                capture_evidence_bytes(
+                    row["path"], f"release evidence {index}", expected_sha256=row["sha256"]
+                )
+            except ReleaseEvidenceError as error:
+                raise fail(str(error)) from error
 
     def release_manifest_path(self) -> Path:
         canonical = [row["path"] for row in self.evidence if row["path"].name == "release-manifest.json"]
@@ -304,8 +327,10 @@ class Transaction:
             if path in canonical or path.suffix != ".json":
                 continue
             try:
-                payload = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                payload, _ = capture_evidence_json(
+                    path, f"release evidence {path.name}", expected_sha256=row["sha256"]
+                )
+            except ReleaseEvidenceError:
                 continue
             schema = payload.get("schema") if isinstance(payload, dict) else None
             if isinstance(schema, str) and schema.startswith("radcontrol-release-candidate/"):
@@ -314,9 +339,17 @@ class Transaction:
             raise fail("stage.evidence contains ambiguous authoritative release manifests")
         return canonical[0]
 
-    def assert_release_admission(self) -> None:
-        release_path = existing_file(self.release_manifest_path(), "canonical release manifest")
-        manifest = self.load_evidence_json(release_path, "release manifest")
+    def assert_release_admission(self, candidate_root: Path) -> None:
+        release_path = self.release_manifest_path()
+        release_rows = [row for row in self.evidence if row["path"] == release_path]
+        try:
+            manifest, _ = capture_evidence_json(
+                release_path,
+                "release manifest",
+                expected_sha256=release_rows[0]["sha256"],
+            )
+        except ReleaseEvidenceError as error:
+            raise fail(str(error)) from error
         binary = self.candidate_files["binary"]
         try:
             validate_release_manifest(
@@ -339,11 +372,15 @@ class Transaction:
         if binary["sha256"] != self.new_pair["binarySha256"]:
             raise fail("candidate binary does not match transaction newPair binary identity")
 
-        compatibility_path = self.candidate_o2 / COMPATIBILITY_PATH
-        compatibility_path = existing_file(compatibility_path, "candidate O2 compatibility manifest")
-        if sha256(compatibility_path) != admission["compatibility"]["sha256"]:
-            raise fail("candidate O2 compatibility manifest SHA-256 does not match release admission")
-        compatibility = self.load_evidence_json(compatibility_path, "candidate O2 compatibility manifest")
+        compatibility_path = candidate_root / COMPATIBILITY_PATH
+        try:
+            compatibility, _ = capture_evidence_json(
+                compatibility_path,
+                "candidate O2 compatibility manifest",
+                expected_sha256=admission["compatibilitySha256"],
+            )
+        except ReleaseEvidenceError as error:
+            raise fail(str(error)) from error
         expected_compatibility_keys = {
             "schemaVersion", "protocol", "radcontrolSourceSha", "clientContractPath", "clientContractSha256"
         }
@@ -356,28 +393,37 @@ class Transaction:
             raise fail("candidate O2 compatibility client contract SHA-256 is malformed")
         if compatibility.get("radcontrolSourceSha") != self.new_pair["radcontrolSourceSha"]:
             raise fail("candidate O2 compatibility pin does not match transaction newPair RadControl source")
-        if compatibility.get("radcontrolSourceSha") != admission["compatibility"]["radcontrolSourceSha"]:
-            raise fail("candidate O2 compatibility pin conflicts with release admission")
 
-        workflow_path = existing_file(self.candidate_o2 / WORKFLOW_PATH, "candidate O2 release workflow")
-        if sha256(workflow_path) != admission["workflow"]["fileSha256"]:
-            raise fail("candidate O2 release workflow SHA-256 does not match release admission")
+        try:
+            capture_evidence_bytes(
+                candidate_root / WORKFLOW_PATH,
+                "candidate O2 release workflow",
+                expected_sha256=admission["workflowCorrelation"]["fileSha256"],
+            )
+        except ReleaseEvidenceError as error:
+            raise fail(str(error)) from error
 
         dependency_path = release_path.parent / manifest["dependencyManifest"]["filename"]
         dependency_rows = [row for row in self.evidence if row["path"] == dependency_path]
         if len(dependency_rows) != 1:
             raise fail("stage.evidence must contain exactly one release dependency manifest")
-        dependency_path = existing_file(dependency_path, "release dependency manifest")
-        if sha256(dependency_path) != manifest["dependencyManifest"]["sha256"]:
-            raise fail("release dependency manifest SHA-256 does not match")
-        dependency = self.load_evidence_json(dependency_path, "release dependency manifest")
+        if dependency_rows[0]["sha256"] != manifest["dependencyManifest"]["sha256"]:
+            raise fail("release dependency manifest hash claims conflict")
+        try:
+            dependency, _ = capture_evidence_json(
+                dependency_path,
+                "release dependency manifest",
+                expected_sha256=dependency_rows[0]["sha256"],
+            )
+        except ReleaseEvidenceError as error:
+            raise fail(str(error)) from error
         if dependency.get("schema") != "radcontrol-dependencies/v1":
             raise fail("release dependency manifest schema is unsupported")
         if dependency.get("compatibleO2SourceSha") != self.new_pair["o2Commit"] or dependency.get("radcontrolSourceSha") != self.new_pair["radcontrolSourceSha"]:
             raise fail("release dependency manifest source identity mismatch")
 
     def assert_pair(self, pair: dict[str, str], rows: dict[str, dict[str, Any]], label: str) -> None:
-        if rows["binary"]["sha256"] != pair["binarySha256"]:
+        if self.schema_version == 2 and rows["binary"]["sha256"] != pair["binarySha256"]:
             raise fail(f"{label} binary identity conflicts with the transaction pair")
         self.assert_worktree(self.live_o2, pair, f"live {label} O2")
         self.assert_private_state(self.live_o2)
@@ -390,7 +436,18 @@ class Transaction:
 
     def repair_worktrees(self, *paths: Path) -> None:
         existing_directory(self.primary, "primary O2 repository")
-        run("git", "-C", str(self.primary), "worktree", "repair", *(str(path) for path in paths if path.exists()))
+        git_run(self.primary, "worktree", "repair", *(str(path) for path in paths if path.exists()))
+
+    def assert_transaction_state(self, expected: str) -> None:
+        try:
+            payload, _ = capture_evidence_bytes(
+                self.state_file, "transaction state", maximum=128
+            )
+            value = payload.decode("utf-8").strip()
+        except (ReleaseEvidenceError, UnicodeDecodeError) as error:
+            raise fail(f"transaction state is unavailable or invalid: {error}") from error
+        if value != expected:
+            raise fail(f"transaction state must be exactly {expected}")
 
     def atomic_install(self, source: Path, target: Path, mode: int) -> None:
         existing_file(source, "transaction install source")
@@ -464,7 +521,7 @@ class Transaction:
         self.assert_file_set(self.candidate_files, "candidate")
         self.assert_file_set(self.rollback_files, "rollback")
         self.assert_evidence()
-        self.assert_release_admission()
+        self.assert_release_admission(self.candidate_o2)
         for candidate in (self.old_parked_o2, self.new_parked_o2, self.new_failed_o2):
             if candidate.exists():
                 raise fail(f"preflight destination already exists: {candidate}")
@@ -523,9 +580,16 @@ class Transaction:
 
     def reinstall(self) -> None:
         self.assert_stopped()
+        if self.schema_version != 2:
+            raise fail("reinstall requires transaction schemaVersion 2")
+        self.assert_transaction_state("old-live")
         self.assert_pair(self.old_pair, self.rollback_files, "old pair")
         self.assert_worktree(self.new_parked_o2, self.new_pair, "parked new O2")
         self.assert_private_state(self.new_parked_o2)
+        self.assert_file_set(self.candidate_files, "candidate")
+        self.assert_file_set(self.rollback_files, "rollback")
+        self.assert_evidence()
+        self.assert_release_admission(self.new_parked_o2)
         if self.old_parked_o2.exists():
             raise fail("old parked O2 already exists")
         self.sync_private_state(
@@ -557,7 +621,7 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     try:
-        transaction = Transaction(load_manifest(args.manifest), args.test_root)
+        transaction = Transaction(load_manifest(args.manifest, args.action), args.test_root)
         getattr(transaction, args.action)()
         print(json.dumps({"ok": True, "action": args.action, "transactionId": transaction.transaction_id}, sort_keys=True))
         return 0

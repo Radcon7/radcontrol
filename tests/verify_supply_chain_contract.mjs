@@ -45,6 +45,10 @@ assert.equal(workflows.has("release-candidate.yml"), false);
 assert.equal(workflows.has("audit-anchor.yml"), false);
 
 assert.doesNotMatch(supplyChain, /Dependabot alerts report zero known vulnerabilities/);
+assert.match(supplyChain, /current accepted\s+O2 source does \*\*not\*\* yet emit the version-2 manifest/);
+assert.match(supplyChain, /workflow\s+run metadata as correlation only/);
+assert.match(supplyChain, /neither a provider\s+attestation nor authenticated provenance/);
+assert.match(supplyChain, /schema version 1 is accepted only for a\s+real rollback/);
 for (const advisory of [
   "GHSA-7gmj-67g7-phm9",
   "GHSA-7gcf-g7xr-8hxj",

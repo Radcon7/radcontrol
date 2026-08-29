@@ -2,12 +2,17 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import matched_pair_transaction as transaction_module  # noqa: E402
+
 TOOL = ROOT / "scripts/matched_pair_transaction.py"
 FILE_KEYS = ("binary", "launcher", "desktop", "icon")
 
@@ -138,16 +143,9 @@ class MatchedPairTransactionTests(unittest.TestCase):
                     "protectedTree": self.new_radcontrol_tree,
                 },
             },
-            "compatibility": {
-                "path": "contracts/o2-radcontrol/v1/compatibility.json",
-                "sha256": self.compatibility_sha256,
-                "radcontrolSourceSha": self.new_radcontrol_sha,
-            },
+            "compatibilitySha256": self.compatibility_sha256,
             "artifactSha256": digest(self.candidate_files["binary"]),
-            "workflow": {
-                "repository": "Radcon7/o2",
-                "path": ".github/workflows/radcontrol-release-candidate.yml",
-                "ref": "refs/heads/main",
+            "workflowCorrelation": {
                 "sourceCommit": self.new_commit,
                 "fileSha256": self.workflow_sha256,
                 "runId": "12345",
@@ -214,8 +212,6 @@ class MatchedPairTransactionTests(unittest.TestCase):
             "oldPair": {
                 "o2Commit": self.old_commit,
                 "o2Tree": self.old_tree,
-                "radcontrolSourceSha": self.old_radcontrol_sha,
-                "radcontrolSourceTree": self.old_radcontrol_tree,
                 "binarySha256": digest(self.rollback_files["binary"]),
             },
             "newPair": {
@@ -241,6 +237,14 @@ class MatchedPairTransactionTests(unittest.TestCase):
 
     def action(self, name: str):
         return run("python3", str(TOOL), str(self.manifest), name, "--test-root", str(self.root))
+
+    def action_result(self, name: str, *, environment: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["python3", str(TOOL), str(self.manifest), name, "--test-root", str(self.root)],
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
 
     def preflight_result(self) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -293,6 +297,117 @@ class MatchedPairTransactionTests(unittest.TestCase):
         self.assert_live(self.new_commit, "new")
         self.assertEqual((self.live_o2 / ".state/operator-state.txt").read_text(), "state-before-reinstall")
         self.assertEqual((self.stage / "transaction-state").read_text().strip(), "new-live-final")
+
+    def test_failed_promotion_recovers_and_verifies_old_pair(self):
+        transaction = transaction_module.Transaction(
+            transaction_module.load_manifest(self.manifest, "promote"), self.root
+        )
+        original_install = transaction_module.Transaction.install_files
+        failed = False
+
+        def fail_candidate_install(active, rows):
+            nonlocal failed
+            if rows is active.candidate_files and not failed:
+                failed = True
+                raise transaction_module.TransactionError("injected candidate install failure")
+            return original_install(active, rows)
+
+        with patch.object(transaction_module.Transaction, "install_files", fail_candidate_install):
+            with self.assertRaisesRegex(transaction_module.TransactionError, "injected candidate"):
+                transaction.promote()
+        self.assertTrue(failed)
+        self.assert_live(self.old_commit, "old")
+        self.assertEqual(
+            (self.stage / "transaction-state").read_text().strip(), "old-live-recovered"
+        )
+
+    def test_direct_reinstall_requires_exact_old_live_state(self):
+        completed = self.action_result("reinstall")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("transaction state is unavailable or invalid", completed.stderr)
+        self.assert_live(self.old_commit, "old")
+
+    def test_reinstall_revalidates_retained_admission(self):
+        self.action("promote")
+        self.action("rollback")
+        payload = self.release_payload()
+        payload["lifecycleAdmission"]["state"] = "LIVE"
+        self.write_release(payload)
+        completed = self.action_result("reinstall")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("state must be RELEASE_CANDIDATE", completed.stderr)
+        self.assert_live(self.old_commit, "old")
+
+    def test_reinstall_rejects_changed_retained_evidence(self):
+        self.action("promote")
+        self.action("rollback")
+        self.release_manifest.write_text(
+            self.release_manifest.read_text(encoding="utf-8") + " ", encoding="utf-8"
+        )
+        completed = self.action_result("reinstall")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("SHA-256 does not match", completed.stderr)
+        self.assert_live(self.old_commit, "old")
+
+    def test_schema_v1_is_recovery_only(self):
+        payload = self.transaction_payload()
+        payload["schemaVersion"] = 1
+        payload["oldPair"] = {
+            "o2Commit": payload["oldPair"]["o2Commit"],
+            "o2Tree": payload["oldPair"]["o2Tree"],
+        }
+        payload["newPair"] = {
+            "o2Commit": payload["newPair"]["o2Commit"],
+            "o2Tree": payload["newPair"]["o2Tree"],
+        }
+        self.write_transaction(payload)
+        for action in ("preflight", "promote", "reinstall"):
+            with self.subTest(action=action):
+                completed = self.action_result(action)
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertIn("recovery-only and supports only rollback", completed.stderr)
+
+    def test_schema_v1_rolls_back_an_existing_new_live_pair(self):
+        self.action("promote")
+        (self.stage / "transaction-state").write_text("new-live-final\n", encoding="utf-8")
+        payload = self.transaction_payload()
+        payload["schemaVersion"] = 1
+        payload["oldPair"] = {
+            "o2Commit": payload["oldPair"]["o2Commit"],
+            "o2Tree": payload["oldPair"]["o2Tree"],
+        }
+        payload["newPair"] = {
+            "o2Commit": payload["newPair"]["o2Commit"],
+            "o2Tree": payload["newPair"]["o2Tree"],
+        }
+        self.write_transaction(payload)
+        self.action("rollback")
+        self.assert_live(self.old_commit, "old")
+        self.assertEqual((self.stage / "transaction-state").read_text().strip(), "old-live")
+
+    def test_trusted_git_ignores_replace_refs_and_ambient_configuration(self):
+        run("git", "replace", self.new_commit, self.old_commit, cwd=self.primary)
+        environment = dict(os.environ)
+        environment.update(
+            {
+                "GIT_DIR": str(self.primary / ".git/invalid"),
+                "GIT_WORK_TREE": str(self.root / "invalid"),
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "core.repositoryformatversion",
+                "GIT_CONFIG_VALUE_0": "999",
+            }
+        )
+        completed = self.action_result("preflight", environment=environment)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_schema_v2_rejects_removed_old_pair_duplicates(self):
+        payload = self.transaction_payload()
+        payload["oldPair"]["radcontrolSourceSha"] = self.old_radcontrol_sha
+        payload["oldPair"]["radcontrolSourceTree"] = self.old_radcontrol_tree
+        self.write_transaction(payload)
+        completed = self.preflight_result()
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("unexpected identity shape", completed.stderr)
 
     def test_preflight_rejects_dirty_live_o2_before_swap(self):
         (self.live_o2 / "identity.txt").write_text("dirty\n", encoding="utf-8")
@@ -379,13 +494,47 @@ class MatchedPairTransactionTests(unittest.TestCase):
                 payload["lifecycleAdmission"]["state"] = "RELEASE_CANDIDATE"
                 self.write_release(payload)
 
+    def test_semantic_invalid_matrix_rejects_all_twenty_cases(self):
+        original = self.release_payload()
+        mutations = (
+            ("missing release schema", lambda value: value.pop("schema")),
+            ("unsupported release schema", lambda value: value.__setitem__("schema", "radcontrol-release-candidate/v1")),
+            ("missing admission", lambda value: value.pop("lifecycleAdmission")),
+            ("wrong lifecycle state", lambda value: value["lifecycleAdmission"].__setitem__("state", "LIVE")),
+            ("wrong prior lifecycle state", lambda value: value["lifecycleAdmission"].__setitem__("admittedFrom", "SOURCE_ACCEPTED")),
+            ("wrong review state", lambda value: value["lifecycleAdmission"]["reviewEvidence"].__setitem__("state", "SOURCE_CANDIDATE")),
+            ("missing O2 SHA", lambda value: value.pop("compatibleO2SourceSha")),
+            ("O2 SHA mismatch", lambda value: value.__setitem__("compatibleO2SourceSha", "9" * 40)),
+            ("O2 tree mismatch", lambda value: value["lifecycleAdmission"]["publicationEvidence"]["o2Source"].__setitem__("protectedTree", "9" * 40)),
+            ("missing RadControl SHA", lambda value: value.pop("radcontrolSourceSha")),
+            ("RadControl SHA mismatch", lambda value: value.__setitem__("radcontrolSourceSha", "9" * 40)),
+            ("review/publication conflict", lambda value: value["lifecycleAdmission"]["reviewEvidence"]["radcontrolSource"].__setitem__("commit", "9" * 40)),
+            ("missing artifact digest", lambda value: value["artifact"].pop("sha256")),
+            ("artifact digest mismatch", lambda value: value["artifact"].__setitem__("sha256", "9" * 64)),
+            ("admitted artifact mismatch", lambda value: value["lifecycleAdmission"].__setitem__("artifactSha256", "9" * 64)),
+            ("missing workflow correlation", lambda value: value["lifecycleAdmission"].pop("workflowCorrelation")),
+            ("malformed workflow correlation", lambda value: value["lifecycleAdmission"]["workflowCorrelation"].__setitem__("runId", "0")),
+            ("workflow source mismatch", lambda value: value["lifecycleAdmission"]["workflowCorrelation"].__setitem__("sourceCommit", "9" * 40)),
+            ("O2 review/publication conflict", lambda value: value["lifecycleAdmission"]["reviewEvidence"]["o2Source"].__setitem__("tree", "9" * 40)),
+            ("compatibility digest mismatch", lambda value: value["lifecycleAdmission"].__setitem__("compatibilitySha256", "9" * 64)),
+        )
+        self.assertEqual(len(mutations), 20)
+        for label, mutate in mutations:
+            with self.subTest(label=label):
+                payload = json.loads(json.dumps(original))
+                mutate(payload)
+                self.write_release(payload)
+                completed = self.preflight_result()
+                self.assertNotEqual(completed.returncode, 0, label)
+        self.write_release(original)
+
     def test_preflight_rejects_cross_boundary_identity_conflicts(self):
         mutations = (
             ("O2 source", lambda payload: payload.__setitem__("compatibleO2SourceSha", "9" * 40)),
             ("RadControl source", lambda payload: payload.__setitem__("radcontrolSourceSha", "9" * 40)),
             ("artifact", lambda payload: payload["artifact"].__setitem__("sha256", "9" * 64)),
-            ("workflow", lambda payload: payload["lifecycleAdmission"]["workflow"].__setitem__("fileSha256", "9" * 64)),
-            ("compatibility", lambda payload: payload["lifecycleAdmission"]["compatibility"].__setitem__("sha256", "9" * 64)),
+            ("workflow", lambda payload: payload["lifecycleAdmission"]["workflowCorrelation"].__setitem__("fileSha256", "9" * 64)),
+            ("compatibility", lambda payload: payload["lifecycleAdmission"].__setitem__("compatibilitySha256", "9" * 64)),
         )
         original = self.release_payload()
         for label, mutate in mutations:

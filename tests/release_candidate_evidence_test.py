@@ -2,13 +2,23 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from release_evidence import (  # noqa: E402
+    ReleaseEvidenceError,
+    capture_evidence_json,
+    validate_release_admission,
+)
+
 SCRIPT = ROOT / "scripts/release_candidate.py"
 RAD_SHA = "4" * 40
 O2_SHA = "d" * 40
@@ -48,16 +58,9 @@ def admission(artifact_sha256: str) -> dict[str, object]:
                 "protectedTree": RAD_TREE,
             },
         },
-        "compatibility": {
-            "path": "contracts/o2-radcontrol/v1/compatibility.json",
-            "sha256": "7" * 64,
-            "radcontrolSourceSha": RAD_SHA,
-        },
+        "compatibilitySha256": "7" * 64,
         "artifactSha256": artifact_sha256,
-        "workflow": {
-            "repository": "Radcon7/o2",
-            "path": ".github/workflows/radcontrol-release-candidate.yml",
-            "ref": "refs/heads/main",
+        "workflowCorrelation": {
             "sourceCommit": O2_SHA,
             "fileSha256": "8" * 64,
             "runId": "12345",
@@ -109,7 +112,20 @@ class ReleaseCandidateEvidenceTests(unittest.TestCase):
             self.assertEqual(manifest["compatibleO2SourceSha"], O2_SHA)
             self.assertEqual(manifest["schema"], "radcontrol-release-candidate/v2")
             self.assertEqual(manifest["lifecycleAdmission"]["state"], "RELEASE_CANDIDATE")
+            self.assertEqual(
+                set(manifest["lifecycleAdmission"]["workflowCorrelation"]),
+                {"sourceCommit", "fileSha256", "runId", "runAttempt"},
+            )
+            self.assertNotIn("workflow", manifest["lifecycleAdmission"])
             self.assertEqual(self.verify(artifact, evidence).returncode, 0)
+
+    def test_workflow_run_metadata_is_correlation_not_authentication(self) -> None:
+        payload = admission("9" * 64)
+        payload["workflowCorrelation"]["runId"] = "999999999999999999"
+        validate_release_admission(payload)
+        self.assertNotIn("providerAttestation", payload)
+        self.assertNotIn("repository", payload["workflowCorrelation"])
+        self.assertNotIn("ref", payload["workflowCorrelation"])
 
     def test_tampered_artifact_fails(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -172,6 +188,41 @@ class ReleaseCandidateEvidenceTests(unittest.TestCase):
                 )
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("state must be RELEASE_CANDIDATE", result.stdout)
+
+    def test_evidence_capture_hashes_and_parses_one_open_descriptor(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "evidence.json"
+            original = b'{"identity":"retained"}\n'
+            replacement = b'{"identity":"replacement"}\n'
+            path.write_bytes(original)
+            moved = path.with_name("evidence-opened.json")
+            real_open = os.open
+
+            def replace_after_open(target, flags):
+                descriptor = real_open(target, flags)
+                path.rename(moved)
+                path.write_bytes(replacement)
+                return descriptor
+
+            with patch("release_evidence.os.open", side_effect=replace_after_open):
+                value, actual = capture_evidence_json(
+                    path,
+                    "test evidence",
+                    expected_sha256=digest_bytes(original),
+                )
+            self.assertEqual(value, {"identity": "retained"})
+            self.assertEqual(actual, digest_bytes(original))
+            self.assertEqual(path.read_bytes(), replacement)
+
+    def test_evidence_capture_rejects_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "target.json"
+            target.write_text("{}\n", encoding="utf-8")
+            link = root / "evidence.json"
+            link.symlink_to(target)
+            with self.assertRaisesRegex(ReleaseEvidenceError, "non-symlink"):
+                capture_evidence_json(link, "test evidence")
 
 
 if __name__ == "__main__":

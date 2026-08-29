@@ -16,6 +16,7 @@ from typing import Any
 from release_evidence import (
     RELEASE_MANIFEST_SCHEMA,
     ReleaseEvidenceError,
+    capture_evidence_json,
     validate_release_admission,
     validate_release_manifest,
 )
@@ -149,20 +150,15 @@ def dependency_manifest(rad_sha: str, o2_sha: str, o2_root: Path | None = None) 
     }
 
 
-def load_json(path: Path) -> Any:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise EvidenceError(f"evidence JSON is unavailable or malformed: {path}") from error
-
-
 def create(args: argparse.Namespace) -> None:
     rad_sha = validate_sha(args.radcontrol_sha, "RadControl source SHA")
     o2_sha = validate_sha(args.o2_sha, "O2 source SHA")
     artifact = Path(args.artifact).resolve()
     output = Path(args.output).resolve()
     artifact_hash = sha256(artifact, MAX_ARTIFACT_BYTES)
-    admission = load_json(Path(args.lifecycle_admission).resolve())
+    admission, _ = capture_evidence_json(
+        Path(args.lifecycle_admission).resolve(), "lifecycle admission"
+    )
     validate_release_admission(
         admission,
         o2_sha=o2_sha,
@@ -208,8 +204,9 @@ def verify(args: argparse.Namespace) -> None:
     o2_sha = validate_sha(args.o2_sha, "O2 source SHA")
     artifact = Path(args.artifact).resolve()
     evidence = Path(args.evidence).resolve()
-    manifest = load_json(evidence / "release-manifest.json")
-    dependencies = load_json(evidence / "dependency-manifest.json")
+    manifest, _ = capture_evidence_json(
+        evidence / "release-manifest.json", "release manifest"
+    )
     artifact_hash = sha256(artifact, MAX_ARTIFACT_BYTES)
     validate_release_manifest(
         manifest,
@@ -222,8 +219,11 @@ def verify(args: argparse.Namespace) -> None:
     dep_record = manifest.get("dependencyManifest")
     if not isinstance(dep_record, dict) or dep_record.get("filename") != "dependency-manifest.json":
         raise EvidenceError("dependency evidence identity mismatch")
-    if dep_record.get("sha256") != sha256(evidence / "dependency-manifest.json"):
-        raise EvidenceError("dependency evidence SHA-256 mismatch")
+    dependencies, _ = capture_evidence_json(
+        evidence / "dependency-manifest.json",
+        "dependency evidence",
+        expected_sha256=dep_record.get("sha256"),
+    )
     if dependencies.get("radcontrolSourceSha") != rad_sha or dependencies.get("compatibleO2SourceSha") != o2_sha:
         raise EvidenceError("dependency evidence source identity mismatch")
     for path, expected in manifest.get("lockfiles", {}).items():
