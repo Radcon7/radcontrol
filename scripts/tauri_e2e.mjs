@@ -439,8 +439,8 @@ try {
     elementRect(base, sessionId, empireTodoMode),
   ]);
   assert.ok(
-    todoRect.x > blueprintRect.x,
-    "Empire To-Do must render to the right of Empire Blueprint",
+    todoRect.x < blueprintRect.x,
+    "Empire To-Do must render to the left of Empire Blueprint",
   );
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
   await eventually(

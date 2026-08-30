@@ -71,7 +71,7 @@ assert.match(agents, /<RouterHealthPanel/);
 assert.match(routers, /"router\.health"/);
 assert.match(bridge, /"router\.health"/);
 
-const notesOrder = ["My Notes", "Timeline", "Empire Blueprint", "O2 Knowledge", "Empire To-Do"];
+const notesOrder = ["Empire To-Do", "Timeline", "My Notes", "Empire Blueprint", "O2 Knowledge"];
 for (let index = 1; index < notesOrder.length; index += 1) {
   assert.ok(notes.indexOf(`label: "${notesOrder[index - 1]}"`) < notes.indexOf(`label: "${notesOrder[index]}"`));
 }

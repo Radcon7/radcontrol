@@ -174,7 +174,7 @@ try {
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge[\s\S]*Empire To-Do/);
+  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /Empire To-Do[\s\S]*Timeline[\s\S]*My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);
   await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
