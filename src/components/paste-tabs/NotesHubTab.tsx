@@ -18,19 +18,19 @@ const MODE_CONFIGS: Array<
       label: string;
     }
 > = [
-  { key: "notes", label: "My Notes" },
+  {
+    key: "empire_todo",
+    label: "Empire To-Do",
+  },
   {
     key: "timeline",
     label: "Timeline",
   },
+  { key: "notes", label: "My Notes" },
   { key: "empire_blueprint", label: "Empire Blueprint" },
   {
     key: "o2_knowledge",
     label: "O2 Knowledge",
-  },
-  {
-    key: "empire_todo",
-    label: "Empire To-Do",
   },
 ];
 
