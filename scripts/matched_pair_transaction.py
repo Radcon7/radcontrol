@@ -40,6 +40,7 @@ V1_PAIR_KEYS = {"o2Commit", "o2Tree"}
 SHA256_KEYS = {"binarySha256"}
 TRUSTED_GIT = "/usr/bin/git"
 TRUSTED_PGREP = "/usr/bin/pgrep"
+PRODUCTION_ARTIFACT_FILENAME = "radcontrol-app"
 PRODUCTION_PROCESS_NAME = "radcontrol-app"
 TEST_PROCESS_NAME = "radcontrol-test"
 TRUSTED_GIT_ENV = {
@@ -399,7 +400,7 @@ class Transaction:
                 manifest,
                 o2_sha=self.new_pair["o2Commit"],
                 radcontrol_sha=self.new_pair["radcontrolSourceSha"],
-                artifact_filename=binary["path"].name,
+                artifact_filename=PRODUCTION_ARTIFACT_FILENAME,
                 artifact_sha256=binary["sha256"],
             )
         except ReleaseEvidenceError as error:
