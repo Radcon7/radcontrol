@@ -20,10 +20,18 @@ const bridge = await readFile(
 
 assert.match(notes, /label: "Empire To-Do"/);
 assert.match(notes, /data-testid=\{`notes-mode-\$\{item\.key\}`\}/);
+const todoIndex = notes.indexOf('key: "empire_todo"');
+const timelineIndex = notes.indexOf('key: "timeline"');
+const notesIndex = notes.indexOf('key: "notes"');
 const blueprintIndex = notes.indexOf('key: "empire_blueprint"');
 const knowledgeIndex = notes.indexOf('key: "o2_knowledge"');
-const todoIndex = notes.indexOf('key: "empire_todo"');
-assert.ok(blueprintIndex >= 0 && knowledgeIndex > blueprintIndex && todoIndex > knowledgeIndex);
+assert.ok(
+  todoIndex >= 0 &&
+    timelineIndex > todoIndex &&
+    notesIndex > timelineIndex &&
+    blueprintIndex > notesIndex &&
+    knowledgeIndex > blueprintIndex,
+);
 assert.match(notes, /<EmpireTodoWorkspace/);
 assert.match(component, /data-testid="empire-todo-workspace"/);
 assert.match(component, /data-testid="empire-todo-active-view"/);
