@@ -160,7 +160,7 @@ class MatchedPairTransactionTests(unittest.TestCase):
                     "radcontrolSourceSha": self.new_radcontrol_sha,
                     "compatibleO2SourceSha": self.new_commit,
                     "artifact": {
-                        "filename": self.candidate_files["binary"].name,
+                        "filename": "radcontrol-app",
                         "sha256": digest(self.candidate_files["binary"]),
                     },
                     "buildTimestamp": "2026-08-29T00:00:00Z",
@@ -527,9 +527,39 @@ class MatchedPairTransactionTests(unittest.TestCase):
             process.terminate()
             process.wait(timeout=3)
 
-    def test_stopped_transaction_fixture_passes_preflight(self):
+    def test_preflight_accepts_semantic_artifact_filename_in_internal_binary_slot(self):
+        self.assertEqual(transaction_module.PRODUCTION_ARTIFACT_FILENAME, "radcontrol-app")
+        self.assertEqual(self.release_payload()["artifact"]["filename"], "radcontrol-app")
+        self.assertEqual(self.candidate_files["binary"].name, "binary")
         completed = self.action_result("preflight")
         self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_preflight_rejects_internal_staging_slot_as_artifact_filename(self):
+        payload = self.release_payload()
+        payload["artifact"]["filename"] = "binary"
+        self.write_release(payload)
+        completed = self.preflight_result()
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("release manifest artifact filename mismatch", completed.stderr)
+
+    def test_preflight_rejects_wrong_semantic_artifact_filename(self):
+        payload = self.release_payload()
+        payload["artifact"]["filename"] = "radcontrol-app-wrong"
+        self.write_release(payload)
+        completed = self.preflight_result()
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("release manifest artifact filename mismatch", completed.stderr)
+
+    def test_preflight_rejects_wrong_staged_binary_digest(self):
+        self.candidate_files["binary"].write_text("wrong-staged-binary\n", encoding="utf-8")
+        staged_digest = digest(self.candidate_files["binary"])
+        transaction = self.transaction_payload()
+        transaction["stage"]["candidateFiles"]["binary"]["sha256"] = staged_digest
+        transaction["newPair"]["binarySha256"] = staged_digest
+        self.write_transaction(transaction)
+        completed = self.preflight_result()
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("release artifact SHA-256 mismatch", completed.stderr)
 
     def test_trusted_git_ignores_replace_refs_and_ambient_configuration(self):
         run("git", "replace", self.new_commit, self.old_commit, cwd=self.primary)
