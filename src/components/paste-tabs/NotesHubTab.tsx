@@ -35,7 +35,7 @@ const MODE_CONFIGS: Array<
 ];
 
 export function NotesHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
-  const [mode, setMode] = useState<NotesMode>("notes");
+  const [mode, setMode] = useState<NotesMode>("empire_todo");
   const saverRef = useRef<(() => Promise<boolean>) | null>(null);
 
   const registerModeSaver = useCallback(

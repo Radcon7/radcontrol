@@ -19,6 +19,7 @@ const bridge = await readFile(
 );
 
 assert.match(notes, /label: "Empire To-Do"/);
+assert.match(notes, /useState<NotesMode>\("empire_todo"\)/);
 assert.match(notes, /data-testid=\{`notes-mode-\$\{item\.key\}`\}/);
 const todoIndex = notes.indexOf('key: "empire_todo"');
 const timelineIndex = notes.indexOf('key: "timeline"');
