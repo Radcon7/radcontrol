@@ -115,6 +115,7 @@ assert.match(isolation, /fixture Empire To-Do seed is missing or unexpected/);
 assert.match(isolation, /native writable artifact did not consume the preflighted O2 root/);
 assert.match(productionProbe, /production-artifact-read-only/);
 assert.match(productionProbe, /createBubblewrapApplication/);
+assert.match(productionProbe, /import \{[^}]*readFile[^}]*\} from "node:fs\/promises";/);
 assert.match(productionProbe, /sentinel-fans-loud/);
 assert.match(productionProbe, /Outcome retained in Sentinel history/);
 assert.match(productionProbe, /host\.fans-check/);
