@@ -776,7 +776,7 @@ try {
   assert.ok(securityText.indexOf("CURRENT MEASUREMENTS") < securityText.indexOf("RECENT GUARDIAN ACTIVITY"));
   assert.match(securityText, /Fans are loud/);
   assert.doesNotMatch(securityText, /QUICK ANSWERS|DIAGNOSTICS/);
-  for (const heading of ["SYSTEM EVIDENCE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.match(securityText, new RegExp(heading.replace("&", "&")));
+  for (const heading of ["SYSTEM EVIDENCE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(securityText.includes(heading), `Security advanced area ${heading} is missing`);
   assert.doesNotMatch(securityText, /Advanced evidence, controls, and workstation records/);
   await click(base, sessionId, '[data-testid="sentinel-health-check"]');
   await eventually(async () => {
