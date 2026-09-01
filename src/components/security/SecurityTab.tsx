@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { EmpireOperationsWorkspace } from "./EmpireOperationsWorkspace";
 import { SentinelTab } from "../sentinel/SentinelTab";
 import { SecurityGuardianTab } from "../sentinel/SecurityGuardianTab";
@@ -29,18 +29,9 @@ function initialSecurityMode(): SecurityMode {
 
 export function SecurityTab({ registerBeforeTabChangeSaver }: Props) {
   const [mode, setMode] = useState<SecurityMode>(initialSecurityMode);
-  const saverRef = useRef<(() => Promise<boolean>) | null>(null);
-
-  const registerModeSaver = useCallback(
-    (fn: (() => Promise<boolean>) | null) => {
-      saverRef.current = fn;
-      registerBeforeTabChangeSaver?.(fn);
-    },
-    [registerBeforeTabChangeSaver],
-  );
 
   useEffect(() => {
-    registerBeforeTabChangeSaver?.(saverRef.current);
+    registerBeforeTabChangeSaver?.(null);
     return () => registerBeforeTabChangeSaver?.(null);
   }, [registerBeforeTabChangeSaver]);
 
@@ -52,9 +43,8 @@ export function SecurityTab({ registerBeforeTabChangeSaver }: Props) {
     }
   }, [mode]);
 
-  async function requestModeChange(nextMode: SecurityMode): Promise<void> {
+  function requestModeChange(nextMode: SecurityMode): void {
     if (nextMode === mode) return;
-    if (saverRef.current && !(await saverRef.current())) return;
     setMode(nextMode);
   }
 
@@ -66,7 +56,7 @@ export function SecurityTab({ registerBeforeTabChangeSaver }: Props) {
             key={item.key}
             type="button"
             className={`workspaceModeButton ${mode === item.key ? "workspaceModeButtonActive" : ""}`}
-            onClick={() => void requestModeChange(item.key)}
+            onClick={() => requestModeChange(item.key)}
             role="tab"
             aria-selected={mode === item.key}
             data-testid={`security-mode-${item.key}`}
@@ -79,7 +69,7 @@ export function SecurityTab({ registerBeforeTabChangeSaver }: Props) {
 
       <div className="workspaceHubBody">
         {mode === "sentinel" ? (
-          <SentinelTab registerBeforeTabChangeSaver={registerModeSaver} />
+          <SentinelTab />
         ) : mode === "empire_operations" ? (
           <EmpireOperationsWorkspace />
         ) : (

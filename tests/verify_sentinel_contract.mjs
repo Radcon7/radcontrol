@@ -71,8 +71,8 @@ assert.match(component, /STILL PRESENT/);
 assert.match(component, /NO FIX NEEDED/);
 assert.match(component, /"Fix now"/);
 assert.match(component, /"Authorize & fix"/);
-assert.match(component, /appendWorkstationHistory/);
-assert.match(component, /Outcome appended to governed workstation Notes/);
+assert.match(component, /Outcome retained in Sentinel history/);
+assert.doesNotMatch(component, /appendWorkstationHistory|hostNotes\.onTextChange|hostConfiguration\.onTextChange|hostNotes\.flush|hostConfiguration\.flush/);
 assert.doesNotMatch(component, /Why are my fans running\?/);
 assert.doesNotMatch(component, /aria-label="Diagnostics"|>DIAGNOSTICS<|QUICK ANSWERS|Get Quick Answer/);
 
@@ -102,6 +102,8 @@ for (const testId of [
 assert.match(component, /data-testid="sentinel-deep-check"/);
 assert.match(component, /HOST_CONFIGURATION_PATH/);
 assert.match(component, /HOST_NOTES_PATH/);
+assert.match(component, /Canonical source · read-only here/);
+assert.equal((component.match(/readOnly data-testid="host-(?:configuration-note|operator-notes)"/g) || []).length, 2, "tracked workstation source records must be read-only in RadControl");
 assert.match(component, /<HostUpdatesPanel/);
 assert.match(component, /data-testid="host-maintenance-boundary"/);
 assert.match(component, /sentinel-capability-ladder/);

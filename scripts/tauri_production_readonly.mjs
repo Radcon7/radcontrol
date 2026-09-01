@@ -93,6 +93,14 @@ async function bodyText(base, sessionId) {
   return request(base, `/session/${sessionId}/element/${id}/text`);
 }
 
+async function readChainRecords(file) {
+  const source = await readFile(file, "utf8");
+  return source
+    .split("\n")
+    .filter((row) => row.trim())
+    .map((row) => JSON.parse(row).record);
+}
+
 async function stopChild(child) {
   if (!child?.pid) return;
   try { process.kill(-child.pid, "SIGTERM"); } catch {}
@@ -378,6 +386,40 @@ try {
   assert.ok(sentinelPresentation.smallFontSize >= 14, "Security supporting typography must remain 14px or larger");
   assert.ok(sentinelPresentation.importantReadingFontSize >= 18, "Important measurements must remain visually prominent");
   assert.ok(sentinelPresentation.investigateButtonCount <= sentinelPresentation.anomalyRowCount, "Investigate / Fix must not appear on normal rows");
+  const workstationRecords = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `return ['host-configuration-note', 'host-operator-notes'].map((testId) => {
+      const field = document.querySelector('[data-testid="' + testId + '"]');
+      return {
+        testId,
+        readOnly: field?.readOnly ?? false,
+        valueLength: field?.value?.length ?? 0,
+        status: field?.parentElement?.querySelector('small')?.textContent || '',
+      };
+    });`,
+    args: [],
+  });
+  assert.deepEqual(workstationRecords.map((row) => row.readOnly), [true, true], "tracked workstation source records must be read-only in the installed app");
+  assert.ok(workstationRecords.every((row) => row.valueLength > 0), "canonical workstation source records must remain visible");
+  assert.ok(workstationRecords.every((row) => row.status.includes("Canonical source · read-only here")), "the installed workstation record boundary must be understandable");
+
+  const sentinelEventsPath = path.join(stateOverlay, "sentinel", "events.jsonl");
+  const sentinelActionsPath = path.join(stateOverlay, "sentinel", "audit.jsonl");
+  const eventsBeforeFan = await readChainRecords(sentinelEventsPath);
+  const actionsBeforeFan = await readChainRecords(sentinelActionsPath);
+  await click(base, sessionId, '[data-testid="sentinel-fans-loud"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /FAN INVESTIGATION[\s\S]*(NO FIX NEEDED|FIX AVAILABLE)[\s\S]*Outcome retained in Sentinel history/);
+  }, "run the installed loud-fan workflow", 45_000);
+  const newFanEvents = (await readChainRecords(sentinelEventsPath)).slice(eventsBeforeFan.length);
+  const newFanActions = (await readChainRecords(sentinelActionsPath)).slice(actionsBeforeFan.length);
+  const fanEvent = newFanEvents.find((record) => record.type === "host.fans-check");
+  const fanAction = newFanActions.find((record) => record.requestedCapability === "host.inspect.fans");
+  assert.ok(fanEvent?.id && fanEvent.observedValues?.keyMeasurements, "the installed fan workflow must retain a bounded Sentinel event with measurements");
+  assert.equal(fanEvent.observedValues.actionOccurred, false, "routine fan observation must not claim a repair");
+  assert.ok(fanAction?.evidenceIds?.includes(fanEvent.id), "the Sentinel action must bind the retained fan event");
+  assert.equal(fanAction.executionResult, "observed", "the retained fan action must record its observation outcome");
+
   await click(base, sessionId, '.guardianActivityToggle');
   const expandedActivity = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `return {
