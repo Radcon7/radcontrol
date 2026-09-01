@@ -81,6 +81,11 @@ normal installed launcher when a task claims live product recovery.
 | Significant implementation/review | Complete intended diff and affected local/O2 contracts | Use `radcon-quality-review` and the declared `quality.check` route. |
 | Reusable lesson | Require verified recurrence, evidence, scope, and secret-free content | Use `lesson.candidate.capture`; do not write directly into O2 doctrine. |
 
+Interactive versus unattended task routing and generic task closeout are
+canonical in `~/dev/o2/docs/O2_AGENT_RULES.md#interactive-and-unattended-task-routing`
+and `#task-closeout`. Follow those sections rather than restating their
+completion semantics in this router.
+
 ## Authority and lifecycle
 
 - Local documents govern RadControl presentation and implementation. Explicitly

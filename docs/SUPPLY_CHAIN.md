@@ -3,7 +3,7 @@
 Status: Active implementation authority
 Scope: source, GitHub controls, CI dependencies, non-deploying release candidates, provenance, and audit anchors
 Owner: RadControl release path; O2 owns the compatibility pin and audit-chain verifier
-Reviewed: 2026-08-29
+Reviewed: 2026-08-31
 Next review: before the next matched-pair candidate promotion
 
 ## Trust and release statement
@@ -143,21 +143,20 @@ adding and trusting another generator solely for the label is disproportionate.
 `dependency-manifest.json`, tied by SHA-256 and exact source identities to
 `release-manifest.json`.
 
-## Release-candidate receiving contract and current producer state
+## Release-candidate receiving contract and current producer
 
 The intended manual workflow is O2-owned because O2 is private while RadControl
 is public. A RadControl-scoped workflow token cannot read private O2, and adding
-a cross-repository PAT would weaken the credential boundary. RadControl now
-defines and fail-closes the version-2 receiving contract, but current accepted
-O2 source does **not** yet emit the version-2 manifest or the governed lifecycle
-admission. Therefore this source is not, by itself, an admissible release
-candidate and cannot advance an installed pair. O2 producer implementation,
-review, and protected publication are separate prerequisites.
+a cross-repository PAT would weaken the credential boundary. RadControl defines
+and fail-closes the version-2 receiving contract. The accepted O2 protected-main
+workflow emits that manifest with governed lifecycle admission for a separately
+dispatched run; RadControl source is not admissible by itself and cannot advance
+an installed pair.
 
-Once an accepted O2 producer exists, it must check out itself and the exact
-public RadControl commit from O2's canonical compatibility manifest, without
-retained credentials, refuse a source or contract-digest mismatch, run the
-declared gates, build with `--no-bundle`, and emit:
+The accepted O2 producer checks out itself and the exact public RadControl
+commit from O2's canonical compatibility manifest without retained credentials.
+It refuses a source or contract-digest mismatch, runs the declared gates,
+builds with `--no-bundle`, and emits:
 
 - `radcontrol-app`;
 - `evidence/release-manifest.json`;
@@ -186,9 +185,10 @@ GitHub artifact attestations are not available to this user-owned private O2
 repository on the current GitHub Pro plan; GitHub requires Enterprise Cloud
 for private-repository attestations. Moving the build to public RadControl
 would lose authenticated access to the O2 pin, so 5C deliberately records this
-gap instead of adding a PAT or claiming an unverifiable attestation. These
-hosted artifacts do not exist until the producer is implemented and accepted,
-the candidates are separately published, and the O2 manual workflow succeeds.
+gap instead of adding a PAT or claiming an unverifiable attestation. Hosted
+artifacts exist only for a separately dispatched successful O2 workflow run
+after both source publications and remain subject to the workflow's retention
+period.
 
 ## External audit anchor
 
