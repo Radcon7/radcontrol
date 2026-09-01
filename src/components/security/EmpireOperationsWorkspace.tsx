@@ -151,9 +151,14 @@ export function EmpireOperationsWorkspace() {
 
   return (
     <section className="workspaceShell" data-testid="empire-operations-workspace">
+      <header className="securityWorkspaceIntro">
+        <span>EMPIRE OPERATIONS</span>
+        <h1>Development-system integrity</h1>
+        <p>O2/RadControl pair, repositories, release and audit truth, plus governed Map, Snapshot, and Sweep reports.</p>
+      </header>
       <section className="empireOperationsOverview" data-testid="empire-operations-overview">
-        <div className="sentinelSectionHeading"><span>IS THE EMPIRE MACHINERY FUNCTIONING?</span><strong>Deterministic O2 + RadControl operational truth</strong></div>
-        <div className="empireOperationsSignalGrid">
+        <div className="sentinelSectionHeading"><span>OPERATIONAL TRUTH</span><strong>Is the Empire machinery functioning?</strong></div>
+        <div className="empireOperationsSignalGrid securityInsetScroll">
           <article><span>SOURCE GOLDEN</span><strong>{truthLoading ? "Loading…" : truth?.golden ? `O2 ${shortSha(truth.golden.sourceGolden.o2.sha)} · RadControl ${shortSha(truth.golden.sourceGolden.radcontrol.sha)}` : "Unavailable"}</strong><small>{truth?.golden?.sourceGolden.pinMatchesRadcontrolRef ? "Compatibility pin matches source" : "Compatibility proof unavailable"}</small></article>
           <article><span>INSTALLED GOLDEN</span><strong>{truthLoading ? "Loading…" : truth?.golden ? `O2 ${shortSha(truth.golden.installedGolden.o2Sha)} · RadControl ${shortSha(truth.golden.installedGolden.radcontrolSourceSha)}` : "Unavailable"}</strong><small>{truth?.golden?.ok && truth.golden.installedGolden.o2Clean && truth.golden.installedGolden.binaryEmbedsSourceSha ? "Matched-pair integrity verified" : "Integrity requires evidence"}</small></article>
           <article><span>AUTOMATION HEALTH</span><strong>{truthLoading ? "Loading…" : truth?.sentinel?.automation.active ? `Active · ${truth.sentinel.automation.frequency}` : truth?.sentinel?.automation.enabled ? "Configured · timer unavailable" : "Off"}</strong><small>{truth?.sentinel?.automation.nextDueAt ? `Next semantic observation ${new Date(truth.sentinel.automation.nextDueAt).toLocaleString()}` : "No next due time"}</small></article>

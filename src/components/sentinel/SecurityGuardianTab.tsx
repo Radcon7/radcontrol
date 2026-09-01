@@ -71,9 +71,9 @@ export function SecurityGuardianTab() {
     <section className="sentinelShell securityGuardianShell" data-testid="security-guardian-workspace">
       <header className="securityGuardianHero">
         <div>
-          <span className="sentinelEyebrow">WEBSITES + FULL TECHNOLOGY ESTATE</span>
+          <span className="sentinelEyebrow">ONLINE TECHNOLOGY ESTATE</span>
           <h1>Security Guardian</h1>
-          <p>User, website, application, commerce, authentication, and provider security visibility—only where a real source is connected.</p>
+          <p>Online technology estate — websites, apps, providers and connected security coverage, only where a real source is connected.</p>
         </div>
         <div className="securityGuardianHeroState">
           <StatusPill status={security?.overallStatus || "unknown"} />
@@ -90,9 +90,9 @@ export function SecurityGuardianTab() {
       <section className="securityGuardianSection" data-testid="security-guardian-sources">
         <div className="sentinelSectionHeading"><span>VISIBILITY NOW</span><strong>Registry truth is not live security health</strong></div>
         <div className="securityGuardianSourceGrid">
-          <article className="sentinelSubCard">
+          <article className="sentinelAdvancedSection">
             <div className="sentinelSubCardHeading"><div><span>PROVIDERS + SECURITY SYSTEMS</span><strong>{security?.providers.length || 0} declared sources</strong></div></div>
-            <div className="sentinelProviderList">
+            <div className="sentinelProviderList securityInsetScroll">
               {(security?.providers || []).map((provider) => (
                 <div key={provider.key} title={provider.reason}>
                   <span><strong>{provider.label}</strong><small>{provider.observationKinds?.join(" · ") || provider.category}</small></span>
@@ -103,9 +103,9 @@ export function SecurityGuardianTab() {
             </div>
           </article>
 
-          <article className="sentinelSubCard">
+          <article className="sentinelAdvancedSection">
             <div className="sentinelSubCardHeading"><div><span>REGISTERED WEBSITES + APPS</span><strong>{security?.websites.length || 0} inventory records</strong></div></div>
-            <div className="sentinelWebsiteList">
+            <div className="sentinelWebsiteList securityInsetScroll">
               {(security?.websites || []).map((website) => (
                 <div key={website.key} title={website.reason}>
                   <span><strong>{website.label}</strong><small>{website.url || website.key}</small></span>
@@ -120,7 +120,7 @@ export function SecurityGuardianTab() {
 
       <section className="securityGuardianSection" data-testid="security-guardian-controls">
         <div className="sentinelSectionHeading"><span>CONTROL READINESS</span><strong>No fake or client-only enforcement</strong></div>
-        <div className="securityGuardianControlGrid">
+        <div className="securityGuardianControlGrid securityInsetScroll">
           {FUTURE_CONTROLS.map(([label, reason]) => (
             <article key={label}>
               <strong>{label}</strong>
@@ -133,7 +133,7 @@ export function SecurityGuardianTab() {
 
       <section className="sentinelActivity securityGuardianActivity" data-testid="security-guardian-activity">
         <div className="sentinelActivityHeader"><div><span>RECENT SECURITY GUARDIAN ACTIVITY</span><strong>Real inventory events only</strong></div></div>
-        <div className="sentinelActivityTable">
+        <div className="sentinelActivityTable securityInsetScroll">
           {securityActivity.map((row) => (
             <div className="sentinelActivityRow" key={row.id} data-kind={row.kind}>
               <span><i className={`sentinelRecordDot sentinelRecordDot-${row.severity}`} /><strong>{formatDateTime(row.timestamp)}</strong><small>{row.kind.toUpperCase()}</small></span>

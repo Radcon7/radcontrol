@@ -307,35 +307,53 @@ try {
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
   const sentinelText = await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.ok(/Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/.test(text), "Security control-room navigation is missing");
-    assert.ok(/Is my computer okay\?[\s\S]*RECENT GUARDIAN ACTIVITY[\s\S]*CURRENT MEASUREMENTS[\s\S]*ADVANCED SYSTEM INFORMATION/.test(text), "Sentinel primary hierarchy is incorrect");
+    assert.ok(/Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/i.test(text), "Security control-room navigation is missing");
+    assert.ok(/This computer — health, loud fans[\s\S]*Development-system integrity[\s\S]*Online technology estate/.test(text), "Security workspace purposes are unclear");
+    assert.ok(/Is my computer okay\?[\s\S]*CURRENT MEASUREMENTS[\s\S]*RECENT GUARDIAN ACTIVITY[\s\S]*ADVANCED SYSTEM INFORMATION/.test(text), "Sentinel primary hierarchy is incorrect");
     assert.ok(!text.includes("Advanced evidence, controls, and workstation records"), "The retired Advanced umbrella disclosure is still rendered");
     assert.ok(/Refreshes every 60 seconds[\s\S]*Deterministic, token-free, and not written to durable history/.test(text), "Foreground measurement persistence boundary is missing");
     assert.ok(/GPU TEMPERATURE[\s\S]*(Sensor unavailable|°C)/.test(text), "GPU measurement truth is missing");
     assert.ok(text.includes("Additional depth and provenance—not a second copy of Current Measurements."), "Advanced evidence boundary is missing");
-    assert.ok(/QUICK ANSWERS[\s\S]*No AI model used\.[\s\S]*Get Quick Answer/.test(text), "Deterministic Quick Answers boundary is missing");
+    assert.ok(!text.includes("QUICK ANSWERS"), "The retired standalone Quick Answers section is still rendered");
+    assert.ok(!text.includes("DIAGNOSTICS"), "The retired standalone Diagnostics section is still rendered");
+    for (const heading of ["SYSTEM EVIDENCE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(text.includes(heading), `Advanced area ${heading} is missing`);
     return text;
   }, "render the installed Radcon Sentinel control room");
   assert.equal((sentinelText.match(/CURRENT MEASUREMENTS/g) || []).length, 1, "Current Measurements must have one primary home");
+  assert.equal((sentinelText.match(/Fans are loud/g) || []).length, 1, "The primary loud-fan action must appear exactly once");
   const sentinelPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `
       const activity = document.querySelector('.guardianActivityScroll');
+      const measurementList = document.querySelector('.sentinelMeasurementList');
+      const measurementPanel = document.querySelector('[data-testid="sentinel-health-measurements"]');
       const small = document.querySelector('.securityControlRoom .sentinelShell small');
       const investigateButtons = document.querySelectorAll('[data-testid="guardian-investigate-fix"]');
       const anomalyRows = document.querySelectorAll('.guardianActivityRow-attention, .guardianActivityRow-elevated, .guardianActivityRow-critical');
       const shell = document.querySelector('.securityControlRoom .sentinelShell');
-      const importantReading = document.querySelector('.securityControlRoom .sentinelSignal strong');
+      const importantReading = document.querySelector('.securityControlRoom .sentinelMeasurementRow > strong');
+      const measurementStyle = measurementList ? getComputedStyle(measurementList) : null;
+      const activityStyle = activity ? getComputedStyle(activity) : null;
       return {
-        activityOverflowY: activity ? getComputedStyle(activity).overflowY : null,
+        activityOverflowY: activityStyle?.overflowY || null,
+        activityMarginLeft: activityStyle ? Number.parseFloat(activityStyle.marginLeft) : null,
+        activityMarginRight: activityStyle ? Number.parseFloat(activityStyle.marginRight) : null,
+        measurementOverflowY: measurementStyle?.overflowY || null,
+        measurementMarginLeft: measurementStyle ? Number.parseFloat(measurementStyle.marginLeft) : null,
+        measurementMarginRight: measurementStyle ? Number.parseFloat(measurementStyle.marginRight) : null,
+        measurementWidth: measurementList?.getBoundingClientRect().width || null,
+        measurementPanelWidth: measurementPanel?.getBoundingClientRect().width || null,
         smallFontSize: small ? Number.parseFloat(getComputedStyle(small).fontSize) : null,
         normalFontSize: shell ? Number.parseFloat(getComputedStyle(shell).fontSize) : null,
         importantReadingFontSize: importantReading ? Number.parseFloat(getComputedStyle(importantReading).fontSize) : null,
+        measurementRowCount: document.querySelectorAll('[data-testid="sentinel-measurement-row"]').length,
         activityRowCount: document.querySelectorAll('[data-testid="guardian-activity-row"]').length,
         olderActivityToggleCount: document.querySelectorAll('.guardianActivityToggle').length,
         automationControlCount: document.querySelectorAll('.sentinelAutomationControl').length,
         automationSelectCount: document.querySelectorAll('.sentinelAutomationControl select').length,
         automationToggleCount: document.querySelectorAll('[data-testid="sentinel-automation-toggle"]').length,
         advancedUmbrellaCount: document.querySelectorAll('details.sentinelAdvancedWorkspace').length,
+        advancedAreaCount: document.querySelectorAll('[data-testid^="advanced-"]').length,
+        fanActionCount: document.querySelectorAll('[data-testid="sentinel-fans-loud"]').length,
         investigateButtonCount: investigateButtons.length,
         anomalyRowCount: anomalyRows.length,
       };
@@ -343,14 +361,21 @@ try {
     args: [],
   });
   assert.equal(sentinelPresentation.activityOverflowY, "auto", "Recent Guardian Activity must be visibly bounded and scrollable");
+  assert.equal(sentinelPresentation.measurementOverflowY, "auto", "Current Measurements must be a bounded scrollable row list");
+  assert.ok(sentinelPresentation.activityMarginLeft >= 16 && sentinelPresentation.activityMarginRight >= 16, "Recent Guardian Activity must leave outer-scroll gutters");
+  assert.ok(sentinelPresentation.measurementMarginLeft >= 16 && sentinelPresentation.measurementMarginRight >= 16, "Current Measurements must leave outer-scroll gutters");
+  assert.ok(sentinelPresentation.measurementWidth < sentinelPresentation.measurementPanelWidth - 30, "the measurement list must not consume the complete panel width");
+  assert.equal(sentinelPresentation.measurementRowCount, 8, "all eight current measurements must render as rows");
   assert.equal(sentinelPresentation.activityRowCount, 6, "Recent Guardian Activity must initially show six records");
   assert.equal(sentinelPresentation.olderActivityToggleCount, 1, "Older Guardian history must remain explicitly reachable");
   assert.equal(sentinelPresentation.automationControlCount, 1, "Automatic Guardian must have one authoritative control surface");
   assert.equal(sentinelPresentation.automationSelectCount, 1, "Automatic Guardian must have one frequency selector");
   assert.equal(sentinelPresentation.automationToggleCount, 1, "Automatic Guardian must have one enable control");
   assert.equal(sentinelPresentation.advancedUmbrellaCount, 0, "Advanced System Information must not be hidden by an umbrella disclosure");
-  assert.ok(sentinelPresentation.normalFontSize >= 14, "Security operator text must remain approximately 14px or larger");
-  assert.ok(sentinelPresentation.smallFontSize >= 13, "Security supporting typography must remain approximately 13px or larger");
+  assert.equal(sentinelPresentation.advancedAreaCount, 5, "Advanced System Information must retain exactly five distinct areas");
+  assert.equal(sentinelPresentation.fanActionCount, 1, "the loud-fan action must have one primary control");
+  assert.ok(sentinelPresentation.normalFontSize >= 15, "Security operator text must remain 15px or larger");
+  assert.ok(sentinelPresentation.smallFontSize >= 14, "Security supporting typography must remain 14px or larger");
   assert.ok(sentinelPresentation.importantReadingFontSize >= 18, "Important measurements must remain visually prominent");
   assert.ok(sentinelPresentation.investigateButtonCount <= sentinelPresentation.anomalyRowCount, "Investigate / Fix must not appear on normal rows");
   await click(base, sessionId, '.guardianActivityToggle');
@@ -364,10 +389,20 @@ try {
   assert.equal(expandedActivity.rowCount, 20, "Expanded Guardian history must remain bounded to the latest 20 records");
   assert.ok(/Legacy observation|Attention was recorded|Result was unknown/.test(expandedActivity.text), "Legacy or incomplete Guardian evidence must be described truthfully");
 
+  await click(base, sessionId, '[data-testid="sentinel-fans-loud"]');
+  const fanResultText = await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /FAN INVESTIGATION[\s\S]*(NO FIX NEEDED|FIX AVAILABLE)/);
+    assert.match(text, /(Deeper deterministic evidence was collected automatically|normal governed fan explanation was sufficient)/);
+    assert.match(text, /(CPU temperature|Temperature source requires verification)[\s\S]*(Fan|fan sensor unavailable)[\s\S]*CPU[\s\S]*Load[\s\S]*(Services OK|failed service)/i);
+    return text;
+  }, "complete the deterministic installed loud-fan investigation", 45_000);
+  assert.equal((fanResultText.match(/Fans are loud/g) || []).length, 1, "fan investigation must not introduce a duplicate loud-fan action");
+
   await click(base, sessionId, '[data-testid="security-mode-empire_operations"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /IS THE EMPIRE MACHINERY FUNCTIONING\?[\s\S]*SOURCE GOLDEN[\s\S]*INSTALLED GOLDEN[\s\S]*AUTOMATION HEALTH[\s\S]*REGISTRY \+ TOPOLOGY[\s\S]*SECURITY \+ AUDIT/);
+    assert.match(text, /Development-system integrity[\s\S]*OPERATIONAL TRUTH[\s\S]*SOURCE GOLDEN[\s\S]*INSTALLED GOLDEN[\s\S]*AUTOMATION HEALTH[\s\S]*REGISTRY \+ TOPOLOGY[\s\S]*SECURITY \+ AUDIT/);
     assert.ok(
       text.includes(`O2 ${expectedO2Sha.slice(0, 9)} · RadControl ${expectedRadcontrolSha.slice(0, 9)}`),
       "Empire Operations did not render the exact accepted source pair",
@@ -379,7 +414,7 @@ try {
   await click(base, sessionId, '[data-testid="security-mode-security_guardian"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /WEBSITES \+ FULL TECHNOLOGY ESTATE[\s\S]*VISIBILITY NOW[\s\S]*PROVIDERS \+ SECURITY SYSTEMS[\s\S]*REGISTERED WEBSITES \+ APPS/);
+    assert.match(text, /Online technology estate[\s\S]*VISIBILITY NOW[\s\S]*PROVIDERS \+ SECURITY SYSTEMS[\s\S]*REGISTERED WEBSITES \+ APPS/);
     assert.match(text, /CONTROL READINESS[\s\S]*View User Activity[\s\S]*Authentication Logs[\s\S]*Security Events[\s\S]*Suspicious Activity[\s\S]*Lock Down RCE[\s\S]*Maintenance \/ Restrict Access/);
     assert.match(text, /Not connected yet/i);
   }, "render truthful installed Security Guardian");
@@ -394,7 +429,7 @@ try {
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "restore selected Security subtab after refresh/remount"),
-    /WEBSITES \+ FULL TECHNOLOGY ESTATE[\s\S]*Security Guardian/,
+    /ONLINE TECHNOLOGY ESTATE/,
   );
   await click(base, sessionId, '[data-testid="security-mode-sentinel"]');
   await click(base, sessionId, '[data-testid="tab-projects"]');

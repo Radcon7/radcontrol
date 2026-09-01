@@ -59,7 +59,7 @@
     { "historicalFeature": "Empire Sweep producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Empire Sweep", "action": "restored from Git history" }
   ],
   "securityControlRoom": [
-    { "historicalFeature": "Host Guardian summary, telemetry, incidents, activity, automation, records, and safe cleanup", "finalDestination": "Security > Radcon Sentinel", "action": "preserved and consolidated; duplicate summary telemetry removed" },
+    { "historicalFeature": "Host Guardian summary, telemetry, incidents, activity, automation, records, and safe cleanup", "finalDestination": "Security > Radcon Sentinel", "action": "preserved and consolidated into health, Current Measurements, Recent Guardian Activity, and five advanced areas; duplicate Diagnostics, fan, schedule, and Quick Answers presentations removed" },
     { "historicalFeature": "Security Guardian provider and website inventory", "finalDestination": "Security > Security Guardian", "action": "promoted from a buried advanced card to a first-class subtab" },
     { "historicalFeature": "Empire Map, Snapshot, and Sweep artifacts", "finalDestination": "Security > Empire Operations", "action": "preserved with an added truthful operational overview" }
   ],
@@ -69,9 +69,9 @@
     { "historicalFeature": "processes, services, network, Docker, Supabase, startup and login evidence", "finalDestination": "Security > Host Guardian signals and collapsed evidence", "action": "migrated" },
     { "historicalFeature": "update check and history", "finalDestination": "Security > Host Guardian > Maintenance Inventory", "action": "migrated read-only" },
     { "historicalFeature": "repository router durability", "finalDestination": "Agents > Repository Routers", "action": "restored outside Host Guardian" },
-    { "historicalFeature": "safe cleanup preview/apply", "finalDestination": "Host Guardian maintenance migration boundary and Level 1 capability ladder", "action": "accounted for; not activated under Sentinel v1" },
+    { "historicalFeature": "safe cleanup preview/apply", "finalDestination": "Security > Radcon Sentinel > top fan investigation plus Maintenance & Updates and Safety & Permissions boundaries", "action": "preserved only for the exact pop-upgrade.service signature with fresh preview, explicit confirmation, OS authorization, and post-repair verification" },
     { "historicalFeature": "catalog refresh and official updater launch", "finalDestination": "Host Guardian maintenance migration boundary", "action": "accounted for; operator-owned and not exposed under Sentinel v1" },
-    { "historicalFeature": "Terra workstation review", "finalDestination": "Host Guardian maintenance migration boundary and deterministic Ask Sentinel", "action": "superseded without live LLM or execution channel" }
+    { "historicalFeature": "Terra workstation review", "finalDestination": "Security > Radcon Sentinel > Investigate another problem", "action": "superseded by bounded deterministic guidance without a standalone Quick Answers section, live LLM, or execution channel" }
   ],
   "rootCause": [
     "PR 12 removed WorkstationOperationsPanel as part of the intentional System76 migration; RouterHealthPanel was nested inside that component, so unrelated repository-governance health disappeared with it.",

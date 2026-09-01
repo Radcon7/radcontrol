@@ -47,13 +47,13 @@
 
 .securityControlRoom .sentinelShell,
 .securityControlRoom .workspaceShell {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.55;
 }
 
 .securityControlRoom .sentinelShell small,
 .securityControlRoom .workspaceShell small {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -63,7 +63,7 @@
 .securityControlRoom .sentinelActivityHeader > div:first-child > span,
 .securityControlRoom .sentinelAsk > div:first-child > span,
 .securityControlRoom .sentinelSectionHeading > span {
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.12em;
 }
 
@@ -81,7 +81,7 @@
 
 .securityControlRoom .sentinelOperatorSummary small,
 .securityControlRoom .sentinelOperatorSummary strong {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .securityControlRoom .sentinelOperatorSummary strong {
@@ -197,16 +197,12 @@
   white-space: pre-wrap;
 }
 
-.sentinelPrimaryMeasurements {
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
-}
-
 .securityControlRoom .sentinelSignal {
   min-height: 118px;
 }
 
 .securityControlRoom .sentinelSignal > span:first-child {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .securityControlRoom .sentinelSignal strong {
@@ -287,7 +283,7 @@
 .securityGuardianControlGrid article > span,
 .empireOperationsSignalGrid article > span {
   color: #ffd796;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -321,7 +317,7 @@
 
 .sentinelAdvancedHeading > span {
   color: #ffd796;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: 0.1em;
 }
@@ -355,7 +351,6 @@
 }
 
 @media (max-width: 1100px) {
-  .sentinelPrimaryMeasurements,
   .securityGuardianControlGrid,
   .empireOperationsSignalGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -373,7 +368,6 @@
 
 @media (max-width: 760px) {
   .securityControlRoom > .workspaceModeRow,
-  .sentinelPrimaryMeasurements,
   .securityGuardianSourceGrid,
   .securityGuardianControlGrid,
   .empireOperationsSignalGrid,
@@ -3884,24 +3878,455 @@ pre {
   }
 }
 
-/* Keep 7E-3A layout overrides after the legacy Sentinel rules. */
-.securityControlRoom .sentinelPrimaryMeasurements {
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
+/* Security control room consolidation — readable rows, inset scroll lanes, one hierarchy. */
+.securityControlRoom {
+  --security-meta-size: 14px;
+  --security-body-size: 15px;
+  --security-heading-size: 16px;
+  --security-value-size: 19px;
 }
 
-.securityControlRoom .sentinelPrimaryActions {
+.securityControlRoom > .workspaceModeRow {
+  gap: 8px;
+}
+
+.securityControlRoom > .workspaceModeRow .workspaceModeButton {
+  display: grid;
+  gap: 3px;
+  align-content: center;
+  min-height: 78px;
+  padding: 10px 14px;
+  text-align: left;
+  white-space: normal;
+  overflow: hidden;
+}
+
+.securityControlRoom > .workspaceModeRow .workspaceModeButton strong {
+  font-size: var(--security-body-size);
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.securityControlRoom > .workspaceModeRow .workspaceModeButton small {
+  color: var(--muted);
+  font-size: var(--security-meta-size);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.securityControlRoom .sentinelShell,
+.securityControlRoom .workspaceShell,
+.securityControlRoom button,
+.securityControlRoom select,
+.securityControlRoom textarea,
+.securityControlRoom summary {
+  font-size: var(--security-body-size);
+}
+
+.securityControlRoom .sentinelShell small,
+.securityControlRoom .workspaceShell small,
+.securityControlRoom .sentinelStatus,
+.securityControlRoom .sentinelMaintenanceState,
+.securityControlRoom .sentinelLevelState,
+.securityControlRoom .sentinelSubtle,
+.securityControlRoom .artifactListItemMeta,
+.securityControlRoom .sentinelBoundary,
+.securityControlRoom .sentinelActivityColumns,
+.securityControlRoom .sentinelMaintenanceMetrics span {
+  font-size: var(--security-meta-size);
+  line-height: 1.45;
+}
+
+.securityControlRoom .sentinelCompactList > div,
+.securityControlRoom .sentinelProviderList > div,
+.securityControlRoom .sentinelWebsiteList > div:not(.sentinelSectionHeading),
+.securityControlRoom .sentinelInlineAction p,
+.securityControlRoom .sentinelActivityRow strong,
+.securityControlRoom .sentinelLevelList strong,
+.securityControlRoom .sentinelTriggerList strong,
+.securityControlRoom .sentinelAnswer strong,
+.securityControlRoom .artifactListItem {
+  font-size: var(--security-body-size);
+}
+
+.securityControlRoom .sentinelSectionHeading > span,
+.securityControlRoom .sentinelActivityHeader > div:first-child > span,
+.securityControlRoom .sentinelSubCardHeading span,
+.securityControlRoom .sentinelAdvancedHeading > span {
+  font-size: var(--security-heading-size);
+  letter-spacing: 0.08em;
+}
+
+.securityControlRoom .sentinelSectionHeading strong,
+.securityControlRoom .sentinelActivityHeader strong,
+.securityControlRoom .sentinelSubCardHeading strong,
+.securityControlRoom .sentinelAdvancedHeading > strong {
+  font-size: var(--security-heading-size);
+  line-height: 1.4;
+}
+
+.securityControlRoom .sentinelHero p,
+.securityControlRoom .securityGuardianHero p,
+.securityControlRoom .securityWorkspaceIntro p,
+.securityControlRoom .securityGuardianControlGrid p {
+  font-size: var(--security-body-size);
+}
+
+.securityControlRoom .sentinelOperatorSummary small,
+.securityControlRoom .sentinelOperatorSummary strong {
+  font-size: var(--security-meta-size);
+}
+
+.securityControlRoom .sentinelOperatorState strong,
+.securityControlRoom .sentinelMeasurementRow > strong,
+.securityControlRoom .sentinelMaintenanceMetrics strong {
+  font-size: var(--security-value-size);
+}
+
+.securityInsetScroll {
+  min-width: 0;
+  margin-inline: 18px;
+  overflow: auto;
+  overscroll-behavior: auto;
+  scrollbar-gutter: stable;
+}
+
+.sentinelOperatorHero {
+  grid-template-columns: minmax(300px, 0.72fr) minmax(620px, 1.28fr);
+}
+
+.sentinelOperatorSummary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sentinelOperatorSummary > div,
+.sentinelOperatorState {
+  min-height: 58px;
+}
+
+.sentinelPrimaryActions {
+  grid-column: 1 / -1;
+}
+
+.sentinelPrimaryActions .btn,
+.sentinelAutomationControl .btn,
+.sentinelAutomationControl select {
+  min-height: 42px;
+  font-size: var(--security-body-size);
+}
+
+.sentinelAutomationControl {
+  grid-template-columns: auto auto auto;
+}
+
+.sentinelGuardianStrip {
   display: flex;
-  grid-template-columns: none;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 10px 12px;
+  border: 1px solid rgba(104, 160, 255, 0.28);
+  border-radius: 10px;
+  background: rgba(104, 160, 255, 0.07);
+  font-size: var(--security-meta-size);
+}
+
+.sentinelGuardianStrip span {
+  color: var(--muted);
+}
+
+.sentinelFanResult,
+.sentinelOperatorHero > .sentinelInvestigation {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid rgba(104, 160, 255, 0.38);
+  border-radius: 12px;
+  background: rgba(104, 160, 255, 0.08);
+}
+
+.sentinelFanResult-fix-available,
+.sentinelFanResult-still-present {
+  border-color: rgba(255, 205, 92, 0.48);
+  background: rgba(255, 205, 92, 0.08);
+}
+
+.sentinelFanResult-fixed,
+.sentinelFanResult-no-fix-needed {
+  border-color: rgba(97, 242, 169, 0.38);
+  background: rgba(97, 242, 169, 0.07);
+}
+
+.sentinelFanResultHeading,
+.sentinelFanResultMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sentinelFanResultHeading > span {
+  color: var(--accentA);
+  font-size: var(--security-heading-size);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.sentinelFanResultHeading > strong {
+  font-size: var(--security-value-size);
+}
+
+.sentinelFanResult p {
+  margin: 0;
+  font-size: var(--security-body-size);
+}
+
+.sentinelFanResultMeta {
+  color: var(--muted);
+  font-size: var(--security-meta-size);
+}
+
+.sentinelGuidanceInline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.sentinelGuidanceInline .pasteArea {
+  min-height: 72px;
+}
+
+.sentinelGuidanceInline .sentinelAnswer {
+  grid-column: 1 / -1;
+}
+
+.sentinelHealthMeasurements {
+  gap: 8px;
+}
+
+.sentinelMeasurementColumns,
+.sentinelMeasurementRow {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(170px, 0.75fr) minmax(190px, 0.8fr) minmax(360px, 1.75fr);
+  gap: 16px;
+  align-items: center;
+  min-width: 920px;
+}
+
+.sentinelMeasurementColumns {
+  margin-inline: 18px;
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: var(--security-meta-size);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sentinelMeasurementList {
+  display: grid;
+  max-height: 512px;
+}
+
+.sentinelMeasurementRow {
+  min-height: 62px;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.sentinelMeasurementRow > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sentinelMeasurementRow > span:first-child {
+  font-weight: 800;
+}
+
+.sentinelMeasurementRow > span:last-child {
+  color: var(--muted);
+}
+
+.guardianActivity {
+  min-height: clamp(300px, 34vh, 440px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.guardianActivityColumns,
+.guardianActivityRow {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(120px, 0.55fr) minmax(110px, 0.55fr) minmax(350px, 1.8fr) minmax(260px, 1.2fr);
+  gap: 14px;
+  align-items: center;
+  min-width: 1080px;
+}
+
+.guardianActivityColumns {
+  margin-inline: 18px;
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: var(--security-meta-size);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guardianActivityScroll {
+  max-height: 410px;
+  padding-right: 0;
+}
+
+.guardianActivityRow {
+  min-height: 62px;
+  padding: 8px 12px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+.guardianActivityContext {
+  display: grid;
+  gap: 4px;
+}
+
+.guardianActivityContext .btn {
+  justify-self: start;
+}
+
+.sentinelAdvancedSection {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.sentinelAdvancedHeadingActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sentinelEvidenceDetails,
+.sentinelRecordColumns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+}
+
+.sentinelMaintenancePanel {
+  display: grid;
+  gap: 10px;
+}
+
+.sentinelBoundaryList {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 6px;
+}
+
+.securityWorkspaceIntro {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid rgba(104, 160, 255, 0.28);
+  border-radius: 14px;
+  background: rgba(8, 14, 24, 0.72);
+}
+
+.securityWorkspaceIntro > span {
+  color: var(--accentA);
+  font-size: var(--security-heading-size);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.securityWorkspaceIntro h1,
+.securityWorkspaceIntro p {
+  margin: 0;
+}
+
+.securityWorkspaceIntro h1 {
+  font-size: 28px;
+}
+
+.empireOperationsSignalGrid,
+.securityGuardianSourceGrid,
+.securityGuardianControlGrid {
+  grid-template-columns: 1fr;
+}
+
+.empireOperationsSignalGrid article,
+.securityGuardianControlGrid article {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.65fr) minmax(260px, 0.9fr) minmax(0, 1.6fr);
+  gap: 16px;
+  align-items: center;
+  min-height: 62px;
+  padding: 8px 12px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+.securityGuardianControlGrid article > span,
+.empireOperationsSignalGrid article > span {
+  font-size: var(--security-meta-size);
+}
+
+.empireOperationsSignalGrid article > strong {
+  font-size: var(--security-value-size);
+}
+
+.securityControlRoom .workspaceContentGrid {
+  grid-template-columns: 1fr;
+}
+
+.securityControlRoom .artifactListPanel {
+  margin-inline: 18px;
+}
+
+.securityControlRoom .artifactListItems,
+.securityGuardianActivity .sentinelActivityTable,
+.sentinelProviderList,
+.sentinelWebsiteList,
+.sentinelTriggerList,
+.sentinelLevelList {
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: auto;
 }
 
 @media (max-width: 1100px) {
-  .securityControlRoom .sentinelPrimaryMeasurements {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .sentinelOperatorHero,
+  .securityGuardianHero {
+    grid-template-columns: 1fr;
+  }
+
+  .securityGuardianHero > .btn {
+    grid-column: auto;
   }
 }
 
 @media (max-width: 760px) {
-  .securityControlRoom .sentinelPrimaryMeasurements {
+  .securityControlRoom > .workspaceModeRow,
+  .sentinelOperatorSummary {
+    grid-template-columns: 1fr;
+  }
+
+  .sentinelFanResultHeading,
+  .sentinelFanResultMeta,
+  .sentinelSubCardHeading,
+  .sentinelActivityHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sentinelGuidanceInline {
     grid-template-columns: 1fr;
   }
 }

@@ -405,6 +405,7 @@ try {
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
+  await click(base, sessionId, '[data-testid="notes-mode-notes"]');
   const myNotesProbe = "E2E My Notes draft persists through governed O2 storage";
   const myNotesEditor = await element(base, sessionId, '[data-testid="my-notes-input"]');
   await replaceValue(base, sessionId, myNotesEditor, myNotesProbe);
@@ -501,6 +502,7 @@ try {
   sessionId = await startDesktopSession(base, sandboxedApp);
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "restart isolated RadControl");
   await click(base, sessionId, '[data-testid="tab-notes"]');
+  await click(base, sessionId, '[data-testid="notes-mode-notes"]');
   await eventually(async () => assert.match(
     await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="my-notes-input"]'), "value"),
     new RegExp(myNotesProbe),
@@ -765,22 +767,25 @@ try {
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
   const securityText = await eventually(() => bodyText(base, sessionId), "render Security control room");
   assert.match(securityText, /RADCON SENTINEL/);
-  assert.match(securityText, /Empire Operations/);
-  assert.match(securityText, /Security Guardian/);
+  assert.match(securityText, /Empire Operations/i);
+  assert.match(securityText, /Security Guardian/i);
   assert.match(securityText, /Is my computer okay\?/);
-  assert.match(securityText, /RECENT GUARDIAN ACTIVITY/);
   assert.match(securityText, /CURRENT MEASUREMENTS/);
+  assert.match(securityText, /RECENT GUARDIAN ACTIVITY/);
   assert.match(securityText, /ADVANCED SYSTEM INFORMATION/);
-  assert.match(securityText, /QUICK ANSWERS/);
+  assert.ok(securityText.indexOf("CURRENT MEASUREMENTS") < securityText.indexOf("RECENT GUARDIAN ACTIVITY"));
+  assert.match(securityText, /Fans are loud/);
+  assert.doesNotMatch(securityText, /QUICK ANSWERS|DIAGNOSTICS/);
+  for (const heading of ["SYSTEM EVIDENCE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(securityText.includes(heading), `Security advanced area ${heading} is missing`);
   assert.doesNotMatch(securityText, /Advanced evidence, controls, and workstation records/);
   await click(base, sessionId, '[data-testid="sentinel-health-check"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
     assert.match(text, /Host health evidence refreshed/);
-    assert.match(text, /GPU TEMPERATURE/);
+    assert.match(text, /GPU TEMPERATURE/i);
     assert.match(text, /Foreground reading/);
-    assert.match(text, /SENSORS & SYSTEM EVIDENCE/);
-    assert.match(text, /AUTOMATION & SCHEDULES/);
+    assert.match(text, /SYSTEM EVIDENCE/);
+    assert.match(text, /AUTOMATION/);
   }, "run a real read-only Host Guardian check", 30_000);
   const durableStatus = await element(base, sessionId, '[data-testid="sentinel-status-header"]');
   assert.match(await elementProperty(base, sessionId, durableStatus, "textContent"), /DURABLE FRESHNESS/);
@@ -788,11 +793,11 @@ try {
     () => element(base, sessionId, '[data-testid="guardian-activity-row"]'),
     "render the durable Host Guardian observation",
   );
-  assert.match(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /Operator check|Automatic observation/);
+  assert.match(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /Operator|Automatic/);
   assert.doesNotMatch(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /No recorded anomaly/);
 
   await click(base, sessionId, '[data-testid="security-mode-security_guardian"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render Security Guardian workspace"), /WEBSITES \+ FULL TECHNOLOGY ESTATE/);
+  assert.match(await eventually(() => bodyText(base, sessionId), "render Security Guardian workspace"), /Online technology estate/i);
   await domClick(base, sessionId, '[data-testid="security-guardian-check"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
@@ -800,12 +805,27 @@ try {
     assert.match(text, /Lock Down RCE/);
     assert.match(text, /0 live read-only adapters/i);
   }, "run a real read-only Security Guardian check", 30_000);
+  if (process.env.RADCONTROL_E2E_SCREENSHOT_PATH) {
+    const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`);
+    await writeFile(
+      `${process.env.RADCONTROL_E2E_SCREENSHOT_PATH}.security-guardian.png`,
+      Buffer.from(encodedScreenshot, "base64"),
+    );
+  }
   await click(base, sessionId, '[data-testid="security-mode-empire_operations"]');
   const operationsText = await eventually(() => bodyText(base, sessionId), "render Empire Operations truth overview");
-  assert.match(operationsText, /IS THE EMPIRE MACHINERY FUNCTIONING\?/);
+  assert.match(operationsText, /Development-system integrity/);
   assert.match(operationsText, /SOURCE GOLDEN/);
   assert.match(operationsText, /CI \+ CODEQL/);
+  if (process.env.RADCONTROL_E2E_SCREENSHOT_PATH) {
+    const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`);
+    await writeFile(
+      `${process.env.RADCONTROL_E2E_SCREENSHOT_PATH}.empire-operations.png`,
+      Buffer.from(encodedScreenshot, "base64"),
+    );
+  }
   await click(base, sessionId, '[data-testid="security-mode-sentinel"]');
+  await eventually(async () => assert.match(await bodyText(base, sessionId), /Is my computer okay\?/), "return to Radcon Sentinel for visual acceptance");
   if (process.env.RADCONTROL_E2E_SCREENSHOT_PATH) {
     const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`);
     await writeFile(

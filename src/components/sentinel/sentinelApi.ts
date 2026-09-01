@@ -8,15 +8,19 @@ import type {
   SentinelStatus,
 } from "./sentinelModel";
 
-type HostCheckResponse = {
+export type HostCheckResponse = {
   ok: boolean;
   overallStatus: string;
+  checkedAt?: string;
+  metrics?: Record<string, unknown>;
   error?: string;
 };
 
 type FanExplanationResponse = {
   ok: boolean;
+  analysisType: "deterministic";
   explanation: string;
+  report: HostCheckResponse;
   llmUsed: boolean;
   error?: string;
 };
@@ -138,8 +142,8 @@ export function previewPopUpgradeCleanup(): Promise<PopUpgradeCleanupPreviewResp
   );
 }
 
-export function applyPopUpgradeCleanup(): Promise<{ ok: boolean; error?: string }> {
-  return runO2ParsedJson<{ ok: boolean; error?: string }>(
+export function applyPopUpgradeCleanup(): Promise<{ ok: boolean; actions?: Array<{ ok?: boolean; summary?: string }>; error?: string }> {
+  return runO2ParsedJson<{ ok: boolean; actions?: Array<{ ok?: boolean; summary?: string }>; error?: string }>(
     "workstation.cleanup.pop_upgrade.apply",
     "Safe Cleanup did not complete",
     "Safe Cleanup returned invalid data",
