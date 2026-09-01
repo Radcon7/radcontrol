@@ -35,27 +35,43 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - Agents: governed profiles, focus/scope/limits, and notes. Repository Routers
   is an adjacent O2-backed workspace that restores the cross-repository
   durability report without coupling it to the System76 host presentation.
-- Security: three first-class subtabs over O2-owned truth. Radcon Sentinel is
-  the workstation control room: health first, bounded durable Guardian activity
-  second, then one token-free foreground measurement home and advanced evidence.
+- Security: three first-class workspaces over O2-owned truth, each explained in
+  the compact Security navigation. Radcon Sentinel is this computer's control
+  room; Empire Operations is development-system integrity; Security Guardian is
+  the online technology estate. Security uses 14px-minimum supporting text,
+  15–16px body and control text, 16px-minimum section headings, and approximately
+  18–20px important values. Density comes from wide horizontal rows and
+  hierarchy rather than small type or tall card grids. Every bounded child list
+  leaves an inset outer-scroll gutter and does not trap overscroll.
+
+  Radcon Sentinel presents health first, one token-free foreground measurement
+  home second, bounded durable Guardian activity third, and Advanced System
+  Information fourth.
   Its top answer distinguishes the latest durable result and its governed
   freshness from foreground measurements; missing or learning evidence does not
   make a recent durable result stale. O2 owns health severity and sensor
   authority, while RadControl presents baseline maturity only as secondary
   comparison metadata. The Sentinel order is fixed as “Is my computer okay?”,
-  “Recent Guardian Activity”, “Current Measurements”, then “Advanced System
-  Information”. Activity is bounded to 20 durable records but initially shows a
+  “Current Measurements”, “Recent Guardian Activity”, then “Advanced System
+  Information”. The eight measurements and durable activity use compact wide
+  rows rather than card grids. Activity is bounded to 20 durable records but initially shows a
   compact recent set; legacy records and retained Attention/UNKNOWN states must
-  state exactly what evidence is absent. Investigation is available only for a
-  retained anomaly, and repair remains unavailable without current evidence.
-  Automatic Guardian has one compact authoritative control, rather than
-  repeated status/control copies. Advanced information is naturally reachable
-  beneath its divider, with technical metadata kept at the bottom. Operator
-  text and controls use readable normal-size type; density comes from hierarchy,
-  not tiny text.
+  state exactly what evidence is absent. “Fans are loud” is one primary top-box
+  workflow composed from the existing governed fan explanation, conditional
+  deterministic deep check, exact Safe Cleanup preview/apply when eligible,
+  remeasurement, Sentinel remediation evidence, and governed workstation Notes.
+  It never broadens process or service authority. Other workstation symptoms
+  remain reachable through one secondary chooser. Automatic Guardian has one
+  compact authoritative control and one top status strip, rather than repeated
+  status/control copies. Advanced information has exactly five full-width areas:
+  System Evidence, Maintenance & Updates, Automation, Workstation Record &
+  Notes, and Safety & Permissions. A manual Deep Check remains only within
+  System Evidence; standalone Diagnostics and Quick Answers are intentionally
+  removed.
   Empire Operations combines deterministic matched-pair, automation, audit, and
-  topology truth with governed Map, Snapshot, and Sweep artifacts. Security
-  Guardian owns websites and full technology-estate visibility, promotes the
+  topology truth with governed Map, Snapshot, and Sweep artifacts in the same
+  wide-row presentation system. Security Guardian owns websites and full
+  technology-estate visibility, promotes the
   existing provider/site inventory, and labels unwired user/auth/threat/commerce
   sources and controls as not connected. Sentinel never owns policy or a
   privileged executor; only an explicit anomalous-observation investigation may

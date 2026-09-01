@@ -87,10 +87,10 @@ export function HostUpdatesPanel({ disabled }: Props) {
   }
 
   return (
-    <section className="sentinelSubCard" data-testid="host-updates-panel">
+    <div className="sentinelMaintenancePanel" data-testid="host-updates-panel">
       <div className="sentinelSubCardHeading">
         <div>
-          <span>MAINTENANCE INVENTORY</span>
+          <span>UPDATE INVENTORY</span>
           <strong>System, firmware, Flatpak + shared tools</strong>
         </div>
         <span className={`sentinelMaintenanceState sentinelMaintenanceState-${report?.status || "unknown"}`}>
@@ -121,7 +121,7 @@ export function HostUpdatesPanel({ disabled }: Props) {
           <p className="sentinelSubtle">{report.summary} · checked {formatDateTime(report.checkedAt)}{report.apt.rebootLikely ? " · restart may be required after operator-approved installation" : ""}</p>
           <details className="sentinelDetails">
             <summary>Shared tool inventory</summary>
-            <div className="sentinelCompactList">
+            <div className="sentinelCompactList securityInsetScroll">
               {report.tools.map((tool) => (
                 <div key={tool.key}>
                   <span><strong>{tool.label}</strong><small>{tool.currentVersion}</small></span>
@@ -135,6 +135,6 @@ export function HostUpdatesPanel({ disabled }: Props) {
       ) : (
         <p className="sentinelSubtle">No update inventory has been recorded yet.</p>
       )}
-    </section>
+    </div>
   );
 }
