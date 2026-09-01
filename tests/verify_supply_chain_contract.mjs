@@ -45,7 +45,8 @@ assert.equal(workflows.has("release-candidate.yml"), false);
 assert.equal(workflows.has("audit-anchor.yml"), false);
 
 assert.doesNotMatch(supplyChain, /Dependabot alerts report zero known vulnerabilities/);
-assert.match(supplyChain, /current accepted\s+O2 source does \*\*not\*\* yet emit the version-2 manifest/);
+assert.match(supplyChain, /accepted O2 protected-main\s+workflow emits that manifest with governed lifecycle admission/);
+assert.doesNotMatch(supplyChain, /current accepted[\s\S]{0,80}does \*\*not\*\* yet emit/);
 assert.match(supplyChain, /workflow\s+run metadata as correlation only/);
 assert.match(supplyChain, /neither a provider\s+attestation nor authenticated provenance/);
 assert.match(supplyChain, /schema version 1 is accepted only for a\s+real rollback/);
