@@ -18,7 +18,10 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   operator typography and inset wide-row lists. Radcon Sentinel answers whether
   this computer is okay, puts Current Measurements before durable Guardian
   activity, and keeps the single loud-fan investigation plus any exact governed
-  Safe Cleanup action in the top operating box. Its five advanced areas preserve
+  Safe Cleanup action in the top operating box. Routine fan outcomes remain in
+  existing Sentinel history; the tracked workstation configuration and notes
+  remain visible as read-only canonical source references in the installed app.
+  Its five advanced areas preserve
   distinct system evidence, maintenance, automation, workstation records, and
   safety boundaries without duplicate Diagnostics or Quick Answers sections.
   Empire Operations presents O2/RadControl matched-pair, automation, audit, and

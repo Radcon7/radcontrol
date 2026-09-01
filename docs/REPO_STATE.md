@@ -59,7 +59,8 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   state exactly what evidence is absent. “Fans are loud” is one primary top-box
   workflow composed from the existing governed fan explanation, conditional
   deterministic deep check, exact Safe Cleanup preview/apply when eligible,
-  remeasurement, Sentinel remediation evidence, and governed workstation Notes.
+  remeasurement, and existing Sentinel event, action, incident, and remediation
+  evidence. Routine runtime outcomes never append to tracked workstation source.
   It never broadens process or service authority. Other workstation symptoms
   remain reachable through one secondary chooser. Automatic Guardian has one
   compact authoritative control and one top status strip, rather than repeated
@@ -67,7 +68,10 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   System Evidence, Maintenance & Updates, Automation, Workstation Record &
   Notes, and Safety & Permissions. A manual Deep Check remains only within
   System Evidence; standalone Diagnostics and Quick Answers are intentionally
-  removed.
+  removed. The tracked workstation configuration and notes remain readable
+  canonical source references in the installed app; deliberate edits use the
+  normal governed source workflow, while routine observations and operator
+  actions stay in existing Sentinel history.
   Empire Operations combines deterministic matched-pair, automation, audit, and
   topology truth with governed Map, Snapshot, and Sweep artifacts in the same
   wide-row presentation system. Security Guardian owns websites and full
@@ -114,7 +118,8 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   completion offers exactly one governed Timeline milestone or an explicit
   no-Timeline completion choice before marking the item complete.
   Sentinel runtime state and audit use the O2 Sentinel contract rather than
-  browser storage or RadControl-owned files.
+  browser storage or RadControl-owned files. Installed runtime actions never
+  append routine history to tracked workstation documentation.
 - The Tauri bridge exposes an allowlist of O2 actions rather than arbitrary
   shell or filesystem access. Its fixed executable/environment contract,
   resource limits, typed failures, process cleanup, audit behavior, and

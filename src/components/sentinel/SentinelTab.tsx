@@ -34,10 +34,6 @@ import {
 const HOST_CONFIGURATION_PATH = "docs/infrastructure/assets/system76-workstation/CONFIGURATION.md";
 const HOST_NOTES_PATH = "docs/infrastructure/assets/system76-workstation/NOTES.md";
 
-type Props = {
-  registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
-};
-
 type HostSignal = {
   key: string;
   label: string;
@@ -57,7 +53,6 @@ type FanInvestigation = {
   evidence: string;
   outcome: FanInvestigationOutcome;
   deepCheckUsed: boolean;
-  noteRecorded: boolean;
 };
 type ThermalRow = { key?: string; label?: string; temperatureC?: number; criticalC?: number | null; source?: string; path?: string; primary?: boolean; thresholdEligible?: boolean };
 type ProcessRow = { pid?: number; ppid?: number; ageSeconds?: number; cpuPercent?: number; memoryPercent?: number; rssMiB?: number; process?: string };
@@ -207,7 +202,7 @@ function observationExplanation(observation: SentinelHostObservation, status: Se
   return null;
 }
 
-export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
+export function SentinelTab() {
   const [status, setStatus] = useState<SentinelStatus | null>(null);
   const [liveMeasurements, setLiveMeasurements] = useState<SentinelCurrentMeasurements | null>(null);
   const [liveMeasurementError, setLiveMeasurementError] = useState("");
@@ -224,14 +219,8 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
   const [fanInvestigation, setFanInvestigation] = useState<FanInvestigation | null>(null);
   const [showOlderActivity, setShowOlderActivity] = useState(false);
 
-  const hostConfiguration = useGovernedRecordNote({ recordKey: "sentinel-host-configuration", path: HOST_CONFIGURATION_PATH, missingStatus: "Canonical host configuration will be created on first save" });
-  const hostNotes = useGovernedRecordNote({ recordKey: "sentinel-host-notes", path: HOST_NOTES_PATH, missingStatus: "Canonical host notes will be created on first save" });
-
-  useEffect(() => {
-    if (!registerBeforeTabChangeSaver) return;
-    registerBeforeTabChangeSaver(async () => (await hostConfiguration.flush()) && hostNotes.flush());
-    return () => registerBeforeTabChangeSaver(null);
-  }, [hostConfiguration.flush, hostNotes.flush, registerBeforeTabChangeSaver]);
+  const hostConfiguration = useGovernedRecordNote({ recordKey: "sentinel-host-configuration", path: HOST_CONFIGURATION_PATH, missingStatus: "Canonical host configuration is unavailable" });
+  const hostNotes = useGovernedRecordNote({ recordKey: "sentinel-host-notes", path: HOST_NOTES_PATH, missingStatus: "Canonical host notes are unavailable" });
 
   const refresh = useCallback(async () => {
     const next = await loadSentinelStatus();
@@ -290,20 +279,6 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
     }
   }
 
-  async function appendWorkstationHistory(summary: string, evidence: string, outcome: FanInvestigationOutcome): Promise<boolean> {
-    if (!hostNotes.path || hostNotes.loading) return false;
-    const entry = [
-      `### ${new Date().toLocaleString()} — Fan investigation`,
-      `- Symptom: Loud workstation fans`,
-      `- Diagnosis: ${summary}`,
-      `- Evidence: ${evidence}`,
-      `- Verification: ${outcome}`,
-    ].join("\n");
-    const next = `${hostNotes.text.trimEnd()}${hostNotes.text.trim() ? "\n\n" : ""}${entry}\n`;
-    hostNotes.onTextChange(next);
-    return hostNotes.flush();
-  }
-
   async function investigateFans(): Promise<void> {
     if (busyAction) return;
     setBusyAction("fans"); setError(""); setNotice(""); setFanInvestigation(null); setPopUpgradePreview(null);
@@ -315,8 +290,7 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
       const repairAvailable = nextStatus.recentIncidents.some((incident) => incident.status.toLowerCase() === "open" && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview"));
       const evidence = compactHostEvidence(deepCheckUsed ? nextStatus.host.metrics : result.report.metrics || nextMeasurements.metrics);
       const outcome: FanInvestigationOutcome = repairAvailable ? "FIX AVAILABLE" : "NO FIX NEEDED";
-      const noteRecorded = await appendWorkstationHistory(result.explanation, evidence, outcome);
-      setFanInvestigation({ diagnosis: result.explanation, evidence, outcome, deepCheckUsed, noteRecorded });
+      setFanInvestigation({ diagnosis: result.explanation, evidence, outcome, deepCheckUsed });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -390,8 +364,7 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
       const diagnosis = result.ok
         ? "The exact governed pop-upgrade.service repair completed and post-repair verification passed."
         : "The exact governed repair did not verify recovery. No broader process or service action was attempted.";
-      const noteRecorded = await appendWorkstationHistory(diagnosis, evidence, outcome);
-      setFanInvestigation({ diagnosis, evidence, outcome, deepCheckUsed: true, noteRecorded });
+      setFanInvestigation({ diagnosis, evidence, outcome, deepCheckUsed: true });
       setNotice(result.ok ? "Safe Cleanup completed and post-repair evidence was refreshed." : "Safe Cleanup did not verify recovery; review current evidence.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setBusyAction(null); }
@@ -455,7 +428,7 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
           <div className="sentinelFanResultHeading"><span>FAN INVESTIGATION</span><strong>{fanInvestigation.outcome}</strong></div>
           <p>{fanInvestigation.diagnosis}</p>
           <small>{fanInvestigation.evidence}</small>
-          <div className="sentinelFanResultMeta"><span>{fanInvestigation.deepCheckUsed ? "Deeper deterministic evidence was collected automatically." : "The normal governed fan explanation was sufficient."}</span><span>{fanInvestigation.noteRecorded ? "Outcome appended to governed workstation Notes." : "Sentinel evidence retained; workstation Notes were unavailable for append."}</span></div>
+          <div className="sentinelFanResultMeta"><span>{fanInvestigation.deepCheckUsed ? "Deeper deterministic evidence was collected automatically." : "The normal governed fan explanation was sufficient."}</span><span>Outcome retained in Sentinel history.</span></div>
           {popUpgradeIncident && fanInvestigation.outcome === "FIX AVAILABLE" ? <div className="guardianRepair" data-testid="pop-upgrade-safe-cleanup">
             <div><strong>Safe Cleanup matches the exact pop-upgrade.service signature.</strong><span>No automatic restart. A fresh preview, explicit confirmation, and OS authorization remain required.</span></div>
             {!popUpgradePreview?.ok ? <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void previewPopUpgradeRepair()}>{busyAction === "pop-upgrade-preview" ? "Checking target…" : "Fix now"}</button> : <div><strong>{popUpgradePreview.candidate?.service}</strong><div className="sentinelActions"><button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void applyPopUpgradeRepair()}>{busyAction === "pop-upgrade-apply" ? "Authorizing…" : "Authorize & fix"}</button><button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => setPopUpgradePreview(null)}>Cancel</button></div></div>}
@@ -533,8 +506,8 @@ export function SentinelTab({ registerBeforeTabChangeSaver }: Props) {
         </section>
 
         <section className="sentinelAdvancedSection" data-testid="advanced-workstation-record">
-          <div className="sentinelSubCardHeading"><div><span>WORKSTATION RECORD &amp; NOTES</span><strong>Governed configuration and timestamped operator history</strong></div></div>
-          <div className="sentinelRecordColumns" data-testid="host-identity-record"><details className="sentinelDetails"><summary>Configuration and operating model</summary><div className="sentinelRecordEditor"><small>{hostConfiguration.status}</small><textarea className="pasteArea" value={hostConfiguration.text} readOnly={!hostConfiguration.path || hostConfiguration.loading} onChange={(event) => hostConfiguration.onTextChange(event.target.value)} data-testid="host-configuration-note" /></div></details><details className="sentinelDetails"><summary>Operator notes and history</summary><div className="sentinelRecordEditor"><small>{hostNotes.status}</small><textarea className="pasteArea" value={hostNotes.text} readOnly={!hostNotes.path || hostNotes.loading} onChange={(event) => hostNotes.onTextChange(event.target.value)} data-testid="host-operator-notes" /></div></details></div>
+          <div className="sentinelSubCardHeading"><div><span>WORKSTATION RECORD &amp; NOTES</span><strong>Canonical source records and local Sentinel history remain separate</strong></div></div>
+          <div className="sentinelRecordColumns" data-testid="host-identity-record"><details className="sentinelDetails"><summary>Configuration and operating model</summary><div className="sentinelRecordEditor"><small>{hostConfiguration.loading ? "Loading canonical source…" : hostConfiguration.error || "Canonical source · read-only here"}</small><textarea className="pasteArea" value={hostConfiguration.text} readOnly data-testid="host-configuration-note" /></div></details><details className="sentinelDetails"><summary>Operator notes and history</summary><div className="sentinelRecordEditor"><small>{hostNotes.loading ? "Loading canonical source…" : hostNotes.error || "Canonical source · read-only here · routine activity appears in Sentinel history above"}</small><textarea className="pasteArea" value={hostNotes.text} readOnly data-testid="host-operator-notes" /></div></details></div>
         </section>
 
         <section className="sentinelAdvancedSection" data-testid="advanced-safety-permissions">
