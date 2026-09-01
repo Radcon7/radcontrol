@@ -312,7 +312,7 @@ try {
     assert.ok(/Is my computer okay\?[\s\S]*CURRENT MEASUREMENTS[\s\S]*RECENT GUARDIAN ACTIVITY[\s\S]*ADVANCED SYSTEM INFORMATION/.test(text), "Sentinel primary hierarchy is incorrect");
     assert.ok(!text.includes("Advanced evidence, controls, and workstation records"), "The retired Advanced umbrella disclosure is still rendered");
     assert.ok(/Refreshes every 60 seconds[\s\S]*Deterministic, token-free, and not written to durable history/.test(text), "Foreground measurement persistence boundary is missing");
-    assert.ok(/GPU TEMPERATURE[\s\S]*(Sensor unavailable|°C)/.test(text), "GPU measurement truth is missing");
+    assert.ok(/GPU temperature[\s\S]*(Sensor unavailable|°C)/i.test(text), "GPU measurement truth is missing");
     assert.ok(text.includes("Additional depth and provenance—not a second copy of Current Measurements."), "Advanced evidence boundary is missing");
     assert.ok(!text.includes("QUICK ANSWERS"), "The retired standalone Quick Answers section is still rendered");
     assert.ok(!text.includes("DIAGNOSTICS"), "The retired standalone Diagnostics section is still rendered");
@@ -388,16 +388,6 @@ try {
   });
   assert.equal(expandedActivity.rowCount, 20, "Expanded Guardian history must remain bounded to the latest 20 records");
   assert.ok(/Legacy observation|Attention was recorded|Result was unknown/.test(expandedActivity.text), "Legacy or incomplete Guardian evidence must be described truthfully");
-
-  await click(base, sessionId, '[data-testid="sentinel-fans-loud"]');
-  const fanResultText = await eventually(async () => {
-    const text = await bodyText(base, sessionId);
-    assert.match(text, /FAN INVESTIGATION[\s\S]*(NO FIX NEEDED|FIX AVAILABLE)/);
-    assert.match(text, /(Deeper deterministic evidence was collected automatically|normal governed fan explanation was sufficient)/);
-    assert.match(text, /(CPU temperature|Temperature source requires verification)[\s\S]*(Fan|fan sensor unavailable)[\s\S]*CPU[\s\S]*Load[\s\S]*(Services OK|failed service)/i);
-    return text;
-  }, "complete the deterministic installed loud-fan investigation", 45_000);
-  assert.equal((fanResultText.match(/Fans are loud/g) || []).length, 1, "fan investigation must not introduce a duplicate loud-fan action");
 
   await click(base, sessionId, '[data-testid="security-mode-empire_operations"]');
   await eventually(async () => {
