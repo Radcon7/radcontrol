@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { buildInfrastructureProfiles } from "../agents/infrastructureModel";
+import { REQUIRED_OPERATOR_PROJECT_KEYS } from "../common/o2Contract";
 import { listEmpireTodos } from "../notes/empireTodoApi";
 import type { ProjectRow } from "../projects/types";
 import { filterOperatorProjects } from "../projects/projectModel";
@@ -45,18 +46,6 @@ type Props = {
   registryError: string;
 };
 
-const EXPECTED_PROJECT_KEYS = [
-  "dqotd",
-  "tbis",
-  "offroad",
-  "radstock",
-  "radcrm",
-  "radconenterprises",
-  "radfamily",
-  "radwolfe",
-  "radcalendar",
-];
-
 const EXPECTED_TODO_TITLES = [
   "Resolve Codex Memory Runtime Proof — Round 4B",
   "Finish New Project Questionnaire + Unified Project Build Pipeline",
@@ -65,7 +54,7 @@ const EXPECTED_TODO_TITLES = [
 
 const NOTES_VIEWS = ["Notes", "Timeline", "Empire Blueprint", "Empire To-Do"];
 
-function sameSet(actual: string[], expected: string[]): boolean {
+function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
   return actual.length === expected.length && expected.every((value) => actual.includes(value));
 }
 
@@ -160,7 +149,7 @@ export function RuntimeDiagnosticsModal({
     diagnostics?.runtimeMode === "production" &&
     runtimeFilesReady &&
     registryState === "ready" &&
-    sameSet(projectKeys, EXPECTED_PROJECT_KEYS) &&
+    sameSet(projectKeys, REQUIRED_OPERATOR_PROJECT_KEYS) &&
     sameSet(smoke.todoTitles, EXPECTED_TODO_TITLES) &&
     infrastructureLabels.length === 10 &&
     smoke.sentinelAvailable;
@@ -213,7 +202,7 @@ export function RuntimeDiagnosticsModal({
               detail={runtimeFilesReady ? "Dispatcher, registry, audit transport, To-Do seed, and durable store are present." : `Canonical runtime boundary unavailable${diagnostics?.bridgeFailure ? `: ${diagnostics.bridgeFailure}` : "."}`}
             />
             <Check
-              ok={registryState === "ready" && sameSet(projectKeys, EXPECTED_PROJECT_KEYS)}
+              ok={registryState === "ready" && sameSet(projectKeys, REQUIRED_OPERATOR_PROJECT_KEYS)}
               label={`Projects · ${operatorProjects.length} visible`}
               detail={registryError || operatorProjects.map((project) => project.label).join(" · ") || "Project data unavailable"}
             />

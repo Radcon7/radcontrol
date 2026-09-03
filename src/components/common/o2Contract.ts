@@ -1,5 +1,8 @@
 import clientContract from "../../../contracts/o2-radcontrol/v1/client.json" with { type: "json" };
 
+export const REQUIRED_OPERATOR_PROJECT_KEYS: readonly string[] =
+  clientContract.requiredOperatorProjectKeys;
+
 export type O2ContractInfo = {
   ok: true;
   protocol: string;

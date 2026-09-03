@@ -242,3 +242,38 @@ export function assertPortAbsent(listeners, port) {
   const pattern = new RegExp(`:${port}(?:\\s|$)`);
   assert.ok(![...listeners].some((line) => pattern.test(line)), `TCP port ${port} must remain free`);
 }
+
+export function installNativeAcceptanceSignalCleanup(cleanup) {
+  assert.equal(typeof cleanup, "function", "native acceptance cleanup must be callable");
+  let cleanupPromise;
+  const handlers = new Map();
+  const removeHandlers = () => {
+    for (const [signal, handler] of handlers) process.removeListener(signal, handler);
+  };
+  const runCleanup = () => {
+    cleanupPromise ??= Promise.resolve().then(cleanup);
+    return cleanupPromise;
+  };
+
+  for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
+    const handler = () => {
+      process.exitCode = exitCode;
+      void runCleanup()
+        .catch((error) => console.error(`[native-acceptance] cleanup after ${signal} failed:`, error))
+        .finally(() => {
+          removeHandlers();
+          process.exit(process.exitCode ?? exitCode);
+        });
+    };
+    handlers.set(signal, handler);
+    process.once(signal, handler);
+  }
+
+  return async () => {
+    try {
+      await runCleanup();
+    } finally {
+      removeHandlers();
+    }
+  };
+}

@@ -4,6 +4,13 @@
 RadControl release. The frontend validates O2's `contract_info` response before
 any operational command is dispatched.
 
+The client contract also declares the exact operator-visible project and launch-
+surface keys required by the release. O2's governed `list_projects` response is
+the actual runtime roster; RadControl compares that response with the independent
+client requirement and reports attention on a missing, extra, or duplicate key.
+The three `-backend` entries are logical launch surfaces from the existing
+Radcon portal contract, not additional repositories or data authorities.
+
 A breaking O2 command or response change requires a new versioned contract, not
 an in-place edit to v1 semantics.
 
