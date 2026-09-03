@@ -47,16 +47,27 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   Radcon Sentinel presents health first, one token-free foreground measurement
   home second, bounded durable Guardian activity third, and Advanced System
   Information fourth.
-  Its top answer distinguishes the latest durable result and its governed
-  freshness from foreground measurements; missing or learning evidence does not
+  Its top answer uses the current token-free foreground measurement for current
+  health, names the highest-priority cause that needs attention, and separates
+  Last Full Scan, Next Full Scan, and schedule state. A 15-minute timer wake is
+  not scan freshness: it runs a full scan only when the configured daily or
+  twice-daily interval is due and otherwise performs only the exact known Pop
+  updater incident probe. Missing optional or learning evidence is a visible
+  coverage limitation and does not erase an otherwise complete healthy core or
   make a recent durable result stale. O2 owns health severity and sensor
   authority, while RadControl presents baseline maturity only as secondary
   comparison metadata. The Sentinel order is fixed as “Is my computer okay?”,
   “Current Measurements”, “Recent Guardian Activity”, then “Advanced System
   Information”. The eight measurements and durable activity use compact wide
   rows rather than card grids. Activity is bounded to 20 durable records but initially shows a
-  compact recent set; legacy records and retained Attention/UNKNOWN states must
-  state exactly what evidence is absent. “Fans are loud” is one primary top-box
+  compact recent set. New records retain scan duration, primary finding,
+  coverage, limitations, bounded normalized evidence, proposed/taken action,
+  repair outcome, and post-repair proof; legacy records and retained
+  Attention/UNKNOWN states must state exactly what evidence is absent. The
+  top-box Diagnose & Fix workflow starts with deterministic full evidence,
+  routes known issues to existing governed actions, and invokes the read-only
+  diagnostic advisor only when the cause remains genuinely unknown. “Fans are
+  loud” is one primary top-box
   workflow composed from the existing governed fan explanation, conditional
   deterministic deep check, exact Safe Cleanup preview/apply when eligible,
   remeasurement, and existing Sentinel event, action, incident, and remediation
@@ -64,9 +75,10 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   It never broadens process or service authority. Other workstation symptoms
   remain reachable through one secondary chooser. Automatic Guardian has one
   compact authoritative control and one top status strip, rather than repeated
-  status/control copies. Advanced information has exactly five full-width areas:
-  System Evidence, Maintenance & Updates, Automation, Workstation Record &
-  Notes, and Safety & Permissions. A manual Deep Check remains only within
+  status/control copies. Advanced information has six full-width areas: System
+  Evidence, Scan Coverage, Maintenance & Updates, Automation, Workstation Record
+  & Notes, and Safety & Permissions. Scan Coverage distinguishes actively
+  watched, unsupported, unavailable, and historical-only evidence. A manual Deep Check remains only within
   System Evidence; standalone Diagnostics and Quick Answers are intentionally
   removed. The tracked workstation configuration and notes remain readable
   canonical source references in the installed app; deliberate edits use the
@@ -78,8 +90,8 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   technology-estate visibility, promotes the
   existing provider/site inventory, and labels unwired user/auth/threat/commerce
   sources and controls as not connected. Sentinel never owns policy or a
-  privileged executor; only an explicit anomalous-observation investigation may
-  invoke the read-only diagnostic advisor, and repair remains separately
+  privileged executor; only an explicit investigation of a genuinely unknown
+  result may invoke the read-only diagnostic advisor, and repair remains separately
   previewed and confirmed. Levels 1-5 remain visibly not activated. Host records
   and all durable Sentinel state remain O2-owned.
 - Notes and Legal: Notes distinguishes My Notes (one private persistent O2

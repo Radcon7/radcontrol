@@ -59,10 +59,23 @@ assert.match(component, /showOlderActivity/);
 assert.match(component, /Show \$\{observations\.length - 6\} older observations/);
 assert.match(component, /Legacy observation · detailed measurements not retained/);
 assert.match(component, /Attention was recorded; detailed reason was not retained/);
+assert.match(component, /verdictReason/);
+assert.match(component, /View scan evidence/);
+assert.match(component, /scanDurationMs/);
+assert.match(component, /coverageLimitations/);
+assert.match(component, /normalized snapshot was not retained/);
 assert.doesNotMatch(component, /No recorded anomaly/);
 
 assert.equal((component.match(/Fans are loud/g) || []).length, 1, "the primary loud-fan action must render exactly once");
 assert.match(component, /data-testid="sentinel-fans-loud"/);
+assert.match(component, /data-testid="sentinel-diagnose-fix"/);
+assert.match(component, /Diagnose &amp; Fix|"Diagnose & Fix"/);
+assert.match(component, /knownIncidentState\?\.active\) return "ATTENTION"/);
+assert.match(component, /exact sustained Pop updater incident signature is active/);
+assert.match(component, /Last full scan \{formatDateTime\(status\?\.host\.checkedAt\)\}/);
+assert.match(component, /Review &amp; Fix|"Review & Fix"/);
+assert.match(component, /Run Full Scan/);
+assert.match(component, /primaryAttentionReason/);
 assert.match(component, /fanInvestigationNeedsDeepCheck/);
 assert.match(component, /await runHostDeepCheck\(\)/);
 assert.match(component, /FIX AVAILABLE/);
@@ -87,6 +100,7 @@ assert.doesNotMatch(component, /Is my computer healthy\?|What needs my attention
 
 for (const area of [
   "SYSTEM EVIDENCE",
+  "SCAN COVERAGE",
   "MAINTENANCE &amp; UPDATES",
   "AUTOMATION",
   "WORKSTATION RECORD &amp; NOTES",
@@ -94,6 +108,7 @@ for (const area of [
 ]) assert.match(component, new RegExp(area));
 for (const testId of [
   "advanced-system-evidence",
+  "advanced-scan-coverage",
   "advanced-maintenance-updates",
   "advanced-automation",
   "advanced-workstation-record",
@@ -113,10 +128,11 @@ assert.match(component, /Privileged helper/);
 
 assert.match(component, /sentinelAutomationControl/);
 assert.match(component, /sentinel-automation-toggle/);
-assert.match(component, /Host Guardian ·/);
-assert.match(component, /Last \{formatDateTime/);
-assert.match(component, /Next \{formatDateTime/);
-assert.match(component, /Deterministic · no model tokens/);
+assert.match(component, /Automatic Full Scans ·/);
+assert.match(component, /Last full scan \{formatDateTime/);
+assert.match(component, /Next full scan/);
+assert.match(component, /Full scans deterministic · no model tokens/);
+assert.match(component, /15-minute wake: due check \+ exact known-incident probe only/);
 assert.equal((component.match(/sentinelAutomationControl/g) || []).length, 1);
 
 assert.match(css, /--security-meta-size:\s*14px/);
@@ -149,6 +165,9 @@ for (const verb of [
 ]) assert.match(api, new RegExp(verb.replaceAll(".", "\\.")));
 assert.doesNotMatch(api, /sentinel\.action\.dry_run/);
 assert.match(model, /recentHostObservations/);
+assert.match(model, /SentinelScanCoverage/);
+assert.match(model, /fullScanScheduleStatus/);
+assert.match(model, /knownIncidentState/);
 assert.match(model, /SentinelCurrentMeasurements/);
 assert.match(model, /level: 0, label: "Observation"/);
 assert.match(model, /level: 5, label: "Recovery"/);

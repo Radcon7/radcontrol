@@ -55,8 +55,8 @@ type FanInvestigation = {
   deepCheckUsed: boolean;
 };
 type ThermalRow = { key?: string; label?: string; temperatureC?: number; criticalC?: number | null; source?: string; path?: string; primary?: boolean; thresholdEligible?: boolean };
-type ProcessRow = { pid?: number; ppid?: number; ageSeconds?: number; cpuPercent?: number; memoryPercent?: number; rssMiB?: number; process?: string };
-type ListenerRow = { address?: string; port?: number; exposedBeyondLoopback?: boolean; pids?: number[] };
+type ProcessRow = { pid?: number; ppid?: number; ageSeconds?: number; cpuPercent?: number; averageCpuPercent?: number; memoryPercent?: number; rssMiB?: number; process?: string; projectKey?: string };
+type ListenerRow = { address?: string; port?: number; exposedBeyondLoopback?: boolean; pids?: number[]; owner?: string; projectKey?: string; expectedGovernedDevelopment?: boolean };
 type ContainerRow = { name?: string; image?: string; state?: string; statusText?: string; supabase?: boolean };
 
 function formatDateTime(value: string | null | undefined): string {
@@ -153,23 +153,37 @@ function hostSignals(host: SentinelHostState): HostSignal[] {
   ];
 }
 
-function operatorHealthState(status: SentinelStatus | null, currentHost: SentinelHostState | null): OperatorHealthState {
+function operatorHealthState(status: SentinelStatus | null, currentHost: SentinelHostState | null, hasForeground: boolean): OperatorHealthState {
   const currentStatuses = Object.values(currentHost?.metrics || {}).map(observationStatus);
   if (currentStatuses.some((value) => ["critical", "elevated"].includes(value))) return "PROBLEM";
-  if (currentStatuses.some((value) => ["attention", "stale"].includes(value))) return "ATTENTION";
+  if (currentStatuses.some((value) => value === "attention")) return "ATTENTION";
+  if (status?.knownIncidentState?.active) return "ATTENTION";
+  if (hasForeground) {
+    const required = ["cpu", "load", "thermal", "memory", "filesystem", "services"];
+    return required.every((key) => observationStatus(currentHost?.metrics[key]) === "healthy") ? "HEALTHY" : "UNKNOWN";
+  }
   if (!status || status.host.overallStatus === "unknown") return "UNKNOWN";
   if (["critical", "elevated"].includes(status.host.overallStatus)) return "PROBLEM";
   if (["attention", "stale", "learning"].includes(status.host.overallStatus)) return "ATTENTION";
   return status.host.overallStatus === "healthy" ? "HEALTHY" : "UNKNOWN";
 }
 
-function operatorHealthMessage(state: OperatorHealthState, status: SentinelStatus | null): string {
-  if (state === "HEALTHY") return "Your latest durable Host Guardian check found no current host issue that needs action.";
-  if (state === "ATTENTION") return "Your computer is usable, but one or more current signals need a closer look.";
-  if (state === "PROBLEM") return "Host Guardian found a current problem. Investigate before changing anything.";
+function primaryAttentionReason(status: SentinelStatus | null, currentHost: SentinelHostState | null): string {
+  const priority = ["thermal", "knownIncident", "resourcePressure", "thermalThrottle", "fans", "cpu", "load", "memory", "filesystem", "processes", "listeners", "services", "docker"];
+  for (const key of priority) {
+    const metric = currentHost?.metrics[key];
+    if (metric && ["critical", "elevated", "attention"].includes(metric.status)) return metric.reason;
+  }
+  if (status?.knownIncidentState?.active) return "The exact sustained Pop updater incident signature is active; Review & Fix opens the governed Safe Cleanup path.";
+  return status?.host.primaryFinding?.reason || status?.host.verdictReason || status?.host.freshnessReason || "A fresh deterministic full scan is needed.";
+}
+
+function operatorHealthMessage(state: OperatorHealthState, status: SentinelStatus | null, currentHost: SentinelHostState | null): string {
+  if (state === "HEALTHY") return "Your current foreground measurements are healthy; no current host issue needs action.";
+  if (state === "ATTENTION" || state === "PROBLEM") return primaryAttentionReason(status, currentHost);
   return status?.host.freshness === "current"
-    ? "The latest durable health result is current, but some evidence is unavailable or still learning. Foreground measurements are shown separately below."
-    : "Host Guardian needs a fresh durable health check before it can answer confidently.";
+    ? status.host.verdictReason || "The latest full scan is current, but required evidence is incomplete."
+    : status?.host.freshnessReason || "Host Guardian needs a fresh full scan before it can answer confidently.";
 }
 
 function observationHealthStatus(observation: SentinelHostObservation): SentinelEvidenceStatus {
@@ -197,6 +211,7 @@ function compactObservationMeasurements(observation: SentinelHostObservation): s
 function observationExplanation(observation: SentinelHostObservation, status: SentinelEvidenceStatus): string | null {
   const anomalies = observation.observedValues?.anomalies || [];
   if (anomalies.length) return anomalies.join(" · ");
+  if (observation.observedValues?.verdictReason) return observation.observedValues.verdictReason;
   if (status === "attention") return "Attention was recorded; detailed reason was not retained.";
   if (status === "unknown") return "Result was unknown; detailed reason was not retained.";
   return null;
@@ -214,7 +229,7 @@ export function SentinelTab() {
   const [diagnosis, setDiagnosis] = useState<{ observationId: string; diagnosis: string; nextStep: string } | null>(null);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<AskSentinelResponse | null>(null);
-  const [automationFrequency, setAutomationFrequency] = useState<SentinelAutomation["frequency"]>("daily");
+  const [automationFrequency, setAutomationFrequency] = useState<SentinelAutomation["frequency"]>("twice-daily");
   const [popUpgradePreview, setPopUpgradePreview] = useState<PopUpgradeCleanupPreviewResponse | null>(null);
   const [fanInvestigation, setFanInvestigation] = useState<FanInvestigation | null>(null);
   const [showOlderActivity, setShowOlderActivity] = useState(false);
@@ -287,7 +302,7 @@ export function SentinelTab() {
       const deepCheckUsed = fanInvestigationNeedsDeepCheck(result);
       if (deepCheckUsed) await runHostDeepCheck();
       const [nextStatus, nextMeasurements] = await Promise.all([refresh(), refreshCurrent()]);
-      const repairAvailable = nextStatus.recentIncidents.some((incident) => incident.status.toLowerCase() === "open" && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview"));
+      const repairAvailable = Boolean(nextStatus.knownIncidentState?.active && nextStatus.recentIncidents.some((incident) => incident.id === nextStatus.knownIncidentState?.lastIncidentId && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview")));
       const evidence = compactHostEvidence(deepCheckUsed ? nextStatus.host.metrics : result.report.metrics || nextMeasurements.metrics);
       const outcome: FanInvestigationOutcome = repairAvailable ? "FIX AVAILABLE" : "NO FIX NEEDED";
       setFanInvestigation({ diagnosis: result.explanation, evidence, outcome, deepCheckUsed });
@@ -328,6 +343,70 @@ export function SentinelTab() {
     }
   }
 
+  async function reviewObservation(observation: SentinelHostObservation): Promise<void> {
+    const guidance = observation.observedValues?.guidance;
+    if (guidance?.knownRepair) {
+      setFanInvestigation({
+        diagnosis: guidance.message,
+        evidence: compactObservationMeasurements(observation),
+        outcome: "FIX AVAILABLE",
+        deepCheckUsed: true,
+      });
+      setNotice("The exact known repair is ready for a fresh Safe Cleanup preview. No repair has run.");
+      return;
+    }
+    if (observationHealthStatus(observation) === "unknown" && guidance?.advisorRecommended !== false) {
+      await diagnoseObservation(observation);
+      return;
+    }
+    setDiagnosis({
+      observationId: observation.id,
+      diagnosis: guidance?.message || observation.observedValues?.verdictReason || "Review the retained deterministic scan evidence.",
+      nextStep: "No automatic repair qualifies. Use only an existing governed action whose target matches the evidence exactly.",
+    });
+  }
+
+  async function diagnoseAndFix(): Promise<void> {
+    if (busyAction) return;
+    if (status?.knownIncidentState?.active) {
+      setFanInvestigation({
+        diagnosis: "The exact sustained Pop updater incident signature is active. Safe Cleanup still requires a fresh target preview, explicit confirmation, and operating-system authorization.",
+        evidence: compactHostEvidence(status.host.metrics),
+        outcome: "FIX AVAILABLE",
+        deepCheckUsed: true,
+      });
+      setNotice("Review the exact Safe Cleanup target. No repair has run.");
+      return;
+    }
+    setBusyAction("diagnose-fix"); setError(""); setNotice(""); setDiagnosis(null); setPopUpgradePreview(null);
+    try {
+      await runHostDeepCheck();
+      const [nextStatus, nextMeasurements] = await Promise.all([refresh(), refreshCurrent()]);
+      const guidance = nextStatus.host.guidance;
+      const latest = nextStatus.recentHostObservations[0];
+      if (guidance?.knownRepair && nextStatus.knownIncidentState?.active) {
+        setFanInvestigation({ diagnosis: guidance.message, evidence: compactHostEvidence(nextStatus.host.metrics), outcome: "FIX AVAILABLE", deepCheckUsed: true });
+        setNotice("A known issue matched. Review the exact Safe Cleanup preview before requesting OS authorization.");
+      } else if (nextStatus.host.overallStatus === "unknown" && guidance?.advisorRecommended && latest) {
+        const result = await investigateHostObservation(latest.id);
+        setDiagnosis({ observationId: result.observationId, diagnosis: result.diagnosis, nextStep: result.nextStep });
+      } else {
+        setDiagnosis({
+          observationId: latest?.id || nextStatus.host.checkedAt || "current-full-scan",
+          diagnosis: guidance?.message || nextStatus.host.verdictReason || "The deterministic full scan completed.",
+          nextStep: nextStatus.host.overallStatus === "healthy"
+            ? "No fix is needed."
+            : "No automatic repair qualifies. Review the named evidence and use only an existing governed repair path if it matches exactly.",
+        });
+      }
+      setNotice(`Deterministic full scan completed · ${compactHostEvidence(nextMeasurements.metrics)}`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   async function submitQuestion(): Promise<void> {
     if (!question.trim() || busyAction) return;
     setBusyAction("ask"); setError("");
@@ -337,7 +416,7 @@ export function SentinelTab() {
   }
 
   async function setAutomation(enabled: boolean, frequency = automationFrequency): Promise<void> {
-    await perform("automation", () => configureHostAutomation(enabled, frequency), enabled ? "Automatic Host Guardian observation is enabled. It will run only when due." : "Automatic Host Guardian observation is off.");
+    await perform("automation", () => configureHostAutomation(enabled, frequency), enabled ? "Automatic full host scans are enabled. The 15-minute timer wake runs a full scan only when due." : "Automatic full host scans are off.");
   }
 
   async function previewPopUpgradeRepair(): Promise<void> {
@@ -375,7 +454,7 @@ export function SentinelTab() {
     return liveMeasurements ? { ...status.host, checkedAt: liveMeasurements.measuredAt, metrics: liveMeasurements.metrics } : status.host;
   }, [liveMeasurements, status]);
   const signals = useMemo(() => displayHost ? hostSignals(displayHost) : [], [displayHost]);
-  const healthState = operatorHealthState(status, displayHost);
+  const healthState = operatorHealthState(status, displayHost, Boolean(liveMeasurements));
   const threat = useMemo(() => deriveThreatState(status), [status]);
   const observations = (status?.recentHostObservations || []).slice(0, 20);
   const visibleObservations = showOlderActivity ? observations : observations.slice(0, 6);
@@ -389,7 +468,12 @@ export function SentinelTab() {
   const automationActive = Boolean(automation?.active);
   const automationRequested = Boolean(automation?.enabled);
   const automaticStatus = automationActive ? `ON · ${automation?.frequency === "twice-daily" ? "Twice daily" : "Daily"}` : automationRequested ? "Timer unavailable" : "OFF";
-  const popUpgradeIncident = status?.recentIncidents.find((incident) => incident.status.toLowerCase() === "open" && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview"));
+  const scheduleStatus = automation?.scheduleStatus || "off";
+  const popUpgradeIncident = status?.knownIncidentState?.active
+    ? status.recentIncidents.find((incident) => incident.id === status.knownIncidentState?.lastIncidentId && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview"))
+    : undefined;
+  const primaryActionLabel = status?.knownIncidentState?.active ? "Review & Fix" : "Diagnose & Fix";
+  const attentionReason = primaryAttentionReason(status, displayHost);
 
   return (
     <section className="sentinelShell" data-testid="radcon-sentinel">
@@ -397,19 +481,20 @@ export function SentinelTab() {
         <div className="sentinelHeroCopy">
           <span className="sentinelEyebrow">RADCON SENTINEL · THIS COMPUTER</span>
           <h1>Is my computer okay?</h1>
-          <p>{operatorHealthMessage(healthState, status)}</p>
+          <p>{operatorHealthMessage(healthState, status, displayHost)}</p>
         </div>
           <div className="sentinelOperatorSummary" data-testid="sentinel-status-header">
           <div className={`sentinelOperatorState sentinelOperatorState-${healthState.toLowerCase()}`}><small>CURRENT HEALTH</small><strong>{healthState}</strong></div>
-          <div><small>LAST DURABLE CHECK</small><strong>{loading ? "Loading…" : formatDateTime(status?.host.checkedAt)}</strong></div>
-          <div><small>DURABLE FRESHNESS</small><strong>{status?.host.freshness === "current" ? `CURRENT${typeof status.host.ageSeconds === "number" ? ` · ${Math.max(0, Math.round(status.host.ageSeconds / 60))} min old` : ""}` : sentinelStatusLabel(status?.host.freshness === "stale" ? "stale" : "unknown")}</strong></div>
-          <div><small>OPERATOR ATTENTION</small><strong>{healthState === "HEALTHY" ? "Nothing current" : healthState === "UNKNOWN" && status?.host.freshness === "current" ? "Limited evidence" : healthState === "UNKNOWN" ? "Fresh check needed" : "Review activity"}</strong></div>
+          <div><small>LAST FULL SCAN</small><strong>{loading ? "Loading…" : formatDateTime(status?.host.checkedAt)}</strong></div>
+          <div><small>NEXT FULL SCAN</small><strong>{automationRequested ? formatDateTime(automation?.nextDueAt) : "Automatic scans off"}</strong></div>
+          <div title={attentionReason}><small>WHAT NEEDS ATTENTION</small><strong>{healthState === "HEALTHY" ? "Nothing current" : attentionReason}</strong></div>
         </div>
         <div className="sentinelPrimaryActions" aria-label="Host Guardian actions">
-          <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void perform("health", runHostHealthCheck, "Host health evidence refreshed.")} data-testid="sentinel-health-check">{busyAction === "health" ? "Checking…" : "Run Health Check"}</button>
+          {healthState !== "HEALTHY" ? <button className="btn btnPrimary sentinelResolveAction" type="button" disabled={Boolean(busyAction)} onClick={() => void diagnoseAndFix()} data-testid="sentinel-diagnose-fix">{busyAction === "diagnose-fix" ? "Diagnosing…" : primaryActionLabel}</button> : null}
+          <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void perform("health", runHostHealthCheck, "Full host scan evidence refreshed.")} data-testid="sentinel-health-check">{busyAction === "health" ? "Scanning…" : "Run Full Scan"}</button>
           <button className="btn btnPrimary sentinelFanAction" type="button" disabled={Boolean(busyAction)} onClick={() => void investigateFans()} data-testid="sentinel-fans-loud">{busyAction === "fans" ? "Investigating…" : "Fans are loud"}</button>
           <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => setInvestigationOpen((value) => !value)} data-testid="sentinel-investigate-problem">Investigate another problem</button>
-          <span className="sentinelAutomationControl"><strong>Automatic Guardian · {automaticStatus}</strong>
+          <span className="sentinelAutomationControl"><strong>Automatic Full Scans · {automaticStatus}</strong>
             <select aria-label="Automatic Host Guardian frequency" value={automationFrequency} disabled={Boolean(busyAction)} onChange={(event) => { const frequency = event.target.value as SentinelAutomation["frequency"]; setAutomationFrequency(frequency); if (automationRequested) void setAutomation(true, frequency); }}>
               <option value="daily">Daily</option><option value="twice-daily">Twice daily</option>
             </select>
@@ -417,10 +502,11 @@ export function SentinelTab() {
           </span>
         </div>
         <div className="sentinelGuardianStrip" data-testid="host-guardian-status-strip">
-          <strong>Host Guardian · {automationActive ? automation?.frequency === "twice-daily" ? "Twice daily" : "Daily" : automationRequested ? "Timer unavailable" : "Off"}</strong>
-          <span>Last {formatDateTime(automation?.lastSuccessfulAt || status?.host.checkedAt)}</span>
-          <span>Next {formatDateTime(automation?.nextDueAt)}</span>
-          <span>Deterministic · no model tokens</span>
+          <strong>Full-scan schedule · {scheduleStatus.toUpperCase()}</strong>
+          <span>Last full scan {formatDateTime(status?.host.checkedAt)}</span>
+          <span>Next full scan {automationRequested ? formatDateTime(automation?.nextDueAt) : "Automatic scans off"}</span>
+          <span>Full scans deterministic · no model tokens</span>
+          <span>15-minute wake: due check + exact known-incident probe only</span>
           <span>{status?.auditVerification.ok ? "Audit/event/incident chains verified" : "Audit integrity requires attention"}</span>
         </div>
 
@@ -458,16 +544,29 @@ export function SentinelTab() {
         <div className="guardianActivityScroll securityInsetScroll">
           {visibleObservations.map((observation) => {
             const rowStatus = observationHealthStatus(observation);
-            const anomalies = observation.observedValues?.anomalies || [];
             const explanation = observationExplanation(observation, rowStatus);
-            const actionable = anomalies.length > 0;
+            const coverage = observation.observedValues?.coverage || [];
+            const limitations = observation.observedValues?.coverageLimitations || [];
+            const reviewable = rowStatus !== "healthy" && Boolean(explanation);
             return (
               <article className={`guardianActivityRow guardianActivityRow-${rowStatus}`} key={observation.id} data-testid="guardian-activity-row">
                 <strong>{formatDateTime(observation.timestamp)}</strong>
                 <StatusPill status={rowStatus} />
                 <span>{observation.source === "systemd-user-timer" ? "Automatic" : "Operator"}</span>
                 <strong>{compactObservationMeasurements(observation)}</strong>
-                <span className="guardianActivityContext">{explanation ? <small>{explanation}</small> : <small>No action needed.</small>}{observation.observedValues?.actionOccurred || observation.observedValues?.repairOccurred ? <small>{observation.observedValues?.actionOccurred ? "Action occurred" : ""}{observation.observedValues?.actionOccurred && observation.observedValues?.repairOccurred ? " · " : ""}{observation.observedValues?.repairOccurred ? "Repair verified" : ""}</small> : null}{actionable ? <button className="btn btnGhost guardianInvestigateButton" type="button" disabled={Boolean(busyAction)} onClick={() => void diagnoseObservation(observation)} data-testid="guardian-investigate-fix">{busyAction === `diagnose:${observation.id}` ? "Investigating…" : "Investigate"}</button> : null}</span>
+                <div className="guardianActivityContext">
+                  {explanation ? <small>{explanation}</small> : <small>No action needed.</small>}
+                  <small>{typeof observation.observedValues?.scanDurationMs === "number" ? `Full scan ${(observation.observedValues.scanDurationMs / 1000).toFixed(1)}s` : "Legacy duration not retained"} · {observation.observedValues?.scanKind || "legacy scan"}</small>
+                  {observation.observedValues?.actionProposed ? <small>Proposed: {observation.observedValues.actionProposed}</small> : null}
+                  {observation.observedValues?.actionOccurred || observation.observedValues?.repairOccurred ? <small>{observation.observedValues?.actionOccurred ? "Action occurred" : ""}{observation.observedValues?.actionOccurred && observation.observedValues?.repairOccurred ? " · " : ""}{observation.observedValues?.repairOccurred ? "Repair verified" : ""}{observation.observedValues?.postRepairVerificationPassed ? " · post-proof passed" : ""}</small> : null}
+                  {reviewable ? <button className="btn btnGhost guardianInvestigateButton" type="button" disabled={Boolean(busyAction)} onClick={() => void reviewObservation(observation)} data-testid="guardian-investigate-fix">{busyAction === `diagnose:${observation.id}` ? "Investigating…" : observation.observedValues?.knownRepairAvailable ? "Review & Fix" : "Review / Fix"}</button> : null}
+                  <details className="guardianScanEvidence">
+                    <summary>View scan evidence</summary>
+                    {coverage.length ? <div className="guardianCoverageMini">{coverage.map((row) => <span key={row.key}><strong>{row.label}</strong><StatusPill status={row.status} /></span>)}</div> : <p>Legacy observation · scan coverage was not retained.</p>}
+                    {limitations.length ? <div><strong>Coverage limitations</strong><ul>{limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></div> : null}
+                    {observation.observedValues?.snapshot ? <pre>{JSON.stringify(observation.observedValues.snapshot, null, 2)}</pre> : <p>Legacy observation · normalized snapshot was not retained.</p>}
+                  </details>
+                </div>
               </article>
             );
           })}
@@ -488,10 +587,20 @@ export function SentinelTab() {
           <div className="sentinelSubCardHeading"><div><span>SYSTEM EVIDENCE</span><strong>Sensors, process evidence, containers, network, and services</strong></div><div className="sentinelAdvancedHeadingActions"><StatusPill status={status?.host.overallStatus || "unknown"} /><button className="btn btnGhost btnCompact" type="button" disabled={Boolean(busyAction)} onClick={() => void perform("deep", runHostDeepCheck, "Deep host evidence refreshed.")} data-testid="sentinel-deep-check">{busyAction === "deep" ? "Checking…" : "Deep Check"}</button></div></div>
           <div className="sentinelEvidenceDetails">
             <details className="sentinelDetails"><summary>Thermal sensors, sources, and hardware limits</summary><div className="sentinelCompactList securityInsetScroll">{thermalRows.map((sensor, index) => <div key={sensor.key || `${sensor.label}-${index}`}><span><strong>{sensor.label || "Unclassified sensor"}{sensor.primary ? " · primary CPU health source" : ""}</strong><small>{sensor.source || "kernel"}{sensor.path ? ` · ${sensor.path}` : ""}</small></span><span>{typeof sensor.temperatureC === "number" ? `${sensor.temperatureC}°C` : "Unknown"}{typeof sensor.criticalC === "number" && sensor.thresholdEligible ? ` · hardware critical ${sensor.criticalC}°C · governed safety margin applied` : " · threshold unavailable; evidence only"}</span></div>)}{!thermalRows.length ? <p>No sensor rows are available. This is not a healthy result.</p> : null}</div></details>
-            <details className="sentinelDetails"><summary>High-resource processes</summary><div className="sentinelCompactList securityInsetScroll">{processRows.slice(0, 12).map((process) => <div key={process.pid || process.process}><span><strong>{process.process || "Unknown process"}</strong><small>PID {process.pid ?? "?"} · parent {process.ppid ?? "?"} · age {process.ageSeconds ?? "?"}s</small></span><span>{process.cpuPercent ?? "?"}% CPU · {process.memoryPercent ?? "?"}% memory · {process.rssMiB ?? "?"} MiB</span></div>)}{!processRows.length ? <p>No process rows are available.</p> : null}</div></details>
+            <details className="sentinelDetails"><summary>High-resource processes</summary><div className="sentinelCompactList securityInsetScroll">{processRows.slice(0, 12).map((process) => <div key={process.pid || process.process}><span><strong>{process.process || "Unknown process"}{process.projectKey ? ` · ${process.projectKey}` : ""}</strong><small>PID {process.pid ?? "?"} · parent {process.ppid ?? "?"} · age {process.ageSeconds ?? "?"}s</small></span><span>{process.cpuPercent ?? "?"}% current CPU · {process.memoryPercent ?? "?"}% memory · {process.rssMiB ?? "?"} MiB</span></div>)}{!processRows.length ? <p>No process rows are available.</p> : null}</div></details>
             <details className="sentinelDetails"><summary>Containers + local stacks</summary><div className="sentinelCompactList securityInsetScroll">{(docker.containers || []).map((container) => <div key={container.name}><span><strong>{container.name || "Unnamed container"}{container.supabase ? " · Supabase" : ""}</strong><small>{container.image || "Unknown image"}</small></span><span>{container.state || "unknown"} · {container.statusText || "no status"}</span></div>)}{!(docker.containers || []).length ? <p>{hostMetrics.docker?.reason || "No container rows are available."}</p> : null}</div></details>
-            <details className="sentinelDetails"><summary>Network + service evidence</summary><div className="sentinelCompactList securityInsetScroll">{listenerRows.slice(0, 16).map((listener, index) => <div key={`${listener.address}-${index}`}><span><strong>{listener.address || `Port ${listener.port || "?"}`}</strong><small>{listener.exposedBeyondLoopback ? "Binds beyond loopback" : "Loopback"}</small></span><span>{listener.pids?.length ? `PID ${listener.pids.join(", ")}` : "Owner not visible"}</span></div>)}{failedServices.map((service) => <div key={service}><strong>{service}</strong><span>FAILED</span></div>)}{!listenerRows.length && !failedServices.length ? <p>No listener or failed-service rows are available.</p> : null}</div></details>
+            <details className="sentinelDetails"><summary>Network + service evidence</summary><div className="sentinelCompactList securityInsetScroll">{listenerRows.slice(0, 16).map((listener, index) => <div key={`${listener.address}-${index}`}><span><strong>{listener.address || `Port ${listener.port || "?"}`}{listener.projectKey ? ` · ${listener.projectKey}` : ""}</strong><small>{listener.exposedBeyondLoopback ? "Binds beyond loopback" : "Loopback"} · {listener.expectedGovernedDevelopment ? "expected governed development port" : listener.owner || "owner unavailable"}</small></span><span>{listener.pids?.length ? `PID ${listener.pids.join(", ")}` : "Owner not visible"}</span></div>)}{failedServices.map((service) => <div key={service}><strong>{service}</strong><span>FAILED</span></div>)}{!listenerRows.length && !failedServices.length ? <p>No listener or failed-service rows are available.</p> : null}</div></details>
           </div>
+        </section>
+
+        <section className="sentinelAdvancedSection" data-testid="advanced-scan-coverage">
+          <div className="sentinelSubCardHeading"><div><span>SCAN COVERAGE</span><strong>Exactly what the last full scan watched—and what remained limited</strong></div><small>{status?.host.scanDurationMs ? `${(status.host.scanDurationMs / 1000).toFixed(1)}s last run` : "No retained duration"}</small></div>
+          <p className="sentinelSubtle">Twice-daily full scans cover current workstation evidence. The 15-minute timer wake does not repeat this scan; it checks due state and the one exact Pop updater incident signature only.</p>
+          <div className="sentinelCoverageGrid securityInsetScroll">
+            {(status?.host.coverage || []).map((row) => <div key={row.key}><span><strong>{row.label}</strong><small>{row.reason}</small></span><StatusPill status={row.status} /></div>)}
+            {!status?.host.coverage?.length ? <div><span><strong>Coverage unavailable</strong><small>Run a full scan to establish the first versioned coverage record.</small></span><StatusPill status="unknown" /></div> : null}
+          </div>
+          {status?.host.coverageLimitations?.length ? <details className="sentinelDetails"><summary>Unsupported, unavailable, or historical-only evidence</summary><ul className="sentinelCoverageLimitations">{status.host.coverageLimitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></details> : null}
         </section>
 
         <section className="sentinelAdvancedSection" data-testid="advanced-maintenance-updates">

@@ -3040,6 +3040,10 @@ pre {
   color: var(--text);
 }
 
+.sentinelShell > * {
+  flex: 0 0 auto;
+}
+
 .sentinelHero {
   display: grid;
   grid-template-columns: minmax(250px, 0.75fr) minmax(560px, 1.25fr);
@@ -4008,6 +4012,15 @@ pre {
   min-height: 58px;
 }
 
+.sentinelOperatorSummary > div strong {
+  overflow-wrap: anywhere;
+}
+
+.sentinelResolveAction {
+  border-color: rgba(255, 205, 92, 0.72);
+  background: linear-gradient(135deg, rgba(255, 205, 92, 0.2), rgba(104, 160, 255, 0.2));
+}
+
 .sentinelPrimaryActions {
   grid-column: 1 / -1;
 }
@@ -4195,6 +4208,68 @@ pre {
 
 .guardianActivityContext .btn {
   justify-self: start;
+}
+
+.guardianScanEvidence {
+  min-width: 0;
+}
+
+.guardianScanEvidence summary {
+  cursor: pointer;
+  color: var(--accentA);
+  font-size: var(--security-meta-size);
+  font-weight: 800;
+}
+
+.guardianScanEvidence pre {
+  max-height: 280px;
+  margin: 8px 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.guardianCoverageMini,
+.sentinelCoverageGrid {
+  display: grid;
+  gap: 6px;
+}
+
+.guardianCoverageMini > span,
+.sentinelCoverageGrid > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.guardianCoverageMini > span {
+  margin-top: 6px;
+  font-size: var(--security-meta-size);
+}
+
+.sentinelCoverageGrid {
+  max-height: 440px;
+}
+
+.sentinelCoverageGrid > div {
+  min-height: 58px;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.sentinelCoverageGrid > div > span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.sentinelCoverageGrid small,
+.sentinelCoverageLimitations {
+  color: var(--muted);
+  font-size: var(--security-meta-size);
 }
 
 .sentinelAdvancedSection {

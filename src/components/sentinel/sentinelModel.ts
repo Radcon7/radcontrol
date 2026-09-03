@@ -22,6 +22,28 @@ export type SentinelObservation = {
   observedAt: string;
 };
 
+export type SentinelHostFinding = {
+  key: string;
+  status: SentinelEvidenceStatus;
+  reason: string;
+};
+
+export type SentinelHostGuidance = {
+  primaryAction: "none" | "diagnose-fix" | "review-fix";
+  automaticRepairAvailable: boolean;
+  advisorRecommended: boolean;
+  knownRepair: string | null;
+  message: string;
+};
+
+export type SentinelScanCoverage = {
+  key: string;
+  label: string;
+  status: SentinelEvidenceStatus;
+  reason: string;
+  evidenceKeys: string[];
+};
+
 export type SentinelHostState = {
   guardian: "host";
   overallStatus: SentinelEvidenceStatus;
@@ -29,8 +51,20 @@ export type SentinelHostState = {
   metrics: Record<string, SentinelObservation>;
   baselineComparison?: Record<string, unknown>;
   rules?: Array<Record<string, unknown>>;
+  scanKind?: "full" | "targeted";
+  trigger?: "manual" | "automatic";
+  verdictReason?: string;
+  primaryFinding?: SentinelHostFinding;
+  guidance?: SentinelHostGuidance;
+  scanDurationMs?: number;
+  coverage?: SentinelScanCoverage[];
+  coverageLimitations?: string[];
+  findingSummary?: Record<string, number>;
+  normalizedSnapshot?: { version: number; metrics: Record<string, SentinelObservation> };
   reason?: string;
   freshness?: string;
+  freshnessReason?: string;
+  fullScanScheduleStatus?: string;
   ageSeconds?: number;
 };
 
@@ -96,8 +130,20 @@ export type SentinelHostObservation = SentinelEvent & {
     metricStatuses?: Record<string, SentinelEvidenceStatus>;
     keyMeasurements?: SentinelHostMeasurements;
     anomalies?: string[];
+    verdictReason?: string;
+    primaryFinding?: SentinelHostFinding;
+    guidance?: SentinelHostGuidance;
+    scanKind?: "full" | "targeted";
+    scanDurationMs?: number;
+    findingSummary?: Record<string, number>;
+    coverage?: SentinelScanCoverage[];
+    coverageLimitations?: string[];
+    snapshot?: { version: number; metrics: Record<string, SentinelObservation> };
+    knownRepairAvailable?: boolean;
+    actionProposed?: string | null;
     actionOccurred?: boolean;
     repairOccurred?: boolean;
+    postRepairVerificationPassed?: boolean;
     relatedActions?: string[];
   };
 };
@@ -172,6 +218,9 @@ export type SentinelAutomation = {
   lastAttemptAt: string | null;
   lastResult: string;
   nextDueAt: string | null;
+  graceDueAt?: string | null;
+  graceSeconds?: number;
+  scheduleStatus: "off" | "current" | "due" | "overdue" | "failed";
   overdue: boolean;
   systemd: { available: boolean; enabled: boolean; detail: string };
 };
@@ -200,6 +249,14 @@ export type SentinelStatus = {
   providerMutation: string;
   scheduler: string;
   automation: SentinelAutomation;
+  knownIncidentState?: {
+    active: boolean;
+    lastDetectedAt: string | null;
+    lastRemediationAt: string | null;
+    lastOutcome: string | null;
+    resolvedAt: string | null;
+    lastIncidentId: string | null;
+  };
   memoryAuthority: string;
   error?: string;
 };
