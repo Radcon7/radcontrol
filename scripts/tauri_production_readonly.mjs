@@ -14,6 +14,7 @@ import {
   assertPortAbsent,
   assertProcessNotRunning,
   createBubblewrapApplication,
+  installNativeAcceptanceSignalCleanup,
   sha256File,
   snapshotInstalledO2,
   tcpListeners,
@@ -37,6 +38,35 @@ assert.match(expectedArtifactSha, /^[a-f0-9]{64}$/, "--expected-artifact-sha mus
 function assertNativeDriver() {
   const result = spawnSync("WebKitWebDriver", ["--help"], { stdio: "ignore" });
   if (result.error || result.status !== 0) throw new Error("WebKitWebDriver is required for native acceptance");
+}
+
+function installedOperatorRoster() {
+  const environment = { ...process.env };
+  delete environment.O2_ROOT;
+  delete environment.O2_ROOT_OVERRIDE;
+  const result = spawnSync(
+    "bash",
+    [path.join(INSTALLED_O2_ROOT, "scripts/run_o2.sh"), "list_projects"],
+    { encoding: "utf8", env: environment },
+  );
+  if (result.error || result.status !== 0) {
+    throw new Error(
+      `installed O2 project roster is unavailable: ${(result.stderr || result.error?.message || "unknown failure").trim()}`,
+    );
+  }
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.ok, true, "installed O2 project roster must report success");
+  assert.ok(Array.isArray(payload.projects), "installed O2 project roster must contain projects");
+  const projects = payload.projects.filter(
+    (project) => project.archetype !== "governance" && project.archetype !== "local-control-plane",
+  );
+  assert.ok(projects.length > 0, "installed O2 operator project roster must not be empty");
+  assert.equal(
+    new Set(projects.map((project) => project.key)).size,
+    projects.length,
+    "installed O2 operator project keys must be unique",
+  );
+  return projects;
 }
 
 async function unusedPort() {
@@ -114,6 +144,20 @@ assertProcessNotRunning("radcontrol-app");
 const installedBefore = await snapshotInstalledO2();
 assert.equal(installedBefore.head, expectedO2Sha, "installed O2 identity does not match the accepted pair");
 assert.equal(await sha256File(app), expectedArtifactSha, "production artifact SHA-256 does not match");
+const clientContract = JSON.parse(
+  await readFile(new URL("../contracts/o2-radcontrol/v1/client.json", import.meta.url), "utf8"),
+);
+const requiredProjectKeys = clientContract.requiredOperatorProjectKeys;
+assert.ok(
+  Array.isArray(requiredProjectKeys) && requiredProjectKeys.length > 0,
+  "client contract must declare required operator project keys",
+);
+const installedProjects = installedOperatorRoster();
+assert.deepEqual(
+  installedProjects.map((project) => project.key).sort(),
+  [...requiredProjectKeys].sort(),
+  "installed O2 operator project roster does not match the independent RadControl client contract",
+);
 const listenersBefore = tcpListeners();
 assertPortAbsent(listenersBefore, 1420);
 
@@ -157,6 +201,15 @@ const driver = spawn("tauri-driver", ["--port", String(driverPort), "--native-po
 });
 let sessionId;
 let acceptanceError;
+const cleanup = installNativeAcceptanceSignalCleanup(async () => {
+  if (sessionId) await request(base, `/session/${sessionId}`, "DELETE").catch(() => undefined);
+  await stopChild(driver);
+  await rm(tempRoot, { recursive: true, force: true });
+  await assertInstalledO2Unchanged(installedBefore);
+  const listenersAfter = tcpListeners();
+  assertPortAbsent(listenersAfter, 1420);
+  assertNoNewTcpListeners(listenersBefore, listenersAfter);
+});
 try {
   await eventually(() => request(base, "/status"), "start tauri-driver");
   const session = await request(base, "/session", "POST", {
@@ -170,10 +223,14 @@ try {
   const diagnostics = await eventually(async () => {
     const text = await bodyText(base, sessionId);
     assert.match(text, /READY\s*Listener-free production mode/);
+    assert.match(text, /LIVE PRODUCT READY/);
     assert.match(text, /production/);
     assert.ok(text.includes(expectedO2Sha), "production diagnostics did not render the expected O2 identity");
     assert.ok(text.includes(expectedRadcontrolSha), "production diagnostics did not render the expected RadControl identity");
-    assert.match(text, /Projects · 12 visible/);
+    assert.ok(text.includes(`Projects · ${installedProjects.length} visible`));
+    for (const project of installedProjects) {
+      assert.ok(text.includes(project.label), `production diagnostics omitted ${project.label}`);
+    }
     assert.match(text, /Empire To-Do · 34 durable items/);
     assert.match(text, /Infrastructure · 10 governed profiles/);
     assert.match(text, /Security \/ Radcon Sentinel/);
@@ -480,12 +537,6 @@ try {
 } catch (error) {
   acceptanceError = error;
 } finally {
-  if (sessionId) await request(base, `/session/${sessionId}`, "DELETE").catch(() => undefined);
-  await stopChild(driver);
-  await rm(tempRoot, { recursive: true, force: true });
-  await assertInstalledO2Unchanged(installedBefore);
-  const listenersAfter = tcpListeners();
-  assertPortAbsent(listenersAfter, 1420);
-  assertNoNewTcpListeners(listenersBefore, listenersAfter);
+  await cleanup();
 }
 if (acceptanceError) throw acceptanceError;

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -141,4 +142,32 @@ test("accepts a canonical fixture and confines persistence to it", async (t) => 
   await writeFile(fixtureTodo, `${JSON.stringify(payload)}\n`);
   assert.match(await readFile(fixtureTodo, "utf8"), /isolated persistence probe/);
   await assertInstalledO2Unchanged(installedBefore);
+});
+
+test("runs acceptance cleanup before exiting on interruption", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "radcontrol-native-signal-test-"));
+  const marker = path.join(directory, "cleanup-complete");
+  const library = new URL("../scripts/native_acceptance_lib.mjs", import.meta.url).href;
+  const source = `
+    import { writeFile } from "node:fs/promises";
+    import { installNativeAcceptanceSignalCleanup } from ${JSON.stringify(library)};
+    installNativeAcceptanceSignalCleanup(() => writeFile(${JSON.stringify(marker)}, "complete\\n"));
+    process.stdout.write("ready\\n");
+    setInterval(() => {}, 1000);
+  `;
+  const child = spawn(process.execPath, ["--input-type=module", "--eval", source], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  t.after(async () => {
+    if (child.exitCode === null) child.kill("SIGKILL");
+    await rm(directory, { recursive: true, force: true });
+  });
+  const [ready] = await once(child.stdout, "data");
+  assert.match(String(ready), /ready/);
+  const exited = once(child, "exit");
+  child.kill("SIGTERM");
+  const [code, signal] = await exited;
+  assert.equal(signal, null);
+  assert.equal(code, 143);
+  assert.equal(await readFile(marker, "utf8"), "complete\n");
 });

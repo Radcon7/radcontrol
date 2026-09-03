@@ -13,6 +13,7 @@ import {
   assertPortAbsent,
   assertWritableFixtureIsolation,
   createBubblewrapApplication,
+  installNativeAcceptanceSignalCleanup,
   snapshotInstalledO2,
   tcpListeners,
 } from "./native_acceptance_lib.mjs";
@@ -388,6 +389,15 @@ const driver = spawn("tauri-driver", ["--port", String(driverPort), "--native-po
   },
 });
 let sessionId;
+const cleanup = installNativeAcceptanceSignalCleanup(async () => {
+  if (sessionId) await request(base, `/session/${sessionId}`, "DELETE").catch(() => {});
+  await stopChild(driver);
+  await rm(fixture.tempRoot, { recursive: true, force: true });
+  await assertInstalledO2Unchanged(installedBefore);
+  const listenersAfter = tcpListeners();
+  assertPortAbsent(listenersAfter, 1420);
+  assertNoNewTcpListeners(listenersBefore, listenersAfter);
+});
 try {
   console.error("[e2e] waiting for isolated desktop session");
   await eventually(() => request(base, "/status"), "start tauri-driver");
@@ -912,11 +922,5 @@ try {
   console.error(`[e2e] projects registry at failure:\n${registryAtFailure.slice(0, 8_000)}`);
   throw error;
 } finally {
-  if (sessionId) await request(base, `/session/${sessionId}`, "DELETE").catch(() => {});
-  await stopChild(driver);
-  await rm(fixture.tempRoot, { recursive: true, force: true });
-  await assertInstalledO2Unchanged(installedBefore);
-  const listenersAfter = tcpListeners();
-  assertPortAbsent(listenersAfter, 1420);
-  assertNoNewTcpListeners(listenersBefore, listenersAfter);
+  await cleanup();
 }

@@ -3,6 +3,20 @@
   "clientProtocolVersion": 1,
   "minimumO2ProtocolVersion": 1,
   "maximumO2ProtocolVersion": 1,
+  "requiredOperatorProjectKeys": [
+    "dqotd",
+    "dqotd-backend",
+    "tbis",
+    "tbis-backend",
+    "offroad",
+    "offroad-backend",
+    "radstock",
+    "radcrm",
+    "radconenterprises",
+    "radfamily",
+    "radwolfe",
+    "radcalendar"
+  ],
   "requiredCapabilities": [
     "agent_profile.create",
     "empire.map",
