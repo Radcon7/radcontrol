@@ -173,7 +173,7 @@ try {
     assert.match(text, /production/);
     assert.ok(text.includes(expectedO2Sha), "production diagnostics did not render the expected O2 identity");
     assert.ok(text.includes(expectedRadcontrolSha), "production diagnostics did not render the expected RadControl identity");
-    assert.match(text, /Projects · 9 visible/);
+    assert.match(text, /Projects · 12 visible/);
     assert.match(text, /Empire To-Do · 34 durable items/);
     assert.match(text, /Infrastructure · 10 governed profiles/);
     assert.match(text, /Security \/ Radcon Sentinel/);
