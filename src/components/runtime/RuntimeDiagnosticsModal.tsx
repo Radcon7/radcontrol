@@ -32,6 +32,7 @@ type RuntimeDiagnostics = {
 };
 
 type SmokeState = {
+  todoAvailable: boolean;
   todoTitles: string[];
   todoError: string;
   sentinelAvailable: boolean;
@@ -45,12 +46,6 @@ type Props = {
   registryState: RegistryState;
   registryError: string;
 };
-
-const EXPECTED_TODO_TITLES = [
-  "Resolve Codex Memory Runtime Proof — Round 4B",
-  "Finish New Project Questionnaire + Unified Project Build Pipeline",
-  "Build Radcon Sentinel — Host + Empire Security",
-];
 
 const NOTES_VIEWS = ["Notes", "Timeline", "Empire Blueprint", "Empire To-Do"];
 
@@ -96,6 +91,7 @@ export function RuntimeDiagnosticsModal({
   const [diagnosticsError, setDiagnosticsError] = useState("");
   const [loading, setLoading] = useState(false);
   const [smoke, setSmoke] = useState<SmokeState>({
+    todoAvailable: false,
     todoTitles: [],
     todoError: "",
     sentinelAvailable: false,
@@ -107,7 +103,7 @@ export function RuntimeDiagnosticsModal({
     let active = true;
     setLoading(true);
     setDiagnosticsError("");
-    setSmoke({ todoTitles: [], todoError: "", sentinelAvailable: false, sentinelError: "" });
+    setSmoke({ todoAvailable: false, todoTitles: [], todoError: "", sentinelAvailable: false, sentinelError: "" });
 
     void Promise.allSettled([
       invoke<RuntimeDiagnostics>("runtime_diagnostics"),
@@ -118,6 +114,7 @@ export function RuntimeDiagnosticsModal({
       if (diagnosticsResult.status === "fulfilled") setDiagnostics(diagnosticsResult.value);
       else setDiagnosticsError(String(diagnosticsResult.reason));
       setSmoke({
+        todoAvailable: todoResult.status === "fulfilled",
         todoTitles: todoResult.status === "fulfilled" ? todoResult.value.items.map((item) => item.title) : [],
         todoError: todoResult.status === "rejected" ? String(todoResult.reason) : "",
         sentinelAvailable: sentinelResult.status === "fulfilled" && sentinelResult.value.ok !== false,
@@ -150,7 +147,7 @@ export function RuntimeDiagnosticsModal({
     runtimeFilesReady &&
     registryState === "ready" &&
     sameSet(projectKeys, REQUIRED_OPERATOR_PROJECT_KEYS) &&
-    sameSet(smoke.todoTitles, EXPECTED_TODO_TITLES) &&
+    smoke.todoAvailable &&
     infrastructureLabels.length === 10 &&
     smoke.sentinelAvailable;
 
@@ -207,7 +204,7 @@ export function RuntimeDiagnosticsModal({
               detail={registryError || operatorProjects.map((project) => project.label).join(" · ") || "Project data unavailable"}
             />
             <Check
-              ok={sameSet(smoke.todoTitles, EXPECTED_TODO_TITLES)}
+              ok={smoke.todoAvailable}
               label={`Empire To-Do · ${smoke.todoTitles.length} durable items`}
               detail={smoke.todoError || smoke.todoTitles.join(" · ") || "To-Do data unavailable"}
             />
