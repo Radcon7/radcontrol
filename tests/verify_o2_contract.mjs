@@ -49,4 +49,6 @@ assert.ok(transport.includes('invokeO2Unchecked("contract_info")'));
 assert.ok(transport.includes("await ensureO2Compatibility()"));
 assert.match(diagnostics, /REQUIRED_OPERATOR_PROJECT_KEYS/);
 assert.doesNotMatch(diagnostics, /EXPECTED_PROJECT_KEYS/);
+assert.match(diagnostics, /todoAvailable: todoResult\.status === "fulfilled"/);
+assert.doesNotMatch(diagnostics, /EXPECTED_TODO_TITLES/);
 console.log("O2 compatibility contract: version and capabilities fail closed");
