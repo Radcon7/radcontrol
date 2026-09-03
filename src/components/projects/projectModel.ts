@@ -24,9 +24,10 @@ export type ProjectDetail = {
 
 function projectStatusRank(statusText: string): number {
   const status = statusText.toUpperCase();
-  if (status === "RUNNING") return 0;
-  if (status === "STOPPED") return 1;
-  return 2;
+  if (status === "READY" || status === "RUNNING") return 0;
+  if (status === "DEGRADED") return 1;
+  if (status === "STOPPED") return 2;
+  return 3;
 }
 
 function lifecycleRank(project: ProjectRow): number {
@@ -116,7 +117,7 @@ export function buildProjectDetail(
     snapshotDisabled: busy || isForming || !project.o2SnapshotKey,
     mapDisabled: busy || isForming || !project.o2MapKey,
     proofPackDisabled: busy || isForming || !project.o2ProofPackKey,
-    lifecycleToggleDisabled: busy || isForming,
+    lifecycleToggleDisabled: busy || isForming || Boolean(project.logicalSurface),
     stopDisabled:
       busy || portsBusy || isForming || typeof port !== "number" || !isListening,
   };

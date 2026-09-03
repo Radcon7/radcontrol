@@ -47,7 +47,7 @@ export function ProjectBrief({
             <button
               className="btn btnPrimary btnCompact"
               onClick={onEditLaunchDate}
-              disabled={busy}
+              disabled={busy || Boolean(project.logicalSurface)}
             >
               Edit Date
             </button>

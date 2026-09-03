@@ -2,6 +2,9 @@ export type ProjectKey = string;
 
 export type ProjectRow = {
   key: ProjectKey;
+  /** Owning registry project for a logical launch surface. */
+  sourceProjectKey?: ProjectKey;
+  logicalSurface?: boolean;
   label: string;
   state?: string;
   startDate?: string;
@@ -29,6 +32,7 @@ export type ProjectRow = {
   /** Preferred final browser route for a local runtime. */
   launchUrl?: string;
   launchHostKey?: string;
+  runtimeReadyPath?: string;
   preferredPort?: number;
   preferredUrl?: string;
   runtimePort?: number;
