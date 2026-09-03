@@ -328,9 +328,18 @@ export default function App() {
 
     const port = p.runtimePort ?? p.port;
     const s = ports[port];
-    if (!s) return { pill: "pillOff", text: "STOPPED" };
+    const serviceListening = Boolean(s?.listening);
 
-    return s.listening
+    if (p.launchHostKey) {
+      const host = projectsRef.current.find((project) => project.key === p.launchHostKey);
+      const hostPort = host?.runtimePort ?? host?.port;
+      const hostListening = typeof hostPort === "number" && Boolean(ports[hostPort]?.listening);
+      if (serviceListening && hostListening) return { pill: "pillOn", text: "READY" };
+      if (serviceListening || hostListening) return { pill: "pillWarn", text: "DEGRADED" };
+      return { pill: "pillOff", text: "STOPPED" };
+    }
+
+    return serviceListening
       ? { pill: "pillOn", text: "RUNNING" }
       : { pill: "pillOff", text: "STOPPED" };
   }
@@ -462,7 +471,10 @@ export default function App() {
         ? latest.url
         : null;
 
-    const finalUrl = urlFromOut ?? fallbackUrl;
+    // Operator destinations are explicit semantic launch targets. O2 output
+    // also contains the child service URL, which must not steal focus from an
+    // embedded Radcon Enterprises launch.
+    const finalUrl = fallbackUrl ?? urlFromOut;
     if (!finalUrl) return;
 
     if (startRecheckTimerRef.current !== null) {
@@ -476,7 +488,7 @@ export default function App() {
   }
 
   async function stopProjectRuntime(project: ProjectRow) {
-    await runO2Action(`Stop ${project.label}`, `${project.key}.stop`);
+    await runO2Action(`Stop ${project.label}`, `${project.sourceProjectKey ?? project.key}.stop`);
     await loadRegistry();
   }
 

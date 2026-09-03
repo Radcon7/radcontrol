@@ -165,6 +165,8 @@ export function registryToProjects(reg: unknown): ProjectRow[] {
 
     return {
       key,
+      sourceProjectKey: optionalStringField(r, "sourceProjectKey", index),
+      logicalSurface: optionalBooleanField(r, "logicalSurface", index),
       label,
       state: optionalStringField(r, "state", index),
       startDate: optionalStringField(r, "startDate", index),
@@ -185,6 +187,7 @@ export function registryToProjects(reg: unknown): ProjectRow[] {
       websiteUrl: optionalStringField(r, "websiteUrl", index),
       launchUrl: optionalStringField(r, "launchUrl", index),
       launchHostKey: optionalStringField(r, "launchHostKey", index),
+      runtimeReadyPath: optionalStringField(r, "runtimeReadyPath", index),
       preferredPort: optionalPortField(r, "preferredPort", index),
       preferredUrl: optionalStringField(r, "preferredUrl", index),
       runtimePort: optionalPortField(r, "runtimePort", index),
