@@ -84,6 +84,11 @@ for (const resultField of ["PRIMARY FINDING", "SUPPORTING EVIDENCE", "NEXT STEP"
 assert.match(component, /sentinelFullScanAction/);
 assert.doesNotMatch(component, /"Review \/ Fix"/);
 assert.doesNotMatch(component, /high-CPU process, stale test browser, or zombie process/);
+assert.match(component, /function exactProcessEvidence/);
+assert.match(component, /PID \$\{row\.pid \?\? "unknown"\}/);
+assert.match(component, /parent evidence:/);
+assert.match(component, /exactAvailableReason\(row\.reason, status\?\.host\.metrics\)/);
+assert.match(component, /anomalies\.map\(\(value\) => exactAvailableReason\(value, metrics\)\)/);
 assert.match(component, /knownIncidentState\?\.active\) return "ATTENTION"/);
 assert.match(component, /exact sustained Pop updater incident signature is active/);
 assert.match(component, /Last full scan \{formatDateTime\(status\?\.host\.checkedAt\)\}/);

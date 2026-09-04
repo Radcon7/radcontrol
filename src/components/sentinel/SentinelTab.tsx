@@ -69,6 +69,8 @@ type DiagnosisResult = {
 };
 type ThermalRow = { key?: string; label?: string; temperatureC?: number; criticalC?: number | null; source?: string; path?: string; primary?: boolean; thresholdEligible?: boolean };
 type ProcessRow = { pid?: number; ppid?: number; ageSeconds?: number; cpuPercent?: number; averageCpuPercent?: number; memoryPercent?: number; rssMiB?: number; process?: string; projectKey?: string };
+type ZombieParentRow = { pid?: number; process?: string; projectKey?: string; count?: number };
+type ProjectRuntimeEvidence = { staleTestBrowsers?: ProcessRow[]; zombies?: { count?: number; parents?: ZombieParentRow[] } };
 type ListenerRow = { address?: string; port?: number; exposedBeyondLoopback?: boolean; pids?: number[]; owner?: string; projectKey?: string; expectedGovernedDevelopment?: boolean };
 type ContainerRow = { name?: string; image?: string; state?: string; statusText?: string; supabase?: boolean };
 
@@ -129,6 +131,43 @@ function compactHostEvidence(metrics: Record<string, unknown> | undefined): stri
     top ? `${top.process || "Top process"} ${top.cpuPercent ?? "?"}% CPU` : "Process evidence unavailable",
     services.length ? `${services.length} failed service${services.length === 1 ? "" : "s"}` : "Services OK",
   ].join(" · ");
+}
+
+const LEGACY_GENERIC_PROCESS_REASON = "high-CPU process, stale test browser, or " + "zombie process";
+
+function compactDuration(ageSeconds: number): string {
+  if (ageSeconds >= 3600) return `${Math.floor(ageSeconds / 3600)}h ${Math.floor((ageSeconds % 3600) / 60)}m`;
+  if (ageSeconds >= 60) return `${Math.floor(ageSeconds / 60)}m`;
+  return `${ageSeconds}s`;
+}
+
+function exactProcessEvidence(metrics: Record<string, SentinelObservation> | undefined): string | null {
+  if (!metrics) return null;
+  const processes = observationValue<ProcessRow[]>(metrics.processes, []);
+  const runtimes = observationValue<ProjectRuntimeEvidence>(metrics.projectRuntimes, {});
+  const evidence = processes
+    .filter((row) => typeof row.cpuPercent === "number" && row.cpuPercent >= 90)
+    .slice(0, 4)
+    .map((row) => `${row.process || "Process"} · PID ${row.pid ?? "unknown"} · ${row.cpuPercent}% current CPU`);
+  evidence.push(...(runtimes.staleTestBrowsers || []).slice(0, 4).map((row) => {
+    const project = row.projectKey ? row.projectKey.toUpperCase() : "Governed";
+    return `${project} test browser · PID ${row.pid ?? "unknown"} · running ${compactDuration(row.ageSeconds || 0)}`;
+  }));
+  const zombieCount = Number(runtimes.zombies?.count || 0);
+  if (zombieCount > 0) {
+    const parents = (runtimes.zombies?.parents || []).slice(0, 4).map((row) => {
+      const project = row.projectKey ? ` · project ${row.projectKey}` : "";
+      return `${row.process || "parent"} PID ${row.pid ?? "unknown"}${project}`;
+    });
+    evidence.push(`${zombieCount} zombie process${zombieCount === 1 ? "" : "es"} detected${parents.length ? ` · parent evidence: ${parents.join(", ")}` : " · parent evidence unavailable"}`);
+  }
+  return evidence.length ? evidence.join("; ") : null;
+}
+
+function exactAvailableReason(reason: string | null | undefined, metrics: Record<string, SentinelObservation> | undefined): string {
+  const value = reason || "";
+  if (!value.includes(LEGACY_GENERIC_PROCESS_REASON)) return value;
+  return exactProcessEvidence(metrics) || "Legacy process attention · exact finding summary was not retained; inspect the retained normalized snapshot for available process evidence.";
 }
 
 function exactFindingText(finding: SentinelHostFinding | undefined): string {
@@ -231,17 +270,17 @@ function primaryAttentionReason(status: SentinelStatus | null, currentHost: Sent
   const priority = ["thermal", "knownIncident", "resourcePressure", "thermalThrottle", "fans", "cpu", "load", "memory", "filesystem", "processes", "listeners", "services", "docker"];
   for (const key of priority) {
     const metric = currentHost?.metrics[key];
-    if (metric && ["critical", "elevated", "attention"].includes(metric.status)) return metric.reason;
+    if (metric && ["critical", "elevated", "attention"].includes(metric.status)) return exactAvailableReason(metric.reason, currentHost?.metrics);
   }
   if (status?.knownIncidentState?.active) return "The exact sustained Pop updater incident signature is active; Review & Fix opens the governed Safe Cleanup path.";
-  return status?.host.primaryFinding?.reason || status?.host.verdictReason || status?.host.freshnessReason || "A fresh deterministic full scan is needed.";
+  return exactAvailableReason(status?.host.primaryFinding?.reason || status?.host.verdictReason, status?.host.metrics) || status?.host.freshnessReason || "A fresh deterministic full scan is needed.";
 }
 
 function operatorHealthMessage(state: OperatorHealthState, status: SentinelStatus | null, currentHost: SentinelHostState | null): string {
   if (state === "HEALTHY") return "Your current foreground measurements are healthy; no current host issue needs action.";
   if (state === "ATTENTION" || state === "PROBLEM") return primaryAttentionReason(status, currentHost);
   return status?.host.freshness === "current"
-    ? status.host.verdictReason || "The latest full scan is current, but required evidence is incomplete."
+    ? exactAvailableReason(status.host.verdictReason, status.host.metrics) || "The latest full scan is current, but required evidence is incomplete."
     : status?.host.freshnessReason || "Host Guardian needs a fresh full scan before it can answer confidently.";
 }
 
@@ -271,8 +310,9 @@ function observationExplanation(observation: SentinelHostObservation, status: Se
   const finding = observation.observedValues?.findings?.[0] || observation.observedValues?.primaryFinding;
   if (finding) return exactFindingText(finding);
   const anomalies = observation.observedValues?.anomalies || [];
-  if (anomalies.length) return anomalies.join(" · ");
-  if (observation.observedValues?.verdictReason) return observation.observedValues.verdictReason;
+  const metrics = observation.observedValues?.snapshot?.metrics;
+  if (anomalies.length) return anomalies.map((value) => exactAvailableReason(value, metrics)).join(" · ");
+  if (observation.observedValues?.verdictReason) return exactAvailableReason(observation.observedValues.verdictReason, metrics);
   if (status === "attention") return "Attention was recorded; detailed reason was not retained.";
   if (status === "unknown") return "Result was unknown; detailed reason was not retained.";
   return null;
@@ -700,7 +740,7 @@ export function SentinelTab() {
           <div className="sentinelSubCardHeading"><div><span>SCAN COVERAGE</span><strong>Exactly what the last full scan watched—and what remained limited</strong></div><small>{status?.host.scanDurationMs ? `${(status.host.scanDurationMs / 1000).toFixed(1)}s last run` : "No retained duration"}</small></div>
           <p className="sentinelSubtle">Twice-daily full scans cover current workstation evidence. The 15-minute timer wake does not repeat this scan; it checks due state and the one exact Pop updater incident signature only.</p>
           <div className="sentinelCoverageGrid securityInsetScroll">
-            {(status?.host.coverage || []).map((row) => <div key={row.key}><span><strong>{row.label}</strong><small>{row.reason}</small></span><StatusPill status={row.status} /></div>)}
+            {(status?.host.coverage || []).map((row) => <div key={row.key}><span><strong>{row.label}</strong><small>{exactAvailableReason(row.reason, status?.host.metrics)}</small></span><StatusPill status={row.status} /></div>)}
             {!status?.host.coverage?.length ? <div><span><strong>Coverage unavailable</strong><small>Run a full scan to establish the first versioned coverage record.</small></span><StatusPill status="unknown" /></div> : null}
           </div>
           {status?.host.coverageLimitations?.length ? <details className="sentinelDetails"><summary>Unsupported, unavailable, or historical-only evidence</summary><ul className="sentinelCoverageLimitations">{status.host.coverageLimitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></details> : null}
