@@ -381,7 +381,7 @@ try {
     assert.ok(text.includes("Additional depth and provenance—not a second copy of Current Measurements."), "Advanced evidence boundary is missing");
     assert.ok(!text.includes("QUICK ANSWERS"), "The retired standalone Quick Answers section is still rendered");
     assert.ok(!text.includes("DIAGNOSTICS"), "The retired standalone Diagnostics section is still rendered");
-    for (const heading of ["SYSTEM EVIDENCE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(text.includes(heading), `Advanced area ${heading} is missing`);
+    for (const heading of ["SYSTEM EVIDENCE", "SCAN COVERAGE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(text.includes(heading), `Advanced area ${heading} is missing`);
     return text;
   }, "render the installed Radcon Sentinel control room");
   assert.equal((sentinelText.match(/CURRENT MEASUREMENTS/g) || []).length, 1, "Current Measurements must have one primary home");
@@ -392,8 +392,7 @@ try {
       const measurementList = document.querySelector('.sentinelMeasurementList');
       const measurementPanel = document.querySelector('[data-testid="sentinel-health-measurements"]');
       const small = document.querySelector('.securityControlRoom .sentinelShell small');
-      const investigateButtons = document.querySelectorAll('[data-testid="guardian-investigate-fix"]');
-      const anomalyRows = document.querySelectorAll('.guardianActivityRow-attention, .guardianActivityRow-elevated, .guardianActivityRow-critical');
+      const normalRowInvestigateButtons = document.querySelectorAll('.guardianActivityRow-healthy [data-testid="guardian-investigate-fix"]');
       const shell = document.querySelector('.securityControlRoom .sentinelShell');
       const importantReading = document.querySelector('.securityControlRoom .sentinelMeasurementRow > strong');
       const measurementStyle = measurementList ? getComputedStyle(measurementList) : null;
@@ -419,8 +418,7 @@ try {
         advancedUmbrellaCount: document.querySelectorAll('details.sentinelAdvancedWorkspace').length,
         advancedAreaCount: document.querySelectorAll('[data-testid^="advanced-"]').length,
         fanActionCount: document.querySelectorAll('[data-testid="sentinel-fans-loud"]').length,
-        investigateButtonCount: investigateButtons.length,
-        anomalyRowCount: anomalyRows.length,
+        normalRowInvestigateButtonCount: normalRowInvestigateButtons.length,
       };
     `,
     args: [],
@@ -437,12 +435,12 @@ try {
   assert.equal(sentinelPresentation.automationSelectCount, 1, "Automatic Guardian must have one frequency selector");
   assert.equal(sentinelPresentation.automationToggleCount, 1, "Automatic Guardian must have one enable control");
   assert.equal(sentinelPresentation.advancedUmbrellaCount, 0, "Advanced System Information must not be hidden by an umbrella disclosure");
-  assert.equal(sentinelPresentation.advancedAreaCount, 5, "Advanced System Information must retain exactly five distinct areas");
+  assert.equal(sentinelPresentation.advancedAreaCount, 6, "Advanced System Information must retain exactly six distinct areas");
   assert.equal(sentinelPresentation.fanActionCount, 1, "the loud-fan action must have one primary control");
   assert.ok(sentinelPresentation.normalFontSize >= 15, "Security operator text must remain 15px or larger");
   assert.ok(sentinelPresentation.smallFontSize >= 14, "Security supporting typography must remain 14px or larger");
   assert.ok(sentinelPresentation.importantReadingFontSize >= 18, "Important measurements must remain visually prominent");
-  assert.ok(sentinelPresentation.investigateButtonCount <= sentinelPresentation.anomalyRowCount, "Investigate / Fix must not appear on normal rows");
+  assert.equal(sentinelPresentation.normalRowInvestigateButtonCount, 0, "Investigate / Fix must not appear on normal rows");
   const workstationRecords = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `return ['host-configuration-note', 'host-operator-notes'].map((testId) => {
       const field = document.querySelector('[data-testid="' + testId + '"]');
