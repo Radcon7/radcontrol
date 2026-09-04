@@ -123,6 +123,82 @@ async function bodyText(base, sessionId) {
   return request(base, `/session/${sessionId}/element/${id}/text`);
 }
 
+async function guardianActivityGeometry(base, sessionId) {
+  return request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `
+      const header = document.querySelector('.guardianActivityColumns');
+      const scroll = document.querySelector('.guardianActivityScroll');
+      const rows = [...document.querySelectorAll('[data-testid="guardian-activity-row"]')];
+      const rect = (node) => {
+        const value = node.getBoundingClientRect();
+        return { top: value.top, right: value.right, bottom: value.bottom, left: value.left, width: value.width, height: value.height };
+      };
+      const isVisible = (node) => {
+        const closedDetails = node.closest('details:not([open])');
+        if (closedDetails && !node.closest('summary')) return false;
+        const style = getComputedStyle(node);
+        const value = node.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && value.width > 0 && value.height > 0;
+      };
+      const rowGeometry = rows.map((row) => {
+        const bounds = rect(row);
+        const descendants = [...row.querySelectorAll('*')].filter(isVisible);
+        return {
+          bounds,
+          columnRects: [...row.children].map(rect),
+          directChildCount: row.children.length,
+          findingCount: row.querySelectorAll('.guardianFindingList > div').length,
+          buttonCount: row.querySelectorAll('button').length,
+          escapingDescendants: descendants.filter((node) => {
+            const child = node.getBoundingClientRect();
+            return child.top < bounds.top - 1 || child.bottom > bounds.bottom + 1;
+          }).map((node) => node.className || node.tagName),
+        };
+      });
+      const scrollBounds = scroll ? rect(scroll) : null;
+      const contentBottom = rowGeometry.length && scrollBounds
+        ? Math.max(...rowGeometry.map((row) => row.bounds.bottom)) - scrollBounds.top + scroll.scrollTop
+        : 0;
+      return {
+        viewportWidth: window.innerWidth,
+        headerDisplay: header ? getComputedStyle(header).display : null,
+        headerColumnCount: header ? header.children.length : 0,
+        headerColumnRects: header ? [...header.children].map(rect) : [],
+        rowCount: rowGeometry.length,
+        rows: rowGeometry,
+        rowCrossings: rowGeometry.slice(0, -1).map((row, index) => row.bounds.bottom - rowGeometry[index + 1].bounds.top),
+        scrollHeight: scroll?.scrollHeight || 0,
+        clientHeight: scroll?.clientHeight || 0,
+        contentBottom,
+        overflowY: scroll ? getComputedStyle(scroll).overflowY : null,
+      };
+    `,
+    args: [],
+  });
+}
+
+function assertGuardianActivityGeometry(layout, label, { desktop }) {
+  assert.ok(layout.rowCount >= 2, `${label}: multiple retained Guardian rows are required`);
+  assert.ok(layout.rows.some((row) => row.findingCount >= 2), `${label}: at least one multi-finding row is required`);
+  assert.ok(layout.rows.some((row) => row.buttonCount > 0), `${label}: a rendered finding action is required`);
+  assert.equal(layout.overflowY, "auto", `${label}: Guardian Activity must remain vertically scrollable`);
+  assert.ok(layout.scrollHeight >= layout.clientHeight, `${label}: the scroll container must retain its complete content height`);
+  assert.ok(layout.scrollHeight + 2 >= layout.contentBottom, `${label}: scrollHeight does not contain every activity row`);
+  assert.deepEqual(layout.rows.map((row) => row.directChildCount), Array(layout.rowCount).fill(5), `${label}: each row must contain five logical cells`);
+  assert.deepEqual(layout.rows.flatMap((row) => row.escapingDescendants), [], `${label}: a visible descendant escaped its owning row`);
+  assert.ok(layout.rowCrossings.every((crossing) => crossing <= 1), `${label}: adjacent Guardian Activity rows overlap`);
+  for (const row of layout.rows) assert.ok(row.bounds.height >= 62, `${label}: an activity row collapsed below its minimum height`);
+  if (desktop) {
+    assert.equal(layout.headerDisplay, "grid", `${label}: the five-column header must be visible`);
+    assert.equal(layout.headerColumnCount, 5, `${label}: the desktop header must contain five columns`);
+    for (const row of layout.rows) {
+      row.columnRects.forEach((column, index) => {
+        assert.ok(Math.abs(column.left - layout.headerColumnRects[index].left) <= 20, `${label}: row column ${index + 1} does not align with its header`);
+      });
+    }
+  }
+}
+
 async function readChainRecords(file) {
   const source = await readFile(file, "utf8");
   return source
@@ -412,6 +488,17 @@ try {
   if (/ATTENTION[\s\S]*[1-9]\d* unresolved finding/i.test(currentHealthPresentation.durableText)) {
     assert.ok(currentHealthPresentation.durableClass.includes("sentinelDurableReview"), "durable unresolved findings need a separate attention treatment");
     assert.match(currentHealthPresentation.durableText, /NEEDS REVIEW/, "durable unresolved findings need an explicit review state");
+  }
+  const desktopActivityGeometry = await guardianActivityGeometry(base, sessionId);
+  assertGuardianActivityGeometry(desktopActivityGeometry, "installed desktop Guardian Activity", { desktop: true });
+  if (process.env.RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH) {
+    const activityElement = await element(base, sessionId, '[data-testid="recent-guardian-activity"]');
+    await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+      script: "arguments[0].scrollIntoView({ block: 'center', inline: 'nearest' });",
+      args: [{ "element-6066-11e4-a52e-4f735466cecf": activityElement }],
+    });
+    const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`);
+    await writeFile(`${process.env.RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH}.sentinel-activity.png`, Buffer.from(encodedScreenshot, "base64"));
   }
   const processFindingPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `var visible = [];

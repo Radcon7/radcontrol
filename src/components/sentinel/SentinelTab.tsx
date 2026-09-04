@@ -711,11 +711,11 @@ export function SentinelTab() {
                   : "Review Finding";
             return (
               <article className={`guardianActivityRow guardianActivityRow-${rowStatus}`} key={observation.id} data-testid="guardian-activity-row">
-                <strong>{formatDateTime(observation.timestamp)}</strong>
-                <StatusPill status={rowStatus} />
-                <span>{observation.source === "systemd-user-timer" ? "Automatic" : "Operator"}</span>
-                <strong>{compactObservationMeasurements(observation)}</strong>
-                <div className="guardianActivityContext">
+                <div className="guardianActivityCell" data-activity-label="Time"><strong>{formatDateTime(observation.timestamp)}</strong></div>
+                <div className="guardianActivityCell" data-activity-label="State"><StatusPill status={rowStatus} /></div>
+                <div className="guardianActivityCell" data-activity-label="Source"><span>{observation.source === "systemd-user-timer" ? "Automatic" : "Operator"}</span></div>
+                <div className="guardianActivityCell" data-activity-label="Key measurements"><strong>{compactObservationMeasurements(observation)}</strong></div>
+                <div className="guardianActivityCell guardianActivityContext" data-activity-label="Action / context">
                   {findings.length ? <div className="guardianFindingList">{findings.map((finding, index) => <div key={finding.findingKey || `${observation.id}-${index}`}><strong>{exactAvailableFinding(finding, observation.observedValues?.snapshot?.metrics)}</strong><small>Current status: {resolutionLabel(finding)}</small></div>)}</div> : explanation ? <small>{explanation}</small> : <small>No action needed.</small>}
                   <small>{typeof observation.observedValues?.scanDurationMs === "number" ? `Full scan ${(observation.observedValues.scanDurationMs / 1000).toFixed(1)}s` : "Legacy duration not retained"} · {observation.observedValues?.scanKind || "legacy scan"}</small>
                   {observation.observedValues?.actionProposed ? <small>Proposed: {observation.observedValues.actionProposed}</small> : null}

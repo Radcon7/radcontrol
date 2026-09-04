@@ -321,6 +321,45 @@ async function bodyText(base, sessionId) {
   return elementText(base, sessionId, id);
 }
 
+async function guardianResponsiveGeometry(base, sessionId) {
+  return request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `
+      const header = document.querySelector('.guardianActivityColumns');
+      const row = document.querySelector('[data-testid="guardian-activity-row"]');
+      const bounds = row?.getBoundingClientRect();
+      const cells = row ? [...row.children].map((cell) => {
+        const value = cell.getBoundingClientRect();
+        return {
+          top: value.top,
+          right: value.right,
+          bottom: value.bottom,
+          left: value.left,
+          label: getComputedStyle(cell, '::before').content,
+        };
+      }) : [];
+      return {
+        viewportWidth: window.innerWidth,
+        headerDisplay: header ? getComputedStyle(header).display : null,
+        gridTemplateColumns: row ? getComputedStyle(row).gridTemplateColumns : null,
+        row: bounds ? { top: bounds.top, bottom: bounds.bottom, left: bounds.left, right: bounds.right } : null,
+        cells,
+      };
+    `,
+    args: [],
+  });
+}
+
+function assertResponsiveGuardianRow(layout, label) {
+  assert.ok(layout.row && layout.cells.length === 5, `${label}: one five-field Guardian row is required`);
+  assert.equal(layout.headerDisplay, "none", `${label}: the desktop header must yield to labelled stacked fields`);
+  assert.ok(layout.cells.every((cell) => cell.top >= layout.row.top - 1 && cell.bottom <= layout.row.bottom + 1), `${label}: a field escaped its row`);
+  assert.deepEqual(
+    layout.cells.map((cell) => cell.label.replaceAll('"', '')),
+    ["Time", "State", "Source", "Key measurements", "Action / context"],
+    `${label}: stacked field labels must remain explicit`,
+  );
+}
+
 async function stopChild(child) {
   if (!child || !child.pid) return;
   const stopGroup = (signal) => {
@@ -812,6 +851,28 @@ try {
   );
   assert.match(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /Operator|Automatic/);
   assert.doesNotMatch(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /No recorded anomaly/);
+
+  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1100, height: 900 });
+  const moderateActivity = await guardianResponsiveGeometry(base, sessionId);
+  assert.ok(moderateActivity.viewportWidth <= 1100, "E2E window must reach the moderate Guardian Activity breakpoint");
+  assertResponsiveGuardianRow(moderateActivity, "moderate Guardian Activity");
+  assert.ok(Math.abs(moderateActivity.cells[0].top - moderateActivity.cells[1].top) <= 2, "moderate Guardian Activity must pair Time and State");
+  for (let index = 2; index < moderateActivity.cells.length; index += 1) {
+    assert.ok(moderateActivity.cells[index].top >= moderateActivity.cells[index - 1].bottom - 1, "moderate Guardian Activity stacked fields overlap");
+  }
+
+  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 600, height: 900 });
+  const smallActivity = await guardianResponsiveGeometry(base, sessionId);
+  assert.ok(smallActivity.viewportWidth <= 760, "E2E window must reach the small Guardian Activity breakpoint");
+  assertResponsiveGuardianRow(smallActivity, "small Guardian Activity");
+  for (let index = 1; index < smallActivity.cells.length; index += 1) {
+    assert.ok(smallActivity.cells[index].top >= smallActivity.cells[index - 1].bottom - 1, "small Guardian Activity fields must form one non-overlapping column");
+  }
+  if (process.env.RADCONTROL_E2E_SCREENSHOT_PATH) {
+    const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`);
+    await writeFile(`${process.env.RADCONTROL_E2E_SCREENSHOT_PATH}.sentinel-narrow.png`, Buffer.from(encodedScreenshot, "base64"));
+  }
+  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
 
   await click(base, sessionId, '[data-testid="security-mode-security_guardian"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Security Guardian workspace"), /Online technology estate/i);
