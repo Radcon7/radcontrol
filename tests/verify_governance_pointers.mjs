@@ -48,7 +48,7 @@ assert.match(repoState, /Infrastructure: governed provider\/platform assets/);
 assert.match(repoState, /Agents: governed profiles/);
 assert.match(repoState, /Security: three first-class workspaces over O2-owned truth/);
 assert.match(repoState, /Current Measurements”, “Recent Guardian Activity”/);
-assert.match(repoState, /exactly five full-width areas/);
+assert.match(repoState, /six full-width areas:[\s\S]*Scan Coverage/);
 assert.match(repoState, /standalone Diagnostics and Quick Answers are intentionally/);
 assert.match(repoState, /Levels 1-5 remain visibly not activated/);
 assert.match(repoState, /system76-workstation[\s\S]*excluded from this roster/);

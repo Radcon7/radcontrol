@@ -16,14 +16,18 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   restored repository-router durability workspace backed by O2 `router.health`.
 - **Security**: one coherent three-workspace control room with readable
   operator typography and inset wide-row lists. Radcon Sentinel answers whether
-  this computer is okay, puts Current Measurements before durable Guardian
-  activity, and keeps the single loud-fan investigation plus any exact governed
-  Safe Cleanup action in the top operating box. Routine fan outcomes remain in
-  existing Sentinel history; the tracked workstation configuration and notes
-  remain visible as read-only canonical source references in the installed app.
-  Its five advanced areas preserve
-  distinct system evidence, maintenance, automation, workstation records, and
-  safety boundaries without duplicate Diagnostics or Quick Answers sections.
+  this computer is okay from current foreground evidence, names the top cause,
+  and separates Last Full Scan, Next Full Scan, and schedule state. Daily or
+  twice-daily full scans retain bounded expandable evidence; the 15-minute wake
+  performs only a due check and the exact known-incident probe between scans.
+  Diagnose & Fix starts deterministically and uses the read-only advisor only
+  for genuinely unknown results. The single loud-fan investigation plus any
+  exact governed Safe Cleanup action stays in the top operating box. Routine fan
+  outcomes remain in existing Sentinel history; the tracked workstation
+  configuration and notes remain visible as read-only canonical source
+  references in the installed app. Its six advanced areas preserve distinct
+  system evidence, scan coverage, maintenance, automation, workstation records,
+  and safety boundaries without duplicate Diagnostics or Quick Answers sections.
   Empire Operations presents O2/RadControl matched-pair, automation, audit, and
   topology truth alongside Map, Snapshot, and Sweep. Security Guardian presents
   websites, apps, providers, and connected coverage while labeling unwired
