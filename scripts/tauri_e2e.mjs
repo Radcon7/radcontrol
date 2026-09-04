@@ -791,14 +791,21 @@ try {
   await click(base, sessionId, '[data-testid="sentinel-health-check"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /Host health evidence refreshed/);
+    assert.match(text, /Full host scan evidence refreshed/);
     assert.match(text, /GPU TEMPERATURE/i);
     assert.match(text, /Foreground reading/);
     assert.match(text, /SYSTEM EVIDENCE/);
     assert.match(text, /AUTOMATION/);
   }, "run a real read-only Host Guardian check", 30_000);
   const durableStatus = await element(base, sessionId, '[data-testid="sentinel-status-header"]');
-  assert.match(await elementProperty(base, sessionId, durableStatus, "textContent"), /DURABLE FRESHNESS/);
+  assert.match(await elementProperty(base, sessionId, durableStatus, "textContent"), /CURRENT NOW[\s\S]*LAST FULL SCAN[\s\S]*unresolved finding/i);
+  await click(base, sessionId, '[data-testid="sentinel-diagnose-fix"]');
+  await eventually(async () => {
+    const text = await bodyText(base, sessionId);
+    assert.match(text, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/);
+    assert.match(text, /Scan:[\s\S]*Duration:[\s\S]*Repair ran: NO[\s\S]*PRIMARY FINDING[\s\S]*NEXT STEP/);
+    assert.match(text, /Diagnose[\s\S]*Run Full Scan/);
+  }, "retain a structured Sentinel diagnosis result", 45_000);
   const hostObservationRow = await eventually(
     () => element(base, sessionId, '[data-testid="guardian-activity-row"]'),
     "render the durable Host Guardian observation",

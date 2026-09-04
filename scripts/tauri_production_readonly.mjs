@@ -386,13 +386,70 @@ try {
   }, "render the installed Radcon Sentinel control room");
   assert.equal((sentinelText.match(/CURRENT MEASUREMENTS/g) || []).length, 1, "Current Measurements must have one primary home");
   assert.equal((sentinelText.match(/Fans are loud/g) || []).length, 1, "The primary loud-fan action must appear exactly once");
+  assert.match(sentinelText, /CURRENT NOW[\s\S]*(HEALTHY|ATTENTION|PROBLEM|UNKNOWN)[\s\S]*LAST FULL SCAN[\s\S]*unresolved finding/i, "current-now and durable full-scan truth must be independently legible");
+  assert.ok(!sentinelText.includes("high-CPU process, stale test browser, or zombie process"), "installed Sentinel must not collapse exact process evidence into a generic finding");
+  assert.ok(!sentinelText.includes("Review / Fix"), "installed Sentinel must not imply a repair on every finding");
+
+  const sentinelEventsPath = path.join(stateOverlay, "sentinel", "events.jsonl");
+  const sentinelActionsPath = path.join(stateOverlay, "sentinel", "audit.jsonl");
+  const eventsBeforeDiagnosis = await readChainRecords(sentinelEventsPath);
+  const actionsBeforeDiagnosis = await readChainRecords(sentinelActionsPath);
+  await click(base, sessionId, '[data-testid="sentinel-diagnose-fix"]');
+  const diagnosisResult = await eventually(async () => {
+    const result = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+      script: `const card = document.querySelector('[data-testid="sentinel-diagnosis-result"]'); return {
+        text: card?.textContent || '',
+        bodyText: document.body.innerText,
+        diagnoseCount: document.querySelectorAll('[data-testid="sentinel-diagnose-fix"]').length,
+        fullScanCount: document.querySelectorAll('[data-testid="sentinel-health-check"]').length,
+        foregroundStamp: document.querySelector('.sentinelHealthMeasurements .sentinelSectionHeading strong')?.textContent || '',
+        repairButtonCount: Array.from(document.querySelectorAll('button')).filter((button) => /^(Fix now|Authorize & fix)$/.test(button.textContent?.trim() || '')).length,
+      };`,
+      args: [],
+    });
+    assert.match(result.text, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/);
+    assert.match(result.text, /Scan:[\s\S]*Duration:[\s\S]*Repair ran: NO[\s\S]*PRIMARY FINDING[\s\S]*SUPPORTING EVIDENCE[\s\S]*NEXT STEP/);
+    return result;
+  }, "complete one installed Sentinel diagnosis", 60_000);
+  assert.equal(diagnosisResult.diagnoseCount, 1, "Diagnose must remain a distinct stable control after completion");
+  assert.equal(diagnosisResult.fullScanCount, 1, "Run Full Scan must remain a separate manual control after diagnosis");
+  const newDiagnosisEvents = (await readChainRecords(sentinelEventsPath)).slice(eventsBeforeDiagnosis.length);
+  const newDiagnosisActions = (await readChainRecords(sentinelActionsPath)).slice(actionsBeforeDiagnosis.length);
+  const deepEvents = newDiagnosisEvents.filter((record) => record.type === "host.deep-check");
+  const deepActions = newDiagnosisActions.filter((record) => record.requestedCapability === "host.inspect.deep");
+  assert.equal(deepEvents.length, 1, "Diagnose must run exactly one deterministic deep-check workflow");
+  assert.equal(deepActions.length, 1, "Diagnose must retain exactly one deep-check action record");
+  assert.equal(deepEvents[0].observedValues?.repairOccurred, false, "Diagnosis must not claim an automatic repair");
+  assert.ok(Array.isArray(deepEvents[0].observedValues?.findings), "deep-check event must retain projected findings");
+  for (const finding of deepEvents[0].observedValues.findings) {
+    assert.ok(finding.findingKey && finding.summary && Array.isArray(finding.evidence), "each installed finding must retain identity, exact summary, and evidence");
+    if (["high-current-cpu", "stale-test-browser", "zombie-process"].includes(finding.kind)) {
+      assert.ok(diagnosisResult.bodyText.includes(finding.summary), `operator UI omitted exact process finding: ${finding.summary}`);
+    }
+  }
+  const diagnosisHasRepair = deepEvents[0].observedValues.findings.some((finding) => Boolean(finding.repairCapability));
+  if (!diagnosisHasRepair) assert.equal(diagnosisResult.repairButtonCount, 0, "no repair control may appear without an exact governed repair");
+
+  await eventually(async () => {
+    const state = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+      script: `return {
+        result: document.querySelector('[data-testid="sentinel-diagnosis-result"]')?.textContent || '',
+        foregroundStamp: document.querySelector('.sentinelHealthMeasurements .sentinelSectionHeading strong')?.textContent || '',
+      };`,
+      args: [],
+    });
+    assert.notEqual(state.foregroundStamp, diagnosisResult.foregroundStamp, "foreground measurement timestamp has not refreshed yet");
+    assert.match(state.result, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/, "diagnosis result disappeared after foreground refresh");
+    return state;
+  }, "retain diagnosis across a later foreground refresh", 75_000);
+
   const sentinelPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `
       const activity = document.querySelector('.guardianActivityScroll');
       const measurementList = document.querySelector('.sentinelMeasurementList');
       const measurementPanel = document.querySelector('[data-testid="sentinel-health-measurements"]');
       const small = document.querySelector('.securityControlRoom .sentinelShell small');
-      const normalRowInvestigateButtons = document.querySelectorAll('.guardianActivityRow-healthy [data-testid="guardian-investigate-fix"]');
+      const normalRowInvestigateButtons = document.querySelectorAll('.guardianActivityRow-healthy [data-testid="guardian-review-finding"]');
       const shell = document.querySelector('.securityControlRoom .sentinelShell');
       const importantReading = document.querySelector('.securityControlRoom .sentinelMeasurementRow > strong');
       const measurementStyle = measurementList ? getComputedStyle(measurementList) : null;
@@ -457,8 +514,6 @@ try {
   assert.ok(workstationRecords.every((row) => row.valueLength > 0), "canonical workstation source records must remain visible");
   assert.ok(workstationRecords.every((row) => row.status.includes("Canonical source · read-only here")), "the installed workstation record boundary must be understandable");
 
-  const sentinelEventsPath = path.join(stateOverlay, "sentinel", "events.jsonl");
-  const sentinelActionsPath = path.join(stateOverlay, "sentinel", "audit.jsonl");
   const eventsBeforeFan = await readChainRecords(sentinelEventsPath);
   const actionsBeforeFan = await readChainRecords(sentinelActionsPath);
   await click(base, sessionId, '[data-testid="sentinel-fans-loud"]');
