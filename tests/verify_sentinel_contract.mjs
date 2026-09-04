@@ -74,6 +74,7 @@ assert.match(component, /data-testid="sentinel-current-now"/);
 assert.match(component, /CURRENT NOW/);
 assert.match(component, /data-testid="sentinel-last-full-scan"/);
 assert.match(component, /unresolved finding/);
+assert.match(css, /\.sentinelOperatorSummary small,\s*\.sentinelOperatorSummary strong\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;/s);
 assert.match(component, /FULL-SCAN FINDING/);
 assert.match(component, /data-testid="sentinel-diagnosis-result"/);
 assert.match(component, /DIAGNOSING/);
