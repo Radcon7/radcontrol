@@ -170,6 +170,14 @@ function exactAvailableReason(reason: string | null | undefined, metrics: Record
   return exactProcessEvidence(metrics) || "Legacy process attention · exact finding summary was not retained; inspect the retained normalized snapshot for available process evidence.";
 }
 
+function exactAvailableFinding(finding: SentinelHostFinding | undefined, metrics: Record<string, SentinelObservation> | undefined): string {
+  return exactAvailableReason(exactFindingText(finding), metrics);
+}
+
+function exactAvailableFindingEvidence(finding: SentinelHostFinding | undefined, metrics: Record<string, SentinelObservation> | undefined): string[] {
+  return findingEvidence(finding).map((value) => exactAvailableReason(value, metrics));
+}
+
 function exactFindingText(finding: SentinelHostFinding | undefined): string {
   return finding?.summary || finding?.reason || "No current host issue needs action.";
 }
@@ -433,16 +441,17 @@ export function SentinelTab() {
   async function diagnoseObservation(observation: SentinelHostObservation): Promise<void> {
     if (busyAction) return;
     const finding = observation.observedValues?.findings?.[0] || observation.observedValues?.primaryFinding;
+    const metrics = observation.observedValues?.snapshot?.metrics;
     setBusyAction(`diagnose:${observation.id}`); setError("");
-    setDiagnosis({ phase: "diagnosing", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: exactFindingText(finding), evidence: findingEvidence(finding), repairRan: false, nextStep: "The bounded read-only diagnostic advisor is reviewing this genuinely unknown result." });
+    setDiagnosis({ phase: "diagnosing", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: exactAvailableFinding(finding, metrics), evidence: exactAvailableFindingEvidence(finding, metrics), repairRan: false, nextStep: "The bounded read-only diagnostic advisor is reviewing this genuinely unknown result." });
     try {
       const result = await investigateHostObservation(observation.id);
-      setDiagnosis({ phase: "complete", outcome: "NEEDS YOUR HELP", observationId: result.observationId, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: result.diagnosis, evidence: findingEvidence(finding), repairRan: false, nextStep: result.nextStep });
+      setDiagnosis({ phase: "complete", outcome: "NEEDS YOUR HELP", observationId: result.observationId, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: exactAvailableReason(result.diagnosis, metrics), evidence: exactAvailableFindingEvidence(finding, metrics), repairRan: false, nextStep: result.nextStep });
       await refresh();
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
       setError(message);
-      setDiagnosis({ phase: "complete", outcome: "NEEDS YOUR HELP", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: "The governed diagnostic did not complete.", evidence: findingEvidence(finding), repairRan: false, nextStep: `${message} No repair ran.` });
+      setDiagnosis({ phase: "complete", outcome: "NEEDS YOUR HELP", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: "The governed diagnostic did not complete.", evidence: exactAvailableFindingEvidence(finding, metrics), repairRan: false, nextStep: `${message} No repair ran.` });
     } finally {
       setBusyAction(null);
     }
@@ -450,12 +459,13 @@ export function SentinelTab() {
 
   async function reviewObservation(observation: SentinelHostObservation): Promise<void> {
     const guidance = observation.observedValues?.guidance;
+    const metrics = observation.observedValues?.snapshot?.metrics;
     const unresolvedFindings = (observation.observedValues?.findings || []).filter((finding) => !finding.resolution || finding.resolution.state === "unresolved");
     const repairFinding = unresolvedFindings.find((finding) => Boolean(finding.repairCapability));
     if (guidance?.knownRepair || repairFinding) {
       const finding = repairFinding || observation.observedValues?.primaryFinding;
       const message = guidance?.message || repairFinding?.nextStep || "Review the exact governed repair before requesting authorization.";
-      setDiagnosis({ phase: "complete", outcome: "FIX AVAILABLE", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: exactFindingText(finding), evidence: findingEvidence(finding), repairRan: false, nextStep: message });
+      setDiagnosis({ phase: "complete", outcome: "FIX AVAILABLE", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: exactAvailableFinding(finding, metrics), evidence: exactAvailableFindingEvidence(finding, metrics), repairRan: false, nextStep: message });
       setFanInvestigation({
         diagnosis: message,
         evidence: compactObservationMeasurements(observation),
@@ -475,8 +485,8 @@ export function SentinelTab() {
       observationId: observation.id,
       scanKind: observation.observedValues?.scanKind || "full",
       durationMs: observation.observedValues?.scanDurationMs,
-      finding: exactFindingText(observation.observedValues?.findings?.[0] || observation.observedValues?.primaryFinding),
-      evidence: findingEvidence(observation.observedValues?.findings?.[0] || observation.observedValues?.primaryFinding),
+      finding: exactAvailableFinding(observation.observedValues?.findings?.[0] || observation.observedValues?.primaryFinding, metrics),
+      evidence: exactAvailableFindingEvidence(observation.observedValues?.findings?.[0] || observation.observedValues?.primaryFinding, metrics),
       repairRan: false,
       nextStep: "No automatic repair qualifies. Use only an existing governed action whose target matches the evidence exactly.",
     });
@@ -595,7 +605,7 @@ export function SentinelTab() {
     : attentionReason;
   const lastFullStatus = status?.host.overallStatus ? sentinelStatusLabel(status.host.overallStatus) : "UNKNOWN";
   const lastFullFinding = unresolvedCount
-    ? exactFindingText(durableFinding)
+    ? exactAvailableFinding(durableFinding, status?.host.metrics)
     : status?.host.checkedAt
       ? "No unresolved finding"
       : "No full scan recorded";
@@ -699,7 +709,7 @@ export function SentinelTab() {
                 <span>{observation.source === "systemd-user-timer" ? "Automatic" : "Operator"}</span>
                 <strong>{compactObservationMeasurements(observation)}</strong>
                 <div className="guardianActivityContext">
-                  {findings.length ? <div className="guardianFindingList">{findings.map((finding, index) => <div key={finding.findingKey || `${observation.id}-${index}`}><strong>{exactFindingText(finding)}</strong><small>Current status: {resolutionLabel(finding)}</small></div>)}</div> : explanation ? <small>{explanation}</small> : <small>No action needed.</small>}
+                  {findings.length ? <div className="guardianFindingList">{findings.map((finding, index) => <div key={finding.findingKey || `${observation.id}-${index}`}><strong>{exactAvailableFinding(finding, observation.observedValues?.snapshot?.metrics)}</strong><small>Current status: {resolutionLabel(finding)}</small></div>)}</div> : explanation ? <small>{explanation}</small> : <small>No action needed.</small>}
                   <small>{typeof observation.observedValues?.scanDurationMs === "number" ? `Full scan ${(observation.observedValues.scanDurationMs / 1000).toFixed(1)}s` : "Legacy duration not retained"} · {observation.observedValues?.scanKind || "legacy scan"}</small>
                   {observation.observedValues?.actionProposed ? <small>Proposed: {observation.observedValues.actionProposed}</small> : null}
                   {observation.observedValues?.actionOccurred || observation.observedValues?.repairOccurred ? <small>{observation.observedValues?.actionOccurred ? "Action occurred" : ""}{observation.observedValues?.actionOccurred && observation.observedValues?.repairOccurred ? " · " : ""}{observation.observedValues?.repairOccurred ? "Repair verified" : ""}{observation.observedValues?.postRepairVerificationPassed ? " · post-proof passed" : ""}</small> : null}
