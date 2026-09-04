@@ -64,6 +64,9 @@ assert.match(component, /materiallyDifferentTimestamp/);
 assert.match(component, /latest 20 maximum/);
 assert.match(component, /guardianActivityColumns/);
 assert.match(component, /guardianActivityScroll securityInsetScroll/);
+for (const label of ["Time", "State", "Source", "Key measurements", "Action / context"]) {
+  assert.match(component, new RegExp(`data-activity-label="${label.replace("/", "\\/")}"`));
+}
 assert.match(component, /showOlderActivity/);
 assert.match(component, /Show \$\{observations\.length - 6\} older observations/);
 assert.match(component, /Legacy observation · detailed measurements not retained/);
@@ -103,6 +106,13 @@ assert.match(component, /anomalies\.map\(\(value\) => exactAvailableReason\(valu
 assert.match(component, /exactAvailableFinding\(durableFinding, status\?\.host\.metrics\)/);
 assert.match(component, /exactAvailableFinding\(finding, observation\.observedValues\?\.snapshot\?\.metrics\)/);
 assert.match(productionAcceptance, /visible: visible\.join\('\ \|\ '\), retained: retained\.join\('\ \|\ '\)/);
+assert.match(productionAcceptance, /function assertGuardianActivityGeometry/);
+assert.match(productionAcceptance, /getBoundingClientRect\(\)/);
+assert.match(productionAcceptance, /escapingDescendants/);
+assert.match(productionAcceptance, /details:not\(\[open\]\)/);
+assert.match(productionAcceptance, /rowCrossings/);
+assert.match(productionAcceptance, /desktop Guardian Activity/);
+assert.match(productionAcceptance, /headerColumnCount/);
 assert.match(component, /knownIncidentState\?\.active\) return "ATTENTION"/);
 assert.match(component, /exact sustained Pop updater incident signature is active/);
 assert.match(component, /Last full scan \{formatDateTime\(status\?\.host\.checkedAt\)\}/);
@@ -175,6 +185,10 @@ assert.match(css, /--security-value-size:\s*19px/);
 assert.match(css, /\.securityInsetScroll\s*\{[^}]*margin-inline:\s*18px[^}]*overscroll-behavior:\s*auto/s);
 assert.match(css, /\.sentinelMeasurementRow\s*\{[^}]*min-height:\s*62px/s);
 assert.match(css, /\.guardianActivityRow\s*\{[^}]*min-height:\s*62px/s);
+assert.match(css, /\.guardianActivityScroll\s*\{[^}]*grid-auto-rows:\s*max-content/s);
+assert.match(css, /\.guardianActivityColumns,\s*\.guardianActivityRow\s*\{[^}]*grid-template-columns:\s*minmax\(145px, 0\.72fr\)[^}]*minmax\(360px, 1\.8fr\)[^}]*align-items:\s*start/s);
+assert.match(css, /@media \(max-width: 1100px\)[\s\S]*\.guardianActivityColumns\s*\{\s*display:\s*none;[\s\S]*\.guardianActivityRow\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s);
+assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.guardianActivityRow\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/s);
 assert.match(css, /\.empireOperationsSignalGrid,[\s\S]*\.securityGuardianControlGrid\s*\{\s*grid-template-columns:\s*1fr/);
 
 for (const label of ["SOURCE GOLDEN", "INSTALLED GOLDEN", "AUTOMATION HEALTH", "REGISTRY + TOPOLOGY", "SECURITY + AUDIT", "CI + CODEQL"]) assert.match(operations, new RegExp(label.replaceAll("+", "\\+")));
