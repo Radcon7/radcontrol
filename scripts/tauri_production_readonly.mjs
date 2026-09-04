@@ -388,13 +388,14 @@ try {
   assert.equal((sentinelText.match(/Fans are loud/g) || []).length, 1, "The primary loud-fan action must appear exactly once");
   assert.match(sentinelText, /CURRENT NOW[\s\S]*(HEALTHY|ATTENTION|PROBLEM|UNKNOWN)[\s\S]*LAST FULL SCAN[\s\S]*unresolved finding/i, "current-now and durable full-scan truth must be independently legible");
   const processFindingPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-    script: `const visible = [
-      document.querySelector('[data-testid="sentinel-status-header"] > div:nth-child(4) strong')?.textContent || '',
-      ...Array.from(document.querySelectorAll('.guardianFindingList strong')).map((node) => node.textContent || ''),
-      ...Array.from(document.querySelectorAll('.sentinelCoverageGrid small')).map((node) => node.textContent || ''),
-    ].join('\n');
-    const retained = Array.from(document.querySelectorAll('.guardianScanEvidence pre')).map((node) => node.textContent || '').join('\n');
-    return { visible, retained };`,
+    script: `var visible = [];
+      var header = document.querySelector('[data-testid="sentinel-status-header"] > div:nth-child(4) strong');
+      if (header) visible.push(header.textContent || '');
+      document.querySelectorAll('.guardianFindingList strong').forEach(function (node) { visible.push(node.textContent || ''); });
+      document.querySelectorAll('.sentinelCoverageGrid small').forEach(function (node) { visible.push(node.textContent || ''); });
+      var retained = [];
+      document.querySelectorAll('.guardianScanEvidence pre').forEach(function (node) { retained.push(node.textContent || ''); });
+      return { visible: visible.join(' | '), retained: retained.join(' | ') };`,
     args: [],
   });
   assert.ok(!processFindingPresentation.visible.includes("high-CPU process, stale test browser, or zombie process"), "installed Sentinel must not collapse visible process evidence into a generic finding");

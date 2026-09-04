@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
-const [component, guardian, security, operations, updates, model, api, app, css, bridge, client, repoState] = await Promise.all([
+const [component, guardian, security, operations, updates, model, api, app, css, bridge, client, repoState, productionAcceptance] = await Promise.all([
   read("src/components/sentinel/SentinelTab.tsx"),
   read("src/components/sentinel/SecurityGuardianTab.tsx"),
   read("src/components/security/SecurityTab.tsx"),
@@ -16,6 +16,7 @@ const [component, guardian, security, operations, updates, model, api, app, css,
   read("src-tauri/src/commands/o2.rs"),
   read("contracts/o2-radcontrol/v1/client.json"),
   read("docs/REPO_STATE.md"),
+  read("scripts/tauri_production_readonly.mjs"),
 ]);
 
 assert.match(app, /sentinel: "Security"/);
@@ -93,6 +94,7 @@ assert.match(component, /exactAvailableReason\(row\.reason, status\?\.host\.metr
 assert.match(component, /anomalies\.map\(\(value\) => exactAvailableReason\(value, metrics\)\)/);
 assert.match(component, /exactAvailableFinding\(durableFinding, status\?\.host\.metrics\)/);
 assert.match(component, /exactAvailableFinding\(finding, observation\.observedValues\?\.snapshot\?\.metrics\)/);
+assert.match(productionAcceptance, /visible: visible\.join\('\ \|\ '\), retained: retained\.join\('\ \|\ '\)/);
 assert.match(component, /knownIncidentState\?\.active\) return "ATTENTION"/);
 assert.match(component, /exact sustained Pop updater incident signature is active/);
 assert.match(component, /Last full scan \{formatDateTime\(status\?\.host\.checkedAt\)\}/);
