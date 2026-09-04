@@ -18,7 +18,6 @@ import {
 } from "./sentinelApi";
 import {
   SENTINEL_LEVELS,
-  deriveThreatState,
   observationValue,
   sentinelCapabilityLevelState,
   sentinelStatusLabel,
@@ -30,6 +29,7 @@ import {
   type SentinelHostState,
   type SentinelObservation,
   type SentinelStatus,
+  type SentinelThreatState,
 } from "./sentinelModel";
 
 const HOST_CONFIGURATION_PATH = "docs/infrastructure/assets/system76-workstation/CONFIGURATION.md";
@@ -272,6 +272,13 @@ function operatorHealthState(status: SentinelStatus | null, currentHost: Sentine
   if (["critical", "elevated"].includes(status.host.overallStatus)) return "PROBLEM";
   if (["attention", "stale", "learning"].includes(status.host.overallStatus)) return "ATTENTION";
   return status.host.overallStatus === "healthy" ? "HEALTHY" : "UNKNOWN";
+}
+
+function operatorHeroThreat(state: OperatorHealthState): SentinelThreatState {
+  if (state === "HEALTHY") return "normal";
+  if (state === "ATTENTION") return "attention";
+  if (state === "PROBLEM") return "critical";
+  return "unknown_visibility";
 }
 
 function primaryAttentionReason(status: SentinelStatus | null, currentHost: SentinelHostState | null): string {
@@ -575,7 +582,7 @@ export function SentinelTab() {
   }, [liveMeasurements, status]);
   const signals = useMemo(() => displayHost ? hostSignals(displayHost) : [], [displayHost]);
   const healthState = operatorHealthState(status, displayHost, Boolean(liveMeasurements));
-  const threat = useMemo(() => deriveThreatState(status), [status]);
+  const heroThreat = operatorHeroThreat(healthState);
   const observations = (status?.recentHostObservations || []).slice(0, 20);
   const visibleObservations = showOlderActivity ? observations : observations.slice(0, 6);
   const hostMetrics = status?.host.metrics || {};
@@ -612,7 +619,7 @@ export function SentinelTab() {
 
   return (
     <section className="sentinelShell" data-testid="radcon-sentinel">
-      <header className={`sentinelHero sentinelThreat-${threat} sentinelOperatorHero`}>
+      <header className={`sentinelHero sentinelThreat-${heroThreat} sentinelOperatorHero`} data-current-health={healthState}>
         <div className="sentinelHeroCopy">
           <span className="sentinelEyebrow">RADCON SENTINEL · THIS COMPUTER</span>
           <h1>Is my computer okay?</h1>
@@ -620,7 +627,7 @@ export function SentinelTab() {
         </div>
           <div className="sentinelOperatorSummary" data-testid="sentinel-status-header">
           <div className={`sentinelOperatorState sentinelOperatorState-${healthState.toLowerCase()}`} data-testid="sentinel-current-now"><small>CURRENT NOW</small><strong>{healthState}</strong><span>{currentNowDetail}</span></div>
-          <div data-testid="sentinel-last-full-scan"><small>LAST FULL SCAN</small><strong>{loading ? "Loading…" : `${lastFullStatus} · ${unresolvedCount} unresolved finding${unresolvedCount === 1 ? "" : "s"}`}</strong><span>{formatDateTime(status?.host.checkedAt)}</span></div>
+          <div className={unresolvedCount ? "sentinelDurableReview" : undefined} data-testid="sentinel-last-full-scan"><small>LAST FULL SCAN</small><strong>{loading ? "Loading…" : `${lastFullStatus} · ${unresolvedCount} unresolved finding${unresolvedCount === 1 ? "" : "s"}`}</strong><span>{unresolvedCount ? `NEEDS REVIEW · ${formatDateTime(status?.host.checkedAt)}` : formatDateTime(status?.host.checkedAt)}</span></div>
           <div><small>NEXT FULL SCAN</small><strong>{automationRequested ? formatDateTime(automation?.nextDueAt) : "Automatic scans off"}</strong></div>
           <div title={lastFullFinding}><small>FULL-SCAN FINDING</small><strong>{lastFullFinding}</strong><span>{durableFinding ? resolutionLabel(durableFinding) : "CURRENT STATUS · CLEAR"}</span></div>
         </div>

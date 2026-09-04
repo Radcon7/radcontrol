@@ -36,6 +36,14 @@ assert.match(security, /aria-selected=\{mode === item\.key\}/);
 
 assert.match(component, /RADCON SENTINEL · THIS COMPUTER/);
 assert.match(component, /Is my computer okay\?/);
+assert.ok(!component.includes("deriveThreatState"), "the current-health hero must not consume the durable global threat state");
+assert.match(component, /function operatorHeroThreat[\s\S]*HEALTHY[\s\S]*normal[\s\S]*ATTENTION[\s\S]*attention[\s\S]*PROBLEM[\s\S]*critical[\s\S]*unknown_visibility/);
+assert.match(component, /sentinelThreat-\$\{heroThreat\}/);
+assert.match(component, /data-current-health=\{healthState\}/);
+assert.match(component, /sentinelDurableReview[\s\S]*LAST FULL SCAN[\s\S]*NEEDS REVIEW/);
+assert.match(css, /\.sentinelThreat-attention\s*\{[\s\S]*255, 205, 92/);
+assert.match(css, /\.sentinelThreat-elevated,[\s\S]*\.sentinelThreat-critical\s*\{[\s\S]*255, 95, 115/);
+assert.match(css, /\.sentinelDurableReview\s*\{[\s\S]*255, 205, 92/);
 assert.ok(component.indexOf("Is my computer okay?") < component.indexOf("CURRENT MEASUREMENTS"));
 assert.ok(component.indexOf("CURRENT MEASUREMENTS") < component.indexOf("RECENT GUARDIAN ACTIVITY"));
 assert.ok(component.indexOf("RECENT GUARDIAN ACTIVITY") < component.indexOf("ADVANCED SYSTEM INFORMATION"));

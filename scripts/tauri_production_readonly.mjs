@@ -387,6 +387,32 @@ try {
   assert.equal((sentinelText.match(/CURRENT MEASUREMENTS/g) || []).length, 1, "Current Measurements must have one primary home");
   assert.equal((sentinelText.match(/Fans are loud/g) || []).length, 1, "The primary loud-fan action must appear exactly once");
   assert.match(sentinelText, /CURRENT NOW[\s\S]*(HEALTHY|ATTENTION|PROBLEM|UNKNOWN)[\s\S]*LAST FULL SCAN[\s\S]*unresolved finding/i, "current-now and durable full-scan truth must be independently legible");
+  const currentHealthPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `var hero = document.querySelector('.sentinelOperatorHero');
+      var current = document.querySelector('[data-testid="sentinel-current-now"] strong');
+      var durable = document.querySelector('[data-testid="sentinel-last-full-scan"]');
+      return {
+        current: current ? (current.textContent || '').trim() : '',
+        heroClass: hero ? hero.className : '',
+        declaredCurrent: hero ? hero.getAttribute('data-current-health') : '',
+        durableClass: durable ? durable.className : '',
+        durableText: durable ? (durable.textContent || '') : ''
+      };`,
+    args: [],
+  });
+  const expectedHeroThreat = {
+    HEALTHY: "normal",
+    ATTENTION: "attention",
+    PROBLEM: "critical",
+    UNKNOWN: "unknown_visibility",
+  }[currentHealthPresentation.current];
+  assert.ok(expectedHeroThreat, `unexpected current-health state: ${currentHealthPresentation.current}`);
+  assert.equal(currentHealthPresentation.declaredCurrent, currentHealthPresentation.current, "hero current-health identity diverged from CURRENT NOW");
+  assert.ok(currentHealthPresentation.heroClass.includes(`sentinelThreat-${expectedHeroThreat}`), "hero visual state does not match CURRENT NOW");
+  if (/ATTENTION[\s\S]*[1-9]\d* unresolved finding/i.test(currentHealthPresentation.durableText)) {
+    assert.ok(currentHealthPresentation.durableClass.includes("sentinelDurableReview"), "durable unresolved findings need a separate attention treatment");
+    assert.match(currentHealthPresentation.durableText, /NEEDS REVIEW/, "durable unresolved findings need an explicit review state");
+  }
   const processFindingPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `var visible = [];
       var header = document.querySelector('[data-testid="sentinel-status-header"] > div:nth-child(4) strong');
@@ -600,6 +626,10 @@ try {
     artifactSha256: expectedArtifactSha,
     todoSha256: installedBefore.todoSha256,
     diagnosticsVerified: diagnostics.includes("Listener-free production mode"),
+    sentinelCurrentHealth: currentHealthPresentation.current,
+    sentinelHeroClass: currentHealthPresentation.heroClass,
+    sentinelDurableClass: currentHealthPresentation.durableClass,
+    sentinelDurableText: currentHealthPresentation.durableText,
   }));
 } catch (error) {
   acceptanceError = error;
