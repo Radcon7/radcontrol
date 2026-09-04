@@ -23,9 +23,22 @@ export type SentinelObservation = {
 };
 
 export type SentinelHostFinding = {
+  findingKey?: string;
+  kind?: string;
   key: string;
   status: SentinelEvidenceStatus;
+  title?: string;
+  summary?: string;
   reason: string;
+  evidence?: string[];
+  nextStep?: string;
+  repairCapability?: string | null;
+  resolution?: {
+    state: "unresolved" | "resolved" | "no-longer-present" | "expected-accepted";
+    disposition: "none" | "action-available" | "needs-operator";
+    resolvedAt?: string | null;
+    reason: string;
+  };
 };
 
 export type SentinelHostGuidance = {
@@ -55,6 +68,16 @@ export type SentinelHostState = {
   trigger?: "manual" | "automatic";
   verdictReason?: string;
   primaryFinding?: SentinelHostFinding;
+  findings?: SentinelHostFinding[];
+  activeFindingCount?: number;
+  resolutionSummary?: {
+    unresolved: number;
+    resolved: number;
+    "no-longer-present": number;
+    "expected-accepted": number;
+    actionAvailable: number;
+    needsOperator: number;
+  };
   guidance?: SentinelHostGuidance;
   scanDurationMs?: number;
   coverage?: SentinelScanCoverage[];
@@ -132,6 +155,9 @@ export type SentinelHostObservation = SentinelEvent & {
     anomalies?: string[];
     verdictReason?: string;
     primaryFinding?: SentinelHostFinding;
+    findings?: SentinelHostFinding[];
+    activeFindingCount?: number;
+    resolutionSummary?: SentinelHostState["resolutionSummary"];
     guidance?: SentinelHostGuidance;
     scanKind?: "full" | "targeted";
     scanDurationMs?: number;

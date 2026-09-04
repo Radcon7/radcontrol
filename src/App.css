@@ -4016,6 +4016,13 @@ pre {
   overflow-wrap: anywhere;
 }
 
+.sentinelOperatorSummary > div > span {
+  color: var(--muted);
+  font-size: var(--security-meta-size);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .sentinelResolveAction {
   border-color: rgba(255, 205, 92, 0.72);
   background: linear-gradient(135deg, rgba(255, 205, 92, 0.2), rgba(104, 160, 255, 0.2));
@@ -4050,6 +4057,54 @@ pre {
 
 .sentinelGuardianStrip span {
   color: var(--muted);
+}
+
+.sentinelDiagnosisResult {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 12px 18px;
+  padding: 15px;
+  border: 1px solid rgba(104, 160, 255, 0.42);
+  border-radius: 12px;
+  background: rgba(9, 23, 44, 0.82);
+}
+
+.sentinelDiagnosisResult-diagnosing {
+  border-color: rgba(255, 205, 92, 0.48);
+}
+
+.sentinelDiagnosisResultHeading,
+.sentinelDiagnosisResultMeta {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 18px;
+}
+
+.sentinelDiagnosisResultHeading > span,
+.sentinelDiagnosisResult > div > small {
+  color: var(--accentA);
+  font-size: var(--security-meta-size);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.sentinelDiagnosisResultHeading > strong {
+  font-size: var(--security-value-size);
+}
+
+.sentinelDiagnosisResultMeta,
+.sentinelDiagnosisResult p,
+.sentinelDiagnosisResult li {
+  color: var(--muted);
+  font-size: var(--security-body-size);
+}
+
+.sentinelDiagnosisResult p,
+.sentinelDiagnosisResult ul {
+  margin: 5px 0 0;
 }
 
 .sentinelFanResult,
@@ -4204,6 +4259,20 @@ pre {
 .guardianActivityContext {
   display: grid;
   gap: 4px;
+}
+
+.guardianFindingList {
+  display: grid;
+  gap: 6px;
+}
+
+.guardianFindingList > div {
+  display: grid;
+  gap: 2px;
+}
+
+.guardianFindingList small {
+  color: var(--muted);
 }
 
 .guardianActivityContext .btn {
@@ -4389,7 +4458,8 @@ pre {
 
 @media (max-width: 760px) {
   .securityControlRoom > .workspaceModeRow,
-  .sentinelOperatorSummary {
+  .sentinelOperatorSummary,
+  .sentinelDiagnosisResult {
     grid-template-columns: 1fr;
   }
 

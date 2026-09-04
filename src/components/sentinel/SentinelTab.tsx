@@ -25,6 +25,7 @@ import {
   type SentinelAutomation,
   type SentinelCurrentMeasurements,
   type SentinelEvidenceStatus,
+  type SentinelHostFinding,
   type SentinelHostObservation,
   type SentinelHostState,
   type SentinelObservation,
@@ -53,6 +54,18 @@ type FanInvestigation = {
   evidence: string;
   outcome: FanInvestigationOutcome;
   deepCheckUsed: boolean;
+};
+type DiagnosisOutcome = "NO ISSUE FOUND" | "FIX AVAILABLE" | "NEEDS YOUR HELP" | "FIXED" | "STILL PRESENT";
+type DiagnosisResult = {
+  phase: "diagnosing" | "complete";
+  outcome?: DiagnosisOutcome;
+  observationId?: string;
+  scanKind?: string;
+  durationMs?: number;
+  finding: string;
+  evidence: string[];
+  repairRan: boolean;
+  nextStep: string;
 };
 type ThermalRow = { key?: string; label?: string; temperatureC?: number; criticalC?: number | null; source?: string; path?: string; primary?: boolean; thresholdEligible?: boolean };
 type ProcessRow = { pid?: number; ppid?: number; ageSeconds?: number; cpuPercent?: number; averageCpuPercent?: number; memoryPercent?: number; rssMiB?: number; process?: string; projectKey?: string };
@@ -118,6 +131,52 @@ function compactHostEvidence(metrics: Record<string, unknown> | undefined): stri
   ].join(" · ");
 }
 
+function exactFindingText(finding: SentinelHostFinding | undefined): string {
+  return finding?.summary || finding?.reason || "No current host issue needs action.";
+}
+
+function findingEvidence(finding: SentinelHostFinding | undefined): string[] {
+  if (finding?.evidence?.length) return [...finding.evidence];
+  return finding?.reason ? [finding.reason] : [];
+}
+
+function diagnosisFromReport(report: HostCheckResponse): DiagnosisResult {
+  const finding = report.primaryFinding;
+  const repairFinding = report.findings?.find((row) => Boolean(row.repairCapability));
+  const repairAvailable = Boolean(repairFinding || finding?.repairCapability || report.guidance?.knownRepair);
+  const healthy = report.overallStatus === "healthy" && !(report.findings || []).length;
+  const trend = observationValue<{
+    conclusion?: string;
+    detail?: string;
+  }>(report.metrics?.thermalTrend, {});
+  const evidence = findingEvidence(finding);
+  if (trend.conclusion) evidence.push(`${trend.conclusion}${trend.detail ? ` · ${trend.detail}` : ""}`);
+  return {
+    phase: "complete",
+    outcome: healthy ? "NO ISSUE FOUND" : repairAvailable ? "FIX AVAILABLE" : "NEEDS YOUR HELP",
+    observationId: report.eventId,
+    scanKind: report.scanKind || "full",
+    durationMs: report.scanDurationMs,
+    finding: healthy ? "No issue found in the deterministic deep check." : exactFindingText(finding),
+    evidence,
+    repairRan: false,
+    nextStep: healthy
+      ? "No fix is needed. Current-now measurements will continue to refresh independently."
+      : repairFinding?.nextStep || finding?.nextStep || report.guidance?.message || "Review the exact retained evidence and use only a matching governed route.",
+  };
+}
+
+function resolutionLabel(finding: SentinelHostFinding | undefined): string {
+  const resolution = finding?.resolution;
+  if (!resolution) return "UNRESOLVED";
+  const state = resolution.state === "no-longer-present"
+    ? "NO LONGER PRESENT"
+    : resolution.state === "expected-accepted"
+      ? "EXPECTED / ACCEPTED"
+      : resolution.state.toUpperCase();
+  return resolution.resolvedAt ? `${state} · ${formatDateTime(resolution.resolvedAt)}` : state;
+}
+
 function fanInvestigationNeedsDeepCheck(result: { explanation: string; report: HostCheckResponse }): boolean {
   const statuses = Object.values((result.report.metrics || {}) as Record<string, SentinelObservation>).map(observationStatus);
   return result.explanation.toLowerCase().includes("insufficient")
@@ -157,11 +216,11 @@ function operatorHealthState(status: SentinelStatus | null, currentHost: Sentine
   const currentStatuses = Object.values(currentHost?.metrics || {}).map(observationStatus);
   if (currentStatuses.some((value) => ["critical", "elevated"].includes(value))) return "PROBLEM";
   if (currentStatuses.some((value) => value === "attention")) return "ATTENTION";
-  if (status?.knownIncidentState?.active) return "ATTENTION";
   if (hasForeground) {
     const required = ["cpu", "load", "thermal", "memory", "filesystem", "services"];
     return required.every((key) => observationStatus(currentHost?.metrics[key]) === "healthy") ? "HEALTHY" : "UNKNOWN";
   }
+  if (status?.knownIncidentState?.active) return "ATTENTION";
   if (!status || status.host.overallStatus === "unknown") return "UNKNOWN";
   if (["critical", "elevated"].includes(status.host.overallStatus)) return "PROBLEM";
   if (["attention", "stale", "learning"].includes(status.host.overallStatus)) return "ATTENTION";
@@ -209,6 +268,8 @@ function compactObservationMeasurements(observation: SentinelHostObservation): s
 }
 
 function observationExplanation(observation: SentinelHostObservation, status: SentinelEvidenceStatus): string | null {
+  const finding = observation.observedValues?.findings?.[0] || observation.observedValues?.primaryFinding;
+  if (finding) return exactFindingText(finding);
   const anomalies = observation.observedValues?.anomalies || [];
   if (anomalies.length) return anomalies.join(" · ");
   if (observation.observedValues?.verdictReason) return observation.observedValues.verdictReason;
@@ -226,7 +287,7 @@ export function SentinelTab() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [investigationOpen, setInvestigationOpen] = useState(false);
-  const [diagnosis, setDiagnosis] = useState<{ observationId: string; diagnosis: string; nextStep: string } | null>(null);
+  const [diagnosis, setDiagnosis] = useState<DiagnosisResult | null>(null);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<AskSentinelResponse | null>(null);
   const [automationFrequency, setAutomationFrequency] = useState<SentinelAutomation["frequency"]>("twice-daily");
@@ -331,13 +392,17 @@ export function SentinelTab() {
 
   async function diagnoseObservation(observation: SentinelHostObservation): Promise<void> {
     if (busyAction) return;
-    setBusyAction(`diagnose:${observation.id}`); setError(""); setDiagnosis(null);
+    const finding = observation.observedValues?.findings?.[0] || observation.observedValues?.primaryFinding;
+    setBusyAction(`diagnose:${observation.id}`); setError("");
+    setDiagnosis({ phase: "diagnosing", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: exactFindingText(finding), evidence: findingEvidence(finding), repairRan: false, nextStep: "The bounded read-only diagnostic advisor is reviewing this genuinely unknown result." });
     try {
       const result = await investigateHostObservation(observation.id);
-      setDiagnosis({ observationId: result.observationId, diagnosis: result.diagnosis, nextStep: result.nextStep });
+      setDiagnosis({ phase: "complete", outcome: "NEEDS YOUR HELP", observationId: result.observationId, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: result.diagnosis, evidence: findingEvidence(finding), repairRan: false, nextStep: result.nextStep });
       await refresh();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      const message = reason instanceof Error ? reason.message : String(reason);
+      setError(message);
+      setDiagnosis({ phase: "complete", outcome: "NEEDS YOUR HELP", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: "The governed diagnostic did not complete.", evidence: findingEvidence(finding), repairRan: false, nextStep: `${message} No repair ran.` });
     } finally {
       setBusyAction(null);
     }
@@ -345,9 +410,14 @@ export function SentinelTab() {
 
   async function reviewObservation(observation: SentinelHostObservation): Promise<void> {
     const guidance = observation.observedValues?.guidance;
-    if (guidance?.knownRepair) {
+    const unresolvedFindings = (observation.observedValues?.findings || []).filter((finding) => !finding.resolution || finding.resolution.state === "unresolved");
+    const repairFinding = unresolvedFindings.find((finding) => Boolean(finding.repairCapability));
+    if (guidance?.knownRepair || repairFinding) {
+      const finding = repairFinding || observation.observedValues?.primaryFinding;
+      const message = guidance?.message || repairFinding?.nextStep || "Review the exact governed repair before requesting authorization.";
+      setDiagnosis({ phase: "complete", outcome: "FIX AVAILABLE", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: exactFindingText(finding), evidence: findingEvidence(finding), repairRan: false, nextStep: message });
       setFanInvestigation({
-        diagnosis: guidance.message,
+        diagnosis: message,
         evidence: compactObservationMeasurements(observation),
         outcome: "FIX AVAILABLE",
         deepCheckUsed: true,
@@ -360,48 +430,38 @@ export function SentinelTab() {
       return;
     }
     setDiagnosis({
+      phase: "complete",
+      outcome: "NEEDS YOUR HELP",
       observationId: observation.id,
-      diagnosis: guidance?.message || observation.observedValues?.verdictReason || "Review the retained deterministic scan evidence.",
+      scanKind: observation.observedValues?.scanKind || "full",
+      durationMs: observation.observedValues?.scanDurationMs,
+      finding: exactFindingText(observation.observedValues?.findings?.[0] || observation.observedValues?.primaryFinding),
+      evidence: findingEvidence(observation.observedValues?.findings?.[0] || observation.observedValues?.primaryFinding),
+      repairRan: false,
       nextStep: "No automatic repair qualifies. Use only an existing governed action whose target matches the evidence exactly.",
     });
   }
 
   async function diagnoseAndFix(): Promise<void> {
     if (busyAction) return;
-    if (status?.knownIncidentState?.active) {
-      setFanInvestigation({
-        diagnosis: "The exact sustained Pop updater incident signature is active. Safe Cleanup still requires a fresh target preview, explicit confirmation, and operating-system authorization.",
-        evidence: compactHostEvidence(status.host.metrics),
-        outcome: "FIX AVAILABLE",
-        deepCheckUsed: true,
-      });
-      setNotice("Review the exact Safe Cleanup target. No repair has run.");
-      return;
-    }
-    setBusyAction("diagnose-fix"); setError(""); setNotice(""); setDiagnosis(null); setPopUpgradePreview(null);
+    setBusyAction("diagnose-fix"); setError(""); setNotice(""); setPopUpgradePreview(null);
+    setDiagnosis({ phase: "diagnosing", finding: "Collecting current deterministic host evidence…", evidence: [], repairRan: false, nextStep: "One bounded deep check is running. No repair has run." });
     try {
-      await runHostDeepCheck();
+      const report = await runHostDeepCheck();
+      const result = diagnosisFromReport(report);
+      setDiagnosis(result);
       const [nextStatus, nextMeasurements] = await Promise.all([refresh(), refreshCurrent()]);
-      const guidance = nextStatus.host.guidance;
-      const latest = nextStatus.recentHostObservations[0];
-      if (guidance?.knownRepair && nextStatus.knownIncidentState?.active) {
-        setFanInvestigation({ diagnosis: guidance.message, evidence: compactHostEvidence(nextStatus.host.metrics), outcome: "FIX AVAILABLE", deepCheckUsed: true });
+      if (result.outcome === "FIX AVAILABLE" && nextStatus.knownIncidentState?.active) {
+        setFanInvestigation({ diagnosis: report.guidance?.message || result.finding, evidence: compactHostEvidence(report.metrics), outcome: "FIX AVAILABLE", deepCheckUsed: true });
         setNotice("A known issue matched. Review the exact Safe Cleanup preview before requesting OS authorization.");
-      } else if (nextStatus.host.overallStatus === "unknown" && guidance?.advisorRecommended && latest) {
-        const result = await investigateHostObservation(latest.id);
-        setDiagnosis({ observationId: result.observationId, diagnosis: result.diagnosis, nextStep: result.nextStep });
       } else {
-        setDiagnosis({
-          observationId: latest?.id || nextStatus.host.checkedAt || "current-full-scan",
-          diagnosis: guidance?.message || nextStatus.host.verdictReason || "The deterministic full scan completed.",
-          nextStep: nextStatus.host.overallStatus === "healthy"
-            ? "No fix is needed."
-            : "No automatic repair qualifies. Review the named evidence and use only an existing governed repair path if it matches exactly.",
-        });
+        setFanInvestigation(null);
       }
       setNotice(`Deterministic full scan completed · ${compactHostEvidence(nextMeasurements.metrics)}`);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      const message = reason instanceof Error ? reason.message : String(reason);
+      setError(message);
+      setDiagnosis({ phase: "complete", outcome: "NEEDS YOUR HELP", scanKind: "deep", finding: "The deterministic deep check did not complete.", evidence: [], repairRan: false, nextStep: `${message} No repair ran.` });
     } finally {
       setBusyAction(null);
     }
@@ -444,6 +504,16 @@ export function SentinelTab() {
         ? "The exact governed pop-upgrade.service repair completed and post-repair verification passed."
         : "The exact governed repair did not verify recovery. No broader process or service action was attempted.";
       setFanInvestigation({ diagnosis, evidence, outcome, deepCheckUsed: true });
+      setDiagnosis({
+        phase: "complete",
+        outcome,
+        observationId: status?.recentHostObservations[0]?.id,
+        scanKind: "full",
+        finding: diagnosis,
+        evidence: [evidence],
+        repairRan: true,
+        nextStep: result.ok ? "Post-repair verification passed; continue normal monitoring." : "The finding is still present. No broader repair was attempted; review the retained evidence.",
+      });
       setNotice(result.ok ? "Safe Cleanup completed and post-repair evidence was refreshed." : "Safe Cleanup did not verify recovery; review current evidence.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setBusyAction(null); }
@@ -472,8 +542,23 @@ export function SentinelTab() {
   const popUpgradeIncident = status?.knownIncidentState?.active
     ? status.recentIncidents.find((incident) => incident.id === status.knownIncidentState?.lastIncidentId && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview"))
     : undefined;
-  const primaryActionLabel = status?.knownIncidentState?.active ? "Review & Fix" : "Diagnose & Fix";
+  const durableFinding = status?.host.findings?.find((finding) => finding.resolution?.state === "unresolved")
+    || status?.host.findings?.[0]
+    || (status?.host.primaryFinding?.status !== "healthy" ? status?.host.primaryFinding : undefined);
+  const unresolvedCount = status?.host.resolutionSummary?.unresolved ?? status?.host.activeFindingCount ?? (status?.host.overallStatus === "healthy" ? 0 : durableFinding ? 1 : 0);
+  const repairAvailable = Boolean(status?.knownIncidentState?.active && (status?.host.findings?.some((finding) => Boolean(finding.repairCapability)) || status?.host.guidance?.knownRepair));
+  const primaryActionLabel = repairAvailable ? "Review & Fix" : "Diagnose";
   const attentionReason = primaryAttentionReason(status, displayHost);
+  const currentTemperature = liveMeasurements?.summary.cpuTemperatureC;
+  const currentNowDetail = healthState === "HEALTHY"
+    ? `${typeof currentTemperature === "number" ? `CPU ${currentTemperature}°C · ` : ""}no current issue`
+    : attentionReason;
+  const lastFullStatus = status?.host.overallStatus ? sentinelStatusLabel(status.host.overallStatus) : "UNKNOWN";
+  const lastFullFinding = unresolvedCount
+    ? exactFindingText(durableFinding)
+    : status?.host.checkedAt
+      ? "No unresolved finding"
+      : "No full scan recorded";
 
   return (
     <section className="sentinelShell" data-testid="radcon-sentinel">
@@ -484,14 +569,14 @@ export function SentinelTab() {
           <p>{operatorHealthMessage(healthState, status, displayHost)}</p>
         </div>
           <div className="sentinelOperatorSummary" data-testid="sentinel-status-header">
-          <div className={`sentinelOperatorState sentinelOperatorState-${healthState.toLowerCase()}`}><small>CURRENT HEALTH</small><strong>{healthState}</strong></div>
-          <div><small>LAST FULL SCAN</small><strong>{loading ? "Loading…" : formatDateTime(status?.host.checkedAt)}</strong></div>
+          <div className={`sentinelOperatorState sentinelOperatorState-${healthState.toLowerCase()}`} data-testid="sentinel-current-now"><small>CURRENT NOW</small><strong>{healthState}</strong><span>{currentNowDetail}</span></div>
+          <div data-testid="sentinel-last-full-scan"><small>LAST FULL SCAN</small><strong>{loading ? "Loading…" : `${lastFullStatus} · ${unresolvedCount} unresolved finding${unresolvedCount === 1 ? "" : "s"}`}</strong><span>{formatDateTime(status?.host.checkedAt)}</span></div>
           <div><small>NEXT FULL SCAN</small><strong>{automationRequested ? formatDateTime(automation?.nextDueAt) : "Automatic scans off"}</strong></div>
-          <div title={attentionReason}><small>WHAT NEEDS ATTENTION</small><strong>{healthState === "HEALTHY" ? "Nothing current" : attentionReason}</strong></div>
+          <div title={lastFullFinding}><small>FULL-SCAN FINDING</small><strong>{lastFullFinding}</strong><span>{durableFinding ? resolutionLabel(durableFinding) : "CURRENT STATUS · CLEAR"}</span></div>
         </div>
         <div className="sentinelPrimaryActions" aria-label="Host Guardian actions">
-          {healthState !== "HEALTHY" ? <button className="btn btnPrimary sentinelResolveAction" type="button" disabled={Boolean(busyAction)} onClick={() => void diagnoseAndFix()} data-testid="sentinel-diagnose-fix">{busyAction === "diagnose-fix" ? "Diagnosing…" : primaryActionLabel}</button> : null}
-          <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void perform("health", runHostHealthCheck, "Full host scan evidence refreshed.")} data-testid="sentinel-health-check">{busyAction === "health" ? "Scanning…" : "Run Full Scan"}</button>
+          <button className="btn btnPrimary sentinelResolveAction" type="button" disabled={Boolean(busyAction)} onClick={() => void diagnoseAndFix()} data-testid="sentinel-diagnose-fix">{busyAction === "diagnose-fix" ? "Diagnosing…" : primaryActionLabel}</button>
+          <button className="btn btnGhost sentinelFullScanAction" type="button" disabled={Boolean(busyAction)} onClick={() => void perform("health", runHostHealthCheck, "Full host scan evidence refreshed.")} data-testid="sentinel-health-check">{busyAction === "health" ? "Scanning…" : "Run Full Scan"}</button>
           <button className="btn btnPrimary sentinelFanAction" type="button" disabled={Boolean(busyAction)} onClick={() => void investigateFans()} data-testid="sentinel-fans-loud">{busyAction === "fans" ? "Investigating…" : "Fans are loud"}</button>
           <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => setInvestigationOpen((value) => !value)} data-testid="sentinel-investigate-problem">Investigate another problem</button>
           <span className="sentinelAutomationControl"><strong>Automatic Full Scans · {automaticStatus}</strong>
@@ -509,6 +594,14 @@ export function SentinelTab() {
           <span>15-minute wake: due check + exact known-incident probe only</span>
           <span>{status?.auditVerification.ok ? "Audit/event/incident chains verified" : "Audit integrity requires attention"}</span>
         </div>
+
+        {diagnosis ? <section className={`sentinelDiagnosisResult sentinelDiagnosisResult-${diagnosis.phase}`} data-testid="sentinel-diagnosis-result" aria-live="polite">
+          <div className="sentinelDiagnosisResultHeading"><span>{diagnosis.phase === "diagnosing" ? "DIAGNOSING" : "DIAGNOSIS COMPLETE"}</span><strong>{diagnosis.phase === "diagnosing" ? "IN PROGRESS" : diagnosis.outcome}</strong></div>
+          <div className="sentinelDiagnosisResultMeta"><span>Scan: {diagnosis.scanKind ? `${diagnosis.scanKind} deterministic check` : "deep deterministic check"}</span><span>Duration: {typeof diagnosis.durationMs === "number" ? `${(diagnosis.durationMs / 1000).toFixed(1)}s` : diagnosis.phase === "diagnosing" ? "measuring…" : "not retained"}</span><span>Repair ran: {diagnosis.repairRan ? "YES" : "NO"}</span></div>
+          <div><small>PRIMARY FINDING</small><strong>{diagnosis.finding}</strong></div>
+          <div><small>SUPPORTING EVIDENCE</small>{diagnosis.evidence.length ? <ul>{diagnosis.evidence.map((value) => <li key={value}>{value}</li>)}</ul> : <p>Evidence collection is still in progress.</p>}</div>
+          <div><small>NEXT STEP</small><p>{diagnosis.nextStep}</p></div>
+        </section> : null}
 
         {fanInvestigation ? <section className={`sentinelFanResult sentinelFanResult-${fanInvestigation.outcome.toLowerCase().replace(/ /g, "-")}`} data-testid="sentinel-fan-investigation-result">
           <div className="sentinelFanResultHeading"><span>FAN INVESTIGATION</span><strong>{fanInvestigation.outcome}</strong></div>
@@ -547,7 +640,18 @@ export function SentinelTab() {
             const explanation = observationExplanation(observation, rowStatus);
             const coverage = observation.observedValues?.coverage || [];
             const limitations = observation.observedValues?.coverageLimitations || [];
-            const reviewable = rowStatus !== "healthy" && Boolean(explanation);
+            const findings = observation.observedValues?.findings || (observation.observedValues?.primaryFinding ? [observation.observedValues.primaryFinding] : []);
+            const actionableFinding = findings.find((finding) => !finding.resolution || finding.resolution.state === "unresolved");
+            const repairFinding = findings.find((finding) => (!finding.resolution || finding.resolution.state === "unresolved") && Boolean(finding.repairCapability));
+            const resolution = actionableFinding?.resolution;
+            const reviewable = Boolean(actionableFinding);
+            const reviewLabel = repairFinding || observation.observedValues?.knownRepairAvailable
+              ? "Review & Fix"
+              : rowStatus === "unknown"
+                ? "Diagnose"
+                : resolution?.disposition === "needs-operator"
+                  ? "Show Resolution Steps"
+                  : "Review Finding";
             return (
               <article className={`guardianActivityRow guardianActivityRow-${rowStatus}`} key={observation.id} data-testid="guardian-activity-row">
                 <strong>{formatDateTime(observation.timestamp)}</strong>
@@ -555,11 +659,11 @@ export function SentinelTab() {
                 <span>{observation.source === "systemd-user-timer" ? "Automatic" : "Operator"}</span>
                 <strong>{compactObservationMeasurements(observation)}</strong>
                 <div className="guardianActivityContext">
-                  {explanation ? <small>{explanation}</small> : <small>No action needed.</small>}
+                  {findings.length ? <div className="guardianFindingList">{findings.map((finding, index) => <div key={finding.findingKey || `${observation.id}-${index}`}><strong>{exactFindingText(finding)}</strong><small>Current status: {resolutionLabel(finding)}</small></div>)}</div> : explanation ? <small>{explanation}</small> : <small>No action needed.</small>}
                   <small>{typeof observation.observedValues?.scanDurationMs === "number" ? `Full scan ${(observation.observedValues.scanDurationMs / 1000).toFixed(1)}s` : "Legacy duration not retained"} · {observation.observedValues?.scanKind || "legacy scan"}</small>
                   {observation.observedValues?.actionProposed ? <small>Proposed: {observation.observedValues.actionProposed}</small> : null}
                   {observation.observedValues?.actionOccurred || observation.observedValues?.repairOccurred ? <small>{observation.observedValues?.actionOccurred ? "Action occurred" : ""}{observation.observedValues?.actionOccurred && observation.observedValues?.repairOccurred ? " · " : ""}{observation.observedValues?.repairOccurred ? "Repair verified" : ""}{observation.observedValues?.postRepairVerificationPassed ? " · post-proof passed" : ""}</small> : null}
-                  {reviewable ? <button className="btn btnGhost guardianInvestigateButton" type="button" disabled={Boolean(busyAction)} onClick={() => void reviewObservation(observation)} data-testid="guardian-investigate-fix">{busyAction === `diagnose:${observation.id}` ? "Investigating…" : observation.observedValues?.knownRepairAvailable ? "Review & Fix" : "Review / Fix"}</button> : null}
+                  {reviewable ? <button className="btn btnGhost guardianInvestigateButton" type="button" disabled={Boolean(busyAction)} onClick={() => void reviewObservation(observation)} data-testid="guardian-review-finding">{busyAction === `diagnose:${observation.id}` ? "Investigating…" : reviewLabel}</button> : null}
                   <details className="guardianScanEvidence">
                     <summary>View scan evidence</summary>
                     {coverage.length ? <div className="guardianCoverageMini">{coverage.map((row) => <span key={row.key}><strong>{row.label}</strong><StatusPill status={row.status} /></span>)}</div> : <p>Legacy observation · scan coverage was not retained.</p>}
@@ -573,7 +677,6 @@ export function SentinelTab() {
           {!observations.length ? <div className="surfaceEmptyState">No durable Host Guardian observations yet. Run a health check to establish the first record.</div> : null}
         </div>
         {observations.length > 6 ? <button className="btn btnGhost btnCompact guardianActivityToggle" type="button" onClick={() => setShowOlderActivity((value) => !value)}>{showOlderActivity ? "Show recent activity" : `Show ${observations.length - 6} older observations`}</button> : null}
-        {diagnosis ? <div className="guardianDiagnosis" data-testid="guardian-diagnosis"><strong>Governed diagnostic · selected observation {diagnosis.observationId}</strong><p>{diagnosis.diagnosis}</p><small>{diagnosis.nextStep}</small></div> : null}
       </section>
 
       {error ? <div className="panelError">{error}</div> : null}

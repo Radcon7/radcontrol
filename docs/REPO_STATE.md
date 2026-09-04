@@ -48,8 +48,8 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   home second, bounded durable Guardian activity third, and Advanced System
   Information fourth.
   Its top answer uses the current token-free foreground measurement for current
-  health, names the highest-priority cause that needs attention, and separates
-  Last Full Scan, Next Full Scan, and schedule state. A 15-minute timer wake is
+  health and separately presents Current Now, Last Full Scan, unresolved
+  finding state, Next Full Scan, and schedule state. A 15-minute timer wake is
   not scan freshness: it runs a full scan only when the configured daily or
   twice-daily interval is due and otherwise performs only the exact known Pop
   updater incident probe. Missing optional or learning evidence is a visible
@@ -60,19 +60,26 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   “Current Measurements”, “Recent Guardian Activity”, then “Advanced System
   Information”. The eight measurements and durable activity use compact wide
   rows rather than card grids. Activity is bounded to 20 durable records but initially shows a
-  compact recent set. New records retain scan duration, primary finding,
+  compact recent set. New records retain scan duration, specific findings, primary finding,
   coverage, limitations, bounded normalized evidence, proposed/taken action,
-  repair outcome, and post-repair proof; legacy records and retained
+  repair outcome, current resolution projection, and post-repair proof; legacy records and retained
   Attention/UNKNOWN states must state exactly what evidence is absent. The
-  top-box Diagnose & Fix workflow starts with deterministic full evidence,
-  routes known issues to existing governed actions, and invokes the read-only
+  top-box Diagnose workflow runs one deterministic deep check and retains an
+  explicit result card across foreground refreshes with scan kind, duration,
+  exact finding/evidence, repair truth, outcome, and next step. Run Full Scan is
+  a visually separate manual action. Known issues route to existing governed
+  actions, while the read-only
   diagnostic advisor only when the cause remains genuinely unknown. “Fans are
   loud” is one primary top-box
   workflow composed from the existing governed fan explanation, conditional
   deterministic deep check, exact Safe Cleanup preview/apply when eligible,
   remeasurement, and existing Sentinel event, action, incident, and remediation
-  evidence. Routine runtime outcomes never append to tracked workstation source.
-  It never broadens process or service authority. Other workstation symptoms
+  evidence. Specific process history projects available process/PID/current
+  CPU or project/PID/age and zombie parent evidence. Later full scans may mark
+  an old finding resolved or no longer present without rewriting its historical
+  severity. Routine runtime outcomes never append to tracked workstation source.
+  Stale browser and zombie findings expose no generic kill, process-group,
+  service-restart, or project-stop authority. Other workstation symptoms
   remain reachable through one secondary chooser. Automatic Guardian has one
   compact authoritative control and one top status strip, rather than repeated
   status/control copies. Advanced information has six full-width areas: System

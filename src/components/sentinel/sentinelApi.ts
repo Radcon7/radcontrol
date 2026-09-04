@@ -5,6 +5,9 @@ import {
 import type {
   SentinelAutomation,
   SentinelCurrentMeasurements,
+  SentinelHostFinding,
+  SentinelHostGuidance,
+  SentinelObservation,
   SentinelStatus,
 } from "./sentinelModel";
 
@@ -12,7 +15,13 @@ export type HostCheckResponse = {
   ok: boolean;
   overallStatus: string;
   checkedAt?: string;
-  metrics?: Record<string, unknown>;
+  eventId?: string;
+  scanKind?: "full" | "targeted";
+  scanDurationMs?: number;
+  primaryFinding?: SentinelHostFinding;
+  findings?: SentinelHostFinding[];
+  guidance?: SentinelHostGuidance;
+  metrics?: Record<string, SentinelObservation>;
   error?: string;
 };
 
