@@ -449,7 +449,6 @@ try {
   const sentinelText = await eventually(async () => {
     const text = await bodyText(base, sessionId);
     assert.ok(/Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/i.test(text), "Security control-room navigation is missing");
-    assert.ok(/This computer — health, loud fans[\s\S]*Development-system integrity[\s\S]*Online technology estate/.test(text), "Security workspace purposes are unclear");
     assert.ok(/Is my computer okay\?[\s\S]*CURRENT MEASUREMENTS[\s\S]*RECENT GUARDIAN ACTIVITY[\s\S]*ADVANCED SYSTEM INFORMATION/.test(text), "Sentinel primary hierarchy is incorrect");
     assert.ok(!text.includes("Advanced evidence, controls, and workstation records"), "The retired Advanced umbrella disclosure is still rendered");
     assert.ok(/Refreshes every 60 seconds[\s\S]*Deterministic, token-free, and not written to durable history/.test(text), "Foreground measurement persistence boundary is missing");
@@ -460,19 +459,35 @@ try {
     for (const heading of ["SYSTEM EVIDENCE", "SCAN COVERAGE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(text.includes(heading), `Advanced area ${heading} is missing`);
     return text;
   }, "render the installed Radcon Sentinel control room");
+  const securityNavigation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `var buttons = Array.from(document.querySelectorAll('.securityControlRoom > .workspaceModeRow .workspaceModeButton'));
+      return {
+        labels: buttons.map(function (button) { return (button.textContent || '').trim(); }),
+        miniDescriptionCount: buttons.reduce(function (count, button) { return count + button.querySelectorAll('small').length; }, 0),
+        titleFontSizes: buttons.map(function (button) {
+          var title = button.querySelector('strong');
+          return title ? Number.parseFloat(getComputedStyle(title).fontSize) : 0;
+        })
+      };`,
+    args: [],
+  });
+  assert.deepEqual(securityNavigation.labels, ["Radcon Sentinel", "Empire Operations", "Security Guardian"], "Security navigation must contain only the three workspace titles");
+  assert.equal(securityNavigation.miniDescriptionCount, 0, "Security navigation must not render mini descriptions");
+  assert.ok(securityNavigation.titleFontSizes.every((size) => size >= 18), "Security workspace titles must use larger typography");
   assert.equal((sentinelText.match(/CURRENT MEASUREMENTS/g) || []).length, 1, "Current Measurements must have one primary home");
   assert.equal((sentinelText.match(/Fans are loud/g) || []).length, 1, "The primary loud-fan action must appear exactly once");
-  assert.match(sentinelText, /CURRENT NOW[\s\S]*(HEALTHY|ATTENTION|PROBLEM|UNKNOWN)[\s\S]*LAST FULL SCAN[\s\S]*unresolved finding/i, "current-now and durable full-scan truth must be independently legible");
+  assert.match(sentinelText, /CURRENT NOW[\s\S]*(HEALTHY|ATTENTION|PROBLEM|UNKNOWN)/i, "current-now truth must remain legible");
   const currentHealthPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `var hero = document.querySelector('.sentinelOperatorHero');
       var current = document.querySelector('[data-testid="sentinel-current-now"] strong');
-      var durable = document.querySelector('[data-testid="sentinel-last-full-scan"]');
+      var summary = document.querySelector('[data-testid="sentinel-status-header"]');
       return {
         current: current ? (current.textContent || '').trim() : '',
         heroClass: hero ? hero.className : '',
         declaredCurrent: hero ? hero.getAttribute('data-current-health') : '',
-        durableClass: durable ? durable.className : '',
-        durableText: durable ? (durable.textContent || '') : ''
+        summaryCardCount: summary ? summary.children.length : 0,
+        summaryText: summary ? (summary.textContent || '') : '',
+        removedCardCount: document.querySelectorAll('[data-testid="sentinel-last-full-scan"]').length
       };`,
     args: [],
   });
@@ -485,10 +500,9 @@ try {
   assert.ok(expectedHeroThreat, `unexpected current-health state: ${currentHealthPresentation.current}`);
   assert.equal(currentHealthPresentation.declaredCurrent, currentHealthPresentation.current, "hero current-health identity diverged from CURRENT NOW");
   assert.ok(currentHealthPresentation.heroClass.includes(`sentinelThreat-${expectedHeroThreat}`), "hero visual state does not match CURRENT NOW");
-  if (/ATTENTION[\s\S]*[1-9]\d* unresolved finding/i.test(currentHealthPresentation.durableText)) {
-    assert.ok(currentHealthPresentation.durableClass.includes("sentinelDurableReview"), "durable unresolved findings need a separate attention treatment");
-    assert.match(currentHealthPresentation.durableText, /NEEDS REVIEW/, "durable unresolved findings need an explicit review state");
-  }
+  assert.equal(currentHealthPresentation.summaryCardCount, 1, "the Sentinel summary must contain only Current Now");
+  assert.equal(currentHealthPresentation.removedCardCount, 0, "the removed Last Full Scan card must stay absent");
+  assert.doesNotMatch(currentHealthPresentation.summaryText, /LAST FULL SCAN|NEXT FULL SCAN|FULL-SCAN FINDING/i, "duplicate full-scan summary cards must stay absent");
   const desktopActivityGeometry = await guardianActivityGeometry(base, sessionId);
   assertGuardianActivityGeometry(desktopActivityGeometry, "installed desktop Guardian Activity", { desktop: true });
   if (process.env.RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH) {
@@ -502,8 +516,6 @@ try {
   }
   const processFindingPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `var visible = [];
-      var header = document.querySelector('[data-testid="sentinel-status-header"] > div:nth-child(4) strong');
-      if (header) visible.push(header.textContent || '');
       document.querySelectorAll('.guardianFindingList strong').forEach(function (node) { visible.push(node.textContent || ''); });
       document.querySelectorAll('.sentinelCoverageGrid small').forEach(function (node) { visible.push(node.textContent || ''); });
       var retained = [];
@@ -679,6 +691,20 @@ try {
     assert.match(text, /CI \+ CODEQLNot connected yet/);
     assert.match(text, /Empire Map[\s\S]*Snapshot[\s\S]*Empire Sweep/);
   }, "render truthful installed Empire Operations");
+  const operationalTruthScroll = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `var truth = document.querySelector('.empireOperationsSignalGrid');
+      var style = truth ? getComputedStyle(truth) : null;
+      return {
+        overflowY: style ? style.overflowY : null,
+        clientHeight: truth ? truth.clientHeight : 0,
+        scrollHeight: truth ? truth.scrollHeight : 0,
+        scrollbarGutter: style ? style.scrollbarGutter : null
+      };`,
+    args: [],
+  });
+  assert.equal(operationalTruthScroll.overflowY, "scroll", "Operational Truth must expose a vertical scrollbar");
+  assert.ok(operationalTruthScroll.scrollHeight > operationalTruthScroll.clientHeight, "Operational Truth must remain visibly height-bounded");
+  assert.match(operationalTruthScroll.scrollbarGutter || "", /stable/, "Operational Truth must reserve a stable scrollbar gutter");
 
   await click(base, sessionId, '[data-testid="security-mode-security_guardian"]');
   await eventually(async () => {

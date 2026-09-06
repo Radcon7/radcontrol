@@ -27,12 +27,9 @@ assert.equal(existsSync(new URL("../src/components/common/useArtifactStore.ts", 
 
 for (const label of ["Radcon Sentinel", "Empire Operations", "Security Guardian"]) assert.match(security, new RegExp(label));
 for (const mode of ["sentinel", "empire_operations", "security_guardian"]) assert.match(security, new RegExp(`key: "${mode}"`));
-for (const purpose of [
-  "This computer — health, loud fans, resources, services and maintenance.",
-  "Development-system integrity — O2/RadControl pair, repositories, release, audit and reports.",
-  "Online technology estate — websites, apps, providers and connected security coverage.",
-]) assert.match(security, new RegExp(purpose.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+assert.doesNotMatch(security, /description:|<small>/, "Security workspace navigation must render title-only controls");
 assert.match(security, /aria-selected=\{mode === item\.key\}/);
+assert.match(css, /\.securityControlRoom > \.workspaceModeRow \.workspaceModeButton strong\s*\{[^}]*font-size:\s*var\(--security-value-size\)/s);
 
 assert.match(component, /RADCON SENTINEL · THIS COMPUTER/);
 assert.match(component, /Is my computer okay\?/);
@@ -40,10 +37,11 @@ assert.ok(!component.includes("deriveThreatState"), "the current-health hero mus
 assert.match(component, /function operatorHeroThreat[\s\S]*HEALTHY[\s\S]*normal[\s\S]*ATTENTION[\s\S]*attention[\s\S]*PROBLEM[\s\S]*critical[\s\S]*unknown_visibility/);
 assert.match(component, /sentinelThreat-\$\{heroThreat\}/);
 assert.match(component, /data-current-health=\{healthState\}/);
-assert.match(component, /sentinelDurableReview[\s\S]*LAST FULL SCAN[\s\S]*NEEDS REVIEW/);
+assert.match(component, /sentinelOperatorSummary[\s\S]*CURRENT NOW/);
+assert.doesNotMatch(component, /data-testid="sentinel-last-full-scan"|<small>LAST FULL SCAN<\/small>|<small>NEXT FULL SCAN<\/small>|<small>FULL-SCAN FINDING<\/small>/);
+assert.doesNotMatch(css, /\.sentinelDurableReview/);
 assert.match(css, /\.sentinelThreat-attention\s*\{[\s\S]*255, 205, 92/);
 assert.match(css, /\.sentinelThreat-elevated,[\s\S]*\.sentinelThreat-critical\s*\{[\s\S]*255, 95, 115/);
-assert.match(css, /\.sentinelDurableReview\s*\{[\s\S]*255, 205, 92/);
 assert.ok(component.indexOf("Is my computer okay?") < component.indexOf("CURRENT MEASUREMENTS"));
 assert.ok(component.indexOf("CURRENT MEASUREMENTS") < component.indexOf("RECENT GUARDIAN ACTIVITY"));
 assert.ok(component.indexOf("RECENT GUARDIAN ACTIVITY") < component.indexOf("ADVANCED SYSTEM INFORMATION"));
@@ -84,10 +82,7 @@ assert.match(component, /data-testid="sentinel-diagnose-fix"/);
 assert.match(component, /primaryActionLabel = repairAvailable \? "Review & Fix" : "Diagnose"/);
 assert.match(component, /data-testid="sentinel-current-now"/);
 assert.match(component, /CURRENT NOW/);
-assert.match(component, /data-testid="sentinel-last-full-scan"/);
-assert.match(component, /unresolved finding/);
 assert.match(css, /\.sentinelOperatorSummary small,\s*\.sentinelOperatorSummary strong\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;/s);
-assert.match(component, /FULL-SCAN FINDING/);
 assert.match(component, /data-testid="sentinel-diagnosis-result"/);
 assert.match(component, /DIAGNOSING/);
 assert.match(component, /DIAGNOSIS COMPLETE/);
@@ -103,7 +98,6 @@ assert.match(component, /PID \$\{row\.pid \?\? "unknown"\}/);
 assert.match(component, /parent evidence:/);
 assert.match(component, /exactAvailableReason\(row\.reason, status\?\.host\.metrics\)/);
 assert.match(component, /anomalies\.map\(\(value\) => exactAvailableReason\(value, metrics\)\)/);
-assert.match(component, /exactAvailableFinding\(durableFinding, status\?\.host\.metrics\)/);
 assert.match(component, /exactAvailableFinding\(finding, observation\.observedValues\?\.snapshot\?\.metrics\)/);
 assert.match(productionAcceptance, /visible: visible\.join\('\ \|\ '\), retained: retained\.join\('\ \|\ '\)/);
 assert.match(productionAcceptance, /function assertGuardianActivityGeometry/);
@@ -190,6 +184,7 @@ assert.match(css, /\.guardianActivityColumns,\s*\.guardianActivityRow\s*\{[^}]*g
 assert.match(css, /@media \(max-width: 1100px\)[\s\S]*\.guardianActivityColumns\s*\{\s*display:\s*none;[\s\S]*\.guardianActivityRow\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s);
 assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.guardianActivityRow\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/s);
 assert.match(css, /\.empireOperationsSignalGrid,[\s\S]*\.securityGuardianControlGrid\s*\{\s*grid-template-columns:\s*1fr/);
+assert.match(css, /\.empireOperationsSignalGrid\s*\{[^}]*max-height:\s*360px;[^}]*overflow-y:\s*scroll;[^}]*scrollbar-gutter:\s*stable;/s);
 
 for (const label of ["SOURCE GOLDEN", "INSTALLED GOLDEN", "AUTOMATION HEALTH", "REGISTRY + TOPOLOGY", "SECURITY + AUDIT", "CI + CODEQL"]) assert.match(operations, new RegExp(label.replaceAll("+", "\\+")));
 for (const verb of ["radcontrol.golden_state", "router.health", "sentinel.status", "empire.map", "radcontrol.snapshot", "empire.sweep"]) assert.match(operations, new RegExp(verb.replaceAll(".", "\\.")));

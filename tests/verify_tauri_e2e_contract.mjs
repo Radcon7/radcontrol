@@ -79,7 +79,7 @@ assert.match(source, /preserve governed Legal archives/);
 assert.match(source, /tab-sentinel/);
 assert.match(source, /sentinel-health-check/);
 assert.match(source, /CURRENT NOW/);
-assert.match(source, /LAST FULL SCAN/);
+assert.match(source, /assert\.doesNotMatch\(durableStatusText, \/LAST FULL SCAN\|NEXT FULL SCAN\|FULL-SCAN FINDING/);
 assert.match(source, /sentinel-diagnose-fix/);
 assert.match(source, /DIAGNOSIS COMPLETE/);
 assert.match(source, /ADVANCED SYSTEM INFORMATION/);

@@ -837,7 +837,9 @@ try {
     assert.match(text, /AUTOMATION/);
   }, "run a real read-only Host Guardian check", 30_000);
   const durableStatus = await element(base, sessionId, '[data-testid="sentinel-status-header"]');
-  assert.match(await elementProperty(base, sessionId, durableStatus, "textContent"), /CURRENT NOW[\s\S]*LAST FULL SCAN[\s\S]*unresolved finding/i);
+  const durableStatusText = await elementProperty(base, sessionId, durableStatus, "textContent");
+  assert.match(durableStatusText, /CURRENT NOW[\s\S]*(HEALTHY|ATTENTION|PROBLEM|UNKNOWN)/i);
+  assert.doesNotMatch(durableStatusText, /LAST FULL SCAN|NEXT FULL SCAN|FULL-SCAN FINDING/i);
   await click(base, sessionId, '[data-testid="sentinel-diagnose-fix"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);

@@ -11,10 +11,10 @@ type Props = {
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
 };
 
-const SECURITY_MODES: Array<{ key: SecurityMode; label: string; description: string }> = [
-  { key: "sentinel", label: "Radcon Sentinel", description: "This computer — health, loud fans, resources, services and maintenance." },
-  { key: "empire_operations", label: "Empire Operations", description: "Development-system integrity — O2/RadControl pair, repositories, release, audit and reports." },
-  { key: "security_guardian", label: "Security Guardian", description: "Online technology estate — websites, apps, providers and connected security coverage." },
+const SECURITY_MODES: Array<{ key: SecurityMode; label: string }> = [
+  { key: "sentinel", label: "Radcon Sentinel" },
+  { key: "empire_operations", label: "Empire Operations" },
+  { key: "security_guardian", label: "Security Guardian" },
 ];
 
 function initialSecurityMode(): SecurityMode {
@@ -62,7 +62,6 @@ export function SecurityTab({ registerBeforeTabChangeSaver }: Props) {
             data-testid={`security-mode-${item.key}`}
           >
             <strong>{item.label}</strong>
-            <small>{item.description}</small>
           </button>
         ))}
       </div>
