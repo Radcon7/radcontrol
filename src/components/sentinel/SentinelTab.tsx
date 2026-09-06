@@ -337,7 +337,6 @@ export function SentinelTab() {
   const [status, setStatus] = useState<SentinelStatus | null>(null);
   const [liveMeasurements, setLiveMeasurements] = useState<SentinelCurrentMeasurements | null>(null);
   const [liveMeasurementError, setLiveMeasurementError] = useState("");
-  const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -370,8 +369,7 @@ export function SentinelTab() {
     let active = true;
     void loadSentinelStatus()
       .then((next) => { if (active) { setStatus(next); setAutomationFrequency(next.automation.frequency); } })
-      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : String(reason)); })
-      .finally(() => { if (active) setLoading(false); });
+      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : String(reason)); });
     return () => { active = false; };
   }, []);
 
@@ -599,10 +597,6 @@ export function SentinelTab() {
   const popUpgradeIncident = status?.knownIncidentState?.active
     ? status.recentIncidents.find((incident) => incident.id === status.knownIncidentState?.lastIncidentId && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview"))
     : undefined;
-  const durableFinding = status?.host.findings?.find((finding) => finding.resolution?.state === "unresolved")
-    || status?.host.findings?.[0]
-    || (status?.host.primaryFinding?.status !== "healthy" ? status?.host.primaryFinding : undefined);
-  const unresolvedCount = status?.host.resolutionSummary?.unresolved ?? status?.host.activeFindingCount ?? (status?.host.overallStatus === "healthy" ? 0 : durableFinding ? 1 : 0);
   const repairAvailable = Boolean(status?.knownIncidentState?.active && (status?.host.findings?.some((finding) => Boolean(finding.repairCapability)) || status?.host.guidance?.knownRepair));
   const primaryActionLabel = repairAvailable ? "Review & Fix" : "Diagnose";
   const attentionReason = primaryAttentionReason(status, displayHost);
@@ -610,13 +604,6 @@ export function SentinelTab() {
   const currentNowDetail = healthState === "HEALTHY"
     ? `${typeof currentTemperature === "number" ? `CPU ${currentTemperature}°C · ` : ""}no current issue`
     : attentionReason;
-  const lastFullStatus = status?.host.overallStatus ? sentinelStatusLabel(status.host.overallStatus) : "UNKNOWN";
-  const lastFullFinding = unresolvedCount
-    ? exactAvailableFinding(durableFinding, status?.host.metrics)
-    : status?.host.checkedAt
-      ? "No unresolved finding"
-      : "No full scan recorded";
-
   return (
     <section className="sentinelShell" data-testid="radcon-sentinel">
       <header className={`sentinelHero sentinelThreat-${heroThreat} sentinelOperatorHero`} data-current-health={healthState}>
@@ -625,11 +612,8 @@ export function SentinelTab() {
           <h1>Is my computer okay?</h1>
           <p>{operatorHealthMessage(healthState, status, displayHost)}</p>
         </div>
-          <div className="sentinelOperatorSummary" data-testid="sentinel-status-header">
+        <div className="sentinelOperatorSummary" data-testid="sentinel-status-header">
           <div className={`sentinelOperatorState sentinelOperatorState-${healthState.toLowerCase()}`} data-testid="sentinel-current-now"><small>CURRENT NOW</small><strong>{healthState}</strong><span>{currentNowDetail}</span></div>
-          <div className={unresolvedCount ? "sentinelDurableReview" : undefined} data-testid="sentinel-last-full-scan"><small>LAST FULL SCAN</small><strong>{loading ? "Loading…" : `${lastFullStatus} · ${unresolvedCount} unresolved finding${unresolvedCount === 1 ? "" : "s"}`}</strong><span>{unresolvedCount ? `NEEDS REVIEW · ${formatDateTime(status?.host.checkedAt)}` : formatDateTime(status?.host.checkedAt)}</span></div>
-          <div><small>NEXT FULL SCAN</small><strong>{automationRequested ? formatDateTime(automation?.nextDueAt) : "Automatic scans off"}</strong></div>
-          <div title={lastFullFinding}><small>FULL-SCAN FINDING</small><strong>{lastFullFinding}</strong><span>{durableFinding ? resolutionLabel(durableFinding) : "CURRENT STATUS · CLEAR"}</span></div>
         </div>
         <div className="sentinelPrimaryActions" aria-label="Host Guardian actions">
           <button className="btn btnPrimary sentinelResolveAction" type="button" disabled={Boolean(busyAction)} onClick={() => void diagnoseAndFix()} data-testid="sentinel-diagnose-fix">{busyAction === "diagnose-fix" ? "Diagnosing…" : primaryActionLabel}</button>

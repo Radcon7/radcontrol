@@ -35,10 +35,12 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - Agents: governed profiles, focus/scope/limits, and notes. Repository Routers
   is an adjacent O2-backed workspace that restores the cross-repository
   durability report without coupling it to the System76 host presentation.
-- Security: three first-class workspaces over O2-owned truth, each explained in
-  the compact Security navigation. Radcon Sentinel is this computer's control
-  room; Empire Operations is development-system integrity; Security Guardian is
-  the online technology estate. Security uses 14px-minimum supporting text,
+- Security: three first-class workspaces over O2-owned truth, named with large,
+  title-only controls in the compact Security navigation. Their purpose belongs
+  inside the selected workspace rather than in mini navigation descriptions.
+  Radcon Sentinel is this computer's control room; Empire Operations is
+  development-system integrity; Security Guardian is the online technology
+  estate. Security uses 14px-minimum supporting text,
   15–16px body and control text, 16px-minimum section headings, and approximately
   18–20px important values. Density comes from wide horizontal rows and
   hierarchy rather than small type or tall card grids. Every bounded child list
@@ -47,9 +49,10 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   Radcon Sentinel presents health first, one token-free foreground measurement
   home second, bounded durable Guardian activity third, and Advanced System
   Information fourth.
-  Its top answer uses the current token-free foreground measurement for current
-  health and separately presents Current Now, Last Full Scan, unresolved
-  finding state, Next Full Scan, and schedule state. A 15-minute timer wake is
+  Its top answer uses the current token-free foreground measurement and presents
+  one Current Now card. Last Full Scan, unresolved findings, Next Full Scan, and
+  schedule state stay in Recent Guardian Activity and the single schedule or
+  automation surfaces instead of repeating as top summary cards. A 15-minute timer wake is
   not scan freshness: it runs a full scan only when the configured daily or
   twice-daily interval is due and otherwise performs only the exact known Pop
   updater incident probe. Missing optional or learning evidence is a visible
@@ -93,7 +96,8 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   actions stay in existing Sentinel history.
   Empire Operations combines deterministic matched-pair, automation, audit, and
   topology truth with governed Map, Snapshot, and Sweep artifacts in the same
-  wide-row presentation system. Security Guardian owns websites and full
+  wide-row presentation system. Its bounded Operational Truth rows retain a
+  visible inset scrollbar. Security Guardian owns websites and full
   technology-estate visibility, promotes the
   existing provider/site inventory, and labels unwired user/auth/threat/commerce
   sources and controls as not connected. Sentinel never owns policy or a

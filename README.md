@@ -14,11 +14,12 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   Host Guardian rather than as a duplicate Infrastructure destination.
 - **Agents**: governed agent roster, attributes, scopes, and notes, plus the
   restored repository-router durability workspace backed by O2 `router.health`.
-- **Security**: one coherent three-workspace control room with readable
-  operator typography and inset wide-row lists. Radcon Sentinel answers whether
-  this computer is okay from current foreground evidence, names the top cause,
-  and separately presents Current Now, Last Full Scan, unresolved finding state,
-  Next Full Scan, and schedule state. Daily or
+- **Security**: one coherent three-workspace control room with large title-only
+  navigation, readable operator typography, and inset wide-row lists. Radcon
+  Sentinel answers whether this computer is okay from current foreground
+  evidence and presents one Current Now card; full-scan history, unresolved
+  findings, next-scan timing, and schedule state remain in their detailed
+  activity and automation homes instead of repeating in top summary cards. Daily or
   twice-daily full scans retain bounded expandable evidence; the 15-minute wake
   performs only a due check and the exact known-incident probe between scans.
   Diagnose runs exactly one deterministic deep check and leaves a persistent
