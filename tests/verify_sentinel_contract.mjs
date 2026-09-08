@@ -160,8 +160,12 @@ assert.match(component, /<HostUpdatesPanel/);
 assert.match(component, /data-testid="host-maintenance-boundary"/);
 assert.match(component, /sentinel-capability-ladder/);
 assert.match(component, /ACTIVE · READ ONLY/);
+assert.match(component, /ACTIVE · EXACT ALLOWLIST/);
 assert.match(component, /NOT ACTIVATED/);
 assert.match(component, /Privileged helper/);
+assert.match(component, /Scheduled thermal follow-up · exact pop-upgrade\.service final guard only/);
+assert.match(component, /Active · one restart \+ cooldown/);
+assert.doesNotMatch(component, />No automatic executor</);
 
 assert.match(component, /sentinelAutomationControl/);
 assert.match(component, /sentinel-automation-toggle/);

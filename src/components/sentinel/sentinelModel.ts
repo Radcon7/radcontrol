@@ -232,7 +232,12 @@ export type SentinelCapability = {
   mutating: boolean;
   implemented: boolean;
   dryRunOnly: boolean;
+  autonomousAuthority?: string;
   approvalRequirement: string;
+  protectedTargets?: string[];
+  targetScope?: string[];
+  requiredEvidence?: string[];
+  argumentKeys?: string[];
 };
 
 export type SentinelAutomation = {
@@ -412,6 +417,7 @@ function actionGuardian(action: SentinelActionRecord): "host" | "security" {
 }
 
 function actionOrigin(action: SentinelActionRecord): SentinelActivityRow["origin"] {
+  if (action.requestingAgent === "root-owned-pop-upgrade-helper") return "system-observed";
   if (action.requestingAgent === "deterministic-rule-engine") return "system-proposal";
   return "user-triggered";
 }
@@ -479,10 +485,29 @@ export function sentinelCapabilityLevelState(
   level: number,
   capabilities: SentinelCapability[],
 ): "active" | "not-activated" {
-  if (level !== 0) return "not-activated";
-  const levelZero = capabilities.filter((capability) => capability.level === 0);
-  return levelZero.length > 0 &&
-    levelZero.every((capability) => capability.implemented && !capability.mutating)
-    ? "active"
-    : "not-activated";
+  if (level === 0) {
+    const levelZero = capabilities.filter((capability) => capability.level === 0);
+    return levelZero.length > 0 &&
+      levelZero.every((capability) => capability.implemented && !capability.mutating)
+      ? "active"
+      : "not-activated";
+  }
+  if (level === 1) {
+    const exactSelfHeal = capabilities.find(
+      (capability) => capability.key === "host.maintenance.pop-upgrade-self-heal",
+    );
+    return exactSelfHeal?.guardian === "host" &&
+      exactSelfHeal.riskClass === "maintenance" &&
+      exactSelfHeal.mutating &&
+      exactSelfHeal.implemented &&
+      !exactSelfHeal.dryRunOnly &&
+      exactSelfHeal.autonomousAuthority === "due-scheduled-exact-final-guard" &&
+      exactSelfHeal.approvalRequirement === "preauthorized-exact-machine-scope" &&
+      exactSelfHeal.argumentKeys?.length === 0 &&
+      exactSelfHeal.targetScope?.length === 1 &&
+      exactSelfHeal.targetScope[0] === "pop-upgrade.service"
+      ? "active"
+      : "not-activated";
+  }
+  return "not-activated";
 }

@@ -51,6 +51,18 @@ const levelOne = {
   dryRunOnly: true,
   approvalRequirement: "human",
 };
+const exactAutomaticSelfHeal = {
+  ...levelOne,
+  key: "host.maintenance.pop-upgrade-self-heal",
+  implemented: true,
+  dryRunOnly: false,
+  autonomousAuthority: "due-scheduled-exact-final-guard",
+  approvalRequirement: "preauthorized-exact-machine-scope",
+  protectedTargets: ["all-other-services", "operator-applications", "arbitrary-processes"],
+  targetScope: ["pop-upgrade.service"],
+  requiredEvidence: ["mandatory-post-repair-verification"],
+  argumentKeys: [],
+};
 
 const baseStatus = {
   ok: true,
@@ -90,6 +102,9 @@ assert.equal(sentinelCapabilityLevelState(0, baseStatus.capabilities), "active")
 for (const level of [1, 2, 3, 4, 5]) {
   assert.equal(sentinelCapabilityLevelState(level, baseStatus.capabilities), "not-activated");
 }
+assert.equal(sentinelCapabilityLevelState(1, [levelZero, exactAutomaticSelfHeal, levelOne]), "active");
+assert.equal(sentinelCapabilityLevelState(1, [levelZero, { ...exactAutomaticSelfHeal, argumentKeys: ["service"] }]), "not-activated");
+assert.equal(sentinelCapabilityLevelState(1, [levelZero, { ...exactAutomaticSelfHeal, targetScope: ["another.service"] }]), "not-activated");
 
 const activity = buildSentinelActivity(baseStatus);
 assert.equal(activity.length, 2);
@@ -98,6 +113,18 @@ assert.equal(activity[0].origin, "user-triggered");
 assert.equal(filterSentinelActivity(activity, "events").length, 1);
 assert.equal(filterSentinelActivity(activity, "actions").length, 1);
 assert.equal(filterSentinelActivity(activity, "security").length, 0);
+
+const automaticRepairActivity = buildSentinelActivity({
+  ...baseStatus,
+  recentEvents: [],
+  recentActions: [{
+    ...baseStatus.recentActions[0],
+    requestedCapability: "host.maintenance.pop-upgrade-self-heal",
+    requestingAgent: "root-owned-pop-upgrade-helper",
+    executionResult: "repaired",
+  }],
+});
+assert.equal(automaticRepairActivity[0].origin, "system-observed");
 
 const activeIncident = {
   ...baseStatus,

@@ -100,11 +100,15 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   visible inset scrollbar. Security Guardian owns websites and full
   technology-estate visibility, promotes the
   existing provider/site inventory, and labels unwired user/auth/threat/commerce
-  sources and controls as not connected. Sentinel never owns policy or a
-  privileged executor; only an explicit investigation of a genuinely unknown
-  result may invoke the read-only diagnostic advisor, and repair remains separately
-  previewed and confirmed. Levels 1-5 remain visibly not activated. Host records
-  and all durable Sentinel state remain O2-owned.
+  sources and controls as not connected. Sentinel policy and durable state
+  remain O2-owned, and RadControl exposes no generic privileged executor. One
+  exact Level 1 allowlist is active: a due scheduled scan may ask the root-owned,
+  argument-free helper to restart only `pop-upgrade.service` after the helper
+  independently proves every final-guard predicate. Manual Safe Cleanup remains
+  separately previewed and confirmed. All other Level 1 capabilities and Levels
+  2-5 remain visibly not activated. An explicit investigation of a genuinely
+  unknown result may still invoke the read-only diagnostic advisor. Host records
+  remain O2-owned.
 - Notes and Legal: Notes distinguishes My Notes (one private persistent O2
   runtime scratchpad, explicitly not Empire authority), Timeline, one living
   Empire Blueprint owner manual, read-only O2 Knowledge, and the O2-backed

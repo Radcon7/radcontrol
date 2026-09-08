@@ -79,8 +79,11 @@ audit anchors, and the 5D release boundary are defined in
 O2's Local Filesystem and Credential Boundary v1 owns the shared secret and
 credential rule: configuration may point to an external credential mechanism,
 but neither O2 nor RadControl becomes the credential store. The current desktop
-uses the user account as its security boundary; same-UID malicious software is
-not contained and privilege separation remains future Guardian/provider work.
+uses the user account as its general security boundary; same-UID malicious
+software is not contained. The root-owned Sentinel helper is the one narrow
+exception: it accepts no caller arguments and can restart only
+`pop-upgrade.service` after independently proving the O2-governed final guard.
+Broader privilege separation remains future Guardian/provider work.
 
 `src/components/common/o2Client.ts` is the single frontend compatibility,
 invocation, payload, and command-error boundary. File semantics remain in

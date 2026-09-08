@@ -593,6 +593,7 @@ export function SentinelTab() {
   const automationActive = Boolean(automation?.active);
   const automationRequested = Boolean(automation?.enabled);
   const automaticStatus = automationActive ? `ON · ${automation?.frequency === "twice-daily" ? "Twice daily" : "Daily"}` : automationRequested ? "Timer unavailable" : "OFF";
+  const automaticSelfHealActive = sentinelCapabilityLevelState(1, status?.capabilities || []) === "active";
   const scheduleStatus = automation?.scheduleStatus || "off";
   const popUpgradeIncident = status?.knownIncidentState?.active
     ? status.recentIncidents.find((incident) => incident.id === status.knownIncidentState?.lastIncidentId && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview"))
@@ -650,7 +651,7 @@ export function SentinelTab() {
           <small>{fanInvestigation.evidence}</small>
           <div className="sentinelFanResultMeta"><span>{fanInvestigation.deepCheckUsed ? "Deeper deterministic evidence was collected automatically." : "The normal governed fan explanation was sufficient."}</span><span>Outcome retained in Sentinel history.</span></div>
           {popUpgradeIncident && fanInvestigation.outcome === "FIX AVAILABLE" ? <div className="guardianRepair" data-testid="pop-upgrade-safe-cleanup">
-            <div><strong>Safe Cleanup matches the exact pop-upgrade.service signature.</strong><span>No automatic restart. A fresh preview, explicit confirmation, and OS authorization remain required.</span></div>
+            <div><strong>Safe Cleanup matches the exact pop-upgrade.service signature.</strong><span>This manual path does not restart automatically. A fresh preview, explicit confirmation, and OS authorization remain required.</span></div>
             {!popUpgradePreview?.ok ? <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void previewPopUpgradeRepair()}>{busyAction === "pop-upgrade-preview" ? "Checking target…" : "Fix now"}</button> : <div><strong>{popUpgradePreview.candidate?.service}</strong><div className="sentinelActions"><button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void applyPopUpgradeRepair()}>{busyAction === "pop-upgrade-apply" ? "Authorizing…" : "Authorize & fix"}</button><button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => setPopUpgradePreview(null)}>Cancel</button></div></div>}
           </div> : null}
         </section> : null}
@@ -739,7 +740,7 @@ export function SentinelTab() {
 
         <section className="sentinelAdvancedSection" data-testid="advanced-scan-coverage">
           <div className="sentinelSubCardHeading"><div><span>SCAN COVERAGE</span><strong>Exactly what the last full scan watched—and what remained limited</strong></div><small>{status?.host.scanDurationMs ? `${(status.host.scanDurationMs / 1000).toFixed(1)}s last run` : "No retained duration"}</small></div>
-          <p className="sentinelSubtle">Twice-daily full scans cover current workstation evidence. The 15-minute timer wake does not repeat this scan; it checks due state and the one exact Pop updater incident signature only.</p>
+          <p className="sentinelSubtle">Twice-daily full scans automatically trend material thermal and fan alerts. The 15-minute timer wake does not repeat this scan; it checks due state and the one exact Pop updater incident signature only. Autonomous repair can run only inside a due full scan after the root-owned helper independently proves every predicate.</p>
           <div className="sentinelCoverageGrid securityInsetScroll">
             {(status?.host.coverage || []).map((row) => <div key={row.key}><span><strong>{row.label}</strong><small>{exactAvailableReason(row.reason, status?.host.metrics)}</small></span><StatusPill status={row.status} /></div>)}
             {!status?.host.coverage?.length ? <div><span><strong>Coverage unavailable</strong><small>Run a full scan to establish the first versioned coverage record.</small></span><StatusPill status="unknown" /></div> : null}
@@ -748,9 +749,9 @@ export function SentinelTab() {
         </section>
 
         <section className="sentinelAdvancedSection" data-testid="advanced-maintenance-updates">
-          <div className="sentinelSubCardHeading"><div><span>MAINTENANCE &amp; UPDATES</span><strong>Update inventory and the one exact governed Safe Cleanup boundary</strong></div><small>No automatic executor</small></div>
+          <div className="sentinelSubCardHeading"><div><span>MAINTENANCE &amp; UPDATES</span><strong>Update inventory and the one exact governed Safe Cleanup boundary</strong></div><small>{automaticSelfHealActive ? "Exact updater guard active" : "No automatic repair active"}</small></div>
           <HostUpdatesPanel disabled={Boolean(busyAction)} />
-          <div className="sentinelCompactList sentinelBoundaryList securityInsetScroll" data-testid="host-maintenance-boundary"><div><span><strong>Safe Cleanup</strong><small>Exact pop-upgrade.service preview/apply only</small></span><small>Explicit confirmation + OS authorization</small></div><div><span><strong>Catalog refresh + official updater</strong><small>Historical maintenance workflow</small></span><small>Not exposed here</small></div></div>
+          <div className="sentinelCompactList sentinelBoundaryList securityInsetScroll" data-testid="host-maintenance-boundary"><div><span><strong>Automatic self-heal</strong><small>Scheduled thermal follow-up · exact pop-upgrade.service final guard only</small></span><small>{automaticSelfHealActive ? "Active · one restart + cooldown" : "Not activated"}</small></div><div><span><strong>Safe Cleanup</strong><small>Exact pop-upgrade.service preview/apply only</small></span><small>Explicit confirmation + OS authorization</small></div><div><span><strong>Catalog refresh + official updater</strong><small>Historical maintenance workflow</small></span><small>Not exposed here</small></div></div>
         </section>
 
         <section className="sentinelAdvancedSection" data-testid="advanced-automation">
@@ -765,7 +766,7 @@ export function SentinelTab() {
 
         <section className="sentinelAdvancedSection" data-testid="advanced-safety-permissions">
           <div className="sentinelSubCardHeading"><div><span>SAFETY &amp; PERMISSIONS</span><strong>Observation, maintenance, intervention, containment, emergency, and recovery</strong></div><small>O2 registry-derived</small></div>
-          <div className="sentinelLevelList securityInsetScroll" data-testid="sentinel-capability-ladder">{SENTINEL_LEVELS.map((item) => { const levelCapabilities = status?.capabilities.filter((capability) => capability.level === item.level) || []; const levelState = sentinelCapabilityLevelState(item.level, status?.capabilities || []); return <div key={item.level}><span><strong>{item.label}</strong><small>{levelCapabilities.length} declared capabilities</small></span><span className={`sentinelLevelState sentinelLevelState-${levelState}`}>{levelState === "active" ? "ACTIVE · READ ONLY" : "NOT ACTIVATED"}</span></div>; })}</div>
+          <div className="sentinelLevelList securityInsetScroll" data-testid="sentinel-capability-ladder">{SENTINEL_LEVELS.map((item) => { const levelCapabilities = status?.capabilities.filter((capability) => capability.level === item.level) || []; const levelState = sentinelCapabilityLevelState(item.level, status?.capabilities || []); const activeLabel = item.level === 0 ? "ACTIVE · READ ONLY" : item.level === 1 ? "ACTIVE · EXACT ALLOWLIST" : "ACTIVE"; return <div key={item.level}><span><strong>{item.label}</strong><small>{levelCapabilities.length} declared capabilities</small></span><span className={`sentinelLevelState sentinelLevelState-${levelState}`}>{levelState === "active" ? activeLabel : "NOT ACTIVATED"}</span></div>; })}</div>
           <div className="sentinelBoundary"><span>Mode: {status?.executionMode || "observe-and-dry-run"}</span><span>Privileged helper: {status?.privilegedHelper || "not-installed"}</span><span>Scheduler: {status?.scheduler || "disabled"}</span><span>Audit: {status?.auditVerification.claim || "hash-chained-not-immutable"}</span></div>
         </section>
       </section>
