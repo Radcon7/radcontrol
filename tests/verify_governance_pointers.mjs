@@ -50,7 +50,8 @@ assert.match(repoState, /Security: three first-class workspaces over O2-owned tr
 assert.match(repoState, /Current Measurements”, “Recent Guardian Activity”/);
 assert.match(repoState, /six full-width areas:[\s\S]*Scan Coverage/);
 assert.match(repoState, /standalone Diagnostics and Quick Answers are intentionally/);
-assert.match(repoState, /Levels 1-5 remain visibly not activated/);
+assert.match(repoState, /One[\s\S]*exact Level 1 allowlist is active/);
+assert.match(repoState, /All other Level 1 capabilities and Levels[\s\S]*2-5 remain visibly not activated/);
 assert.match(repoState, /system76-workstation[\s\S]*excluded from this roster/);
 assert.match(repoState, /structured Empire To-Do workspace/);
 assert.match(repoState, /must not be launched through localhost/);
