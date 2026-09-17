@@ -184,13 +184,13 @@ function assertGuardianActivityGeometry(layout, label, { desktop }) {
   assert.equal(layout.overflowY, "auto", `${label}: Guardian Activity must remain vertically scrollable`);
   assert.ok(layout.scrollHeight >= layout.clientHeight, `${label}: the scroll container must retain its complete content height`);
   assert.ok(layout.scrollHeight + 2 >= layout.contentBottom, `${label}: scrollHeight does not contain every activity row`);
-  assert.deepEqual(layout.rows.map((row) => row.directChildCount), Array(layout.rowCount).fill(5), `${label}: each row must contain five logical cells`);
+  assert.deepEqual(layout.rows.map((row) => row.directChildCount), Array(layout.rowCount).fill(4), `${label}: each row must contain four logical cells`);
   assert.deepEqual(layout.rows.flatMap((row) => row.escapingDescendants), [], `${label}: a visible descendant escaped its owning row`);
   assert.ok(layout.rowCrossings.every((crossing) => crossing <= 1), `${label}: adjacent Guardian Activity rows overlap`);
   for (const row of layout.rows) assert.ok(row.bounds.height >= 62, `${label}: an activity row collapsed below its minimum height`);
   if (desktop) {
-    assert.equal(layout.headerDisplay, "grid", `${label}: the five-column header must be visible`);
-    assert.equal(layout.headerColumnCount, 5, `${label}: the desktop header must contain five columns`);
+    assert.equal(layout.headerDisplay, "grid", `${label}: the four-column header must be visible`);
+    assert.equal(layout.headerColumnCount, 4, `${label}: the desktop header must contain four columns`);
     for (const row of layout.rows) {
       row.columnRects.forEach((column, index) => {
         assert.ok(Math.abs(column.left - layout.headerColumnRects[index].left) <= 20, `${label}: row column ${index + 1} does not align with its header`);
@@ -449,16 +449,16 @@ try {
   const sentinelText = await eventually(async () => {
     const text = await bodyText(base, sessionId);
     assert.ok(/Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/i.test(text), "Security control-room navigation is missing");
-    assert.ok(/Is my computer okay\?[\s\S]*CURRENT MEASUREMENTS[\s\S]*RECENT GUARDIAN ACTIVITY[\s\S]*ADVANCED SYSTEM INFORMATION/.test(text), "Sentinel primary hierarchy is incorrect");
+    assert.ok(/Is my computer okay\?[\s\S]*CURRENT NOW[\s\S]*RECENT EVENTS[\s\S]*Details/.test(text), "Sentinel primary hierarchy is incorrect");
     assert.ok(!text.includes("Advanced evidence, controls, and workstation records"), "The retired Advanced umbrella disclosure is still rendered");
-    assert.ok(/Refreshes every 60 seconds[\s\S]*Deterministic, token-free, and not written to durable history/.test(text), "Foreground measurement persistence boundary is missing");
-    assert.ok(/GPU temperature[\s\S]*(Sensor unavailable|°C)/i.test(text), "GPU measurement truth is missing");
-    assert.ok(text.includes("Additional depth and provenance—not a second copy of Current Measurements."), "Advanced evidence boundary is missing");
-    assert.ok(!text.includes("QUICK ANSWERS"), "The retired standalone Quick Answers section is still rendered");
-    assert.ok(!text.includes("DIAGNOSTICS"), "The retired standalone Diagnostics section is still rendered");
-    for (const heading of ["SYSTEM EVIDENCE", "SCAN COVERAGE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(text.includes(heading), `Advanced area ${heading} is missing`);
     return text;
   }, "render the installed Radcon Sentinel control room");
+  await click(base, sessionId, '.sentinelAdvancedWorkspace > summary');
+  const detailsText = await bodyText(base, sessionId);
+  assert.match(detailsText, /MEASUREMENT DETAILS[\s\S]*ADVANCED SYSTEM INFORMATION/);
+  assert.match(detailsText, /Refreshes every 60 seconds/);
+  for (const heading of ["SYSTEM EVIDENCE", "SCAN COVERAGE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(detailsText.includes(heading), `Advanced area ${heading} is missing`);
+  await click(base, sessionId, '.sentinelAdvancedWorkspace > summary');
   const securityNavigation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `var buttons = Array.from(document.querySelectorAll('.securityControlRoom > .workspaceModeRow .workspaceModeButton'));
       return {
@@ -474,7 +474,7 @@ try {
   assert.deepEqual(securityNavigation.labels, ["Radcon Sentinel", "Empire Operations", "Security Guardian"], "Security navigation must contain only the three workspace titles");
   assert.equal(securityNavigation.miniDescriptionCount, 0, "Security navigation must not render mini descriptions");
   assert.ok(securityNavigation.titleFontSizes.every((size) => size >= 18), "Security workspace titles must use larger typography");
-  assert.equal((sentinelText.match(/CURRENT MEASUREMENTS/g) || []).length, 1, "Current Measurements must have one primary home");
+  assert.equal((sentinelText.match(/CURRENT NOW/g) || []).length, 1, "Current Now must have one primary home");
   assert.equal((sentinelText.match(/Fans are loud/g) || []).length, 1, "The primary loud-fan action must appear exactly once");
   assert.match(sentinelText, /CURRENT NOW[\s\S]*(HEALTHY|ATTENTION|PROBLEM|UNKNOWN)/i, "current-now truth must remain legible");
   const currentHealthPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {

@@ -42,9 +42,14 @@ assert.doesNotMatch(component, /data-testid="sentinel-last-full-scan"|<small>LAS
 assert.doesNotMatch(css, /\.sentinelDurableReview/);
 assert.match(css, /\.sentinelThreat-attention\s*\{[\s\S]*255, 205, 92/);
 assert.match(css, /\.sentinelThreat-elevated,[\s\S]*\.sentinelThreat-critical\s*\{[\s\S]*255, 95, 115/);
-assert.ok(component.indexOf("Is my computer okay?") < component.indexOf("CURRENT MEASUREMENTS"));
-assert.ok(component.indexOf("CURRENT MEASUREMENTS") < component.indexOf("RECENT GUARDIAN ACTIVITY"));
-assert.ok(component.indexOf("RECENT GUARDIAN ACTIVITY") < component.indexOf("ADVANCED SYSTEM INFORMATION"));
+assert.ok(component.indexOf("sentinel-current-now") < component.indexOf("sentinel-current-signals"));
+assert.ok(component.indexOf("sentinel-current-signals") < component.indexOf("RECENT EVENTS"));
+assert.ok(component.indexOf("RECENT EVENTS") < component.indexOf('<details className="sentinelAdvancedWorkspace">'));
+assert.equal((component.match(/data-testid="sentinel-current-now"/g) || []).length, 1);
+assert.match(component, /currentMeasurementFresh\(liveMeasurements, liveMeasurementError, now\)/);
+assert.match(component, /automaticUpdaterReady\(status\)/);
+assert.match(component, /operatorRecentEvents\(observations\)/);
+assert.match(component, /document.visibilityState === "hidden"/);
 
 for (const measurement of ["CPU temperature", "GPU temperature", "Fan", "CPU", "Load", "Memory", "Disk", "Services"]) {
   assert.match(component, new RegExp(`label: "${measurement}"`));
@@ -59,10 +64,10 @@ assert.match(component, /window\.setInterval\(\(\) => void sample\(\), 60_000\)/
 assert.match(component, /not written to durable history/);
 assert.match(component, /materiallyDifferentTimestamp/);
 
-assert.match(component, /latest 20 maximum/);
+assert.match(component, /slice\(0, 20\)/);
 assert.match(component, /guardianActivityColumns/);
 assert.match(component, /guardianActivityScroll securityInsetScroll/);
-for (const label of ["Time", "State", "Source", "Key measurements", "Action / context"]) {
+for (const label of ["Time", "State", "Source", "Action / context"]) {
   assert.match(component, new RegExp(`data-activity-label="${label.replace("/", "\\/")}"`));
 }
 assert.match(component, /showOlderActivity/);
@@ -70,7 +75,7 @@ assert.match(component, /Show \$\{observations\.length - 6\} older observations/
 assert.match(component, /Legacy observation · detailed measurements not retained/);
 assert.match(component, /Attention was recorded; detailed reason was not retained/);
 assert.match(component, /verdictReason/);
-assert.match(component, /View scan evidence/);
+assert.match(component, /View evidence/);
 assert.match(component, /scanDurationMs/);
 assert.match(component, /coverageLimitations/);
 assert.match(component, /normalized snapshot was not retained/);

@@ -239,6 +239,7 @@ tests/o2_runtime_boundary_behavior.mjs
 tests/project_intent_preview_behavior.mjs
 tests/release_candidate_evidence_test.py
 tests/sentinel_behavior.mjs
+tests/sentinel_render.mjs
 tests/verify_agents_architecture_contract.mjs
 tests/verify_change_guardian_policy.mjs
 tests/verify_ci_workflow_contract.mjs

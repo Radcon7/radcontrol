@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import {
   buildSentinelActivity,
+  currentMeasurementFresh,
+  automaticUpdaterReady,
+  operatorRecentEvents,
+  operatorEventSummary,
   combineGuardianStatus,
   deriveThreatState,
   filterSentinelActivity,
@@ -138,3 +142,41 @@ const unsafeLevelZero = [{ ...levelZero, mutating: true }];
 assert.equal(sentinelCapabilityLevelState(0, unsafeLevelZero), "not-activated");
 
 console.log("Sentinel behavior: threat visibility, real activity, and authority ladder verified");
+
+const now = Date.parse("2026-09-17T12:00:00Z");
+const current = { ok: true, measuredAt: "2026-09-17T11:59:30Z" };
+assert.equal(currentMeasurementFresh(current, "", now), true);
+assert.equal(currentMeasurementFresh(current, "refresh failed", now), false);
+assert.equal(currentMeasurementFresh(current, "", now + 90_000), false);
+assert.equal(currentMeasurementFresh(null, "", now), false);
+assert.equal(currentMeasurementFresh({ ...current, measuredAt: "invalid" }, "", now), false);
+assert.equal(currentMeasurementFresh({ ...current, measuredAt: "2027-01-01" }, "", now), false);
+const ready = { ...baseStatus, automation: { enabled: true, active: true }, privilegedBoundary: { ready: true },
+  auditVerification: { ok: true }, capabilities: [exactAutomaticSelfHeal] };
+assert.equal(automaticUpdaterReady(ready), true);
+for (const unavailable of [
+  { ...ready, automation: { enabled: false, active: true } },
+  { ...ready, automation: { enabled: true, active: false } },
+  { ...ready, privilegedBoundary: { ready: false } },
+  { ...ready, privilegedBoundary: undefined },
+  { ...ready, auditVerification: { ok: false } },
+  { ...ready, knownIncidentState: { repairNeedsOperator: true } },
+]) assert.equal(automaticUpdaterReady(unavailable), false);
+const repaired = { id: "repair", type: "host.automatic-pop-upgrade-self-heal", observedValues: {
+  outcome: "verified", actionOccurred: true, postRepairVerificationPassed: true } };
+assert.match(operatorEventSummary(repaired), /service restarted → recovery verified/);
+assert.match(operatorEventSummary({ ...repaired, observedValues: { ...repaired.observedValues, actionOccurred: false } }), /no restart performed/);
+assert.doesNotMatch(operatorEventSummary({ ...repaired, observedValues: { outcome: "improved" } }), /recovery verified/);
+const finding = { findingKey: "services:fixture", reason: "Service failed", resolution: { state: "unresolved" } };
+const scan = { id: "new", type: "host.health-check", observedValues: { findings: [finding] } };
+const duplicate = { ...scan, id: "old" };
+const resolved = { ...scan, id: "resolved", observedValues: { findings: [{ ...finding, resolution: { state: "resolved" } }] } };
+const records = [repaired, scan, duplicate, resolved];
+const original = JSON.stringify(records);
+assert.deepEqual(operatorRecentEvents(records).map((row) => row.id), ["repair", "new", "resolved"]);
+assert.equal(JSON.stringify(records), original, "grouping must not rewrite retained evidence");
+console.log("Sentinel convergence: freshness, readiness, repair outcomes and grouped history verified");
+
+const helperEvent = { ...repaired, evidence: ["sentinel-host:probe"] };
+const stageEvent = { id: "stage", type: "host.updater-mid-scan.verified", evidence: ["sentinel-host:probe"], observedValues: { stage: "verified" } };
+assert.deepEqual(operatorRecentEvents([stageEvent, helperEvent]).map((row) => row.id), ["repair"]);
