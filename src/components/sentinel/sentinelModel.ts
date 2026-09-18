@@ -130,6 +130,7 @@ export type SentinelEvent = {
   type: string;
   severity: SentinelSeverity;
   asset: string;
+  evidence?: string[];
   observedValues?: Record<string, unknown>;
 };
 
@@ -149,6 +150,9 @@ export type SentinelHostMeasurements = {
 export type SentinelHostObservation = SentinelEvent & {
   guardian: "host";
   observedValues?: {
+    outcome?: string;
+    stage?: string;
+    postRepairVerification?: Record<string, unknown>;
     overallStatus?: SentinelEvidenceStatus;
     metricStatuses?: Record<string, SentinelEvidenceStatus>;
     keyMeasurements?: SentinelHostMeasurements;
@@ -277,11 +281,14 @@ export type SentinelStatus = {
   };
   executionMode: string;
   privilegedHelper: string;
+  privilegedBoundary?: { ready: boolean };
   providerMutation: string;
   scheduler: string;
   automation: SentinelAutomation;
   knownIncidentState?: {
     active: boolean;
+    repairNeedsOperator?: boolean;
+    midScanNeedsOperator?: boolean;
     lastDetectedAt: string | null;
     lastRemediationAt: string | null;
     lastOutcome: string | null;
@@ -510,4 +517,52 @@ export function sentinelCapabilityLevelState(
       : "not-activated";
   }
   return "not-activated";
+}
+
+// Presentation expiration only; this does not change observation/repair policy.
+export function currentMeasurementFresh(
+  sample: SentinelCurrentMeasurements | null, refreshError: string, now = Date.now(),
+): boolean {
+  const measured = Date.parse(sample?.measuredAt || "");
+  return Boolean(sample?.ok && !refreshError && Number.isFinite(measured)
+    && now >= measured && now - measured <= 90_000);
+}
+
+export function automaticUpdaterReady(status: SentinelStatus | null): boolean {
+  return Boolean(status?.automation.enabled && status.automation.active
+    && status.privilegedBoundary?.ready && status.auditVerification.ok
+    && !status.knownIncidentState?.repairNeedsOperator && !status.knownIncidentState?.midScanNeedsOperator
+    && status.capabilities.some((row) => row.key === "host.maintenance.pop-upgrade-self-heal"
+      && row.implemented && !row.dryRunOnly));
+}
+
+export function operatorEventSummary(event: SentinelHostObservation): string | null {
+  if (!event.type.endsWith("pop-upgrade-self-heal") && !event.type.startsWith("host.updater-mid-scan.")) return null;
+  const value = event.observedValues;
+  const outcome = value?.outcome || value?.stage;
+  if (outcome === "verified" && value?.postRepairVerificationPassed) {
+    return value.actionOccurred
+      ? "Updater runaway detected → service restarted → recovery verified"
+      : "Updater recovery verified · no restart performed";
+  }
+  if (outcome === "improved" || outcome === "repaired") return "Updater restart reported · historical recovery evidence retained";
+  if (["failed", "unresolved", "needs-operator"].includes(outcome || "")) return "Updater recovery needs attention · " + outcome;
+  return value?.verdictReason || "Updater qualification · " + (outcome || "outcome not retained");
+}
+
+export function operatorRecentEvents(events: SentinelHostObservation[]): SentinelHostObservation[] {
+  const seen = new Set<string>();
+  return events.filter((event) => {
+    if (event.type.startsWith("host.updater-mid-scan.")
+        && ["started", "qualified", "attempted"].includes(event.observedValues?.stage || "")) return false;
+    if (event.type.startsWith("host.updater-mid-scan.") && events.some((other) =>
+      other.type.endsWith("pop-upgrade-self-heal") && other.evidence?.some((id) => event.evidence?.includes(id)))) return false;
+    const findings = event.observedValues?.findings || [];
+    // Exact finding/resolution repetition only; original records remain in Details.
+    const signature = findings.length ? JSON.stringify(findings.map((finding) =>
+      [finding.findingKey, finding.reason, finding.resolution?.state]).sort()) : event.id;
+    if (seen.has(signature)) return false;
+    seen.add(signature);
+    return true;
+  });
 }

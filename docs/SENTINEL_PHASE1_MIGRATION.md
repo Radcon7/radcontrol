@@ -1,13 +1,16 @@
 # RadControl Sentinel Phase 1 Migration Manifest
 
-Status: Superseded in part by the content-preservation recovery
+Status: Historical migration evidence; superseded for current operation
+Superseded in part by the content-preservation recovery; see the record below.
 Authority class: Reference
 Reviewed: 2026-08-15
 
 This manifest records how the superseded Empire Utility destination and the
-System76 Infrastructure presentation were resolved. Current behavior remains
-governed by `AGENTS.md`, `docs/REPO_STATE.md`, and the O2 Sentinel Security
-Contract v1.
+System76 Infrastructure presentation were resolved. The dispositions and phase
+statements below describe that historical migration, not current capabilities.
+Current behavior is governed by `AGENTS.md`, `docs/REPO_STATE.md`, and O2
+`contracts/sentinel-security/v2/README.md`. Sentinel v1 remains compatibility
+material and is not deleted by this historical marker.
 
 The initial Phase 1 closeout over-classified several unrelated capabilities as
 deletable. The accepted recovery in `docs/RADCONTROL_CONTENT_PRESERVATION.json`

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useGovernedRecordNote } from "../common/useGovernedRecordNote";
 import { HostUpdatesPanel } from "./HostUpdatesPanel";
 import {
@@ -18,6 +18,10 @@ import {
 } from "./sentinelApi";
 import {
   SENTINEL_LEVELS,
+  currentMeasurementFresh,
+  automaticUpdaterReady,
+  operatorRecentEvents,
+  operatorEventSummary,
   observationValue,
   sentinelCapabilityLevelState,
   sentinelStatusLabel,
@@ -337,8 +341,12 @@ export function SentinelTab() {
   const [status, setStatus] = useState<SentinelStatus | null>(null);
   const [liveMeasurements, setLiveMeasurements] = useState<SentinelCurrentMeasurements | null>(null);
   const [liveMeasurementError, setLiveMeasurementError] = useState("");
+  const [now, setNow] = useState(Date.now);
+  const currentRequest = useRef<Promise<SentinelCurrentMeasurements> | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [statusError, setStatusError] = useState("");
+  const statusRequest = useRef<Promise<SentinelStatus> | null>(null);
   const [notice, setNotice] = useState("");
   const [investigationOpen, setInvestigationOpen] = useState(false);
   const [diagnosis, setDiagnosis] = useState<DiagnosisResult | null>(null);
@@ -352,57 +360,72 @@ export function SentinelTab() {
   const hostConfiguration = useGovernedRecordNote({ recordKey: "sentinel-host-configuration", path: HOST_CONFIGURATION_PATH, missingStatus: "Canonical host configuration is unavailable" });
   const hostNotes = useGovernedRecordNote({ recordKey: "sentinel-host-notes", path: HOST_NOTES_PATH, missingStatus: "Canonical host notes are unavailable" });
 
-  const refresh = useCallback(async () => {
-    const next = await loadSentinelStatus();
-    setStatus(next);
-    return next;
+  const refresh = useCallback(async (afterAction = false) => {
+    if (statusRequest.current) {
+      if (!afterAction) return statusRequest.current;
+      // An action needs a read started after its result, not an older poll.
+      await statusRequest.current.catch(() => undefined);
+    }
+    const request = loadSentinelStatus().then((next) => {
+      setStatus(next); setStatusError("");
+      return next;
+    }).catch((reason: unknown) => {
+      setStatusError(reason instanceof Error ? reason.message : String(reason));
+      throw reason;
+    }).finally(() => { statusRequest.current = null; });
+    statusRequest.current = request;
+    return request;
   }, []);
 
   const refreshCurrent = useCallback(async () => {
-    const next = await loadCurrentHostMeasurements();
-    setLiveMeasurements(next);
-    setLiveMeasurementError("");
-    return next;
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void loadSentinelStatus()
-      .then((next) => { if (active) { setStatus(next); setAutomationFrequency(next.automation.frequency); } })
-      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : String(reason)); });
-    return () => { active = false; };
+    if (currentRequest.current) return currentRequest.current;
+    const request = loadCurrentHostMeasurements().then((next) => {
+      setLiveMeasurements(next); setLiveMeasurementError(""); setNow(Date.now());
+      return next;
+    }).catch((reason: unknown) => {
+      setLiveMeasurementError(reason instanceof Error ? reason.message : String(reason));
+      throw reason;
+    }).finally(() => { currentRequest.current = null; });
+    currentRequest.current = request;
+    return request;
   }, []);
 
   useEffect(() => {
     let active = true;
     let inFlight = false;
+    let initialized = false;
     const sample = async () => {
-      if (inFlight) return;
+      if (inFlight || document.visibilityState === "hidden") return;
       inFlight = true;
-      try {
-        const next = await loadCurrentHostMeasurements();
-        if (active) { setLiveMeasurements(next); setLiveMeasurementError(""); }
-      } catch (reason) {
-        if (active) setLiveMeasurementError(reason instanceof Error ? reason.message : String(reason));
-      } finally {
-        inFlight = false;
+      const results = await Promise.allSettled([refreshCurrent(), refresh()]);
+      if (active) {
+        const durable = results[1];
+        if (durable.status === "fulfilled") {
+          setStatus(durable.value);
+          if (!initialized) { setAutomationFrequency(durable.value.automation.frequency); initialized = true; }
+        } // refresh() owns the separately cleared durable-status error.
       }
+      inFlight = false;
     };
+    const visible = () => { setNow(Date.now()); void sample(); };
     void sample();
     const interval = window.setInterval(() => void sample(), 60_000);
-    return () => { active = false; window.clearInterval(interval); };
-  }, []);
+    const freshnessClock = window.setInterval(() => setNow(Date.now()), 15_000);
+    document.addEventListener("visibilitychange", visible);
+    return () => { active = false; window.clearInterval(interval); window.clearInterval(freshnessClock); document.removeEventListener("visibilitychange", visible); };
+  }, [refreshCurrent, refresh]);
 
   async function perform(key: string, action: () => Promise<unknown>, success: string): Promise<void> {
     if (busyAction) return;
     setBusyAction(key); setError(""); setNotice("");
     try {
       await action();
-      await refresh();
+      await refresh(true);
       await refreshCurrent();
       setNotice(success);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh(true).catch(() => undefined);
     } finally {
       setBusyAction(null);
     }
@@ -415,13 +438,14 @@ export function SentinelTab() {
       const result = await explainFans();
       const deepCheckUsed = fanInvestigationNeedsDeepCheck(result);
       if (deepCheckUsed) await runHostDeepCheck();
-      const [nextStatus, nextMeasurements] = await Promise.all([refresh(), refreshCurrent()]);
+      const [nextStatus, nextMeasurements] = await Promise.all([refresh(true), refreshCurrent()]);
       const repairAvailable = Boolean(nextStatus.knownIncidentState?.active && nextStatus.recentIncidents.some((incident) => incident.id === nextStatus.knownIncidentState?.lastIncidentId && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview")));
       const evidence = compactHostEvidence(deepCheckUsed ? nextStatus.host.metrics : result.report.metrics || nextMeasurements.metrics);
       const outcome: FanInvestigationOutcome = repairAvailable ? "FIX AVAILABLE" : "NO FIX NEEDED";
       setFanInvestigation({ diagnosis: result.explanation, evidence, outcome, deepCheckUsed });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh(true).catch(() => undefined);
     } finally {
       setBusyAction(null);
     }
@@ -452,10 +476,11 @@ export function SentinelTab() {
     try {
       const result = await investigateHostObservation(observation.id);
       setDiagnosis({ phase: "complete", outcome: "NEEDS YOUR HELP", observationId: result.observationId, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: exactAvailableReason(result.diagnosis, metrics), evidence: exactAvailableFindingEvidence(finding, metrics), repairRan: false, nextStep: result.nextStep });
-      await refresh();
+      await refresh(true);
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
       setError(message);
+      await refresh(true).catch(() => undefined);
       setDiagnosis({ phase: "complete", outcome: "NEEDS YOUR HELP", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: "The governed diagnostic did not complete.", evidence: exactAvailableFindingEvidence(finding, metrics), repairRan: false, nextStep: `${message} No repair ran.` });
     } finally {
       setBusyAction(null);
@@ -505,7 +530,7 @@ export function SentinelTab() {
       const report = await runHostDeepCheck();
       const result = diagnosisFromReport(report);
       setDiagnosis(result);
-      const [nextStatus, nextMeasurements] = await Promise.all([refresh(), refreshCurrent()]);
+      const [nextStatus, nextMeasurements] = await Promise.all([refresh(true), refreshCurrent()]);
       if (result.outcome === "FIX AVAILABLE" && nextStatus.knownIncidentState?.active) {
         setFanInvestigation({ diagnosis: report.guidance?.message || result.finding, evidence: compactHostEvidence(report.metrics), outcome: "FIX AVAILABLE", deepCheckUsed: true });
         setNotice("A known issue matched. Review the exact Safe Cleanup preview before requesting OS authorization.");
@@ -516,6 +541,7 @@ export function SentinelTab() {
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
       setError(message);
+      await refresh(true).catch(() => undefined);
       setDiagnosis({ phase: "complete", outcome: "NEEDS YOUR HELP", scanKind: "deep", finding: "The deterministic deep check did not complete.", evidence: [], repairRan: false, nextStep: `${message} No repair ran.` });
     } finally {
       setBusyAction(null);
@@ -525,9 +551,14 @@ export function SentinelTab() {
   async function submitQuestion(): Promise<void> {
     if (!question.trim() || busyAction) return;
     setBusyAction("ask"); setError("");
-    try { setAnswer(await askSentinel(question.trim())); await refresh(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setBusyAction(null); }
+    try { setAnswer(await askSentinel(question.trim())); await refresh(true); }
+    catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh(true).catch(() => undefined);
+    }
+    finally {
+      setBusyAction(null);
+    }
   }
 
   async function setAutomation(enabled: boolean, frequency = automationFrequency): Promise<void> {
@@ -538,11 +569,19 @@ export function SentinelTab() {
     if (busyAction) return;
     setBusyAction("pop-upgrade-preview"); setError(""); setNotice("");
     try {
+      if (status?.knownIncidentState?.repairNeedsOperator || status?.knownIncidentState?.midScanNeedsOperator) {
+        setFanInvestigation({ diagnosis: "Review blocked updater recovery. The root guard will not retry a failed attempt; it may verify an existing recovered replacement.", evidence: "Fresh preview and explicit confirmation required.", outcome: "FIX AVAILABLE", deepCheckUsed: false });
+      }
       const preview = await previewPopUpgradeCleanup();
-      setPopUpgradePreview(preview); await refresh();
+      setPopUpgradePreview(preview); await refresh(true);
       setNotice(preview.ok ? "Review the exact updater target before requesting operating-system authorization." : "The updater no longer meets the exact Safe Cleanup signature.");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setBusyAction(null); }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh(true).catch(() => undefined);
+    }
+    finally {
+      setBusyAction(null);
+    }
   }
 
   async function applyPopUpgradeRepair(): Promise<void> {
@@ -551,7 +590,7 @@ export function SentinelTab() {
     try {
       const result = await applyPopUpgradeCleanup();
       await runHostHealthCheck();
-      const [, nextMeasurements] = await Promise.all([refresh(), refreshCurrent()]);
+      const [, nextMeasurements] = await Promise.all([refresh(true), refreshCurrent()]);
       setPopUpgradePreview(null);
       const outcome: FanInvestigationOutcome = result.ok ? "FIXED" : "STILL PRESENT";
       const evidence = compactHostEvidence(nextMeasurements.metrics);
@@ -566,12 +605,17 @@ export function SentinelTab() {
         scanKind: "full",
         finding: diagnosis,
         evidence: [evidence],
-        repairRan: true,
+        repairRan: result.actions?.some((action) => action.actionOccurred === true) || false,
         nextStep: result.ok ? "Post-repair verification passed; continue normal monitoring." : "The finding is still present. No broader repair was attempted; review the retained evidence.",
       });
       setNotice(result.ok ? "Safe Cleanup completed and post-repair evidence was refreshed." : "Safe Cleanup did not verify recovery; review current evidence.");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setBusyAction(null); }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      await refresh(true).catch(() => undefined);
+    }
+    finally {
+      setBusyAction(null);
+    }
   }
 
   const displayHost = useMemo<SentinelHostState | null>(() => {
@@ -579,10 +623,11 @@ export function SentinelTab() {
     return liveMeasurements ? { ...status.host, checkedAt: liveMeasurements.measuredAt, metrics: liveMeasurements.metrics } : status.host;
   }, [liveMeasurements, status]);
   const signals = useMemo(() => displayHost ? hostSignals(displayHost) : [], [displayHost]);
-  const healthState = operatorHealthState(status, displayHost, Boolean(liveMeasurements));
+  const fresh = currentMeasurementFresh(liveMeasurements, liveMeasurementError, now);
+  const healthState = fresh ? operatorHealthState(status, displayHost, true) : "UNKNOWN";
   const heroThreat = operatorHeroThreat(healthState);
   const observations = (status?.recentHostObservations || []).slice(0, 20);
-  const visibleObservations = showOlderActivity ? observations : observations.slice(0, 6);
+  const visibleObservations = showOlderActivity ? observations : operatorRecentEvents(observations).slice(0, 6);
   const hostMetrics = status?.host.metrics || {};
   const thermalRows = observationValue<ThermalRow[]>(hostMetrics.thermal, []);
   const processRows = observationValue<ProcessRow[]>(hostMetrics.processes, []);
@@ -593,49 +638,39 @@ export function SentinelTab() {
   const automationActive = Boolean(automation?.active);
   const automationRequested = Boolean(automation?.enabled);
   const automaticStatus = automationActive ? `ON · ${automation?.frequency === "twice-daily" ? "Twice daily" : "Daily"}` : automationRequested ? "Timer unavailable" : "OFF";
-  const automaticSelfHealActive = sentinelCapabilityLevelState(1, status?.capabilities || []) === "active";
+  const automaticSelfHealActive = !statusError && automaticUpdaterReady(status);
+  const operatorRequired = Boolean(status?.knownIncidentState?.repairNeedsOperator || status?.knownIncidentState?.midScanNeedsOperator);
   const scheduleStatus = automation?.scheduleStatus || "off";
   const popUpgradeIncident = status?.knownIncidentState?.active
     ? status.recentIncidents.find((incident) => incident.id === status.knownIncidentState?.lastIncidentId && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview"))
     : undefined;
   const repairAvailable = Boolean(status?.knownIncidentState?.active && (status?.host.findings?.some((finding) => Boolean(finding.repairCapability)) || status?.host.guidance?.knownRepair));
   const primaryActionLabel = repairAvailable ? "Review & Fix" : "Diagnose";
-  const attentionReason = primaryAttentionReason(status, displayHost);
-  const currentTemperature = liveMeasurements?.summary.cpuTemperatureC;
-  const currentNowDetail = healthState === "HEALTHY"
-    ? `${typeof currentTemperature === "number" ? `CPU ${currentTemperature}°C · ` : ""}no current issue`
-    : attentionReason;
+  const currentNowDetail = fresh ? operatorHealthMessage(healthState, status, displayHost)
+    : liveMeasurements ? "STALE · current health unavailable until refresh succeeds" : "Waiting for current measurements";
+  const unresolved = [...new Map(observations.flatMap((row) => row.observedValues?.findings || [])
+    .filter((finding) => finding.resolution?.state === "unresolved")
+    .map((finding) => [finding.findingKey || finding.reason, finding])).values()];
   return (
     <section className="sentinelShell" data-testid="radcon-sentinel">
       <header className={`sentinelHero sentinelThreat-${heroThreat} sentinelOperatorHero`} data-current-health={healthState}>
         <div className="sentinelHeroCopy">
           <span className="sentinelEyebrow">RADCON SENTINEL · THIS COMPUTER</span>
           <h1>Is my computer okay?</h1>
-          <p>{operatorHealthMessage(healthState, status, displayHost)}</p>
+
         </div>
         <div className="sentinelOperatorSummary" data-testid="sentinel-status-header">
-          <div className={`sentinelOperatorState sentinelOperatorState-${healthState.toLowerCase()}`} data-testid="sentinel-current-now"><small>CURRENT NOW</small><strong>{healthState}</strong><span>{currentNowDetail}</span></div>
+          <div className={`sentinelOperatorState sentinelOperatorState-${healthState.toLowerCase()}`} data-testid="sentinel-current-now"><small>CURRENT NOW</small><strong>{healthState}</strong><span>{currentNowDetail}</span><small>{fresh ? "Measured" : "Last measurement"}: {formatDateTime(liveMeasurements?.measuredAt)}</small></div>
         </div>
         <div className="sentinelPrimaryActions" aria-label="Host Guardian actions">
           <button className="btn btnPrimary sentinelResolveAction" type="button" disabled={Boolean(busyAction)} onClick={() => void diagnoseAndFix()} data-testid="sentinel-diagnose-fix">{busyAction === "diagnose-fix" ? "Diagnosing…" : primaryActionLabel}</button>
           <button className="btn btnGhost sentinelFullScanAction" type="button" disabled={Boolean(busyAction)} onClick={() => void perform("health", runHostHealthCheck, "Full host scan evidence refreshed.")} data-testid="sentinel-health-check">{busyAction === "health" ? "Scanning…" : "Run Full Scan"}</button>
           <button className="btn btnPrimary sentinelFanAction" type="button" disabled={Boolean(busyAction)} onClick={() => void investigateFans()} data-testid="sentinel-fans-loud">{busyAction === "fans" ? "Investigating…" : "Fans are loud"}</button>
           <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => setInvestigationOpen((value) => !value)} data-testid="sentinel-investigate-problem">Investigate another problem</button>
-          <span className="sentinelAutomationControl"><strong>Automatic Full Scans · {automaticStatus}</strong>
-            <select aria-label="Automatic Host Guardian frequency" value={automationFrequency} disabled={Boolean(busyAction)} onChange={(event) => { const frequency = event.target.value as SentinelAutomation["frequency"]; setAutomationFrequency(frequency); if (automationRequested) void setAutomation(true, frequency); }}>
-              <option value="daily">Daily</option><option value="twice-daily">Twice daily</option>
-            </select>
-            <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => void setAutomation(!automationRequested)} data-testid="sentinel-automation-toggle">{busyAction === "automation" ? "Saving…" : automationRequested ? "Turn off" : "Turn on"}</button>
-          </span>
+
         </div>
-        <div className="sentinelGuardianStrip" data-testid="host-guardian-status-strip">
-          <strong>Full-scan schedule · {scheduleStatus.toUpperCase()}</strong>
-          <span>Last full scan {formatDateTime(status?.host.checkedAt)}</span>
-          <span>Next full scan {automationRequested ? formatDateTime(automation?.nextDueAt) : "Automatic scans off"}</span>
-          <span>Full scans deterministic · no model tokens</span>
-          <span>15-minute wake: due check + exact known-incident probe only</span>
-          <span>{status?.auditVerification.ok ? "Audit/event/incident chains verified" : "Audit integrity requires attention"}</span>
-        </div>
+        <p className="sentinelSubtle">Automatic scans {automaticStatus} · Updater repair {automaticSelfHealActive ? "ready" : "not ready"}</p>
+
 
         {diagnosis ? <section className={`sentinelDiagnosisResult sentinelDiagnosisResult-${diagnosis.phase}`} data-testid="sentinel-diagnosis-result" aria-live="polite">
           <div className="sentinelDiagnosisResultHeading"><span>{diagnosis.phase === "diagnosing" ? "DIAGNOSING" : "DIAGNOSIS COMPLETE"}</span><strong>{diagnosis.phase === "diagnosing" ? "IN PROGRESS" : diagnosis.outcome}</strong></div>
@@ -650,7 +685,7 @@ export function SentinelTab() {
           <p>{fanInvestigation.diagnosis}</p>
           <small>{fanInvestigation.evidence}</small>
           <div className="sentinelFanResultMeta"><span>{fanInvestigation.deepCheckUsed ? "Deeper deterministic evidence was collected automatically." : "The normal governed fan explanation was sufficient."}</span><span>Outcome retained in Sentinel history.</span></div>
-          {popUpgradeIncident && fanInvestigation.outcome === "FIX AVAILABLE" ? <div className="guardianRepair" data-testid="pop-upgrade-safe-cleanup">
+          {(popUpgradeIncident || operatorRequired) && fanInvestigation.outcome === "FIX AVAILABLE" ? <div className="guardianRepair" data-testid="pop-upgrade-safe-cleanup">
             <div><strong>Safe Cleanup matches the exact pop-upgrade.service signature.</strong><span>This manual path does not restart automatically. A fresh preview, explicit confirmation, and OS authorization remain required.</span></div>
             {!popUpgradePreview?.ok ? <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void previewPopUpgradeRepair()}>{busyAction === "pop-upgrade-preview" ? "Checking target…" : "Fix now"}</button> : <div><strong>{popUpgradePreview.candidate?.service}</strong><div className="sentinelActions"><button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void applyPopUpgradeRepair()}>{busyAction === "pop-upgrade-apply" ? "Authorizing…" : "Authorize & fix"}</button><button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => setPopUpgradePreview(null)}>Cancel</button></div></div>}
           </div> : null}
@@ -659,27 +694,26 @@ export function SentinelTab() {
         {investigationOpen ? <section className="sentinelInvestigation" data-testid="sentinel-investigation-workflow"><div><span>INVESTIGATE ANOTHER PROBLEM</span><strong>Choose a symptom. Host Guardian starts with the smallest deterministic check.</strong></div><div className="sentinelInvestigationChoices"><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("slow")}>Computer is slow</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("network")}>Network problem</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("suspicious")}>Something suspicious is happening</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("codex")}>Check whether Codex left something running</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("other")}>Other problem</button></div>{question ? <div className="sentinelGuidanceInline"><textarea className="pasteArea" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Describe the workstation symptom…" /><button className="btn btnPrimary" type="button" onClick={() => void submitQuestion()} disabled={!question.trim() || Boolean(busyAction)}>{busyAction === "ask" ? "Reviewing…" : "Get deterministic guidance"}</button>{answer ? <div className="sentinelAnswer"><strong>{answer.intent.replace(/-/g, " ")}</strong><p>{answer.answer}</p><small>Execution permitted: NO · AI model used: NO</small></div> : null}</div> : null}</section> : null}
       </header>
 
-      <section className="sentinelHealthMeasurements" data-testid="sentinel-health-measurements">
-        <div className="sentinelSectionHeading"><span>CURRENT MEASUREMENTS</span><strong>{liveMeasurements ? `Foreground reading · ${formatDateTime(liveMeasurements.measuredAt)}` : `Latest durable reading · ${formatDateTime(status?.host.checkedAt)}`}</strong></div>
-        <p className="sentinelSubtle">Refreshes every 60 seconds while this subtab is visible. Deterministic, token-free, and not written to durable history.</p>
-        {liveMeasurementError ? <div className="surfaceInlineNotice">Live refresh unavailable: {liveMeasurementError}. The latest durable values remain visible.</div> : null}
-        <div className="sentinelMeasurementColumns" aria-hidden="true"><span>Measurement</span><span>Current value</span><span>State</span><span>Context</span></div>
-        <div className="sentinelMeasurementList securityInsetScroll" data-testid="sentinel-measurement-list">
-          {signals.map((signal) => <div className="sentinelMeasurementRow" key={signal.key} title={signal.reason} data-testid="sentinel-measurement-row"><span>{signal.label}</span><strong>{signal.value}</strong><span><span className={`sentinelMeasurementClass sentinelMeasurementClass-${signal.status}`}>{signal.classification}</span>{signal.baseline ? <small className="sentinelBaseline">{signal.baseline}</small> : null}</span><span>{signal.reason}{materiallyDifferentTimestamp(signal.measuredAt, liveMeasurements?.measuredAt || status?.host.checkedAt || undefined) ? <small>Measured {formatDateTime(signal.measuredAt)}</small> : null}</span></div>)}
-          {!signals.length ? <div className="surfaceEmptyState">Run a Host Guardian check to collect current evidence.</div> : null}
-        </div>
-      </section>
+      <div className="sentinelCurrentSignals" data-testid="sentinel-current-signals" aria-label={fresh ? "Current measurements" : "Stale measurements"}>
+        {signals.filter((signal) => ["cpu", "thermal", "fans", "load"].includes(signal.key)).map((signal) =>
+          <div key={signal.key}><span>{signal.label}</span><strong>{signal.value}</strong>{!fresh ? <small>STALE</small> : null}</div>)}
+      </div>
+      {unresolved.length || operatorRequired ? <section className="sentinelNeedsAttention" aria-label="Needs attention">
+        <h2>Needs Attention</h2>
+        {operatorRequired ? <><p>Updater recovery requires operator review. Automatic retries are blocked.</p><button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => void previewPopUpgradeRepair()}>Review updater recovery</button></> : null}
+        {unresolved.map((finding) => <p key={finding.findingKey || finding.reason}>{exactFindingText(finding)}</p>)}
+      </section> : null}
 
       <section className="guardianActivity" data-testid="recent-guardian-activity">
         <div className="sentinelActivityHeader">
-          <div><span>RECENT GUARDIAN ACTIVITY</span><strong>Durable Host Guardian observations · latest 20 maximum</strong></div>
-          <small>Twice-daily semantic observations are retained here; foreground readings are not.</small>
+          <div><span>RECENT EVENTS</span><strong>Incidents, resolution and repairs</strong></div>
+          <small>Repeated findings are grouped. Expand older observations for retained scan details.</small>
         </div>
-        <div className="guardianActivityColumns" aria-hidden="true"><span>Time</span><span>State</span><span>Source</span><span>Key measurements</span><span>Action / context</span></div>
+        <div className="guardianActivityColumns" aria-hidden="true"><span>Time</span><span>State</span><span>Source</span><span>Event</span></div>
         <div className="guardianActivityScroll securityInsetScroll">
           {visibleObservations.map((observation) => {
             const rowStatus = observationHealthStatus(observation);
-            const explanation = observationExplanation(observation, rowStatus);
+            const explanation = operatorEventSummary(observation) || observationExplanation(observation, rowStatus);
             const coverage = observation.observedValues?.coverage || [];
             const limitations = observation.observedValues?.coverageLimitations || [];
             const findings = observation.observedValues?.findings || (observation.observedValues?.primaryFinding ? [observation.observedValues.primaryFinding] : []);
@@ -698,16 +732,18 @@ export function SentinelTab() {
               <article className={`guardianActivityRow guardianActivityRow-${rowStatus}`} key={observation.id} data-testid="guardian-activity-row">
                 <div className="guardianActivityCell" data-activity-label="Time"><strong>{formatDateTime(observation.timestamp)}</strong></div>
                 <div className="guardianActivityCell" data-activity-label="State"><StatusPill status={rowStatus} /></div>
-                <div className="guardianActivityCell" data-activity-label="Source"><span>{observation.source === "systemd-user-timer" ? "Automatic" : "Operator"}</span></div>
-                <div className="guardianActivityCell" data-activity-label="Key measurements"><strong>{compactObservationMeasurements(observation)}</strong></div>
+                <div className="guardianActivityCell" data-activity-label="Source"><span>{observation.source.startsWith("systemd-user-timer") || observation.source === "root-owned-pop-upgrade-helper" ? "Automatic" : "Operator"}</span></div>
+
                 <div className="guardianActivityCell guardianActivityContext" data-activity-label="Action / context">
                   {findings.length ? <div className="guardianFindingList">{findings.map((finding, index) => <div key={finding.findingKey || `${observation.id}-${index}`}><strong>{exactAvailableFinding(finding, observation.observedValues?.snapshot?.metrics)}</strong><small>Current status: {resolutionLabel(finding)}</small></div>)}</div> : explanation ? <small>{explanation}</small> : <small>No action needed.</small>}
-                  <small>{typeof observation.observedValues?.scanDurationMs === "number" ? `Full scan ${(observation.observedValues.scanDurationMs / 1000).toFixed(1)}s` : "Legacy duration not retained"} · {observation.observedValues?.scanKind || "legacy scan"}</small>
-                  {observation.observedValues?.actionProposed ? <small>Proposed: {observation.observedValues.actionProposed}</small> : null}
-                  {observation.observedValues?.actionOccurred || observation.observedValues?.repairOccurred ? <small>{observation.observedValues?.actionOccurred ? "Action occurred" : ""}{observation.observedValues?.actionOccurred && observation.observedValues?.repairOccurred ? " · " : ""}{observation.observedValues?.repairOccurred ? "Repair verified" : ""}{observation.observedValues?.postRepairVerificationPassed ? " · post-proof passed" : ""}</small> : null}
                   {reviewable ? <button className="btn btnGhost guardianInvestigateButton" type="button" disabled={Boolean(busyAction)} onClick={() => void reviewObservation(observation)} data-testid="guardian-review-finding">{busyAction === `diagnose:${observation.id}` ? "Investigating…" : reviewLabel}</button> : null}
                   <details className="guardianScanEvidence">
-                    <summary>View scan evidence</summary>
+                    <summary>View evidence</summary>
+                    <p>{compactObservationMeasurements(observation)}</p>
+                  <small>{typeof observation.observedValues?.scanDurationMs === "number" ? `${observation.observedValues.scanKind || "Scan"} ${(observation.observedValues.scanDurationMs / 1000).toFixed(1)}s` : observation.observedValues?.scanKind === "targeted" ? "Targeted observation" : "Legacy duration not retained"} · {observation.observedValues?.scanKind || "legacy scan"}</small>
+                  {observation.observedValues?.actionProposed ? <small>Proposed: {observation.observedValues.actionProposed}</small> : null}
+                  {observation.observedValues?.actionOccurred || observation.observedValues?.repairOccurred ? <small>{observation.observedValues?.actionOccurred ? "Action occurred" : ""}{observation.observedValues?.actionOccurred && observation.observedValues?.repairOccurred ? " · " : ""}{observation.observedValues?.repairOccurred ? (observation.observedValues?.outcome && observation.observedValues.outcome !== "verified" ? "Historical repair record" : "Recovery verified") : ""}{observation.observedValues?.postRepairVerificationPassed && (!observation.observedValues.outcome || observation.observedValues.outcome === "verified") ? " · post-proof passed" : ""}</small> : null}
+
                     {coverage.length ? <div className="guardianCoverageMini">{coverage.map((row) => <span key={row.key}><strong>{row.label}</strong><StatusPill status={row.status} /></span>)}</div> : <p>Legacy observation · scan coverage was not retained.</p>}
                     {limitations.length ? <div><strong>Coverage limitations</strong><ul>{limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></div> : null}
                     {observation.observedValues?.snapshot ? <pre>{JSON.stringify(observation.observedValues.snapshot, null, 2)}</pre> : <p>Legacy observation · normalized snapshot was not retained.</p>}
@@ -721,10 +757,35 @@ export function SentinelTab() {
         {observations.length > 6 ? <button className="btn btnGhost btnCompact guardianActivityToggle" type="button" onClick={() => setShowOlderActivity((value) => !value)}>{showOlderActivity ? "Show recent activity" : `Show ${observations.length - 6} older observations`}</button> : null}
       </section>
 
-      {error ? <div className="panelError">{error}</div> : null}
+      {error || statusError ? <div className="panelError">{error || statusError}</div> : null}
       {notice ? <div className="sentinelNotice">{notice}</div> : null}
 
-      <section className="sentinelAdvancedWorkspace">
+      <details className="sentinelAdvancedWorkspace">
+        <summary>Details · measurements, evidence, updates and automation</summary>
+      <section className="sentinelHealthMeasurements" data-testid="sentinel-health-measurements">
+        <div className="sentinelSectionHeading"><span>MEASUREMENT DETAILS</span><strong>{liveMeasurements ? `Foreground reading · ${formatDateTime(liveMeasurements.measuredAt)}` : `Latest durable reading · ${formatDateTime(status?.host.checkedAt)}`}</strong></div>
+        <p className="sentinelSubtle">Refreshes every 60 seconds while this subtab is visible. Deterministic, token-free, and not written to durable history.</p>
+        {liveMeasurementError ? <div className="surfaceInlineNotice">Live refresh unavailable: {liveMeasurementError}. The last values are stale; they do not establish current health.</div> : null}
+        <div className="sentinelMeasurementColumns" aria-hidden="true"><span>Measurement</span><span>Current value</span><span>State</span><span>Context</span></div>
+        <div className="sentinelMeasurementList securityInsetScroll" data-testid="sentinel-measurement-list">
+          {signals.map((signal) => <div className="sentinelMeasurementRow" key={signal.key} title={signal.reason} data-testid="sentinel-measurement-row"><span>{signal.label}</span><strong>{signal.value}</strong><span><span className={`sentinelMeasurementClass sentinelMeasurementClass-${signal.status}`}>{signal.classification}</span>{signal.baseline ? <small className="sentinelBaseline">{signal.baseline}</small> : null}</span><span>{signal.reason}{materiallyDifferentTimestamp(signal.measuredAt, liveMeasurements?.measuredAt || status?.host.checkedAt || undefined) ? <small>Measured {formatDateTime(signal.measuredAt)}</small> : null}</span></div>)}
+          {!signals.length ? <div className="surfaceEmptyState">Run a Host Guardian check to collect current evidence.</div> : null}
+        </div>
+      </section>
+
+          <span className="sentinelAutomationControl"><strong>Automatic Full Scans · {automaticStatus}</strong>
+            <select aria-label="Automatic Host Guardian frequency" value={automationFrequency} disabled={Boolean(busyAction)} onChange={(event) => { const frequency = event.target.value as SentinelAutomation["frequency"]; setAutomationFrequency(frequency); if (automationRequested) void setAutomation(true, frequency); }}>
+              <option value="daily">Daily</option><option value="twice-daily">Twice daily</option>
+            </select>
+            <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => void setAutomation(!automationRequested)} data-testid="sentinel-automation-toggle">{busyAction === "automation" ? "Saving…" : automationRequested ? "Turn off" : "Turn on"}</button>
+          </span>        <div className="sentinelGuardianStrip" data-testid="host-guardian-status-strip">
+          <strong>Full-scan schedule · {scheduleStatus.toUpperCase()}</strong>
+          <span>Last full scan {formatDateTime(status?.host.checkedAt)}</span>
+          <span>Next full scan {automationRequested ? formatDateTime(automation?.nextDueAt) : "Automatic scans off"}</span>
+          <span>Full scans deterministic · no model tokens</span>
+          <span>15-minute wake: due check + exact known-incident probe only</span>
+          <span>{status?.auditVerification.ok ? "Audit/event/incident chains verified" : "Audit integrity requires attention"}</span>
+        </div>
         <header className="sentinelAdvancedHeading"><span>ADVANCED SYSTEM INFORMATION</span><strong>Distinct system evidence, maintenance, automation, records, and safety boundaries</strong></header>
         <p className="sentinelSubtle">Additional depth and provenance—not a second copy of Current Measurements. AI diagnostics cannot make privileged system changes without authorization.</p>
 
@@ -740,7 +801,7 @@ export function SentinelTab() {
 
         <section className="sentinelAdvancedSection" data-testid="advanced-scan-coverage">
           <div className="sentinelSubCardHeading"><div><span>SCAN COVERAGE</span><strong>Exactly what the last full scan watched—and what remained limited</strong></div><small>{status?.host.scanDurationMs ? `${(status.host.scanDurationMs / 1000).toFixed(1)}s last run` : "No retained duration"}</small></div>
-          <p className="sentinelSubtle">Twice-daily full scans automatically trend material thermal and fan alerts. The 15-minute timer wake does not repeat this scan; it checks due state and the one exact Pop updater incident signature only. Autonomous repair can run only inside a due full scan after the root-owned helper independently proves every predicate.</p>
+          <p className="sentinelSubtle">Scheduled full scans trend material thermal and fan alerts. Between scans, the existing 15-minute wake may qualify only the exact updater incident. Every repair uses the same independent root guard and recovery verification.</p>
           <div className="sentinelCoverageGrid securityInsetScroll">
             {(status?.host.coverage || []).map((row) => <div key={row.key}><span><strong>{row.label}</strong><small>{exactAvailableReason(row.reason, status?.host.metrics)}</small></span><StatusPill status={row.status} /></div>)}
             {!status?.host.coverage?.length ? <div><span><strong>Coverage unavailable</strong><small>Run a full scan to establish the first versioned coverage record.</small></span><StatusPill status="unknown" /></div> : null}
@@ -756,7 +817,7 @@ export function SentinelTab() {
 
         <section className="sentinelAdvancedSection" data-testid="advanced-automation">
           <div className="sentinelSubCardHeading"><div><span>AUTOMATION</span><strong>Host Guardian configuration and inactive security, dependency, and backup schedules</strong></div><small>Scheduler {status?.scheduler || "disabled"}</small></div>
-          <div className="sentinelTriggerList securityInsetScroll" data-testid="sentinel-triggers">{(status?.triggers || []).filter((trigger) => trigger.class === "schedule").map((trigger) => <div key={trigger.key}><span><strong>{trigger.key === "schedule.light-health" ? "Host Guardian" : trigger.label}</strong><small>{trigger.key === "schedule.light-health" && automationActive ? `Configured · ${automation?.frequency === "twice-daily" ? "Twice daily" : "Daily"}` : trigger.activationState === "inactive" ? "Not enabled" : trigger.activationState.replace(/-/g, " ")}</small></span><span>{trigger.key === "schedule.light-health" ? "Controlled in the health box above" : "No active schedule"}</span></div>)}</div>
+          <div className="sentinelTriggerList securityInsetScroll" data-testid="sentinel-triggers">{(status?.triggers || []).filter((trigger) => trigger.class === "schedule").map((trigger) => <div key={trigger.key}><span><strong>{trigger.key === "schedule.light-health" ? "Host Guardian" : trigger.label}</strong><small>{trigger.key === "schedule.light-health" && automationActive ? `Configured · ${automation?.frequency === "twice-daily" ? "Twice daily" : "Daily"}` : trigger.activationState === "inactive" ? "Not enabled" : trigger.activationState.replace(/-/g, " ")}</small></span><span>{trigger.key === "schedule.light-health" ? "Controlled in these automation details" : "No active schedule"}</span></div>)}</div>
         </section>
 
         <section className="sentinelAdvancedSection" data-testid="advanced-workstation-record">
@@ -769,7 +830,7 @@ export function SentinelTab() {
           <div className="sentinelLevelList securityInsetScroll" data-testid="sentinel-capability-ladder">{SENTINEL_LEVELS.map((item) => { const levelCapabilities = status?.capabilities.filter((capability) => capability.level === item.level) || []; const levelState = sentinelCapabilityLevelState(item.level, status?.capabilities || []); const activeLabel = item.level === 0 ? "ACTIVE · READ ONLY" : item.level === 1 ? "ACTIVE · EXACT ALLOWLIST" : "ACTIVE"; return <div key={item.level}><span><strong>{item.label}</strong><small>{levelCapabilities.length} declared capabilities</small></span><span className={`sentinelLevelState sentinelLevelState-${levelState}`}>{levelState === "active" ? activeLabel : "NOT ACTIVATED"}</span></div>; })}</div>
           <div className="sentinelBoundary"><span>Mode: {status?.executionMode || "observe-and-dry-run"}</span><span>Privileged helper: {status?.privilegedHelper || "not-installed"}</span><span>Scheduler: {status?.scheduler || "disabled"}</span><span>Audit: {status?.auditVerification.claim || "hash-chained-not-immutable"}</span></div>
         </section>
-      </section>
+      </details>
 
     </section>
   );
