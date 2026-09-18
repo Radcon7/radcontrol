@@ -69,6 +69,23 @@ function installedOperatorRoster() {
   return projects;
 }
 
+async function assertSentinelDetails(base, sessionId, expectedOpen) {
+  const state = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `const disclosures = [...document.querySelectorAll('details.sentinelAdvancedWorkspace')];
+      const panel = document.querySelector('[data-testid="sentinel-health-measurements"]');
+      const bounds = panel?.getBoundingClientRect();
+      return {
+        count: disclosures.length,
+        open: disclosures[0]?.open ?? null,
+        measurementVisible: Boolean(bounds && bounds.width > 0 && bounds.height > 0),
+      };`,
+    args: [],
+  });
+  assert.equal(state.count, 1, "Sentinel must retain one technical-details disclosure");
+  assert.equal(state.open, expectedOpen, "Sentinel Details must follow the operator's disclosure state");
+  assert.equal(state.measurementVisible, expectedOpen, "Technical measurements must be visible only when Details is open");
+}
+
 async function unusedPort() {
   const server = net.createServer();
   await new Promise((resolve, reject) => {
@@ -453,12 +470,16 @@ try {
     assert.ok(!text.includes("Advanced evidence, controls, and workstation records"), "The retired Advanced umbrella disclosure is still rendered");
     return text;
   }, "render the installed Radcon Sentinel control room");
+  await assertSentinelDetails(base, sessionId, false);
+  assert.doesNotMatch(sentinelText, /MEASUREMENT DETAILS|ADVANCED SYSTEM INFORMATION|SYSTEM EVIDENCE|SCAN COVERAGE|SAFETY & PERMISSIONS/, "Technical panels must not dominate the collapsed default view");
   await click(base, sessionId, '.sentinelAdvancedWorkspace > summary');
+  await assertSentinelDetails(base, sessionId, true);
   const detailsText = await bodyText(base, sessionId);
   assert.match(detailsText, /MEASUREMENT DETAILS[\s\S]*ADVANCED SYSTEM INFORMATION/);
   assert.match(detailsText, /Refreshes every 60 seconds/);
   for (const heading of ["SYSTEM EVIDENCE", "SCAN COVERAGE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(detailsText.includes(heading), `Advanced area ${heading} is missing`);
   await click(base, sessionId, '.sentinelAdvancedWorkspace > summary');
+  await assertSentinelDetails(base, sessionId, false);
   const securityNavigation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `var buttons = Array.from(document.querySelectorAll('.securityControlRoom > .workspaceModeRow .workspaceModeButton'));
       return {
@@ -582,6 +603,9 @@ try {
     return state;
   }, "retain diagnosis across a later foreground refresh", 75_000);
 
+  // Measure the retained technical content after explicitly opening its parent.
+  await click(base, sessionId, '.sentinelAdvancedWorkspace > summary');
+  await assertSentinelDetails(base, sessionId, true);
   const sentinelPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `
       const activity = document.querySelector('.guardianActivityScroll');
@@ -625,12 +649,12 @@ try {
   assert.ok(sentinelPresentation.measurementMarginLeft >= 16 && sentinelPresentation.measurementMarginRight >= 16, "Current Measurements must leave outer-scroll gutters");
   assert.ok(sentinelPresentation.measurementWidth < sentinelPresentation.measurementPanelWidth - 30, "the measurement list must not consume the complete panel width");
   assert.equal(sentinelPresentation.measurementRowCount, 8, "all eight current measurements must render as rows");
-  assert.equal(sentinelPresentation.activityRowCount, 6, "Recent Guardian Activity must initially show six records");
+  assert.ok(sentinelPresentation.activityRowCount > 0 && sentinelPresentation.activityRowCount <= 6, "Recent Guardian Activity must show at most six grouped events");
   assert.equal(sentinelPresentation.olderActivityToggleCount, 1, "Older Guardian history must remain explicitly reachable");
   assert.equal(sentinelPresentation.automationControlCount, 1, "Automatic Guardian must have one authoritative control surface");
   assert.equal(sentinelPresentation.automationSelectCount, 1, "Automatic Guardian must have one frequency selector");
   assert.equal(sentinelPresentation.automationToggleCount, 1, "Automatic Guardian must have one enable control");
-  assert.equal(sentinelPresentation.advancedUmbrellaCount, 0, "Advanced System Information must not be hidden by an umbrella disclosure");
+  assert.equal(sentinelPresentation.advancedUmbrellaCount, 1, "Advanced System Information must remain inside the single Details disclosure");
   assert.equal(sentinelPresentation.advancedAreaCount, 6, "Advanced System Information must retain exactly six distinct areas");
   assert.equal(sentinelPresentation.fanActionCount, 1, "the loud-fan action must have one primary control");
   assert.ok(sentinelPresentation.normalFontSize >= 15, "Security operator text must remain 15px or larger");
@@ -652,6 +676,9 @@ try {
   assert.deepEqual(workstationRecords.map((row) => row.readOnly), [true, true], "tracked workstation source records must be read-only in the installed app");
   assert.ok(workstationRecords.every((row) => row.valueLength > 0), "canonical workstation source records must remain visible");
   assert.ok(workstationRecords.every((row) => row.status.includes("Canonical source · read-only here")), "the installed workstation record boundary must be understandable");
+
+  await click(base, sessionId, '.sentinelAdvancedWorkspace > summary');
+  await assertSentinelDetails(base, sessionId, false);
 
   const eventsBeforeFan = await readChainRecords(sentinelEventsPath);
   const actionsBeforeFan = await readChainRecords(sentinelActionsPath);
