@@ -23,9 +23,11 @@ test:empire-todo
 test:formation-payload
 test:matched-pair-transaction
 test:native-acceptance-isolation
+test:native-sentinel-assertions
 test:o2-runtime-boundary
 test:project-intent-preview
 test:sentinel
+test:tauri-candidate-precheck
 test:tauri-e2e
 test:tauri-production-readonly
 verify:agents-architecture
@@ -82,11 +84,14 @@ scripts/dev_sanity_check.mjs
 scripts/install_production.sh
 scripts/matched_pair_transaction.py
 scripts/native_acceptance_lib.mjs
+scripts/native_sentinel_assertions.mjs
+scripts/native_transaction_receipt.mjs
 scripts/o2_index_repo.sh
 scripts/o2_session_start.sh
 scripts/release_candidate.py
 scripts/release_evidence.py
 scripts/snapshot_repo_state.sh
+scripts/tauri_candidate_precheck.mjs
 scripts/tauri_dev.mjs
 scripts/tauri_e2e.mjs
 scripts/tauri_preflight.mjs
@@ -235,6 +240,7 @@ tests/formation_learning_contract.mjs
 tests/formation_payload_behavior.mjs
 tests/matched_pair_transaction_test.py
 tests/native_acceptance_isolation_behavior.mjs
+tests/native_sentinel_assertions_test.mjs
 tests/o2_runtime_boundary_behavior.mjs
 tests/project_intent_preview_behavior.mjs
 tests/release_candidate_evidence_test.py

@@ -235,6 +235,22 @@ class MatchedPairTransactionTests(unittest.TestCase):
         record.write_text(value, encoding="utf-8")
         record.chmod(0o600)
 
+    def receipt(self, phase):
+        payload = self.transaction_payload()
+        value = dict(ok=True, acceptance="production-artifact-read-only", phase=phase,
+                     transactionId=payload["transactionId"], manifestSha256=digest(self.manifest),
+                     transactionState="new-live" if phase == "first" else "new-live-awaiting-final",
+                     o2Sha=payload["newPair"]["o2Commit"],
+                     radcontrolSha=payload["newPair"]["radcontrolSourceSha"],
+                     artifactSha256=payload["newPair"]["binarySha256"])
+        target = self.stage / "evidence" / f"native-{phase}.json"
+        target.write_text(json.dumps(value), encoding="utf-8")
+        target.chmod(0o600)
+
+    def first_accepted(self):
+        self.receipt("first")
+        self.action("accept-first")
+
     def action(self, name: str):
         return run("python3", str(TOOL), str(self.manifest), name, "--test-root", str(self.root))
 
@@ -326,6 +342,7 @@ class MatchedPairTransactionTests(unittest.TestCase):
         live_state = self.live_o2 / ".state/operator-state.txt"
         live_state.write_text("state-after-promotion", encoding="utf-8")
         live_state.chmod(0o600)
+        self.first_accepted()
         self.action("rollback")
         self.assert_live(self.old_commit, "old")
         self.assertEqual((self.live_o2 / ".state/operator-state.txt").read_text(), "state-after-promotion")
@@ -334,10 +351,48 @@ class MatchedPairTransactionTests(unittest.TestCase):
         live_state = self.live_o2 / ".state/operator-state.txt"
         live_state.write_text("state-before-reinstall", encoding="utf-8")
         live_state.chmod(0o600)
+        self.action("verify-rollback")
         self.action("reinstall")
         self.assert_live(self.new_commit, "new")
         self.assertEqual((self.live_o2 / ".state/operator-state.txt").read_text(), "state-before-reinstall")
+        self.assertEqual((self.stage / "transaction-state").read_text().strip(), "new-live-awaiting-final")
+        self.receipt("final")
+        self.action("accept-final")
         self.assertEqual((self.stage / "transaction-state").read_text().strip(), "new-live-final")
+
+    def test_first_failure_rolls_back_without_acceptance_or_reinstall(self):
+        self.action("promote")
+        self.action("rollback")
+        self.assert_live(self.old_commit, "old")
+        self.assertNotEqual(self.action_result("reinstall").returncode, 0)
+        self.assertNotEqual(self.action_result("verify-rollback").returncode, 0)
+
+    def test_final_failure_recovery_preserves_both_cycle_backups(self):
+        self.action("promote")
+        self.first_accepted()
+        self.action("rollback")
+        self.action("verify-rollback")
+        self.action("reinstall")
+        self.assertNotEqual(self.action_result("accept-final").returncode, 0)
+        (self.live_o2 / ".state/operator-state.txt").write_text("latest-final-private")
+        self.action("rollback")
+        self.assert_live(self.old_commit, "old")
+        self.assertEqual((self.live_o2 / ".state/operator-state.txt").read_text(), "latest-final-private")
+        self.assertEqual((self.stage / "transaction-state").read_text().strip(), "old-live-final-rejected")
+        for name in ("old-before-rollback", "new-before-reinstall", "old-before-final-rejection"):
+            self.assertTrue((self.stage / "state-backups" / name).is_dir())
+        self.assertNotEqual(self.action_result("reinstall").returncode, 0)
+
+    def test_acceptance_receipt_cannot_cross_manifest_or_phase(self):
+        self.action("promote")
+        self.assertNotEqual(self.action_result("accept-first").returncode, 0)
+        self.receipt("final")
+        self.assertNotEqual(self.action_result("accept-final").returncode, 0)
+        self.receipt("first")
+        self.manifest.write_text(self.manifest.read_text() + " ")
+        self.assertNotEqual(self.action_result("accept-first").returncode, 0)
+        self.action("rollback")
+        self.assert_live(self.old_commit, "old")
 
     def test_failed_promotion_recovers_and_verifies_old_pair(self):
         transaction = transaction_module.Transaction(
@@ -372,10 +427,13 @@ class MatchedPairTransactionTests(unittest.TestCase):
 
     def test_reinstall_revalidates_retained_admission(self):
         self.action("promote")
+        self.first_accepted()
         self.action("rollback")
+        self.action("verify-rollback")
         payload = self.release_payload()
         payload["lifecycleAdmission"]["state"] = "LIVE"
         self.write_release(payload)
+        self.receipt("first")
         completed = self.action_result("reinstall")
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("state must be RELEASE_CANDIDATE", completed.stderr)
@@ -383,7 +441,9 @@ class MatchedPairTransactionTests(unittest.TestCase):
 
     def test_reinstall_rejects_changed_retained_evidence(self):
         self.action("promote")
+        self.first_accepted()
         self.action("rollback")
+        self.action("verify-rollback")
         self.release_manifest.write_text(
             self.release_manifest.read_text(encoding="utf-8") + " ", encoding="utf-8"
         )
@@ -484,8 +544,12 @@ class MatchedPairTransactionTests(unittest.TestCase):
 
     def test_schema_v1_rolls_back_an_existing_new_live_pair(self):
         self.action("promote")
+        self.first_accepted()
         self.action("rollback")
+        self.action("verify-rollback")
         self.action("reinstall")
+        self.receipt("final")
+        self.action("accept-final")
         self.convert_to_v1()
         self.action("rollback")
         self.assert_live(self.old_commit, "old")

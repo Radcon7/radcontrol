@@ -482,7 +482,7 @@ class Transaction:
         existing_directory(self.primary, "primary O2 repository")
         git_run(self.primary, "worktree", "repair", *(str(path) for path in paths if path.exists()))
 
-    def assert_transaction_state(self, expected: str) -> None:
+    def transaction_state(self) -> str:
         try:
             payload, _ = capture_evidence_bytes(
                 self.state_file, "transaction state", maximum=128
@@ -490,8 +490,73 @@ class Transaction:
             value = payload.decode("utf-8").strip()
         except (ReleaseEvidenceError, UnicodeDecodeError) as error:
             raise fail(f"transaction state is unavailable or invalid: {error}") from error
-        if value != expected:
+        return value
+
+    def assert_transaction_state(self, expected: str) -> None:
+        if self.transaction_state() != expected:
             raise fail(f"transaction state must be exactly {expected}")
+
+    def assert_native_receipt(self, phase: str) -> None:
+        """Consume the production harness result, bound to this immutable manifest.
+
+        Receipts are retained transaction evidence under the existing same-UID
+        trust model, not a new source admission or authorization mechanism.
+        """
+        expected_state = "new-live" if phase == "first" else "new-live-awaiting-final"
+        try:
+            receipt, _ = capture_evidence_json(
+                self.stage_root / "evidence" / f"native-{phase}.json",
+                f"{phase} native acceptance", maximum=64_000,
+            )
+        except ReleaseEvidenceError as error:
+            raise fail(str(error)) from error
+        if (not isinstance(receipt, dict) or receipt.get("ok") is not True
+                or receipt.get("acceptance") != "production-artifact-read-only"
+                or receipt.get("phase") != phase
+                or receipt.get("transactionId") != self.transaction_id
+                or receipt.get("manifestSha256") != sha256(self.manifest_path)
+                or receipt.get("transactionState") != expected_state
+                or receipt.get("o2Sha") != self.new_pair["o2Commit"]
+                or receipt.get("radcontrolSha") != self.new_pair["radcontrolSourceSha"]
+                or receipt.get("artifactSha256") != self.new_pair["binarySha256"]):
+            raise fail(f"{phase} native acceptance receipt does not match this transaction")
+
+    def accept_first(self) -> None:
+        self.accept_native("first", "new-live", "new-live-first-accepted")
+
+    def accept_final(self) -> None:
+        self.assert_native_receipt("first")
+        for name in ("old-before-rollback", "new-before-reinstall"):
+            self.assert_private_state_directory(self.state_backups / name)
+        self.accept_native("final", "new-live-awaiting-final", "new-live-final")
+
+    def accept_native(self, phase: str, expected: str, target: str) -> None:
+        self.assert_stopped()
+        self.assert_stage_private()
+        self.assert_transaction_state(expected)
+        self.assert_pair(self.new_pair, self.candidate_files, "new pair")
+        self.assert_worktree(self.old_parked_o2, self.old_pair, "parked old O2")
+        self.assert_private_state(self.old_parked_o2)
+        self.assert_file_set(self.rollback_files, "rollback")
+        self.assert_file_set(self.candidate_files, "candidate")
+        self.assert_evidence()
+        self.assert_release_admission(self.live_o2)
+        self.assert_native_receipt(phase)
+        self.write_state(target)
+
+    def verify_rollback(self) -> None:
+        self.assert_stopped()
+        self.assert_stage_private()
+        self.assert_transaction_state("old-live")
+        self.assert_pair(self.old_pair, self.rollback_files, "old pair")
+        self.assert_worktree(self.new_parked_o2, self.new_pair, "parked new O2")
+        self.assert_private_state(self.new_parked_o2)
+        self.assert_file_set(self.candidate_files, "candidate")
+        self.assert_file_set(self.rollback_files, "rollback")
+        self.assert_evidence()
+        self.assert_release_admission(self.new_parked_o2)
+        self.assert_native_receipt("first")
+        self.write_state("old-live-verified")
 
     def atomic_install(self, source: Path, target: Path, mode: int) -> None:
         existing_file(source, "transaction install source")
@@ -600,8 +665,14 @@ class Transaction:
     def rollback(self) -> None:
         self.assert_stopped()
         self.assert_stage_private()
+        state = self.transaction_state()
         if self.schema_version == 2:
-            self.assert_transaction_state("new-live")
+            if state not in {"new-live", "new-live-first-accepted", "new-live-awaiting-final"}:
+                raise fail("transaction state must be exactly new-live, new-live-first-accepted, or new-live-awaiting-final")
+            if state == "new-live-awaiting-final":
+                self.assert_native_receipt("first")
+                for name in ("old-before-rollback", "new-before-reinstall"):
+                    self.assert_private_state_directory(self.state_backups / name)
         else:
             self.assert_transaction_state("new-live-final")
             if self.candidate_o2.exists() or self.new_parked_o2.exists():
@@ -626,7 +697,7 @@ class Transaction:
             self.live_o2,
             self.old_parked_o2,
             self.state_backups / (
-                "old-before-rollback"
+                ("old-before-final-rejection" if state == "new-live-awaiting-final" else "old-before-rollback")
                 if self.schema_version == 2
                 else "old-before-legacy-final-rollback"
             ),
@@ -638,7 +709,7 @@ class Transaction:
             self.repair_worktrees(self.live_o2, self.new_parked_o2)
             self.install_files(self.rollback_files)
             self.assert_pair(self.old_pair, self.rollback_files, "old pair")
-            self.write_state("old-live")
+            self.write_state("old-live-final-rejected" if state == "new-live-awaiting-final" else "old-live")
         except Exception:
             self.recover_old_pair()
             raise
@@ -648,7 +719,8 @@ class Transaction:
         if self.schema_version != 2:
             raise fail("reinstall requires transaction schemaVersion 2")
         self.assert_stage_private()
-        self.assert_transaction_state("old-live")
+        self.assert_transaction_state("old-live-verified")
+        self.assert_native_receipt("first")
         self.assert_pair(self.old_pair, self.rollback_files, "old pair")
         self.assert_worktree(self.new_parked_o2, self.new_pair, "parked new O2")
         self.assert_private_state(self.new_parked_o2)
@@ -670,7 +742,7 @@ class Transaction:
             self.repair_worktrees(self.live_o2, self.old_parked_o2)
             self.install_files(self.candidate_files)
             self.assert_pair(self.new_pair, self.candidate_files, "new pair")
-            self.write_state("new-live-final")
+            self.write_state("new-live-awaiting-final")
         except Exception:
             self.recover_old_pair()
             raise
@@ -679,7 +751,7 @@ class Transaction:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser()
     result.add_argument("manifest", type=Path)
-    result.add_argument("action", choices=("preflight", "promote", "rollback", "reinstall"))
+    result.add_argument("action", choices=("preflight", "promote", "rollback", "verify-rollback", "reinstall", "accept-first", "accept-final"))
     result.add_argument("--test-root", type=Path)
     return result
 
@@ -690,7 +762,7 @@ def main() -> int:
         transaction = Transaction(
             load_manifest(args.manifest, args.action), args.test_root, args.manifest
         )
-        getattr(transaction, args.action)()
+        getattr(transaction, args.action.replace("-", "_"))()
         print(json.dumps({"ok": True, "action": args.action, "transactionId": transaction.transaction_id}, sort_keys=True))
         return 0
     except TransactionError as error:
