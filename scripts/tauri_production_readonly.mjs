@@ -95,6 +95,7 @@ async function assertSentinelDetails(base, sessionId, expectedOpen) {
         retainedContent,
         measurementVisible: retainedContent && !suppressed && hasLayout,
         measurementTextExposed: document.body.innerText.includes('MEASUREMENT DETAILS'),
+        technicalTextExposed: /MEASUREMENT DETAILS|ADVANCED SYSTEM INFORMATION|SYSTEM EVIDENCE|SCAN COVERAGE|SAFETY & PERMISSIONS/.test(document.body.innerText),
         measurementHit: Boolean(hit && panel?.contains(hit)),
       };`,
     args: [],
@@ -105,6 +106,8 @@ async function assertSentinelDetails(base, sessionId, expectedOpen) {
   assert.equal(state.measurementVisible, expectedOpen, "Technical measurements must be visible only when Details is open");
   assert.equal(state.measurementTextExposed, expectedOpen, "Technical measurement text must be exposed only when Details is open");
   assert.equal(state.measurementHit, expectedOpen, "Technical measurements must be hit-testable only when Details is open");
+  // WebDriver body text also includes unpainted descendants of closed Details in WebKit.
+  if (!expectedOpen) assert.equal(state.technicalTextExposed, false, "Technical panels must not dominate the collapsed default view");
 }
 
 async function unusedPort() {
@@ -492,7 +495,6 @@ try {
     return text;
   }, "render the installed Radcon Sentinel control room");
   await assertSentinelDetails(base, sessionId, false);
-  assert.doesNotMatch(sentinelText, /MEASUREMENT DETAILS|ADVANCED SYSTEM INFORMATION|SYSTEM EVIDENCE|SCAN COVERAGE|SAFETY & PERMISSIONS/, "Technical panels must not dominate the collapsed default view");
   await click(base, sessionId, '.sentinelAdvancedWorkspace > summary');
   await assertSentinelDetails(base, sessionId, true);
   const detailsText = await bodyText(base, sessionId);
