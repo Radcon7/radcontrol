@@ -72,18 +72,39 @@ function installedOperatorRoster() {
 async function assertSentinelDetails(base, sessionId, expectedOpen) {
   const state = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `const disclosures = [...document.querySelectorAll('details.sentinelAdvancedWorkspace')];
+      const details = disclosures[0];
       const panel = document.querySelector('[data-testid="sentinel-health-measurements"]');
+      const summary = details?.querySelector(':scope > summary');
+      const retainedContent = Boolean(panel && details?.contains(panel) && !summary?.contains(panel));
+      if (details?.open && panel) panel.scrollIntoView({ block: 'start' });
+      let suppressed = false;
+      for (let node = panel; node; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        const firstSummary = node instanceof HTMLDetailsElement ? node.querySelector(':scope > summary') : null;
+        suppressed ||= node.hidden || style.display === 'none' || style.visibility !== 'visible' || Number(style.opacity) === 0;
+        suppressed ||= node instanceof HTMLDetailsElement && !node.open && !firstSummary?.contains(panel);
+      }
+      // WebKit can retain layout boxes (and report WebDriver displayed=true)
+      // for unpainted non-summary content inside a closed details element.
       const bounds = panel?.getBoundingClientRect();
+      const hasLayout = Boolean(bounds && bounds.width > 0 && bounds.height > 0);
+      const hit = hasLayout ? document.elementFromPoint(bounds.left + 20, bounds.top + 20) : null;
       return {
         count: disclosures.length,
-        open: disclosures[0]?.open ?? null,
-        measurementVisible: Boolean(bounds && bounds.width > 0 && bounds.height > 0),
+        open: details?.open ?? null,
+        retainedContent,
+        measurementVisible: retainedContent && !suppressed && hasLayout,
+        measurementTextExposed: document.body.innerText.includes('MEASUREMENT DETAILS'),
+        measurementHit: Boolean(hit && panel?.contains(hit)),
       };`,
     args: [],
   });
   assert.equal(state.count, 1, "Sentinel must retain one technical-details disclosure");
   assert.equal(state.open, expectedOpen, "Sentinel Details must follow the operator's disclosure state");
+  assert.equal(state.retainedContent, true, "Technical measurements must remain in Details outside its summary");
   assert.equal(state.measurementVisible, expectedOpen, "Technical measurements must be visible only when Details is open");
+  assert.equal(state.measurementTextExposed, expectedOpen, "Technical measurement text must be exposed only when Details is open");
+  assert.equal(state.measurementHit, expectedOpen, "Technical measurements must be hit-testable only when Details is open");
 }
 
 async function unusedPort() {
