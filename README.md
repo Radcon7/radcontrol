@@ -136,6 +136,7 @@ bash scripts/snapshot_repo_state.sh --check
 
 Native acceptance is intentionally split into two classes:
 
+- `npm run test:tauri-candidate-precheck -- --artifact <private-download>/radcontrol-app --o2-source <exact-o2> --radcontrol-source <exact-radcontrol> --output <private-evidence>` verifies the admitted candidate in a test-owned native environment before live mutation; see `docs/SUPPLY_CHAIN.md`.
 - `npm run test:tauri-production-readonly -- --expected-o2-sha <sha> --expected-radcontrol-sha <sha> --expected-artifact-sha <sha>` runs the exact production artifact. It mounts installed O2 read-only, replaces `.state` with a test-owned overlay, records installed Git/To-Do/listener evidence, exercises only read paths, and proves installed state is unchanged afterward.
 - `npm run test:tauri-e2e` builds a debug/test-capable native artifact with an acceptance-only resizable-window override, then exercises persistence and responsive presentation only after canonical fixture, home/state, seed, installed-cleanliness, and in-app runtime-identity checks succeed. The production window minimum remains unchanged.
 

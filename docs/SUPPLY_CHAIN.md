@@ -44,10 +44,10 @@ worktrees, non-private state, unexpected material, hash drift, and a running
 app. It atomically installs support files, transfers validated private state,
 repairs moved Git worktrees, attempts old-pair recovery on failure, and records
 the promotion, real rollback, and reinstall states. Operator rollback is
-admitted only from exact `new-live` state and, before any mutation, revalidates
+admitted only from `new-live`, `new-live-first-accepted`, or `new-live-awaiting-final` and, before any mutation, revalidates
 the live/parked pair, retained files and evidence, and original release
 admission. Internal recovery during a failed promotion remains a separate path.
-Reinstall is admitted only from exact `old-live` transaction state and, before
+Reinstall is admitted only from exact `old-live-verified` transaction state and, before
 any mutation, revalidates the retained candidate files, evidence hashes,
 release admission, compatibility
 pin, workflow-file digest, and parked new O2 pair. It does not substitute the
@@ -71,6 +71,55 @@ O2 roots through a read-only outer mount, and requires the app to attest `e2e`
 plus the exact O2 root before the first mutating UI action. The negative contract
 suite reproduces installed-root selection, a missing To-Do store, an unhonored
 override, and a symlink escape as pre-mutation failures.
+
+## OP-014 coordinator and native preflight
+
+The O2 OP-014 coordinator calls this receiver; it is not another installer.
+Source publication, a candidate build, candidate-native acceptance, and installed
+acceptance remain distinct. `test:tauri-candidate-precheck` accepts an exact
+admitted artifact plus clean exact O2/RadControl source checkouts. It verifies
+release evidence and the GLIBC ceiling, copies the binary and archived O2 into
+one private test environment, then uses Bubblewrap and native WebDriver. Installed
+O2 is overlaid read-only with a test-owned source/private-state copy. Only the
+owned driver process group is stopped. Installed identities and listeners must
+remain unchanged; candidate evidence is retained for review.
+
+Candidate and installed probes import `native_sentinel_assertions.mjs`. WebKit
+may retain closed-Details geometry and report displayed=true. Its WebDriver
+`/text` can include unpainted closed content. The shared assertion instead checks
+closed ancestors, rendered `document.body.innerText`, retained content and hit
+testing, with exactly one disclosure. Candidate acceptance exercises closed,
+opened, and reclosed states and negative fixtures for five exposed technical
+headings, an invisible opened panel, and a removed panel. Product presentation
+and the three Security workspaces do not change.
+
+New schema-v2 receiver transitions are:
+
+`promote -> new-live -> accept-first -> new-live-first-accepted -> rollback -> old-live -> verify-rollback -> old-live-verified -> reinstall -> new-live-awaiting-final -> accept-final -> new-live-final`.
+
+First and final production-native runs write distinct `native-first.json` and
+`native-final.json` receipts in the existing stage evidence directory, only after
+all native and preservation checks pass. Each binds the exact immutable
+transaction manifest, pair, binary and expected phase. `accept-first` and
+`accept-final` revalidate the pair, retained recovery material and receipt.
+`verify-rollback` requires the first receipt and proves the restored old pair.
+Reinstall cannot follow a rejected first acceptance or skip rollback verification.
+
+A first failure may roll back from `new-live`; a final failure may roll back
+from `new-live-awaiting-final`, preserving both original cycle backups and a
+separate `old-before-final-rejection` backup. That terminal rejection is
+`old-live-final-rejected`, with the prior accepted pair restored. It cannot be
+reinstalled by silently reusing the failed cycle. Finalized generations remain
+protected; this adds no general rollback bypass. Existing completed schema-v2
+and recovery-only schema-v1 historical evidence remains valid and untouched.
+Receipts are same-user transaction evidence, not cryptographic attestation or
+independent source authority.
+
+Native acceptance still requires explicit launch authorization. The coordinator's
+readiness/dry-run path never authenticates, stops the app, pauses timers, installs
+helpers, or calls receiver mutations. A running app blocks early and the receiver
+retains its own fixed process check; stop it through the existing authorized
+operator route before retrying. No generic process-kill mechanism is introduced.
 
 ## Reproducibility boundary
 

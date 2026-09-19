@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
-const [component, guardian, security, operations, updates, model, api, app, css, bridge, client, repoState, productionAcceptance] = await Promise.all([
+const [component, guardian, security, operations, updates, model, api, app, css, bridge, client, repoState, productionAcceptance, nativeAssertions] = await Promise.all([
   read("src/components/sentinel/SentinelTab.tsx"),
   read("src/components/sentinel/SecurityGuardianTab.tsx"),
   read("src/components/security/SecurityTab.tsx"),
@@ -17,6 +17,7 @@ const [component, guardian, security, operations, updates, model, api, app, css,
   read("contracts/o2-radcontrol/v1/client.json"),
   read("docs/REPO_STATE.md"),
   read("scripts/tauri_production_readonly.mjs"),
+  read("scripts/native_sentinel_assertions.mjs"),
 ]);
 
 assert.match(app, /sentinel: "Security"/);
@@ -105,13 +106,14 @@ assert.match(component, /exactAvailableReason\(row\.reason, status\?\.host\.metr
 assert.match(component, /anomalies\.map\(\(value\) => exactAvailableReason\(value, metrics\)\)/);
 assert.match(component, /exactAvailableFinding\(finding, observation\.observedValues\?\.snapshot\?\.metrics\)/);
 assert.match(productionAcceptance, /visible: visible\.join\('\ \|\ '\), retained: retained\.join\('\ \|\ '\)/);
-assert.match(productionAcceptance, /function assertGuardianActivityGeometry/);
-assert.match(productionAcceptance, /getBoundingClientRect\(\)/);
-assert.match(productionAcceptance, /escapingDescendants/);
-assert.match(productionAcceptance, /details:not\(\[open\]\)/);
-assert.match(productionAcceptance, /rowCrossings/);
+assert.match(productionAcceptance, /from "\.\/native_sentinel_assertions\.mjs"/);
+assert.match(nativeAssertions, /function assertGuardianActivityGeometry/);
+assert.match(nativeAssertions, /getBoundingClientRect\(\)/);
+assert.match(nativeAssertions, /escapingDescendants/);
+assert.match(nativeAssertions, /details:not\(\[open\]\)/);
+assert.match(nativeAssertions, /rowCrossings/);
 assert.match(productionAcceptance, /desktop Guardian Activity/);
-assert.match(productionAcceptance, /headerColumnCount/);
+assert.match(nativeAssertions, /headerColumnCount/);
 assert.match(component, /knownIncidentState\?\.active\) return "ATTENTION"/);
 assert.match(component, /exact sustained Pop updater incident signature is active/);
 assert.match(component, /Last full scan \{formatDateTime\(status\?\.host\.checkedAt\)\}/);
