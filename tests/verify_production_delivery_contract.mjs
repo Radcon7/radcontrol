@@ -58,7 +58,7 @@ assert.match(productionProbe, /Empire To-Do · 34 durable items/);
 assert.match(productionProbe, /render O2 Knowledge without mutating installed O2/);
 assert.match(productionProbe, /notes-mode-o2_knowledge/);
 assert.match(productionProbe, /grouped current Empire To-Do operating sequence/);
-assert.match(productionProbe, /read blocked Empire To-Do dependencies/);
+assert.match(productionProbe, /read blocked active task dependencies/);
 assert.match(productionProbe, /load completed Empire To-Do operator view/);
 assert.match(productionProbe, /render installed Legal Structure and support relationships/);
 assert.match(productionProbe, /installed Legal graph must be visible above the fold/);

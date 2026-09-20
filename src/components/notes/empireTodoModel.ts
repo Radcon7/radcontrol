@@ -83,13 +83,24 @@ export function isEmpireTodoComplete(item: EmpireTodoItem): boolean {
   return item.status === "Complete";
 }
 
+export type EmpireTodoLane = "queued" | "progress" | "other" | "completed";
+
+/** Presentation only. Deferred/unknown states do not establish whether work started. */
+export function empireTodoLane(status: unknown): EmpireTodoLane {
+  if (status === "Backlog" || status === "Planned") return "queued";
+  if (status === "In Progress" || status === "Blocked") return "progress";
+  if (status === "Complete") return "completed";
+  return "other";
+}
+
 /** The current O2 task schema has lifecycle only: no percentage or typed checklist. */
 export function empireTodoProgress(item: EmpireTodoItem): { label: string; percent: number | null; tone: string } {
   if (isEmpireTodoComplete(item)) return { label: "Done", percent: 100, tone: "done" };
   if (item.status === "Blocked") return { label: "Blocked", percent: null, tone: "blocked" };
   if (item.status === "In Progress") return { label: "In Progress", percent: null, tone: "active" };
   if (item.status === "Deferred") return { label: "Deferred", percent: null, tone: "deferred" };
-  return { label: "Not Started", percent: null, tone: "planned" };
+  if (empireTodoLane(item.status) === "queued") return { label: "Not Started", percent: null, tone: "planned" };
+  return { label: "Unclassified", percent: null, tone: "unknown" };
 }
 
 function priorityRank(priority: EmpireTodoPriority): number {

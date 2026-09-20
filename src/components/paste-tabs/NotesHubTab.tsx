@@ -5,7 +5,7 @@ import { O2KnowledgeWorkspace } from "../notes/O2KnowledgeWorkspace";
 import { MyNotesScratchpad } from "../notes/MyNotesScratchpad";
 import { BlueprintWorkspace } from "../notes/BlueprintWorkspace";
 
-type NotesMode = "notes" | "empire_todo" | "timeline" | "empire_blueprint" | "o2_knowledge";
+type NotesMode = "notes" | "empire_todo" | "progress" | "timeline" | "empire_blueprint" | "o2_knowledge";
 
 type Props = {
   busy?: boolean;
@@ -20,8 +20,9 @@ const MODE_CONFIGS: Array<
 > = [
   {
     key: "empire_todo",
-    label: "Empire To-Do",
+    label: "To-Do",
   },
+  { key: "progress", label: "Progress" },
   {
     key: "timeline",
     label: "Timeline",
@@ -90,8 +91,10 @@ export function NotesHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
           <TimelineTab />
         ) : mode === "o2_knowledge" ? (
           <O2KnowledgeWorkspace />
-        ) : mode === "empire_todo" ? (
+        ) : mode === "empire_todo" || mode === "progress" ? (
           <EmpireTodoWorkspace
+            key={mode}
+            mode={mode === "progress" ? "progress" : "queued"}
             busy={busy}
             registerBeforeTabChangeSaver={registerModeSaver}
           />

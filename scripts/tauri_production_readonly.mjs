@@ -239,7 +239,7 @@ try {
 
   const wave1Checks = await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
   await click(base, sessionId, '[data-testid="tab-notes"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /Empire To-Do[\s\S]*Timeline[\s\S]*My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);
+  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /To-Do[\s\S]*Progress[\s\S]*Timeline[\s\S]*My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);
   await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
@@ -249,17 +249,18 @@ try {
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /Empire To-Do[\s\S]*Active[\s\S]*Completed[\s\S]*1 blocked/);
-    assert.match(text, /NOW[\s\S]*BUSINESS FOUNDATION[\s\S]*CONTROL PLANE[\s\S]*DQOTD LAUNCH \/ PREMIUM[\s\S]*COMMERCIAL PROOF/);
+    assert.match(text, /To-Do[\s\S]*Progress[\s\S]*Queued[\s\S]*Completed/);
+    assert.match(text, /BUSINESS FOUNDATION[\s\S]*CONTROL PLANE[\s\S]*DQOTD LAUNCH \/ PREMIUM[\s\S]*COMMERCIAL PROOF/);
   }, "render grouped current Empire To-Do operating sequence");
+  await click(base, sessionId, '[data-testid="notes-mode-progress"]');
   assert.match(
-    await eventually(() => bodyText(base, sessionId), "read blocked Empire To-Do dependencies"),
+    await eventually(() => bodyText(base, sessionId), "read blocked active task dependencies"),
     /Blocked[\s\S]*Blocked by[\s\S]*Delivered email verification; staging editor authorization; hosted browser acceptance/,
   );
   await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "load completed Empire To-Do operator view"),
-    /Active[\s\S]*Completed[\s\S]*No completed tasks\./,
+    /Underway[\s\S]*Completed[\s\S]*No completed tasks\./,
   );
   await click(base, sessionId, '[data-testid="empire-todo-active-view"]');
   assert.match(

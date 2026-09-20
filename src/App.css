@@ -4563,6 +4563,27 @@ pre {
 .todoProgressPuck { width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; flex-shrink: 0; }
 .todoProgress-active { color: #a9d5ff; }.todoProgress-blocked { color: #ffcf82; }.todoProgress-done { color: #8ce6b5; }
 .todoProgress-active .todoProgressPuck,.todoProgress-done .todoProgressPuck { background: currentColor; }
+.todoProgressLabel { display: inline-flex; align-items: center; gap: 6px; }
+.progressTaskList { flex: 1; min-height: 0; display: flex; }
+.empireProgressWorkspace .empireTodoList { width: 100%; max-height: none; }
+.empireProgressWorkspace .empireTodoRow { padding: 12px 14px; margin-bottom: 7px; }
+.empireProgressWorkspace .todoRowSelect { gap: 7px; }
+.empireProgressWorkspace .todoRowTitle strong { font-size: 17px; }
+.empireProgressWorkspace .todoRowNext { font-size: 15px; }
+.taskProgressRail { display: flex; width: 100%; flex-direction: column; align-items: stretch; gap: 7px; }
+.taskProgressRail .todoProgressLabel { text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
+.taskProgressTrack { display: block; width: 100%; height: 7px; border-radius: 4px; border: 1px solid currentColor; opacity: .8; background: repeating-linear-gradient(110deg, currentColor 0 2px, transparent 2px 12px); }
+.todoProgress-blocked .taskProgressTrack { background: repeating-linear-gradient(90deg, currentColor 0 10px, transparent 10px 17px); }
+.todoProgress-done .taskProgressTrack { background: currentColor; }
+.empireProgressWorkspace .todoDetail { margin: 0 12px 14px 40px; max-height: 420px; overflow-y: auto; }
+.empireProgressWorkspace .todoDetailHeading { position: sticky; top: 0; background: var(--panel); z-index: 1; }
+.sentinelHealthActions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
+.sentinelCurrentReview { grid-column: 1 / -1; padding: 16px; border: 1px solid var(--stroke); border-radius: 10px; background: rgba(255,255,255,.025); }
+.sentinelCurrentReview .sentinelSectionHeading { display: flex; justify-content: space-between; align-items: center; }
+.sentinelReviewFinding { display: flex; flex-direction: column; gap: 5px; padding: 12px 0; border-bottom: 1px solid var(--stroke); margin-bottom: 10px; }
+.sentinelReviewFinding span { color: var(--muted); }
+.sentinelOperatorSummary .sentinelOperatorState > strong { font-size: 22px; }
+.sentinelOperatorHero > .guardianRepair { grid-column: 1 / -1; }
 .todoRowState,.todoRowNext,.todoRowBlocker,.todoRowAcceptance { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.35; font-size: 14px; color: var(--muted); }
 .todoRowNext { color: var(--text); }.todoRowNext b { color: #aed1ff; }.todoRowBlocker { color: #ffcf82; }
 .todoRowAcceptance { color: #bac5d3; }.todoRowNext b,.todoRowBlocker b,.todoRowAcceptance b { margin-right: 5px; font-weight: 600; }
