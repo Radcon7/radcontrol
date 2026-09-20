@@ -684,7 +684,7 @@ export function SentinelTab() {
             <small>{fresh ? "Measured" : "Last measurement"}: {formatDateTime(liveMeasurements?.measuredAt)}</small>
             <div className="sentinelHealthActions">
               {healthActions.repairableCount > 0 ? <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void previewPopUpgradeRepair()} data-testid="sentinel-fix-it">{busyAction === "pop-upgrade-preview" ? "Checking…" : "Fix it"}</button> : null}
-              {healthActions.needsAttention || cardState !== "HEALTHY" ? <button className={`btn ${healthActions.repairableCount ? "btnGhost" : "btnPrimary"}`} type="button" disabled={Boolean(busyAction)} onClick={() => setReviewingFindings(value => !value)} data-testid="sentinel-review-current" aria-expanded={reviewingFindings}>{healthActions.findings.length > 1 ? `Review ${healthActions.findings.length} findings` : "Investigate"}</button> : null}
+              {(healthActions.needsAttention || cardState !== "HEALTHY") && (healthActions.repairableCount === 0 || healthActions.findings.length > 1) ? <button className={`btn ${healthActions.repairableCount ? "btnGhost" : "btnPrimary"}`} type="button" disabled={Boolean(busyAction)} onClick={() => setReviewingFindings(value => !value)} data-testid="sentinel-review-current" aria-expanded={reviewingFindings}>{healthActions.findings.length > 1 ? `Review ${healthActions.findings.length} findings` : "Investigate"}</button> : null}
               <button className="btn btnGhost" type="button" onClick={openDetails} data-testid="sentinel-open-details">Details</button>
             </div>
           </div>
