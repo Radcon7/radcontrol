@@ -79,6 +79,7 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   await assertSentinelDetails(base,sessionId,false);
   await scenario('actionable');
   await eventually(async()=>assert.equal(await count('[data-testid="sentinel-fix-it"]'),1),'exact actionable Fix it');
+  assert.equal(await count('[data-testid="sentinel-review-current"]'),0,'one safely repairable finding needs only Fix it and Details');
   await screenshot('sentinel-actionable');
   await tap('[data-testid="sentinel-fix-it"]');
   await eventually(async()=>assert.match(await text('[data-testid="pop-upgrade-safe-cleanup"]'),/Authorize & fix/),'exact preview');
