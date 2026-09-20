@@ -57,6 +57,7 @@ jobs:
           npm run test:native-sentinel-assertions
           npm run test:matched-pair-transaction
           npm run verify:production-delivery
+          npm run test:wave1
           npm run test:empire-todo
           npm run verify:empire-todo
           npm run test:sentinel

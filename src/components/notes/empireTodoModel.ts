@@ -83,6 +83,15 @@ export function isEmpireTodoComplete(item: EmpireTodoItem): boolean {
   return item.status === "Complete";
 }
 
+/** The current O2 task schema has lifecycle only: no percentage or typed checklist. */
+export function empireTodoProgress(item: EmpireTodoItem): { label: string; percent: number | null; tone: string } {
+  if (isEmpireTodoComplete(item)) return { label: "Done", percent: 100, tone: "done" };
+  if (item.status === "Blocked") return { label: "Blocked", percent: null, tone: "blocked" };
+  if (item.status === "In Progress") return { label: "In Progress", percent: null, tone: "active" };
+  if (item.status === "Deferred") return { label: "Deferred", percent: null, tone: "deferred" };
+  return { label: "Not Started", percent: null, tone: "planned" };
+}
+
 function priorityRank(priority: EmpireTodoPriority): number {
   return EMPIRE_TODO_PRIORITIES.indexOf(priority);
 }

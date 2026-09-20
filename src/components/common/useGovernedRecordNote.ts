@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { persistGovernedRecordNote } from "./governedRecordNote";
 import { O2FileNotFoundError, readO2File } from "./o2Files";
+import { fileTimestamp } from "./fileTimestamp";
 
 type ResolvePath = () => Promise<string | null> | string | null;
 
@@ -157,7 +158,7 @@ export function useGovernedRecordNote({
 
           revisionRef.current = 0;
           setText(parsed.content || "");
-          setSavedAt(typeof parsed.mtime === "number" ? parsed.mtime : null);
+          setSavedAt(fileTimestamp(parsed.mtime));
           setExists(true);
         } catch (loadError) {
           if (cancelled) return;
@@ -224,7 +225,7 @@ export function useGovernedRecordNote({
           : savedAt
             ? `Saved ${new Date(savedAt).toLocaleString()}`
             : exists
-              ? "Governed note"
+              ? "Saved · date unknown"
               : missingStatus;
 
   return {

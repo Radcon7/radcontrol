@@ -8,7 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createBubblewrapApplication, snapshotInstalledO2, assertInstalledO2Unchanged,
   tcpListeners, assertNoNewTcpListeners, assertProcessNotRunning, assertPortAbsent,
   sha256File, installNativeAcceptanceSignalCleanup } from './native_acceptance_lib.mjs';
-import { assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry } from './native_sentinel_assertions.mjs';
+import { assertWave1Work, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry } from './native_sentinel_assertions.mjs';
 
 function arg(name) {
   const i=process.argv.indexOf(name), value=i < 0 ? null : process.argv[i+1];
@@ -77,6 +77,7 @@ try {
  await until(()=>request('/status'));
  const s=await request('/session','POST',{capabilities:{alwaysMatch:{browserName:'wry','tauri:options':{application:app}}}});session=s.sessionId;
  await until(async()=>assert.match(await exec('return document.body.innerText;'),/Projects/));
+ await assertWave1Work(base,session,click,until);
  await click('[data-testid="tab-sentinel"]');
  await until(async()=>assert.match(await exec('return document.body.innerText;'),/RECENT EVENTS/));
  const text=await exec('return document.body.innerText;');
@@ -114,6 +115,6 @@ const result={ok:true,acceptance:'candidate-native-precheck',o2Sha,radcontrolSha
  artifactSha256:hash,releaseManifestSha256:manifestHash,
  harnessSha256:await sha256File(fileURLToPath(import.meta.url)),
  assertionsSha256:await sha256File(new URL('./native_sentinel_assertions.mjs',import.meta.url)),
- checks:['native-launch','current-now','grouped-activity','details-closed-open-reclosed','rendered-text','hit-testing','five-leakage-fixtures','hidden-open-panel','missing-panel','installed-preserved','listeners-preserved']};
+ checks:['wave1-work-surfaces','native-launch','current-now','grouped-activity','details-closed-open-reclosed','rendered-text','hit-testing','five-leakage-fixtures','hidden-open-panel','missing-panel','installed-preserved','listeners-preserved']};
 await writeFile(path.join(evidence,'candidate-native.json'),JSON.stringify(result)+'\n',{flag:'wx',mode:0o600});
 console.log(JSON.stringify(result));
