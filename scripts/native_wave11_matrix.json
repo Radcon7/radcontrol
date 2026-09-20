@@ -1,0 +1,33 @@
+{
+  "schema": "radcontrol-wave11-native/v1",
+  "scenarios": [
+    "queued-planned-backlog",
+    "active-blocked",
+    "deferred-legacy",
+    "progress-navigation",
+    "full-width-rails-next-action-blocker",
+    "detail-preserves-rows",
+    "no-invented-percentage",
+    "healthy-no-fix",
+    "actionable-preview-cancel",
+    "confirmation-simulated-repair",
+    "nonactionable-review",
+    "multiple-findings-remain",
+    "repair-failure",
+    "invalid-preview",
+    "current-now-history",
+    "details-rendered-text-hit-testing",
+    "three-security-workspaces",
+    "runtime-diagnostics"
+  ],
+  "harnessFiles": [
+    "scripts/native_wave11_acceptance.mjs",
+    "scripts/native_wave11_release.mjs",
+    "scripts/native_wave11_receipt.mjs",
+    "scripts/native_wave11_matrix.json",
+    "scripts/native_sentinel_assertions.mjs",
+    "scripts/native_acceptance_lib.mjs",
+    "tests/native_wave11_fixture.py",
+    "scripts/native_transaction_receipt.mjs"
+  ]
+}

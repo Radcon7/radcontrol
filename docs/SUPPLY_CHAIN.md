@@ -60,8 +60,8 @@ Production-artifact acceptance is separately durable in
 Bubblewrap mount namespace with `/` read-only, installed O2 `.state` replaced
 by a private test-owned overlay, and only test-owned browser state writable.
 The probe invokes no save/write/rename/create/configure/lifecycle action. It
-proves exact embedded identities, nine operator-visible projects, three durable
-To-Do records, Infrastructure and Sentinel availability, primary navigation,
+proves exact embedded identities, the governed project and To-Do inventory,
+Infrastructure and Sentinel availability, primary navigation,
 installed O2 cleanliness, To-Do digest integrity, and listener cleanup.
 
 Writable persistence acceptance is not performed with a production artifact.
@@ -93,6 +93,30 @@ opened, and reclosed states and negative fixtures for five exposed technical
 headings, an invisible opened panel, and a removed panel. Product presentation
 and the three Security workspaces do not change.
 
+Debug E2E, candidate-native precheck and installed production acceptance also
+execute the same `native_wave11_acceptance.mjs` scenario matrix. Release paths
+use a separate Bubblewrap session with an exact source archive and test-owned
+O2 state mounted at the runtime path; the installed executable is unchanged.
+This synthetic UI/contract phase is distinct from real installed identity,
+normal read-only surfaces, private-state preservation and rollback acceptance.
+It covers queued/active/blocked/Deferred/legacy tasks, lifecycle rails and
+selection, healthy/actionable/non-actionable/multiple Sentinel findings,
+preview/cancel/confirmation, surviving findings, failed repair, Details,
+all three Security workspaces and Runtime Diagnostics.
+
+The synthetic dispatcher implements only those scenario responses. Unrelated
+mutation verbs fail closed; the existing O2 audit append remains enabled only
+inside the private fixture. Simulated confirmation never invokes sudo, Polkit,
+a privileged helper or a service restart. Real product preview, confirmation,
+OS authentication, helper and verification remain unchanged.
+
+`native_wave11_matrix.json` lists required test scenarios and harness files.
+The candidate result and each installed receipt carry the complete matrix,
+synthetic classification, source/binary identities and harness digests. Missing
+or incomplete results fail before receipt publication; the receiver independently
+rejects missing, mismatched or incomplete installed matrix receipts. A generic
+passing precheck cannot stand in for these scenarios.
+
 New schema-v2 receiver transitions are:
 
 `promote -> new-live -> accept-first -> new-live-first-accepted -> rollback -> old-live -> verify-rollback -> old-live-verified -> reinstall -> new-live-awaiting-final -> accept-final -> new-live-final`.
@@ -103,6 +127,12 @@ all native and preservation checks pass. Each binds the exact immutable
 transaction manifest, pair, binary and expected phase. `accept-first` and
 `accept-final` revalidate the pair, retained recovery material and receipt.
 `verify-rollback` requires the first receipt and proves the restored old pair.
+In production it also invokes the existing read-only native harness in a
+rollback-only mode: the actual restored executable must populate its window and
+render exact runtime identities before a bound `native-rollback.json` receipt
+permits `old-live-verified`. This mode cannot replace first/final acceptance or
+their complete Wave 1.1 receipts. Fixture transactions use non-native binaries
+and test this boundary with a controlled subprocess double.
 Reinstall cannot follow a rejected first acceptance or skip rollback verification.
 
 A first failure may roll back from `new-live`; a final failure may roll back

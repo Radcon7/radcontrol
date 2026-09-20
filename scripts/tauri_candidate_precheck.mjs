@@ -1,3 +1,4 @@
+import { runReleaseWave11 } from './native_wave11_release.mjs';
 import assert from 'node:assert/strict';
 import { cp, mkdir, mkdtemp, readFile, writeFile, chmod, realpath, lstat } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
@@ -111,7 +112,8 @@ try {
 }finally{ await signals(); }
 assert.equal(await sha256File(artifact),hash,'candidate changed during native precheck');
 assert.equal(await sha256File(releasePath),manifestHash,'admission changed during native precheck');
-const result={ok:true,acceptance:'candidate-native-precheck',o2Sha,radcontrolSha:radSha,
+const wave11 = await runReleaseWave11({app:artifact,o2Source:o2,identities:{o2Sha,radcontrolSha:radSha,artifactSha256:hash},entrypoint:'tauri_candidate_precheck.mjs'});
+const result={wave11,ok:true,acceptance:'candidate-native-precheck',o2Sha,radcontrolSha:radSha,
  artifactSha256:hash,releaseManifestSha256:manifestHash,
  harnessSha256:await sha256File(fileURLToPath(import.meta.url)),
  assertionsSha256:await sha256File(new URL('./native_sentinel_assertions.mjs',import.meta.url)),

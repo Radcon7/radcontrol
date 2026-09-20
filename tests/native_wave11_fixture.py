@@ -15,10 +15,18 @@ assert root.parent.name.startswith("radcontrol-tauri-e2e-")
 assert (root / "wave11-fixture.json").is_file()
 verb = sys.argv[1]
 intercepted = {
-    "sentinel.status", "sentinel.host.current", "sentinel.host.check",
+    "sentinel.status", "sentinel.host.current", "sentinel.host.check", "empire.todo.list",
     "workstation.cleanup.pop_upgrade.preview", "workstation.cleanup.pop_upgrade.apply",
 }
+# Fail closed: an accidental fixture click must never fall through to a real
+# mutation, service command, provider operation or privileged helper.
+read_only = {"contract_info", "list_projects", "radcontrol.runtime_status", "empire.operations.status", "radcontrol.golden_state", "router.health"}
+# The bridge must still audit synthetic preview/apply in this private O2 root.
+fixture_writes = {"radcontrol.audit.append.stdin"}
 if verb not in intercepted:
+    if verb not in fixture_writes and verb not in read_only and not verb.startswith(("files.read.", "files.list.")):
+        print(json.dumps({"ok": False, "error": "Native fixture denied non-read operation", "verb": verb}))
+        sys.exit(1)
     os.execv("/bin/bash", ["bash", str(scripts / "run_o2.actual.sh"), *sys.argv[1:]])
 state_path = root / "wave11-fixture.json"
 state = json.loads(state_path.read_text())
@@ -29,7 +37,9 @@ now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 updater = phase in {"actionable", "multiple", "failure", "invalid-preview"}
 hot = phase in {"nonactionable", "multiple", "remaining"}
 zombie = phase in {"multiple", "remaining"}
-if verb == "workstation.cleanup.pop_upgrade.preview":
+if verb == "empire.todo.list":
+    result = json.loads((root / "wave11-tasks.json").read_text())
+elif verb == "workstation.cleanup.pop_upgrade.preview":
     result = {"ok": True, "candidate": {"id": "service:pop-upgrade.service", "service": "pop-upgrade.service"},
               "requiresOperatorConfirmation": True, "requiresOsAuthorization": phase != "invalid-preview"}
 elif verb == "workstation.cleanup.pop_upgrade.apply":
