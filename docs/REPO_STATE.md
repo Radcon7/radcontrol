@@ -132,6 +132,28 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   as governed archive subviews inside Documents & Compliance rather than as
   competing top-level truth surfaces.
 
+## Work clarity — Wave 1
+
+- Empire To-Do shows compact selectable rows with current state, Next Action,
+  relevant blockers and acceptance. One selected editor preserves every existing
+  field and the explicit Timeline/no-Timeline completion choice. Task selection
+  and unchanged navigation do not save; local draft writes are serialized and
+  older responses cannot clear newer edits. Pristine Add can be cancelled.
+- The present task schema supplies lifecycle, not percentage or typed checklist
+  progress. Show Not Started, In Progress, Blocked or Deferred; authoritative
+  Complete alone may show Done / 100%. Narrative percentages are not measurements.
+- Project-note saved times normalize O2 seconds and recognized millisecond input;
+  absent/invalid time is unknown, never a fabricated epoch or current time.
+- Timeline gives the human title precedence, retains context/details, and accepts
+  the existing event date separately from immutable creation metadata. Loading,
+  empty, read-error and save-error states remain distinct; old records are read
+  without rewriting them.
+- Logs start collapsed with visible output/running/attention/error status and
+  quick expansion. Existing Copy/Clear and full retained output remain available.
+- Wave 2 still owns private task/Timeline persistence and cross-process save
+  concurrency. Wave 1 retains their tracked O2 paths; it does not make them a
+  private work store or introduce Initiative, Momentum or Overview models.
+
 ## Persistence and execution
 
 - Durable writes use O2 file or producer verbs; React/local storage is not document truth.

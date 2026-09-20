@@ -1,5 +1,5 @@
 import { transactionReceiptContext, writeTransactionReceipt } from "./native_transaction_receipt.mjs";
-import { assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, request } from "./native_sentinel_assertions.mjs";
+import { assertWave1Work, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, request } from "./native_sentinel_assertions.mjs";
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
@@ -237,6 +237,7 @@ try {
   }, "render exact production runtime diagnostics");
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
+  const wave1Checks = await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
   await click(base, sessionId, '[data-testid="tab-notes"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /Empire To-Do[\s\S]*Timeline[\s\S]*My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);
   await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
@@ -248,22 +249,22 @@ try {
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /EMPIRE TO-DO[\s\S]*What matters now[\s\S]*1 blocked item[\s\S]*ActiveCompleted/);
+    assert.match(text, /Empire To-Do[\s\S]*Active[\s\S]*Completed[\s\S]*1 blocked/);
     assert.match(text, /NOW[\s\S]*BUSINESS FOUNDATION[\s\S]*CONTROL PLANE[\s\S]*DQOTD LAUNCH \/ PREMIUM[\s\S]*COMMERCIAL PROOF/);
   }, "render grouped current Empire To-Do operating sequence");
   assert.match(
     await eventually(() => bodyText(base, sessionId), "read blocked Empire To-Do dependencies"),
-    /Blocked[\s\S]*Depends on: Delivered email verification; staging editor authorization; hosted browser acceptance/,
+    /Blocked[\s\S]*Blocked by[\s\S]*Delivered email verification; staging editor authorization; hosted browser acceptance/,
   );
   await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "load completed Empire To-Do operator view"),
-    /ActiveCompleted[\s\S]*No completed items\./,
+    /Active[\s\S]*Completed[\s\S]*No completed tasks\./,
   );
   await click(base, sessionId, '[data-testid="empire-todo-active-view"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "return to active Empire To-Do operator view"),
-    /NOW[\s\S]*Blocked[\s\S]*Depends on: Delivered email verification; staging editor authorization; hosted browser acceptance/,
+    /NOW[\s\S]*Blocked[\s\S]*Blocked by[\s\S]*Delivered email verification; staging editor authorization; hosted browser acceptance/,
   );
 
   await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
@@ -670,6 +671,7 @@ try {
     radcontrolSha: expectedRadcontrolSha,
     artifactSha256: expectedArtifactSha,
     todoSha256: installedBefore.todoSha256,
+    wave1Checks,
     diagnosticsVerified: diagnostics.includes("Listener-free production mode"),
     sentinelCurrentHealth: currentHealthPresentation.current,
     sentinelHeroClass: currentHealthPresentation.heroClass,

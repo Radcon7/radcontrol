@@ -1,5 +1,6 @@
+import { assertWave1Work, assertSentinelDetails } from "./native_sentinel_assertions.mjs";
 import assert from "node:assert/strict";
-import { access, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readFile, readdir, rename, symlink, unlink, rm, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import net from "node:net";
@@ -286,8 +287,15 @@ async function domClick(base, sessionId, selector) {
 }
 
 async function replaceValue(base, sessionId, id, text) {
-  await request(base, `/session/${sessionId}/element/${id}/clear`, "POST", {});
-  await request(base, `/session/${sessionId}/element/${id}/value`, "POST", { text });
+  assert.equal(await request(base, `/session/${sessionId}/element/${id}/enabled`), true);
+  // WebKit clear() does not notify React's controlled input tracker. Use the
+  // native setter plus input/change for clearing, then real WebDriver typing.
+  await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `const e=arguments[0];const p=e instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(p,'value').set.call(e,'');e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));`,
+    args: [{ "element-6066-11e4-a52e-4f735466cecf": id }],
+  });
+  if (text) await request(base, `/session/${sessionId}/element/${id}/value`, "POST", { text });
 }
 
 async function selectValue(base, sessionId, id, value) {
@@ -350,14 +358,12 @@ async function guardianResponsiveGeometry(base, sessionId) {
 }
 
 function assertResponsiveGuardianRow(layout, label) {
-  assert.ok(layout.row && layout.cells.length === 5, `${label}: one five-field Guardian row is required`);
-  assert.equal(layout.headerDisplay, "none", `${label}: the desktop header must yield to labelled stacked fields`);
+  assert.ok(layout.row && layout.cells.length === 4, `${label}: one four-field grouped Guardian row is required`);
   assert.ok(layout.cells.every((cell) => cell.top >= layout.row.top - 1 && cell.bottom <= layout.row.bottom + 1), `${label}: a field escaped its row`);
-  assert.deepEqual(
-    layout.cells.map((cell) => cell.label.replaceAll('"', '')),
-    ["Time", "State", "Source", "Key measurements", "Action / context"],
-    `${label}: stacked field labels must remain explicit`,
-  );
+  for (let index = 1; index < layout.cells.length; index += 1) {
+    const before = layout.cells[index - 1], after = layout.cells[index];
+    assert.ok(after.top >= before.bottom - 1 || after.left >= before.right - 1, `${label}: grouped fields overlap`);
+  }
 }
 
 async function stopChild(child) {
@@ -496,10 +502,22 @@ try {
   await eventually(
     async () => assert.match(
       await bodyText(base, sessionId),
-      /EMPIRE TO-DO[\s\S]*NOW[\s\S]*BUSINESS FOUNDATION[\s\S]*CONTROL PLANE[\s\S]*DQOTD LAUNCH \/ PREMIUM[\s\S]*COMMERCIAL PROOF/,
+      /Empire To-Do[\s\S]*NOW[\s\S]*BUSINESS FOUNDATION[\s\S]*CONTROL PLANE[\s\S]*DQOTD LAUNCH \/ PREMIUM[\s\S]*COMMERCIAL PROOF/,
     ),
     "render Empire To-Do operating sequence",
   );
+  await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
+  const todoBeforeSelection = await readFile(fixture.empireTodoPath, "utf8");
+  await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
+  assert.equal(await readFile(fixture.empireTodoPath, "utf8"), todoBeforeSelection, "read-only selection/navigation must not save tasks");
+  await click(base, sessionId, '[data-testid="tab-notes"]');
+  await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
+  await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
+  await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Find tasks"]'), 'Dinosaur');
+  await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Task title"]'), 'Edited matching task');
+  await eventually(async () => assert.equal(await elementProperty(base, sessionId, await element(base, sessionId, '[aria-label="Task title"]'), "value"), 'Edited matching task'), "editing a filtered title retains its selected draft");
+  await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Task title"]'), 'DQOTD Dinosaur Content');
+  await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Find tasks"]'), '');
   const empireTodoNotes = await element(base, sessionId, '[aria-label="Notes for DQOTD Dinosaur Content"]');
   const todoProbe = "E2E roadmap draft survives governed persistence";
   await replaceValue(base, sessionId, empireTodoNotes, todoProbe);
@@ -814,15 +832,19 @@ try {
   }, "persist Infrastructure autosave into the isolated O2 root");
 
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
+  await eventually(async () => assert.match(await bodyText(base, sessionId), /CURRENT NOW/), "load current Sentinel presentation");
+  await assertSentinelDetails(base,sessionId,false);
+  await click(base,sessionId,'.sentinelAdvancedWorkspace > summary');
+  await assertSentinelDetails(base,sessionId,true);
   const securityText = await eventually(() => bodyText(base, sessionId), "render Security control room");
   assert.match(securityText, /RADCON SENTINEL/);
   assert.match(securityText, /Empire Operations/i);
   assert.match(securityText, /Security Guardian/i);
   assert.match(securityText, /Is my computer okay\?/);
-  assert.match(securityText, /CURRENT MEASUREMENTS/);
-  assert.match(securityText, /RECENT GUARDIAN ACTIVITY/);
+  assert.match(securityText, /CURRENT NOW/);
+  assert.match(securityText, /RECENT EVENTS/);
   assert.match(securityText, /ADVANCED SYSTEM INFORMATION/);
-  assert.ok(securityText.indexOf("CURRENT MEASUREMENTS") < securityText.indexOf("RECENT GUARDIAN ACTIVITY"));
+  assert.ok(securityText.indexOf("CURRENT NOW") < securityText.indexOf("RECENT EVENTS"));
   assert.match(securityText, /Fans are loud/);
   assert.doesNotMatch(securityText, /QUICK ANSWERS|DIAGNOSTICS/);
   for (const heading of ["SYSTEM EVIDENCE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(securityText.includes(heading), `Security advanced area ${heading} is missing`);
@@ -858,10 +880,6 @@ try {
   const moderateActivity = await guardianResponsiveGeometry(base, sessionId);
   assert.ok(moderateActivity.viewportWidth <= 1100, "E2E window must reach the moderate Guardian Activity breakpoint");
   assertResponsiveGuardianRow(moderateActivity, "moderate Guardian Activity");
-  assert.ok(Math.abs(moderateActivity.cells[0].top - moderateActivity.cells[1].top) <= 2, "moderate Guardian Activity must pair Time and State");
-  for (let index = 2; index < moderateActivity.cells.length; index += 1) {
-    assert.ok(moderateActivity.cells[index].top >= moderateActivity.cells[index - 1].bottom - 1, "moderate Guardian Activity stacked fields overlap");
-  }
 
   await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 600, height: 900 });
   const smallActivity = await guardianResponsiveGeometry(base, sessionId);
@@ -969,6 +987,41 @@ try {
   await eventually(async () => {
     assert.match(await readFile(fixture.notesPath, "utf8"), /E2E autosave probe/);
   }, "persist autosave into isolated O2 root");
+
+  await eventually(async () => {
+    const status = await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:'return document.querySelector("[data-testid=project-notes]").parentElement.innerText;', args:[]});
+    assert.match(status, /Saved/); assert.doesNotMatch(status, /1970|date unknown/);
+  }, "Project Notes displays a valid Saved date after actual fixture autosave");
+  await click(base, sessionId, '[data-testid="tab-notes"]');
+  await click(base, sessionId, '[data-testid="notes-mode-timeline"]');
+  await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl Operator Cockpit completed/), "task-specific Timeline title");
+  const timelineBackup = `${fixture.timelineDir}-test-backup`;
+  await rename(fixture.timelineDir, timelineBackup);
+  await symlink(fixture.tempRoot, fixture.timelineDir);
+  await click(base, sessionId, '.workspaceActionRow .btnGhost');
+  await eventually(() => element(base, sessionId, '.workspaceShell [role="alert"]'), "Timeline load failure is visible");
+  assert.equal(await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:'return !!document.querySelector(".timelineEmptyState");',args:[]}),false);
+  await unlink(fixture.timelineDir); await rename(timelineBackup, fixture.timelineDir);
+  await click(base, sessionId, '.workspaceActionRow .btnGhost');
+  await eventually(async () => assert.equal(await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:'return document.querySelector(".workspaceActionRow .btnPrimary").disabled;',args:[]}),false), "Timeline retry is ready");
+  await click(base, sessionId, '.workspaceActionRow .btnPrimary');
+  await replaceValue(base, sessionId, await element(base, sessionId, '.timelineModalCard input:not([type=date])'), 'Backdated fixture milestone');
+  await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:`const e=document.querySelector('.timelineModalCard input[type=date]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'2026-08-22');e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));`,args:[]});
+  await rename(fixture.timelineDir, timelineBackup);
+  await symlink(fixture.tempRoot, fixture.timelineDir);
+  await click(base, sessionId, '.timelineModalCard .btnPrimary');
+  await eventually(() => element(base, sessionId, '.timelineModalError'), "failed Timeline save retains the modal and reports an error");
+  assert.equal((await readdir(timelineBackup)).length, 1);
+  await unlink(fixture.timelineDir); await rename(timelineBackup, fixture.timelineDir);
+  await click(base, sessionId, '.timelineModalCard .btnPrimary');
+  await eventually(async () => {
+    const names = await readdir(fixture.timelineDir);
+    assert.equal(names.length, 2);
+    const backdated = await readFile(path.join(fixture.timelineDir,names.find(n=>n.includes('backdated_fixture'))), 'utf8');
+    assert.match(backdated, /date: "2026-08-22"/);
+    assert.doesNotMatch(backdated, /created: "2026-08-22/);
+    assert.match(await bodyText(base,sessionId), /Aug 22, 2026[\s\S]*Backdated fixture milestone/);
+  }, "existing event date supports backdating without changing creation metadata");
 
   console.error("[e2e] passed: My Notes create/edit/restart/delete, O2 Knowledge read-only projection, Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
 } catch (error) {

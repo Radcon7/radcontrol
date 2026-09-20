@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { NewMilestoneInput } from "./timelineLoader";
+import { localEventDate, validEventDate } from "./timelineModel";
 
 type Props = {
   open: boolean;
@@ -10,12 +11,16 @@ type Props = {
 
 export function MilestoneModal({ open, busy, onCancel, onCreate }: Props) {
   const [entryText, setEntryText] = useState("");
+  const [eventDate, setEventDate] = useState(localEventDate);
+  const [notes, setNotes] = useState("");
+  const [category, setCategory] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
 
     setEntryText("");
+    setEventDate(localEventDate()); setNotes(""); setCategory("");
     setError("");
   }, [open]);
 
@@ -27,22 +32,18 @@ export function MilestoneModal({ open, busy, onCancel, onCreate }: Props) {
     const trimmedEntry = entryText.trim();
 
     if (!trimmedEntry) {
-      setError("Entry text is required.");
+      setError("A milestone title is required.");
       return;
     }
 
-    const today = new Date();
-    const yyyy = String(today.getFullYear());
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    const autoDate = `${yyyy}-${mm}-${dd}`;
+    if (!validEventDate(eventDate)) { setError("Enter a valid event date."); return; }
 
     try {
       await onCreate({
         title: trimmedEntry,
-        date: autoDate,
-        category: "",
-        notes: trimmedEntry,
+        date: eventDate,
+        category,
+        notes,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -50,22 +51,25 @@ export function MilestoneModal({ open, busy, onCancel, onCreate }: Props) {
   }
 
   return (
-    <div className="modalOverlay" onClick={onCancel}>
-      <div className="notesModalCard timelineModalCard" onClick={(event) => event.stopPropagation()}>
+    <div className="modalOverlay" onClick={() => !busy && onCancel()}>
+      <div className="notesModalCard timelineModalCard" role="dialog" aria-modal="true" aria-labelledby="milestone-title" onClick={(event) => event.stopPropagation()}>
         <div className="notesModalHeader">
-          <div className="notesModalTitle">Add Timeline Milestone</div>
+          <div className="notesModalTitle" id="milestone-title">Add Timeline Milestone</div>
         </div>
 
         <div className="notesModalBody">
           <label className="surfaceFormField">
-            <span className="surfaceFormLabel">Timeline Entry</span>
-            <textarea
+            <span className="surfaceFormLabel">Milestone</span>
+            <input
               value={entryText}
               onChange={(e) => setEntryText(e.target.value)}
-              placeholder="Describe what was going on..."
-              className="pasteArea surfaceTextAreaLg"
+              disabled={busy}
+              className="input"
             />
           </label>
+          <label className="surfaceFormField"><span className="surfaceFormLabel">Event date</span><input className="input" type="date" value={eventDate} disabled={busy} onChange={(event) => setEventDate(event.target.value)} /></label>
+          <label className="surfaceFormField"><span className="surfaceFormLabel">Context</span><input className="input" value={category} disabled={busy} onChange={(event) => setCategory(event.target.value)} /></label>
+          <label className="surfaceFormField"><span className="surfaceFormLabel">Details</span><textarea className="pasteArea todoDetailText" value={notes} disabled={busy} onChange={(event) => setNotes(event.target.value)} /></label>
 
           {error ? <div className="panelError timelineModalError">{error}</div> : null}
 

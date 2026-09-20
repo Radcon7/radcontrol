@@ -135,3 +135,52 @@ export async function request(base, route, method = "GET", body) {
   return payload.value;
 }
 
+
+// Shared candidate/installed Wave 1 proof. This file is already digest-bound by
+// the governed candidate receipt; navigation here never edits operational data.
+export async function assertWave1Work(base, sessionId, click, until) {
+  const execute = (script, args = []) => request(base, `/session/${sessionId}/execute/sync`, "POST", { script, args });
+  const text = () => execute('return document.body.innerText;');
+  await until(async () => assert.equal(await execute('return document.querySelector("[data-testid=logs-toggle]")?.getAttribute("aria-expanded");'), 'false'));
+  assert.equal(await execute('return !!document.getElementById("command-output");'), false);
+  await click('[data-testid="logs-toggle"]');
+  await until(async () => assert.equal(await execute('return !!document.getElementById("command-output");'), true));
+  await click('[data-testid="logs-toggle"]');
+  await click('[data-testid="tab-notes"]');
+  await click('[data-testid="notes-mode-empire_todo"]');
+  await until(async () => assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 1));
+  const compact = await execute(`return {
+    rows: document.querySelectorAll('.empireTodoRow').length,
+    rowEditors: document.querySelectorAll('.empireTodoRow textarea,.empireTodoRow input:not([type=checkbox])').length,
+    fields: [...document.querySelectorAll('.todoDetail textarea')].map(e=>e.getAttribute('aria-label')),
+    next: document.querySelectorAll('.todoRowNext').length,
+    progress: [...document.querySelectorAll('.todoProgress')].map(e=>({text:e.innerText,basis:e.dataset.progressBasis})),
+    selectors: [...document.querySelectorAll('.todoRowSelect')].slice(0,2).map(e=>e.dataset.testid)
+  };`);
+  assert.ok(compact.rows > 0); assert.equal(compact.rowEditors, 0);
+  assert.equal(compact.next, compact.rows);
+  for (const name of ['Current state','Next Action','Dependencies / blockers','Acceptance / done condition','Summary','Context','Why it matters']) assert.ok(compact.fields.includes(name), name);
+  assert.equal(compact.fields.length, 8);
+  for (const state of compact.progress) {
+    assert.equal(state.basis, 'lifecycle');
+    assert.ok(!state.text.includes('%') || state.text === 'Done · 100%', 'No invented task percentage');
+  }
+  for (const selector of compact.selectors) {
+    await click(`[data-testid="${selector}"]`);
+    await until(async () => assert.equal(await execute('return document.querySelector("[data-testid=empire-todo-detail] [role=status]")?.innerText;'), 'Saved'));
+  }
+  await click('[data-testid="notes-mode-timeline"]');
+  await until(async () => {
+    const body = await text(); assert.match(body, /Timeline/i); assert.doesNotMatch(body, /Loading timeline/i);
+    assert.equal(await execute('return !!document.querySelector(".workspaceShell [role=alert]");'), false);
+  });
+  await click('[data-testid="tab-projects"]');
+  await until(async () => assert.equal(await execute('return !!document.querySelector("[data-testid=project-notes]");'), true));
+  const noteStatus = await until(async () => {
+    const status = await execute('return document.querySelector("[data-testid=project-notes]").parentElement.innerText;');
+    assert.doesNotMatch(status, /Loading note|Saving\.\.\./); return status;
+  });
+  assert.doesNotMatch(noteStatus, /1970/);
+  assert.ok(await execute('return document.querySelectorAll("[data-testid^=project-row-]").length > 0;'), "Projects roster remains populated");
+  return ['compact-task-list','selected-task-detail','next-action-blocker-acceptance','lifecycle-progress','read-only-navigation','timeline','project-notes-no-epoch','logs-collapsed-expanded-recollapsed','projects-navigation'];
+}

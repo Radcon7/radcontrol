@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { MilestoneModal } from "./MilestoneModal";
+import { timelinePresentation, validEventDate } from "./timelineModel";
 import {
   createTimelineMilestone,
   listTimelineMilestones,
@@ -47,7 +48,7 @@ type Group = {
 
 export function TimelineTab() {
   const [items, setItems] = useState<TimelineMilestone[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
   const [err, setErr] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
@@ -74,9 +75,8 @@ export function TimelineTab() {
     setErr("");
 
     try {
-      await createTimelineMilestone(input);
-      const next = await listTimelineMilestones();
-      setItems(next);
+      const created = await createTimelineMilestone(input);
+      setItems((previous) => [...previous, created]);
       setShowCreate(false);
     } catch (error) {
       setErr(error instanceof Error ? error.message : String(error));
@@ -90,7 +90,7 @@ export function TimelineTab() {
     const map = new Map<string, TimelineMilestone[]>();
 
     for (const item of items) {
-      const key = item.date ? item.date.slice(0, 7) : "undated";
+      const key = validEventDate(item.date) ? item.date.slice(0, 7) : "undated";
       const bucket = map.get(key);
       if (bucket) {
         bucket.push(item);
@@ -103,13 +103,14 @@ export function TimelineTab() {
       .sort(([a], [b]) => b.localeCompare(a))
       .map(([key, groupedItems]) => ({
         key,
-        items: [...groupedItems].reverse(),
+        items: [...groupedItems].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
       }));
   }, [items]);
 
   return (
     <section className="workspaceShell">
       <div className="workspaceActionRow">
+        <button className="btn btnGhost btnCompact" onClick={() => void reload()} disabled={busy}>Refresh</button>
         <button
           className="btn btnPrimary btnCompact"
           onClick={() => setShowCreate(true)}
@@ -119,19 +120,16 @@ export function TimelineTab() {
         </button>
       </div>
 
-      {err ? <div className="panelError">{err}</div> : null}
+      {err ? <div className="panelError" role="alert">{err}</div> : null}
 
       <div className="timelineFeed">
         {busy && items.length === 0 ? (
           <div className="timelineStatus">Loading timeline…</div>
         ) : null}
 
-        {!busy && items.length === 0 ? (
+        {!busy && !err && items.length === 0 ? (
           <div className="timelineEmptyState">
             <div className="timelineEmptyTitle">No milestones yet</div>
-            <div className="timelineEmptyBody">
-              Create the first milestone to begin the RadControl timeline.
-            </div>
           </div>
         ) : null}
 
@@ -144,6 +142,7 @@ export function TimelineTab() {
             <div className="timelineEntries">
               {group.items.map((item, index) => {
                 const isLast = index === group.items.length - 1;
+                const presentation = timelinePresentation(item);
 
                 return (
                   <div key={item.path} className="timelineEntryRow">
@@ -154,11 +153,12 @@ export function TimelineTab() {
 
                     <div className="timelineCard">
                       <div className="timelineEntryDate">
-                        {formatMilestoneDate(item.date)}
+                        {formatMilestoneDate(presentation.date)}{item.category ? ` · ${item.category}` : ""}
                       </div>
                       <div className="timelineEntryText">
-                        {item.notes || item.title || "—"}
+                        {presentation.title}
                       </div>
+                      {presentation.body ? <div className="timelineEntryBody">{presentation.body}</div> : null}
                     </div>
                   </div>
                 );

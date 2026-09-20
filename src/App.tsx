@@ -1,3 +1,4 @@
+import { LogsDrawer } from "./components/common/LogsDrawer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import "./App.css";
@@ -787,7 +788,6 @@ export default function App() {
     setShowAddProject(false);
   }
 
-  const logText = (busy ? "Running…" : log || "No logs yet.").toString();
 
   function registerBeforeTabChangeSaver(fn: (() => Promise<boolean>) | null) {
     beforeTabChangeSaverRef.current = fn;
@@ -931,32 +931,7 @@ export default function App() {
         registryError={registryError}
       />
 
-      <footer className="logsBar">
-        <div className="logsHeader">
-          <div className="logsTitle">Logs</div>
-          <div />
-        </div>
-
-        <div className="logsBoxRow">
-          <div className="logsBox">{logText}</div>
-          <div className="logsActionsStack">
-            <button
-              className="btn btnGhost"
-              onClick={() => void copyText(logText)}
-              disabled={logText.trim().length === 0}
-            >
-              Copy
-            </button>
-            <button
-              className="btn btnGhost"
-              onClick={() => setLog("")}
-              disabled={busy || !log}
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      </footer>
+      <LogsDrawer log={log} busy={busy} onCopy={(text) => void copyText(text)} onClear={() => setLog("")} />
     </div>
   );
 }

@@ -1570,7 +1570,8 @@ pre {
   transform: translateY(-1px);
 }
 
-.workspaceModeButtonActive {
+.workspaceModeButtonActive,
+.workspaceModeButtonActive:hover {
   color: rgba(0, 0, 0, 0.92);
   background: linear-gradient(90deg, rgba(97, 242, 169, 0.96), rgba(104, 160, 255, 0.96));
   border-color: rgba(255, 255, 255, 0.22);
@@ -4531,4 +4532,52 @@ pre {
   .sentinelCurrentSignals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sentinelShell .guardianActivityRow { grid-template-columns: 1fr; }
   .sentinelShell .guardianActivityColumns { display: none; }
+}
+
+/* Wave 1: compact working rows, one selected editor, quiet diagnostic output. */
+.logsBar { padding: 6px 12px; gap: 6px; border-radius: 12px; }
+.logsBar.isCollapsed { min-height: 42px; }
+.logsToggle { min-height: 28px; padding: 4px 10px; }
+.logsStatus { font-size: 14px; color: var(--muted); }
+.logsStatus-error { color: #ffb1b8; font-weight: 700; }
+.logsStatus-warning { color: #ffdb96; }
+.logsStatus-running { color: #a9d5ff; }
+.empireTodoCompact { display: flex; flex-direction: column; min-height: 0; height: 100%; gap: 8px; overflow: hidden; }
+.empireTodoCompact .empireTodoToolbar { flex-shrink: 0; gap: 12px; }
+.empireTodoCompact .empireTodoToolbar > .todoFilterRow { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.empireTodoCompact .todoSearch { width: 230px; min-height: 34px; padding: 6px 10px; }
+.todoCount { color: var(--muted); font-size: 14px; }
+.todoMasterDetail { display: grid; grid-template-columns: minmax(440px, 1.55fr) minmax(310px, 1fr); gap: 14px; flex: 1; min-height: 0; }
+.empireTodoCompact .empireTodoList { padding: 0 10px 10px 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; border: 0; background: none; }
+.empireTodoCompact .empireTodoGroup + .empireTodoGroup { margin-top: 12px; }
+.empireTodoCompact .empireTodoGroupHeading { display: flex; justify-content: space-between; padding: 8px 10px; gap: 12px; }
+.empireTodoCompact .empireTodoGroupHeading strong { font-size: 14px; color: var(--muted); letter-spacing: .06em; }
+.empireTodoCompact .empireTodoRow { display: flex; gap: 9px; align-items: flex-start; padding: 6px 10px; margin: 0 0 2px; border: 1px solid transparent; border-bottom-color: var(--stroke); border-radius: 7px; background: rgba(255,255,255,.025); }
+.empireTodoCompact .empireTodoRow.isSelected { background: rgba(104,160,255,.12); border-color: rgba(104,160,255,.55); }
+.empireTodoCompact .empireTodoRow input[type=checkbox] { flex-shrink: 0; margin-top: 3px; width: 17px; height: 17px; }
+.todoRowSelect { display: grid; gap: 2px; width: 100%; min-width: 0; padding: 0; border: 0; background: none; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+.todoRowSelect:focus-visible { outline: 2px solid var(--accentB); outline-offset: 3px; border-radius: 4px; }
+.todoRowTitle { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.todoRowTitle strong { min-width: 0; font-size: 16px; line-height: 1.35; }
+.todoProgress { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: #c0cddd; font-size: 13px; font-weight: 600; }
+.todoProgressPuck { width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; flex-shrink: 0; }
+.todoProgress-active { color: #a9d5ff; }.todoProgress-blocked { color: #ffcf82; }.todoProgress-done { color: #8ce6b5; }
+.todoProgress-active .todoProgressPuck,.todoProgress-done .todoProgressPuck { background: currentColor; }
+.todoRowState,.todoRowNext,.todoRowBlocker,.todoRowAcceptance { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.35; font-size: 14px; color: var(--muted); }
+.todoRowNext { color: var(--text); }.todoRowNext b { color: #aed1ff; }.todoRowBlocker { color: #ffcf82; }
+.todoRowAcceptance { color: #bac5d3; }.todoRowNext b,.todoRowBlocker b,.todoRowAcceptance b { margin-right: 5px; font-weight: 600; }
+.todoDetail { min-width: 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 12px 14px; border: 1px solid var(--stroke); border-radius: 9px; background: rgba(255,255,255,.045); }
+.todoDetailHeading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; font-size: 13px; color: var(--muted); }
+.todoDetail .empireTodoField { display: grid; margin: 10px 0; gap: 5px; }
+.todoDetail .empireTodoField > span { font-size: 14px; letter-spacing: normal; text-transform: none; color: #cfdae8; }
+.todoDetail .input { font-size: 16px; min-height: 38px; padding: 8px; }
+.todoDetailText { width: 100%; min-height: 62px; max-height: 300px; padding: 8px; font-size: 15px; line-height: 1.4; resize: vertical; }
+.todoDetailMeta { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; color: var(--muted); }
+.timelineEntryText { font-size: 17px; line-height: 1.4; }.timelineEntryBody { color: var(--muted); font-size: 15px; line-height: 1.5; margin-top: 5px; }
+.timelineModalCard .notesModalBody { display: grid; gap: 12px; }
+@media (max-width: 1000px) {
+  .todoMasterDetail { grid-template-columns: minmax(0,1fr); overflow-y: auto; }
+  .empireTodoCompact .empireTodoList { max-height: 45vh; flex-shrink: 0; }
+  .todoDetail { overflow-y: visible; }
+  .todoRowTitle { flex-wrap: wrap; gap: 4px; }
 }

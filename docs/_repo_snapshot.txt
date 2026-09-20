@@ -30,6 +30,7 @@ test:sentinel
 test:tauri-candidate-precheck
 test:tauri-e2e
 test:tauri-production-readonly
+test:wave1
 verify:agents-architecture
 verify:change-guardian-policy
 verify:ci-contract
@@ -184,11 +185,14 @@ src/components/agents/agentModel.ts
 src/components/agents/infrastructureModel.ts
 src/components/agents/infrastructureReports.ts
 src/components/common/ArtifactListPanel.tsx
+src/components/common/LogsDrawer.tsx
 src/components/common/SplitTextPanel.tsx
 src/components/common/SystemStateShell.tsx
 src/components/common/copyText.ts
+src/components/common/fileTimestamp.ts
 src/components/common/governedOpener.ts
 src/components/common/governedRecordNote.ts
+src/components/common/logStatus.ts
 src/components/common/o2Client.ts
 src/components/common/o2Contract.ts
 src/components/common/o2Files.ts
@@ -199,6 +203,7 @@ src/components/notes/EmpireTodoWorkspace.tsx
 src/components/notes/MyNotesScratchpad.tsx
 src/components/notes/O2KnowledgeWorkspace.tsx
 src/components/notes/empireTodoApi.ts
+src/components/notes/empireTodoDrafts.ts
 src/components/notes/empireTodoModel.ts
 src/components/notes/myNotesApi.ts
 src/components/notes/o2KnowledgeApi.ts
@@ -210,6 +215,7 @@ src/components/paste-tabs/PortfolioBlueprint.tsx
 src/components/paste-tabs/TimelineTab.tsx
 src/components/paste-tabs/portfolioBlueprintModel.ts
 src/components/paste-tabs/timelineLoader.ts
+src/components/paste-tabs/timelineModel.ts
 src/components/projects/AddProjectModal.tsx
 src/components/projects/ProjectBrief.tsx
 src/components/projects/ProjectLaunchDateModal.tsx
@@ -266,6 +272,7 @@ tests/verify_sentinel_contract.mjs
 tests/verify_supply_chain_contract.mjs
 tests/verify_tauri_e2e_contract.mjs
 tests/verify_tauri_security.mjs
+tests/wave1_behavior.mjs
 tsconfig.json
 tsconfig.node.json
 vite.config.ts
