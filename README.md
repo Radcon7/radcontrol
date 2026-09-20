@@ -36,9 +36,11 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   topology truth alongside Map, Snapshot, and Sweep. Security Guardian presents
   websites, apps, providers, and connected coverage while labeling unwired
   provider, auth, user, threat, and commerce signals as not connected.
-- **Notes**: My Notes (operator-authored scratchpad documents), Timeline, the
-  living Empire Blueprint, a read-only O2 Knowledge workspace, then the
-  persistent Empire To-Do workspace. O2 Knowledge projects canonical sources;
+- **Notes**: To-Do for queued work, Progress for started and blocked work,
+  Timeline, My Notes (operator-authored scratchpad documents), the living Empire
+  Blueprint, and a read-only O2 Knowledge workspace. Both task views share O2's
+  existing records; Progress shows lifecycle state without invented percentages.
+  O2 Knowledge projects canonical sources;
   it is not a second knowledge database.
 - **Legal**: an O2-backed executive workspace for Structure, Formation,
   Addresses & Agent, Brands & Ventures, Business Accounts, and Documents &

@@ -1,4 +1,5 @@
 import { assertWave1Work, assertSentinelDetails } from "./native_sentinel_assertions.mjs";
+import { runWave11Acceptance } from "./native_wave11_acceptance.mjs";
 import assert from "node:assert/strict";
 import { access, cp, mkdir, mkdtemp, readFile, readdir, rename, symlink, unlink, rm, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
@@ -502,22 +503,26 @@ try {
   await eventually(
     async () => assert.match(
       await bodyText(base, sessionId),
-      /Empire To-Do[\s\S]*NOW[\s\S]*BUSINESS FOUNDATION[\s\S]*CONTROL PLANE[\s\S]*DQOTD LAUNCH \/ PREMIUM[\s\S]*COMMERCIAL PROOF/,
+      /To-Do[\s\S]*Progress[\s\S]*Queued[\s\S]*BUSINESS FOUNDATION[\s\S]*DQOTD LAUNCH \/ PREMIUM/,
     ),
     "render Empire To-Do operating sequence",
   );
+  await click(base, sessionId, '[data-testid="notes-mode-progress"]');
   await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
   const todoBeforeSelection = await readFile(fixture.empireTodoPath, "utf8");
   await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
   assert.equal(await readFile(fixture.empireTodoPath, "utf8"), todoBeforeSelection, "read-only selection/navigation must not save tasks");
   await click(base, sessionId, '[data-testid="tab-notes"]');
   await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
+  await click(base, sessionId, '[data-testid="notes-mode-progress"]');
   await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
   await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Find tasks"]'), 'Dinosaur');
+  await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
   await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Task title"]'), 'Edited matching task');
   await eventually(async () => assert.equal(await elementProperty(base, sessionId, await element(base, sessionId, '[aria-label="Task title"]'), "value"), 'Edited matching task'), "editing a filtered title retains its selected draft");
   await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Task title"]'), 'DQOTD Dinosaur Content');
   await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Find tasks"]'), '');
+  await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
   const empireTodoNotes = await element(base, sessionId, '[aria-label="Notes for DQOTD Dinosaur Content"]');
   const todoProbe = "E2E roadmap draft survives governed persistence";
   await replaceValue(base, sessionId, empireTodoNotes, todoProbe);
@@ -1023,6 +1028,7 @@ try {
     assert.match(await bodyText(base,sessionId), /Aug 22, 2026[\s\S]*Backdated fixture milestone/);
   }, "existing event date supports backdating without changing creation metadata");
 
+  await runWave11Acceptance({fixture,base,sessionId,request,click,eventually});
   console.error("[e2e] passed: My Notes create/edit/restart/delete, O2 Knowledge read-only projection, Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
 } catch (error) {
   if (sessionId) {

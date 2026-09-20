@@ -18,17 +18,18 @@ const bridge = await readFile(
   "utf8",
 );
 
-assert.match(notes, /label: "Empire To-Do"/);
+assert.match(notes, /label: "To-Do"/);
 assert.match(notes, /useState<NotesMode>\("empire_todo"\)/);
 assert.match(notes, /data-testid=\{`notes-mode-\$\{item\.key\}`\}/);
 const todoIndex = notes.indexOf('key: "empire_todo"');
+const progressIndex = notes.indexOf('key: "progress"');
 const timelineIndex = notes.indexOf('key: "timeline"');
 const notesIndex = notes.indexOf('key: "notes"');
 const blueprintIndex = notes.indexOf('key: "empire_blueprint"');
 const knowledgeIndex = notes.indexOf('key: "o2_knowledge"');
 assert.ok(
   todoIndex >= 0 &&
-    timelineIndex > todoIndex &&
+    progressIndex > todoIndex && timelineIndex > progressIndex &&
     notesIndex > timelineIndex &&
     blueprintIndex > notesIndex &&
     knowledgeIndex > blueprintIndex,
@@ -43,7 +44,7 @@ assert.match(component, /Acceptance \/ done condition/);
 assert.doesNotMatch(component, /Large notes field/);
 assert.match(component, /Blocked by/);
 assert.match(component, /createTodoDrafts/);
-assert.match(component, /data-progress-basis="lifecycle"/);
+assert.match(await readFile(new URL("../src/components/notes/TaskProgress.tsx", import.meta.url), "utf8"), /data-progress-basis="lifecycle"/);
 assert.match(component, /Add to Timeline/);
 assert.match(component, /Complete without Timeline/);
 assert.match(component, /Cancel/);

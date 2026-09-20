@@ -154,6 +154,28 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   concurrency. Wave 1 retains their tracked O2 paths; it does not make them a
   private work store or introduce Initiative, Momentum or Overview models.
 
+## Work and Sentinel actions — Wave 1.1
+
+- To-Do is queued work: Backlog and Planned. Progress is the adjacent full-width
+  workspace for In Progress and Blocked tasks. Deferred/unrecognized states stay
+  reachable under Deferred / unclassified, without guessing whether they started.
+  Completed remains an explicit existing filter. Views never rewrite records.
+- Active-task rails communicate lifecycle through labeled state and texture, not
+  fractional fill, numeric ticks or an invented percentage. The current schema has
+  no authoritative percentage/checklist. Complete alone may display Done / 100%.
+  Selecting a Progress row expands its existing full detail inline; other rows
+  and their Next Action, relevant blocker and acceptance remain available.
+- The Sentinel health card offers Fix it only for the exact updater finding and
+  active, matching, installed capability/boundary evidence. It enters the same
+  Safe Cleanup preview; confirmation and OS authentication remain required. A
+  denied preview, wrong target, failed boundary or blocked recovery never grants
+  another action. No second repair executor, target, timer or retry is introduced.
+- Investigate / Review reveals specific non-repairable and mixed findings. A
+  successful updater action refreshes durable and foreground evidence; unrelated
+  findings remain visible. Failed/unverified repair stays attention. Historical
+  thermal/load findings never replace healthy foreground measurements; retained
+  issues outside foreground coverage remain explicitly identified for review.
+
 ## Persistence and execution
 
 - Durable writes use O2 file or producer verbs; React/local storage is not document truth.

@@ -169,6 +169,26 @@ export async function assertWave1Work(base, sessionId, click, until) {
     await click(`[data-testid="${selector}"]`);
     await until(async () => assert.equal(await execute('return document.querySelector("[data-testid=empire-todo-detail] [role=status]")?.innerText;'), 'Saved'));
   }
+  await click('[data-testid="notes-mode-progress"]');
+  await until(async () => assert.ok(await execute('return document.querySelectorAll(".taskProgressRail").length > 0;')));
+  const progress = await execute(`return [...document.querySelectorAll('.empireTodoRow')].map(row => ({
+    state: row.querySelector('.taskProgressRail')?.innerText,
+    width: row.querySelector('.taskProgressTrack')?.getBoundingClientRect().width,
+    available: row.querySelector('.todoRowSelect')?.getBoundingClientRect().width,
+    next: !!row.querySelector('.todoRowNext'), selector: row.querySelector('.todoRowSelect')?.dataset.testid
+  }));`);
+  assert.ok(progress.length > 1, 'Progress retains several active tasks');
+  for (const row of progress) {
+    assert.match(row.state.trim(), /^(In progress|Blocked)$/i);
+    assert.ok(row.width > row.available * 0.9, 'Lifecycle rail spans the active row');
+    assert.equal(row.next, true);
+  }
+  assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 0);
+  await click(`[data-testid="${progress[0].selector}"]`);
+  await until(async () => assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 1));
+  assert.equal(await execute('return document.querySelectorAll(".empireTodoRow").length;'), progress.length);
+  await click('[aria-label="Close task detail"]');
+  await until(async () => assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 0));
   await click('[data-testid="notes-mode-timeline"]');
   await until(async () => {
     const body = await text(); assert.match(body, /Timeline/i); assert.doesNotMatch(body, /Loading timeline/i);
@@ -182,5 +202,5 @@ export async function assertWave1Work(base, sessionId, click, until) {
   });
   assert.doesNotMatch(noteStatus, /1970/);
   assert.ok(await execute('return document.querySelectorAll("[data-testid^=project-row-]").length > 0;'), "Projects roster remains populated");
-  return ['compact-task-list','selected-task-detail','next-action-blocker-acceptance','lifecycle-progress','read-only-navigation','timeline','project-notes-no-epoch','logs-collapsed-expanded-recollapsed','projects-navigation'];
+  return ['compact-task-list','selected-task-detail','next-action-blocker-acceptance','lifecycle-progress','progress-full-width-rails','progress-inline-detail-preserves-overview','read-only-navigation','timeline','project-notes-no-epoch','logs-collapsed-expanded-recollapsed','projects-navigation'];
 }
