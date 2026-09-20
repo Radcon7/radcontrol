@@ -1,5 +1,67 @@
 import assert from "node:assert/strict";
 
+// Foreground measurement health and the operator card are different truths:
+// retained findings can require attention while current measurements are healthy.
+export async function assertSentinelHealth(base, sessionId, expected = {}) {
+  const state = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
+    script: `const heroes = document.querySelectorAll('.sentinelOperatorHero');
+      const cards = document.querySelectorAll('[data-testid="sentinel-current-now"]');
+      const hero = heroes[0], card = cards[0];
+      const summary = document.querySelector('[data-testid="sentinel-status-header"]');
+      const states = [...(card?.classList || [])].filter(c => c.startsWith('sentinelOperatorState-'));
+      return {
+        heroCount: heroes.length, currentCount: cards.length,
+        declaredCurrent: hero?.getAttribute('data-current-health') || '',
+        cardState: states.length === 1 ? states[0].slice('sentinelOperatorState-'.length).toUpperCase() : '',
+        current: card?.querySelector('strong')?.innerText.trim() || '',
+        heroClass: hero?.className || '',
+        fixCount: card?.querySelectorAll('[data-testid="sentinel-fix-it"]').length || 0,
+        reviewCount: card?.querySelectorAll('[data-testid="sentinel-review-current"]').length || 0,
+        summaryCardCount: summary?.children.length || 0,
+        summaryText: summary?.innerText || '',
+        removedCardCount: document.querySelectorAll('[data-testid="sentinel-last-full-scan"]').length
+      };`,
+    args: [],
+  });
+  assertSentinelHealthState(state, expected);
+  return state;
+}
+
+export function assertSentinelHealthState(state, expected = {}) {
+  const presentation = {
+    HEALTHY: { label: "HEALTHY", threat: "normal" },
+    ATTENTION: { label: "NEEDS ATTENTION", threat: "attention" },
+    PROBLEM: { label: "NEEDS ATTENTION", threat: "critical" },
+    UNKNOWN: { label: "UNKNOWN", threat: "unknown_visibility" },
+  };
+  assert.equal(state.heroCount, 1, "Sentinel must retain one health hero");
+  assert.equal(state.currentCount, 1, "Sentinel must retain one Current Now card");
+  assert.ok(Object.hasOwn(presentation, state.declaredCurrent), "unknown raw measurement health");
+  assert.ok(Object.hasOwn(presentation, state.cardState), "unknown operator card state");
+  assert.ok(state.cardState === state.declaredCurrent ||
+    (state.cardState === "ATTENTION" && ["HEALTHY", "UNKNOWN"].includes(state.declaredCurrent)),
+  "operator card must preserve measurement severity or require review of retained findings");
+  assert.equal(state.current, presentation[state.cardState].label, "health display must represent the operator card state");
+  assert.deepEqual(state.heroClass.split(/\s+/).filter(c => c.startsWith('sentinelThreat-')),
+    [`sentinelThreat-${presentation[state.cardState].threat}`], "hero severity must match the operator card state");
+  for (const key of ["fixCount", "reviewCount"]) assert.ok([0, 1].includes(state[key]), `invalid ${key}`);
+  if (["ATTENTION", "PROBLEM"].includes(state.cardState)) {
+    assert.ok(state.fixCount + state.reviewCount > 0, "attention must expose a governed action or investigation");
+  } else {
+    assert.equal(state.fixCount, 0, "healthy or unknown health must not offer repair");
+    if (state.cardState === "HEALTHY") assert.equal(state.reviewCount, 0, "unresolved findings cannot be presented as healthy");
+  }
+  assert.equal(state.summaryCardCount, 1, "the Sentinel summary must contain only Current Now");
+  assert.equal(state.removedCardCount, 0, "the removed Last Full Scan card must stay absent");
+  assert.doesNotMatch(state.summaryText, /LAST FULL SCAN|NEXT FULL SCAN|FULL-SCAN FINDING/i, "duplicate full-scan summary cards must stay absent");
+  // Synthetic scenarios bind raw health and action eligibility independently of
+  // the rendered label. Real read-only probes enforce the same semantic relation.
+  for (const [key, value] of Object.entries(expected)) {
+    assert.ok(["declaredCurrent", "cardState", "fixCount", "reviewCount"].includes(key), "unsupported health expectation");
+    assert.equal(state[key], value, `Sentinel fixture ${key}`);
+  }
+}
+
 export async function assertSentinelDetails(base, sessionId, expectedOpen) {
   const state = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `const disclosures = [...document.querySelectorAll('details.sentinelAdvancedWorkspace')];

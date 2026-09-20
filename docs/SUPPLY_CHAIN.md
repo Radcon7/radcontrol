@@ -93,6 +93,14 @@ opened, and reclosed states and negative fixtures for five exposed technical
 headings, an invisible opened panel, and a removed panel. Product presentation
 and the three Security workspaces do not change.
 
+The same shared native assertions distinguish raw foreground measurement health
+from the aggregate operator card state. Retained findings can require ATTENTION
+while measurements remain HEALTHY; ATTENTION and PROBLEM both display NEEDS
+ATTENTION but retain different severity styling. Candidate, installed and debug
+probes validate this relation rather than equating raw enums and display text.
+Synthetic scenarios additionally bind exact raw/card states and Fix it versus
+Investigate/Review eligibility, including surviving findings and failed repair.
+
 Debug E2E, candidate-native precheck and installed production acceptance also
 execute the same `native_wave11_acceptance.mjs` scenario matrix. Release paths
 use a separate Bubblewrap session with an exact source archive and test-owned

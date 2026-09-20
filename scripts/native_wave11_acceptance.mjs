@@ -3,7 +3,7 @@ import { cp, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { assertWritableFixtureIsolation } from './native_acceptance_lib.mjs';
-import { assertSentinelDetails } from './native_sentinel_assertions.mjs';
+import { assertSentinelDetails, assertSentinelHealth } from './native_sentinel_assertions.mjs';
 import { assertWave11Scenarios, wave11Matrix } from './native_wave11_receipt.mjs';
 
 // All synthetic responses live behind the existing isolated E2E boundary.
@@ -14,6 +14,9 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   const tap = selector => click(base, sessionId, selector);
   const count = selector => execute('return document.querySelectorAll(arguments[0]).length;', [selector]);
   const text = selector => execute('return document.querySelector(arguments[0])?.innerText || "";', [selector]);
+  const health = (declaredCurrent, cardState, fixCount, reviewCount) => eventually(
+    () => assertSentinelHealth(base, sessionId, {declaredCurrent, cardState, fixCount, reviewCount}),
+    'semantic measurement health, operator presentation and governed actions');
   const evidence = process.env.RADCONTROL_WAVE11_EVIDENCE_DIR;
   if (evidence) await mkdir(evidence, {recursive:true});
   async function screenshot(name) {
@@ -109,7 +112,7 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
     await eventually(async()=>assert.match(await text('[data-testid="sentinel-current-now"]'),/Measured:/),'fresh scenario');
   }
   await scenario('healthy');
-  await eventually(async()=> assert.match(await text('[data-testid="sentinel-current-now"]'),/HEALTHY/),'healthy card');
+  await health('HEALTHY', 'HEALTHY', 0, 0);
   assert.equal(await count('[data-testid="sentinel-fix-it"]'),0);
   await assertSentinelDetails(base,sessionId,false);
   pass('healthy-no-fix');
@@ -124,6 +127,7 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   pass('details-rendered-text-hit-testing');
   await scenario('actionable');
   await eventually(async()=>assert.equal(await count('[data-testid="sentinel-fix-it"]'),1),'exact actionable Fix it');
+  await health('HEALTHY', 'ATTENTION', 1, 0);
   assert.equal(await count('[data-testid="sentinel-review-current"]'),0,'one safely repairable finding needs only Fix it and Details');
   await screenshot('sentinel-actionable');
   await tap('[data-testid="sentinel-fix-it"]');
@@ -138,18 +142,19 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   assert.equal(await count('[data-testid="sentinel-fix-it"]'),0);
   await tap('[data-testid="sentinel-review-current"]');
   assert.match(await text('[data-testid="sentinel-current-review"]'),/96°C/);
-  assert.match(await text('[data-testid=sentinel-current-now]'), /NEEDS ATTENTION/);
+  await health('ATTENTION', 'ATTENTION', 0, 1);
   pass('nonactionable-review');
   await screenshot('sentinel-nonactionable');
   await scenario('multiple');
   await eventually(async()=>assert.match(await text('[data-testid="sentinel-finding-count"]'),/3 findings · 1 safely repairable/),'multiple findings');
+  await health('ATTENTION', 'ATTENTION', 1, 1);
   assert.match(await text('[data-testid="sentinel-current-now"]'),/Fix available: pop-upgrade.service/);
   await screenshot('sentinel-multiple');
   await tap('[data-testid="sentinel-fix-it"]');
   await eventually(async()=>assert.match(await text('[data-testid="pop-upgrade-safe-cleanup"]'),/Authorize & fix/),'preview multiple');
   await tap('[data-testid="pop-upgrade-safe-cleanup"] .sentinelActions .btnPrimary');
   await eventually(async()=>assert.match(await text('[data-testid="sentinel-finding-count"]'),/2 findings · 0 safely repairable/),'remaining findings after simulated repair');
-  assert.match(await text('[data-testid="sentinel-current-now"]'),/NEEDS ATTENTION/);
+  await health('ATTENTION', 'ATTENTION', 0, 1);
   assert.equal(await applyCount(),1);
   const afterApply=(await calls()).slice((await calls()).findIndex(c=>c.verb.endsWith('pop_upgrade.apply'))+1);
   assert.ok(afterApply.some(c=>c.verb==='sentinel.status'));
@@ -158,16 +163,18 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   await screenshot('sentinel-after-one-repair');
   await scenario('failure');
   await eventually(async()=>assert.equal(await count('[data-testid="sentinel-fix-it"]'),1),'failure fixture ready');
+  await health('HEALTHY', 'ATTENTION', 1, 0);
   await tap('[data-testid="sentinel-fix-it"]');
   await eventually(async()=>assert.match(await text('[data-testid="pop-upgrade-safe-cleanup"]'),/Authorize & fix/),'failure preview');
   await tap('[data-testid="pop-upgrade-safe-cleanup"] .sentinelActions .btnPrimary');
   await eventually(async()=>assert.match(await text('.sentinelShell'),/did not verify recovery/),'failure remains explicit');
-  assert.match(await text('[data-testid="sentinel-current-now"]'),/NEEDS ATTENTION/);
+  await health('HEALTHY', 'ATTENTION', 0, 1);
   assert.equal(await count('[data-testid="sentinel-fix-it"]'),0);
   pass('repair-failure');
   await screenshot('sentinel-failed-authorization');
   await scenario('invalid-preview');
   await eventually(async()=>assert.equal(await count('[data-testid="sentinel-fix-it"]'),1),'invalid preview fixture ready');
+  await health('HEALTHY', 'ATTENTION', 1, 0);
   await tap('[data-testid="sentinel-fix-it"]');
   await eventually(async()=>assert.match(await text('.sentinelShell'),/no longer meets/),'invalid authorization metadata rejected');
   assert.doesNotMatch(await text('[data-testid="pop-upgrade-safe-cleanup"]'),/Authorize & fix/);
