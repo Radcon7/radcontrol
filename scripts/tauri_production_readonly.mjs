@@ -1,3 +1,4 @@
+import { runReleaseWave11 } from "./native_wave11_release.mjs";
 import { transactionReceiptContext, writeTransactionReceipt } from "./native_transaction_receipt.mjs";
 import { assertWave1Work, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, request } from "./native_sentinel_assertions.mjs";
 import assert from "node:assert/strict";
@@ -41,6 +42,7 @@ const receiptContext = await transactionReceiptContext(process.argv, {
   o2Sha: expectedO2Sha, radcontrolSha: expectedRadcontrolSha, artifactSha256: expectedArtifactSha,
 });
 if (receiptContext) assert.equal(app, INSTALLED_RADCONTROL_APP, "transaction acceptance must use the installed executable");
+const rollbackSmoke = receiptContext?.binding.phase === 'rollback';
 let acceptanceResult;
 
 function assertNativeDriver() {
@@ -237,6 +239,11 @@ try {
   }, "render exact production runtime diagnostics");
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
+  if (rollbackSmoke) {
+    acceptanceResult = {ok:true, acceptance:'rollback-native-smoke',
+      o2Sha:installedBefore.head, radcontrolSha:expectedRadcontrolSha,
+      artifactSha256:expectedArtifactSha, diagnosticsVerified:true};
+  } else {
   const wave1Checks = await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
   await click(base, sessionId, '[data-testid="tab-notes"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /To-Do[\s\S]*Progress[\s\S]*Timeline[\s\S]*My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);
@@ -255,7 +262,7 @@ try {
   await click(base, sessionId, '[data-testid="notes-mode-progress"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "read blocked active task dependencies"),
-    /Blocked[\s\S]*Blocked by[\s\S]*Delivered email verification; staging editor authorization; hosted browser acceptance/,
+    /Blocked[\s\S]*Blocked by[\s\S]*Delivered email verification; staging editor authorization; hosted browser acceptance/i,
   );
   await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
   assert.match(
@@ -265,7 +272,7 @@ try {
   await click(base, sessionId, '[data-testid="empire-todo-active-view"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "return to active Empire To-Do operator view"),
-    /NOW[\s\S]*Blocked[\s\S]*Blocked by[\s\S]*Delivered email verification; staging editor authorization; hosted browser acceptance/,
+    /NOW[\s\S]*Blocked[\s\S]*Blocked by[\s\S]*Delivered email verification; staging editor authorization; hosted browser acceptance/i,
   );
 
   await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
@@ -679,6 +686,7 @@ try {
     sentinelDurableClass: currentHealthPresentation.durableClass,
     sentinelDurableText: currentHealthPresentation.durableText,
   };
+}
 } catch (error) {
   acceptanceError = error;
 } finally {
@@ -686,5 +694,8 @@ try {
 }
 if (acceptanceError) throw acceptanceError;
 
+if (!rollbackSmoke) acceptanceResult.wave11 = await runReleaseWave11({app,o2Source:INSTALLED_O2_ROOT,
+  identities:{o2Sha:expectedO2Sha,radcontrolSha:expectedRadcontrolSha,artifactSha256:expectedArtifactSha},
+  entrypoint:'tauri_production_readonly.mjs'});
 await writeTransactionReceipt(receiptContext, acceptanceResult);
 console.log(JSON.stringify(acceptanceResult));

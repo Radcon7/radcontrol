@@ -520,6 +520,21 @@ class Transaction:
                 or receipt.get("radcontrolSha") != self.new_pair["radcontrolSourceSha"]
                 or receipt.get("artifactSha256") != self.new_pair["binarySha256"]):
             raise fail(f"{phase} native acceptance receipt does not match this transaction")
+        matrix_path = Path(__file__).resolve().parent / "native_wave11_matrix.json"
+        matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+        wave11 = receipt.get("wave11")
+        files = [*matrix["harnessFiles"], "scripts/tauri_production_readonly.mjs"]
+        harness = {name: sha256(Path(__file__).resolve().parents[1] / name) for name in files}
+        if (not isinstance(wave11, dict) or wave11.get("ok") is not True
+                or wave11.get("schema") != matrix["schema"]
+                or wave11.get("kind") != "synthetic-ui-contract"
+                or wave11.get("realRepair") is not False
+                or wave11.get("simulatedApplyCount") != 2
+                or wave11.get("scenarios") != matrix["scenarios"]
+                or wave11.get("harnessDigests") != harness
+                or any(wave11.get(key) != receipt.get(key)
+                       for key in ("o2Sha", "radcontrolSha", "artifactSha256"))):
+            raise fail(f"{phase} complete bound Wave 1.1 native receipt required")
 
     def accept_first(self) -> None:
         self.accept_native("first", "new-live", "new-live-first-accepted")
@@ -556,7 +571,36 @@ class Transaction:
         self.assert_evidence()
         self.assert_release_admission(self.new_parked_o2)
         self.assert_native_receipt("first")
+        self.rollback_native_smoke()
         self.write_state("old-live-verified")
+
+    def rollback_native_smoke(self) -> None:
+        # Existing test-root transactions contain non-native fixture executables.
+        # Production always launches the actual restored binary before advancing.
+        if self.test_root is not None:
+            return
+        compatibility, _ = capture_evidence_json(
+            self.live_o2 / COMPATIBILITY_PATH, "restored compatibility", maximum=64_000)
+        completed = subprocess.run(
+            ["node", str(Path(__file__).resolve().parent / "tauri_production_readonly.mjs"),
+             "--expected-o2-sha", self.old_pair["o2Commit"],
+             "--expected-radcontrol-sha", compatibility["radcontrolSourceSha"],
+             "--expected-artifact-sha", self.old_pair["binarySha256"],
+             "--transaction-manifest", str(self.manifest_path), "--phase", "rollback"],
+            capture_output=True, text=True)
+        if completed.returncode != 0:
+            raise fail("restored prior native launch failed: " + completed.stderr[-1500:])
+        receipt, _ = capture_evidence_json(
+            self.stage_root / "evidence" / "native-rollback.json", "rollback native launch", maximum=64_000)
+        expected = dict(ok=True, acceptance="rollback-native-smoke", diagnosticsVerified=True,
+                        phase="rollback", transactionId=self.transaction_id,
+                        manifestSha256=sha256(self.manifest_path), transactionState="old-live",
+                        o2Sha=self.old_pair["o2Commit"], radcontrolSha=compatibility["radcontrolSourceSha"],
+                        artifactSha256=self.old_pair["binarySha256"])
+        if any(receipt.get(key) != value for key, value in expected.items()):
+            raise fail("rollback native receipt does not match restored pair")
+        self.assert_stopped()
+        self.assert_pair(self.old_pair, self.rollback_files, "restored prior native pair")
 
     def atomic_install(self, source: Path, target: Path, mode: int) -> None:
         existing_file(source, "transaction install source")

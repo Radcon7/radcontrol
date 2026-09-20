@@ -243,6 +243,13 @@ class MatchedPairTransactionTests(unittest.TestCase):
                      o2Sha=payload["newPair"]["o2Commit"],
                      radcontrolSha=payload["newPair"]["radcontrolSourceSha"],
                      artifactSha256=payload["newPair"]["binarySha256"])
+        repository = Path(__file__).resolve().parents[1]
+        matrix = json.loads((repository / "scripts/native_wave11_matrix.json").read_text())
+        value["wave11"] = dict(ok=True, schema=matrix["schema"], kind="synthetic-ui-contract",
+                              realRepair=False, simulatedApplyCount=2, scenarios=matrix["scenarios"],
+                              harnessDigests={name: digest(repository / name) for name in
+                                  [*matrix["harnessFiles"], "scripts/tauri_production_readonly.mjs"]},
+                              **{key: value[key] for key in ["o2Sha", "radcontrolSha", "artifactSha256"]})
         target = self.stage / "evidence" / f"native-{phase}.json"
         target.write_text(json.dumps(value), encoding="utf-8")
         target.chmod(0o600)
@@ -382,6 +389,62 @@ class MatchedPairTransactionTests(unittest.TestCase):
         for name in ("old-before-rollback", "new-before-reinstall", "old-before-final-rejection"):
             self.assertTrue((self.stage / "state-backups" / name).is_dir())
         self.assertNotEqual(self.action_result("reinstall").returncode, 0)
+
+    def test_production_rollback_launch_is_required_and_bound(self):
+        self.action("promote")
+        self.first_accepted()
+        self.action("rollback")
+        tx = transaction_module.Transaction(self.transaction_payload(), self.root, self.manifest)
+        tx.test_root = None  # Exercise production adapter; subprocess itself is controlled.
+        compatibility = {"radcontrolSourceSha": "c" * 40}
+        result = dict(ok=True, acceptance="rollback-native-smoke", diagnosticsVerified=True,
+                      phase="rollback", transactionId=tx.transaction_id,
+                      manifestSha256=digest(self.manifest), transactionState="old-live",
+                      o2Sha=tx.old_pair["o2Commit"], radcontrolSha="c" * 40,
+                      artifactSha256=tx.old_pair["binarySha256"])
+        with patch.object(transaction_module, "capture_evidence_json", side_effect=[(compatibility, None), (result, None)]), \
+                patch.object(transaction_module.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, "", "")) as launch, \
+                patch.object(tx, "assert_stopped"), patch.object(tx, "assert_pair"):
+            tx.rollback_native_smoke()
+            argv = launch.call_args.args[0]
+            self.assertEqual(argv[-2:], ["--phase", "rollback"])
+            self.assertIn(tx.old_pair["binarySha256"], argv)
+            self.assertEqual(argv[1], str(ROOT / "scripts/tauri_production_readonly.mjs"))
+        for defect in ("artifactSha256", "manifestSha256", "diagnosticsVerified"):
+            bad = dict(result, **{defect: "wrong"})
+            with patch.object(transaction_module, "capture_evidence_json", side_effect=[(compatibility, None), (bad, None)]), \
+                    patch.object(transaction_module.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, "", "")):
+                with self.assertRaisesRegex(transaction_module.TransactionError, "rollback native receipt"):
+                    tx.rollback_native_smoke()
+        with patch.object(transaction_module, "capture_evidence_json", return_value=(compatibility, None)), \
+                patch.object(transaction_module.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "native failure")):
+            with self.assertRaisesRegex(transaction_module.TransactionError, "prior native launch failed"):
+                tx.rollback_native_smoke()
+        self.assertEqual((self.stage / "transaction-state").read_text().strip(), "old-live")
+
+    def test_complete_wave11_receipt_required_before_acceptance(self):
+        self.action("promote")
+        for defect in ["missing", "scenario", "binary", "harness", "real-repair"]:
+            with self.subTest(defect=defect):
+                self.receipt("first")
+                target = self.stage / "evidence/native-first.json"
+                receipt = json.loads(target.read_text())
+                if defect == "missing":
+                    del receipt["wave11"]
+                elif defect == "scenario":
+                    receipt["wave11"]["scenarios"].pop()
+                elif defect == "binary":
+                    receipt["wave11"]["artifactSha256"] = "0" * 64
+                elif defect == "harness":
+                    receipt["wave11"]["harnessDigests"] = {}
+                else:
+                    receipt["wave11"]["realRepair"] = True
+                target.write_text(json.dumps(receipt))
+                result = self.action_result("accept-first")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("complete bound Wave 1.1", result.stdout + result.stderr)
+        self.receipt("first")
+        self.action("accept-first")
 
     def test_acceptance_receipt_cannot_cross_manifest_or_phase(self):
         self.action("promote")
