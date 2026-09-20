@@ -1,6 +1,6 @@
 import { runReleaseWave11 } from "./native_wave11_release.mjs";
 import { transactionReceiptContext, writeTransactionReceipt } from "./native_transaction_receipt.mjs";
-import { assertWave1Work, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, request } from "./native_sentinel_assertions.mjs";
+import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, request } from "./native_sentinel_assertions.mjs";
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
@@ -411,33 +411,7 @@ try {
   assert.ok(securityNavigation.titleFontSizes.every((size) => size >= 18), "Security workspace titles must use larger typography");
   assert.equal((sentinelText.match(/CURRENT NOW/g) || []).length, 1, "Current Now must have one primary home");
   assert.equal((sentinelText.match(/Fans are loud/g) || []).length, 1, "The primary loud-fan action must appear exactly once");
-  assert.match(sentinelText, /CURRENT NOW[\s\S]*(HEALTHY|ATTENTION|PROBLEM|UNKNOWN)/i, "current-now truth must remain legible");
-  const currentHealthPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-    script: `var hero = document.querySelector('.sentinelOperatorHero');
-      var current = document.querySelector('[data-testid="sentinel-current-now"] strong');
-      var summary = document.querySelector('[data-testid="sentinel-status-header"]');
-      return {
-        current: current ? (current.textContent || '').trim() : '',
-        heroClass: hero ? hero.className : '',
-        declaredCurrent: hero ? hero.getAttribute('data-current-health') : '',
-        summaryCardCount: summary ? summary.children.length : 0,
-        summaryText: summary ? (summary.textContent || '') : '',
-        removedCardCount: document.querySelectorAll('[data-testid="sentinel-last-full-scan"]').length
-      };`,
-    args: [],
-  });
-  const expectedHeroThreat = {
-    HEALTHY: "normal",
-    ATTENTION: "attention",
-    PROBLEM: "critical",
-    UNKNOWN: "unknown_visibility",
-  }[currentHealthPresentation.current];
-  assert.ok(expectedHeroThreat, `unexpected current-health state: ${currentHealthPresentation.current}`);
-  assert.equal(currentHealthPresentation.declaredCurrent, currentHealthPresentation.current, "hero current-health identity diverged from CURRENT NOW");
-  assert.ok(currentHealthPresentation.heroClass.includes(`sentinelThreat-${expectedHeroThreat}`), "hero visual state does not match CURRENT NOW");
-  assert.equal(currentHealthPresentation.summaryCardCount, 1, "the Sentinel summary must contain only Current Now");
-  assert.equal(currentHealthPresentation.removedCardCount, 0, "the removed Last Full Scan card must stay absent");
-  assert.doesNotMatch(currentHealthPresentation.summaryText, /LAST FULL SCAN|NEXT FULL SCAN|FULL-SCAN FINDING/i, "duplicate full-scan summary cards must stay absent");
+  const currentHealthPresentation = await assertSentinelHealth(base, sessionId);
   const desktopActivityGeometry = await guardianActivityGeometry(base, sessionId);
   assertGuardianActivityGeometry(desktopActivityGeometry, "installed desktop Guardian Activity", { desktop: true });
   if (process.env.RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH) {
@@ -682,9 +656,9 @@ try {
     wave1Checks,
     diagnosticsVerified: diagnostics.includes("Listener-free production mode"),
     sentinelCurrentHealth: currentHealthPresentation.current,
+    sentinelMeasurementHealth: currentHealthPresentation.declaredCurrent,
+    sentinelOperatorState: currentHealthPresentation.cardState,
     sentinelHeroClass: currentHealthPresentation.heroClass,
-    sentinelDurableClass: currentHealthPresentation.durableClass,
-    sentinelDurableText: currentHealthPresentation.durableText,
   };
 }
 } catch (error) {

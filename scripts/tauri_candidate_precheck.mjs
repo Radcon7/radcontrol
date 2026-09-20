@@ -9,7 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createBubblewrapApplication, snapshotInstalledO2, assertInstalledO2Unchanged,
   tcpListeners, assertNoNewTcpListeners, assertProcessNotRunning, assertPortAbsent,
   sha256File, installNativeAcceptanceSignalCleanup } from './native_acceptance_lib.mjs';
-import { assertWave1Work, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry } from './native_sentinel_assertions.mjs';
+import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry } from './native_sentinel_assertions.mjs';
 
 function arg(name) {
   const i=process.argv.indexOf(name), value=i < 0 ? null : process.argv[i+1];
@@ -85,6 +85,7 @@ try {
  assert.match(text,/Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/i);
  assert.match(text,/Is my computer okay\?[\s\S]*CURRENT NOW[\s\S]*RECENT EVENTS[\s\S]*Details/);
  assert.equal((text.match(/CURRENT NOW/g)||[]).length,1);
+ await assertSentinelHealth(base,session);
  assertGuardianActivityGeometry(await guardianActivityGeometry(base,session),'candidate activity',{desktop:true});
  await assertSentinelDetails(base,session,false);
  await click('.sentinelAdvancedWorkspace > summary');await assertSentinelDetails(base,session,true);
