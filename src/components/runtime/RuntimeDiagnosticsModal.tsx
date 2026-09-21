@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { buildInfrastructureProfiles } from "../agents/infrastructureModel";
 import { REQUIRED_OPERATOR_PROJECT_KEYS } from "../common/o2Contract";
-import { listEmpireTodos } from "../notes/empireTodoApi";
+import { listWork } from "../overview/workApi";
+import type { WorkResponse } from "../overview/workModel";
+import { workReadiness } from "./workReadiness";
 import type { ProjectRow } from "../projects/types";
 import { filterOperatorProjects } from "../projects/projectModel";
 import { loadSentinelStatus } from "../sentinel/sentinelApi";
@@ -32,6 +34,7 @@ type RuntimeDiagnostics = {
 };
 
 type SmokeState = {
+  work: WorkResponse | null;
   todoAvailable: boolean;
   todoTitles: string[];
   todoError: string;
@@ -65,7 +68,7 @@ function Check({ ok, label, detail }: { ok: boolean; label: string; detail: stri
   );
 }
 
-function diagnosticRows(diagnostics: RuntimeDiagnostics): Array<[string, string]> {
+function diagnosticRows(diagnostics: RuntimeDiagnostics, work: ReturnType<typeof workReadiness>): Array<[string, string]> {
   return [
     ["App build", `v${diagnostics.appVersion} · ${diagnostics.gitSha}`],
     ["Build time", new Date(diagnostics.builtAtEpochSeconds * 1000).toLocaleString()],
@@ -76,7 +79,10 @@ function diagnosticRows(diagnostics: RuntimeDiagnostics): Array<[string, string]
     ["Project registry", diagnostics.projectRegistryPath],
     ["Bridge status", diagnostics.bridgeFailure || "ready"],
     ["To-Do seed", diagnostics.empireTodoSeedPath],
-    ["To-Do store", diagnostics.empireTodoStorePath],
+    ["Work authority", work.authority],
+    ["Private store", work.activation],
+    ["Editing", work.editing],
+    ["Work path", work.state === "bridge" ? `${diagnostics.o2Root}/docs/radcontrol/empire_todo/items.json` : diagnostics.empireTodoStorePath],
   ];
 }
 
@@ -91,6 +97,7 @@ export function RuntimeDiagnosticsModal({
   const [diagnosticsError, setDiagnosticsError] = useState("");
   const [loading, setLoading] = useState(false);
   const [smoke, setSmoke] = useState<SmokeState>({
+    work: null,
     todoAvailable: false,
     todoTitles: [],
     todoError: "",
@@ -103,19 +110,21 @@ export function RuntimeDiagnosticsModal({
     let active = true;
     setLoading(true);
     setDiagnosticsError("");
-    setSmoke({ todoAvailable: false, todoTitles: [], todoError: "", sentinelAvailable: false, sentinelError: "" });
+    setDiagnostics(null);
+    setSmoke({ work: null, todoAvailable: false, todoTitles: [], todoError: "", sentinelAvailable: false, sentinelError: "" });
 
     void Promise.allSettled([
       invoke<RuntimeDiagnostics>("runtime_diagnostics"),
-      listEmpireTodos(),
+      listWork(),
       loadSentinelStatus(),
     ]).then(([diagnosticsResult, todoResult, sentinelResult]) => {
       if (!active) return;
       if (diagnosticsResult.status === "fulfilled") setDiagnostics(diagnosticsResult.value);
       else setDiagnosticsError(String(diagnosticsResult.reason));
       setSmoke({
+        work: todoResult.status === "fulfilled" ? todoResult.value : null,
         todoAvailable: todoResult.status === "fulfilled",
-        todoTitles: todoResult.status === "fulfilled" ? todoResult.value.items.map((item) => item.title) : [],
+        todoTitles: todoResult.status === "fulfilled" ? todoResult.value.data.tasks.map((item) => item.title) : [],
         todoError: todoResult.status === "rejected" ? String(todoResult.reason) : "",
         sentinelAvailable: sentinelResult.status === "fulfilled" && sentinelResult.value.ok !== false,
         sentinelError: sentinelResult.status === "rejected" ? String(sentinelResult.reason) : "",
@@ -139,12 +148,13 @@ export function RuntimeDiagnosticsModal({
       diagnostics.projectRegistryAvailable &&
       diagnostics.auditTransportAvailable &&
       diagnostics.empireTodoSeedAvailable &&
-      diagnostics.empireTodoStoreAvailable &&
       !diagnostics.bridgeFailure,
   );
+  const work = workReadiness(smoke.work, diagnostics?.empireTodoStoreAvailable === true, smoke.todoError);
   const productReady =
     diagnostics?.runtimeMode === "production" &&
     runtimeFilesReady &&
+    work.ready &&
     registryState === "ready" &&
     sameSet(projectKeys, REQUIRED_OPERATOR_PROJECT_KEYS) &&
     smoke.todoAvailable &&
@@ -178,7 +188,7 @@ export function RuntimeDiagnosticsModal({
           {diagnosticsError ? <div className="panelError">Runtime diagnostics unavailable: {diagnosticsError}</div> : null}
           {diagnostics ? (
             <div className="runtimeIdentityGrid">
-              {diagnosticRows(diagnostics).map(([label, value]) => (
+              {diagnosticRows(diagnostics, work).map(([label, value]) => (
                 <div className="runtimeIdentityRow" key={label}>
                   <span>{label}</span>
                   <code>{value}</code>
@@ -196,8 +206,12 @@ export function RuntimeDiagnosticsModal({
             <Check
               ok={runtimeFilesReady}
               label="Canonical O2 data root"
-              detail={runtimeFilesReady ? "Dispatcher, registry, audit transport, To-Do seed, and durable store are present." : `Canonical runtime boundary unavailable${diagnostics?.bridgeFailure ? `: ${diagnostics.bridgeFailure}` : "."}`}
+              detail={runtimeFilesReady ? "Dispatcher, registry, audit transport and To-Do seed are present." : `Canonical runtime boundary unavailable${diagnostics?.bridgeFailure ? `: ${diagnostics.bridgeFailure}` : "."}`}
             />
+            <div data-testid="runtime-work-readiness" data-state={loading ? "loading" : work.state}>
+              <Check ok={!loading && work.ready} label="Work authority"
+                detail={loading ? "Checking Work authority…" : work.ready ? `${work.authority} · ${work.editing}` : work.error} />
+            </div>
             <Check
               ok={registryState === "ready" && sameSet(projectKeys, REQUIRED_OPERATOR_PROJECT_KEYS)}
               label={`Projects · ${operatorProjects.length} visible`}

@@ -258,6 +258,15 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - Runtime identity is visible from the header's Runtime control and includes
   the app version, embedded source commit, build time, installed executable,
   canonical O2 root and commit, governed paths, and live content checks.
+- Runtime Diagnostics follows the active Work authority returned by the existing
+  capability-checked O2 read. A valid legacy read-only bridge is READY while the
+  private store is absent; it shows Legacy compatibility bridge, Not activated,
+  and Temporarily read-only until activation. Valid activated private Work is
+  READY with editing enabled. Missing, corrupt or incomplete private authority
+  is a recovery error, never a legacy fallback. Diagnostics creates no store,
+  marker or migration and grants no activation authority. Legacy Wave 1.1 keeps
+  its own accepted diagnostics behavior; this client cannot bypass compatibility
+  by falling back to legacy verbs.
 - Data request failure, loading, and genuine zero-result states are distinct.
   Compatibility or read failures must remain visible and must not be rendered
   as an empty governed collection.
@@ -356,3 +365,9 @@ production-supported layout and migrated Work surfaces using test-owned private
 `RADCONTROL_KEEP_FIXTURE=1` retains the full debug fixture. Candidate/installed
 entrypoints run the same coverage under their existing exact-identity and
 namespace boundaries. Native launches still require task-specific authorization.
+
+Production-native Wave 2A receipts also require bridge-ready, private-ready,
+active missing/corrupt store, and store-without-activation scenarios through the
+real Runtime modal, Rust bridge and O2 owner. These use isolated fixture files,
+prove diagnostics performs no writes, and restore each failure fixture exactly.
+The candidate precheck must pass this same matrix before live promotion.

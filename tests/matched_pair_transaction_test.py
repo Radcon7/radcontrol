@@ -247,7 +247,7 @@ class MatchedPairTransactionTests(unittest.TestCase):
         matrix = json.loads((repository / "scripts/native_wave11_matrix.json").read_text())
         value["wave11"] = dict(ok=True, schema=matrix["schema"], kind="synthetic-ui-contract",
                               realRepair=False, simulatedApplyCount=2, scenarios=matrix["scenarios"],
-                              wave2a=dict(ok=True,bridgeReadOnly=True,width=dict(kind="production-supported-width",minimum=1500,widths=[1650,1500],observations=[dict(requested=1650,observed=1650),dict(requested=1500,observed=1500)])),
+                              wave2a=dict(ok=True,bridgeReadOnly=True,readiness=matrix["workReadinessScenarios"],width=dict(kind="production-supported-width",minimum=1500,widths=[1650,1500],observations=[dict(requested=1650,observed=1650),dict(requested=1500,observed=1500)])),
                               harnessDigests={name: digest(repository / name) for name in
                                   [*matrix["harnessFiles"], "scripts/tauri_production_readonly.mjs"]},
                               **{key: value[key] for key in ["o2Sha", "radcontrolSha", "artifactSha256"]})
@@ -444,6 +444,24 @@ class MatchedPairTransactionTests(unittest.TestCase):
                 result = self.action_result("accept-first")
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("complete bound Wave 1.1", result.stdout + result.stderr)
+        self.receipt("first")
+        self.action("accept-first")
+
+    def test_acceptance_requires_complete_work_readiness_evidence(self):
+        self.action("promote")
+        for defect in ("missing", "partial"):
+            with self.subTest(defect=defect):
+                self.receipt("first")
+                target = self.stage / "evidence/native-first.json"
+                receipt = json.loads(target.read_text())
+                if defect == "missing":
+                    del receipt["wave11"]["wave2a"]["readiness"]
+                else:
+                    receipt["wave11"]["wave2a"]["readiness"].pop()
+                target.write_text(json.dumps(receipt))
+                result = self.action_result("accept-first")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("bridge native receipt required", result.stdout + result.stderr)
         self.receipt("first")
         self.action("accept-first")
 
