@@ -232,6 +232,10 @@ try {
     const text = await bodyText(base, sessionId);
     assert.match(text, /READY\s*Listener-free production mode/);
     assert.match(text, /LIVE PRODUCT READY/);
+    if (!rollbackSmoke) {
+      const state=await request(base,`/session/${sessionId}/execute/sync`,"POST",{script:'return document.querySelector("[data-testid=runtime-work-readiness]")?.dataset.state;',args:[]});
+      assert.ok(['bridge','private'].includes(state),'actual Work authority must pass Runtime Diagnostics');
+    }
     assert.match(text, /production/);
     assert.ok(text.includes(expectedO2Sha), "production diagnostics did not render the expected O2 identity");
     assert.ok(text.includes(expectedRadcontrolSha), "production diagnostics did not render the expected RadControl identity");

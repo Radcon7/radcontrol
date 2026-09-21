@@ -32,6 +32,14 @@
     "scripts/native_wave2a_acceptance.mjs",
     "scripts/native_width_contract.mjs",
     "src-tauri/tauri.conf.json",
-    "src-tauri/tauri.e2e.conf.json"
+    "src-tauri/tauri.e2e.conf.json",
+    "scripts/native_work_readiness.mjs"
+  ],
+  "workReadinessScenarios": [
+    "bridge-ready",
+    "private-ready",
+    "active-missing-store",
+    "active-corrupt-store",
+    "store-without-activation"
   ]
 }

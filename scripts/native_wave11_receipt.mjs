@@ -16,6 +16,7 @@ export function assertWave11Scenarios(result) {
 export function assertWave2aReceipt(result) {
   assert.equal(result?.wave2a?.ok, true, 'Wave 2A native receipt required');
   assert.equal(result.wave2a.bridgeReadOnly, true, 'native bridge must be exercised before fixture activation');
+  assert.deepEqual(result.wave2a.readiness, wave11Matrix.workReadinessScenarios, 'complete native Work readiness matrix required');
   assertWidthReceipt(result.wave2a.width, result.wave2a.width?.kind === 'test-owned-responsive-layout' ? 'e2e' : 'production');
 }
 

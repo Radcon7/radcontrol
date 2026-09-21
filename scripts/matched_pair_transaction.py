@@ -575,6 +575,7 @@ class Transaction:
         expected = [window["width"], window["minWidth"]]
         observations = width.get("observations", [])
         if (wave2a.get("ok") is not True or wave2a.get("bridgeReadOnly") is not True
+                or wave2a.get("readiness") != matrix["workReadinessScenarios"]
                 or width.get("kind") != "production-supported-width"
                 or width.get("minimum") != window["minWidth"] or width.get("widths") != expected
                 or not isinstance(observations, list) or len(observations) != len(expected)

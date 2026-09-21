@@ -4,6 +4,7 @@ import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import path from 'node:path';
 import { nativeWidthContract, assertWidthReceipt } from './native_width_contract.mjs';
+import { assertNativeWorkReadiness, assertNativeWorkRecovery, readinessInventory } from './native_work_readiness.mjs';
 export async function runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode,expectBridge=false}) {
   const width = {...nativeWidthContract(mode), observations:[]};
   const workFile=path.join(fixture.o2Root,'.state/radcontrol-operator/work/work.json');
@@ -18,7 +19,13 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
   const exec=(script,args=[])=>request(base,`/session/${sessionId}/execute/sync`,'POST',{script,args});
   const tap=selector=>click(base,sessionId,selector);
   let state=command();
+  const readiness=[];
+  const runtimeOptions={fixture,base,sessionId,request,click,eventually,mode};
   if (expectBridge) {
+    const before=await readinessInventory(path.dirname(workFile));
+    await assertNativeWorkReadiness({...runtimeOptions,state:'bridge'});
+    assert.deepEqual(await readinessInventory(path.dirname(workFile)),before,'bridge diagnostics cannot create private authority');
+    readiness.push('bridge-ready');
     assert.equal(state.authority,'legacy-readonly'); assert.equal(state.revision,0);
     assert.equal(state.data.initiatives.length,0);
     await tap('[data-testid="tab-overview"]');
@@ -40,6 +47,10 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
     assert.equal(activated.status,0,activated.stdout+activated.stderr); state=command();
   }
   assert.equal(state.authority,'private');
+  const activeBefore=await readinessInventory(path.dirname(workFile));
+  await assertNativeWorkReadiness({...runtimeOptions,state:'private'});
+  assert.deepEqual(await readinessInventory(path.dirname(workFile)),activeBefore,'active diagnostics cannot mutate private authority');
+  readiness.push('private-ready');
   await tap('[data-testid="tab-projects"]');
   assert.equal(state.data.initiatives.length,6,'only six explicit proposals, never a repo-derived portfolio');
   state=command('event.create',{title:'Wave 2A fixture accepted',date:'2026-09-20',category:'Acceptance fixture',notes:'Test-owned meaningful movement'},state.revision);
@@ -110,6 +121,7 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
     await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1000});
   }
   assert.deepEqual(await readFile(fixture.empireTodoPath),legacy,'native work edits must not touch tracked legacy records');
-  const result={ok:true,width,bridgeReadOnly:expectBridge,checks:['overview','six-momentum-rows','assessed-unassessed-ongoing','blocked-missing-next','needs-you','explicit-pins','meaningful-events','native-review-save','explicit-proposal-acceptance','task-reference','timeline-reference',width.kind,'migrated-work-surfaces','legacy-unchanged'],evidence};
+  readiness.push(...await assertNativeWorkRecovery(runtimeOptions));
+  const result={ok:true,width,bridgeReadOnly:expectBridge,readiness,checks:['overview','six-momentum-rows','assessed-unassessed-ongoing','blocked-missing-next','needs-you','explicit-pins','meaningful-events','native-review-save','explicit-proposal-acceptance','task-reference','timeline-reference',width.kind,'migrated-work-surfaces','legacy-unchanged'],evidence};
   await writeFile(path.join(evidence,'acceptance.json'),JSON.stringify(result)+'\n',{mode:0o600});return result;
 }
