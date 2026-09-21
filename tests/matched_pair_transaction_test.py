@@ -247,6 +247,7 @@ class MatchedPairTransactionTests(unittest.TestCase):
         matrix = json.loads((repository / "scripts/native_wave11_matrix.json").read_text())
         value["wave11"] = dict(ok=True, schema=matrix["schema"], kind="synthetic-ui-contract",
                               realRepair=False, simulatedApplyCount=2, scenarios=matrix["scenarios"],
+                              wave2a=dict(ok=True,bridgeReadOnly=True,width=dict(kind="production-supported-width",minimum=1500,widths=[1650,1500],observations=[dict(requested=1650,observed=1650),dict(requested=1500,observed=1500)])),
                               harnessDigests={name: digest(repository / name) for name in
                                   [*matrix["harnessFiles"], "scripts/tauri_production_readonly.mjs"]},
                               **{key: value[key] for key in ["o2Sha", "radcontrolSha", "artifactSha256"]})
@@ -868,26 +869,54 @@ class OperatorWorkRollbackTests(unittest.TestCase):
         self.tx=object.__new__(transaction_module.Transaction)
         self.tx.test_root=self.root;self.tx.old_pair={'radcontrolSourceSha':'1'*40}
 
-    def test_current_legacy_generation_blocks_before_any_promotion(self):
-        with self.assertRaisesRegex(RuntimeError,'prior O2 cannot recognize private work'):
+    capabilities = ['operator.work.list','operator.work.mutate','operator.work.private-v1']
+
+    def bridge(self):
+        self.tx.new_pair={'radcontrolSourceSha':'2'*40}
+        (self.new/'scripts/o2_contract_info.sh').write_text(' '.join(self.capabilities))
+
+    def test_auto_import_generation_is_still_blocked(self):
+        self.bridge()
+        (self.new/'scripts/o2_contract_info.sh').write_text('operator.work.list operator.work.mutate')
+        with self.assertRaisesRegex(RuntimeError,'provider capability missing'):
             self.tx.assert_operator_work_rollback(self.new,self.old)
         self.assertFalse((self.root/'operator-work').exists())
-        self.assertTrue(self.old.exists());self.assertTrue(self.new.exists())
+
+    def test_explicit_bridge_can_roll_back_to_legacy_only_while_store_absent(self):
+        self.bridge()
+        with patch.object(transaction_module,'git_run',return_value=json.dumps({'requiredCapabilities':self.capabilities})):
+            self.tx.assert_operator_work_rollback(self.new,self.old)
+            self.assertFalse((self.root/'operator-work').exists())
+            work=self.root/'operator-work';work.mkdir();(work/'work.json').write_text('protected bytes')
+            with self.assertRaisesRegex(RuntimeError,'rollback incompatible'):
+                self.tx.assert_operator_work_rollback(self.new,self.old)
+            self.assertEqual((work/'work.json').read_text(),'protected bytes')
+
+    def test_activation_marker_survives_missing_directory_and_blocks_legacy_rollback(self):
+        self.bridge();(self.root/'operator-work.activated').write_text('o2-operator-work/private-v1\n')
+        with patch.object(transaction_module,'git_run',return_value=json.dumps({'requiredCapabilities':self.capabilities})):
+            with self.assertRaisesRegex(RuntimeError,'rollback incompatible'):
+                self.tx.assert_operator_work_rollback(self.new,self.old)
+        self.assertFalse((self.root/'operator-work').exists())
 
     def test_old_client_cannot_be_admitted_from_new_provider_only(self):
+        self.bridge();(self.root/'operator-work').mkdir()
         (self.old/'scripts/o2_operator_work_store.py').write_text('# compatible reader')
-        (self.old/'scripts/o2_contract_info.sh').write_text('operator.work.list operator.work.mutate')
-        with patch.object(transaction_module,'git_run',return_value=json.dumps({'requiredCapabilities':['empire.todo.list']})):
-            with self.assertRaisesRegex(RuntimeError,'client cannot display current authority'):
+        (self.old/'scripts/o2_contract_info.sh').write_text(' '.join(self.capabilities))
+        def client(root,verb,reference):
+            caps=self.capabilities if reference.startswith('2'*40) else ['operator.work.list','operator.work.mutate']
+            return json.dumps({'requiredCapabilities':caps})
+        with patch.object(transaction_module,'git_run',side_effect=client):
+            with self.assertRaisesRegex(RuntimeError,'rollback client cannot display current authority'):
                 self.tx.assert_operator_work_rollback(self.new,self.old)
-        with patch.object(transaction_module,'git_run',return_value=json.dumps({'requiredCapabilities':['operator.work.list','operator.work.mutate']})) as git:
+        with patch.object(transaction_module,'git_run',return_value=json.dumps({'requiredCapabilities':self.capabilities})) as git:
             self.tx.assert_operator_work_rollback(self.new,self.old)
             self.assertEqual(git.call_args.args[2], '1'*40+':contracts/o2-radcontrol/v1/client.json')
 
     def test_existing_private_bytes_prevent_legacy_candidate_bypass(self):
-        (self.new/'scripts/o2_operator_work_store.py').unlink()
+        self.bridge();(self.new/'scripts/o2_operator_work_store.py').unlink()
         work=self.root/'operator-work';work.mkdir();(work/'work.json').write_text('protected bytes')
-        with self.assertRaisesRegex(RuntimeError,'rollback incompatible'):
+        with self.assertRaisesRegex(RuntimeError,'candidate incompatible'):
             self.tx.assert_operator_work_rollback(self.new,self.old)
         self.assertEqual((work/'work.json').read_text(),'protected bytes')
 

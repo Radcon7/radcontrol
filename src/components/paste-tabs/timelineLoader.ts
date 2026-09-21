@@ -4,6 +4,7 @@ export type { TimelineMilestone, NewMilestoneInput } from "./timelineModel";
 // Captured by the single mounted Timeline editor. Independent views never refresh
 // this revision behind an in-flight form; conflicts remain visible to the operator.
 let revision = 0;
+export const timelineReadOnly = () => revision === 0;
 export async function listTimelineMilestones(): Promise<TimelineMilestone[]> {
   const snapshot = await listWork(); revision = snapshot.revision;
   return [...snapshot.data.events].sort(compareMilestones);

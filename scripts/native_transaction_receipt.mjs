@@ -1,5 +1,5 @@
 // Evidence belongs to the existing transaction stage; it is never source authority.
-import { assertWave11Scenarios } from './native_wave11_receipt.mjs';
+import { assertWave11Scenarios, assertWave2aReceipt } from './native_wave11_receipt.mjs';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, lstat, realpath } from 'node:fs/promises';
 import path from 'node:path';
@@ -37,6 +37,7 @@ export async function writeTransactionReceipt(context, result) {
     assert.equal(result?.diagnosticsVerified, true);
   } else {
     assertWave11Scenarios(result?.wave11);
+    assertWave2aReceipt(result.wave11);
   }
   if (!context) return;
   assert.equal(await sha256File(context.manifestPath), context.binding.manifestSha256);

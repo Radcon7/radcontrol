@@ -196,6 +196,7 @@ export function ProjectsTab({
                 noteText={governedNote.text}
                 noteStatus={governedNote.status}
                 noteLoading={governedNote.loading}
+                noteReadOnly={governedNote.readOnly}
                 onNoteChange={governedNote.onTextChange}
                 onNoteReload={governedNote.error ? governedNote.discardAndReload : undefined}
                 onEditLaunchDate={() =>

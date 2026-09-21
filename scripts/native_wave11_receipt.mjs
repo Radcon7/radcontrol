@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { assertWidthReceipt } from './native_width_contract.mjs';
 import { readFile } from 'node:fs/promises';
 import { sha256File } from './native_acceptance_lib.mjs';
 
@@ -12,8 +13,15 @@ export function assertWave11Scenarios(result) {
   return result;
 }
 
+export function assertWave2aReceipt(result) {
+  assert.equal(result?.wave2a?.ok, true, 'Wave 2A native receipt required');
+  assert.equal(result.wave2a.bridgeReadOnly, true, 'native bridge must be exercised before fixture activation');
+  assertWidthReceipt(result.wave2a.width, result.wave2a.width?.kind === 'test-owned-responsive-layout' ? 'e2e' : 'production');
+}
+
 export async function bindWave11Receipt(result, identities, entrypoint) {
   assertWave11Scenarios(result);
+  assertWave2aReceipt(result);
   for (const key of ['o2Sha', 'radcontrolSha']) assert.match(identities[key], /^[a-f0-9]{40}$/);
   assert.match(identities.artifactSha256, /^[a-f0-9]{64}$/);
   assert.ok(['tauri_candidate_precheck.mjs', 'tauri_production_readonly.mjs'].includes(entrypoint));

@@ -3,11 +3,12 @@ type Props = {
   text: string;
   status: string;
   loading: boolean;
+  readOnly: boolean;
   onChange: (value: string) => void;
   onReload?: () => void;
 };
 
-export function ProjectNotes({ path, text, status, loading, onChange, onReload }: Props) {
+export function ProjectNotes({ path, text, status, loading, readOnly, onChange, onReload }: Props) {
   return (
     <div className="surfaceSummaryRow surfaceSummaryRowTall">
       <div className="surfaceSummaryHeader">
@@ -19,7 +20,7 @@ export function ProjectNotes({ path, text, status, loading, onChange, onReload }
         className="notesSingleArea surfaceProjectNoteArea"
         data-testid="project-notes"
         value={text}
-        readOnly={!path || loading}
+        readOnly={readOnly || !path || loading}
         placeholder={path ? "Project note" : "No governed note file available yet."}
         onChange={(event) => onChange(event.target.value)}
       />

@@ -41,7 +41,7 @@ if verb == "empire.todo.list":
     result = json.loads((root / "wave11-tasks.json").read_text())
 elif verb == "operator.work.list":
     tasks = json.loads((root / "wave11-tasks.json").read_text())
-    result = {"ok": True, "revision": tasks.get("revision", 1),
+    result = {"ok": True, "authority": "private", "revision": tasks.get("revision", 1),
               "data": {"tasks": tasks["items"], "events": [], "initiatives": [], "projectNotes": []}}
 elif verb == "workstation.cleanup.pop_upgrade.preview":
     result = {"ok": True, "candidate": {"id": "service:pop-upgrade.service", "service": "pop-upgrade.service"},
