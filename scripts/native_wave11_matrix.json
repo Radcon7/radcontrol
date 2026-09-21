@@ -28,6 +28,10 @@
     "scripts/native_sentinel_assertions.mjs",
     "scripts/native_acceptance_lib.mjs",
     "tests/native_wave11_fixture.py",
-    "scripts/native_transaction_receipt.mjs"
+    "scripts/native_transaction_receipt.mjs",
+    "scripts/native_wave2a_acceptance.mjs",
+    "scripts/native_width_contract.mjs",
+    "src-tauri/tauri.conf.json",
+    "src-tauri/tauri.e2e.conf.json"
   ]
 }

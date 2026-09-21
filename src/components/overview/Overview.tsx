@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { listWork, mutateWork } from "./workApi";
-import { momentum, needsYou, nextMoves, recentMovement, unassessed, type Initiative, type WorkResponse } from "./workModel";
+import { WORK_BRIDGE_NOTICE, momentum, needsYou, nextMoves, recentMovement, unassessed, type Initiative, type WorkResponse } from "./workModel";
 import "./overview.css";
 type Props = { onSecurity: () => void; registerBeforeTabChangeSaver: (fn: (() => Promise<boolean>) | null) => void };
 export function Overview({ onSecurity, registerBeforeTabChangeSaver }: Props) {
@@ -39,7 +39,7 @@ export function Overview({ onSecurity, registerBeforeTabChangeSaver }: Props) {
   return <section className="overview" data-testid="overview-workspace">
     <header className="overviewHeading"><h1>Overview</h1><button className="btn btnGhost btnCompact" onClick={onSecurity}>System health · Security</button></header>
     {error ? <div className="panelError" role="alert">{error} {!draft ? <button className="btn btnGhost btnCompact" onClick={() => void load()}>Reload</button> : null}</div> : null}
-    {loading ? <p role="status">Loading current work…</p> : !snapshot ? <p>Operational work unavailable.</p> : <>
+    {loading ? <p role="status">Loading current work…</p> : !snapshot ? <p>Operational work unavailable.</p> : snapshot.authority === "legacy-readonly" ? <p data-testid="work-bridge-notice">{WORK_BRIDGE_NOTICE}</p> : <>
       <section className="overviewAttention" aria-label="What Needs You"><div className="overviewSectionTitle"><h2>What Needs You</h2>{proposals.length ? <button className="btn btnGhost btnCompact" disabled={!!draft} onClick={() => edit(proposals[0])}>Review {proposals.length} {proposals.length === 1 ? "proposal" : "proposals"}</button> : null}</div>
         {attention.length ? <div className="attentionRows">{attention.map(a => <button key={a.id} disabled={!!draft} onClick={() => edit(rows.find(r => r.id === a.id)!)}><strong>{rows.find(r => r.id === a.id)!.title}</strong><span>{a.reason}</span></button>)}</div> : <span className="overviewQuiet">No recorded action needs attention.</span>}
       </section>

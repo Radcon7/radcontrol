@@ -201,9 +201,9 @@ export async function createBubblewrapApplication({
     const packageRoot = path.dirname(INSTALLED_O2_ROOT);
     // Mount a private namespace parent so the new leaf need not exist on the
     // workstation. Preserve each existing sibling read-only; no host mkdir.
-    args.push("--tmpfs", packageRoot);
+    args.push("--bind", await privateDirectory(path.dirname(source), "test-owned work activation parent"), packageRoot);
     for (const name of await readdir(packageRoot)) {
-      if (name === "operator-work") continue;
+      if (["operator-work", "operator-work.activated"].includes(name)) continue;
       args.push("--ro-bind", path.join(packageRoot, name), path.join(packageRoot, name));
     }
     args.push("--bind", source, path.join(packageRoot, "operator-work"));

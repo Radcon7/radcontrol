@@ -60,6 +60,7 @@ jobs:
           npm run test:wave1
           npm run test:wave11
           npm run test:wave11-native
+          npm run test:wave2a
           npm run test:empire-todo
           npm run verify:empire-todo
           npm run test:sentinel

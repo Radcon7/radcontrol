@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import path from 'node:path';
-export async function runWave2aAcceptance({fixture,base,sessionId,request,click,eventually}) {
+import { nativeWidthContract, assertWidthReceipt } from './native_width_contract.mjs';
+export async function runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode,expectBridge=false}) {
+  const width = {...nativeWidthContract(mode), observations:[]};
   const workFile=path.join(fixture.o2Root,'.state/radcontrol-operator/work/work.json');
   const legacy=await readFile(fixture.empireTodoPath);
   const command=(operation,value,revision)=>{
@@ -13,8 +15,32 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
       input:operation?JSON.stringify({expectedRevision:revision,operation,value}):undefined});
     assert.equal(result.status,0,result.stdout+result.stderr);return JSON.parse(result.stdout);
   };
-  await click(base,sessionId,'[data-testid="tab-projects"]');
+  const exec=(script,args=[])=>request(base,`/session/${sessionId}/execute/sync`,'POST',{script,args});
+  const tap=selector=>click(base,sessionId,selector);
   let state=command();
+  if (expectBridge) {
+    assert.equal(state.authority,'legacy-readonly'); assert.equal(state.revision,0);
+    assert.equal(state.data.initiatives.length,0);
+    await tap('[data-testid="tab-overview"]');
+    await eventually(async()=>assert.match(await exec('return document.body.innerText;'),/Work is temporarily read-only/),'bridge notice');
+    assert.equal(await exec('return document.querySelectorAll(".momentumRow").length;'),0);
+    await tap('[data-testid="tab-notes"]');
+    for (const mode of ['empire_todo','progress','timeline']) {
+      await tap(`[data-testid="notes-mode-${mode}"]`);
+      await eventually(async()=>assert.ok(await exec('return !!document.querySelector("[data-testid=work-bridge-notice]");')),'readable bridge work');
+      assert.equal(await exec('return [...document.querySelectorAll(".empireTodoShell textarea,.empireTodoShell input[type=checkbox]")].filter(e=>!e.disabled&&!e.readOnly).length;'),0);
+    }
+    await tap('[data-testid="tab-projects"]');
+    await eventually(async()=>assert.equal(await exec('return document.querySelector("[data-testid=project-notes]")?.readOnly;'),true),'bridge notes read-only');
+    assert.equal(command().revision,0,'listing never activates');
+  }
+  if (state.authority === 'legacy-readonly') {
+    const activated=spawnSync('python3',['-c','from o2_operator_work import store,import_legacy; store().activate(import_legacy)'],{
+      encoding:'utf8',env:{...process.env,O2_ROOT_OVERRIDE:fixture.o2Root,PYTHONPATH:path.join(fixture.o2Root,'scripts'),PYTHONDONTWRITEBYTECODE:'1'}});
+    assert.equal(activated.status,0,activated.stdout+activated.stderr); state=command();
+  }
+  assert.equal(state.authority,'private');
+  await tap('[data-testid="tab-projects"]');
   assert.equal(state.data.initiatives.length,6,'only six explicit proposals, never a repo-derived portfolio');
   state=command('event.create',{title:'Wave 2A fixture accepted',date:'2026-09-20',category:'Acceptance fixture',notes:'Test-owned meaningful movement'},state.revision);
   const event=state.data.events.find(e=>e.id===state.recordId);
@@ -26,8 +52,6 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
       movementEventId:i===0?event.id:''};
     state=command('initiative.save',row,state.revision);
   }
-  const exec=(script,args=[])=>request(base,`/session/${sessionId}/execute/sync`,'POST',{script,args});
-  const tap=selector=>click(base,sessionId,selector);
   const evidence=process.env.RADCONTROL_WAVE2A_EVIDENCE_DIR || path.join(fixture.tempRoot,'wave2a');
   await mkdir(evidence,{recursive:true,mode:0o700});
   async function shot(name) {
@@ -45,6 +69,7 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
   assert.match(view.text,/What Needs You[\s\S]*Set a Next Move/);assert.match(view.text,/Next Moves[\s\S]*Recent Movement/);
   assert.match(view.text,/Wave 2A fixture accepted/);assert.match(view.text,/System health · Security/);
   assert.match(view.unassessed,/Unassessed[\s\S]*Blocked/);assert.doesNotMatch(view.unassessed,/%/);assert.doesNotMatch(view.ongoing,/%/);
+  width.observations.push({requested:width.widths[0],observed:await exec('return innerWidth;')});
   await shot('overview-normal');
   await exec("document.querySelector('.overviewLower').scrollIntoView({block:'end'});");await shot('overview-movement-and-next');
   await exec("document.querySelector('.overview').scrollTop=0;");
@@ -67,23 +92,24 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
   await eventually(async()=>assert.match(await exec('return document.querySelector("[role=dialog]").innerText;'),/Next Action/),'task reference opens actual task');
   await tap('[role=dialog] .notesModalBody button');
   await tap(`.overviewEvent[data-event-id="${event.id}"]`);await eventually(async()=>assert.match(await exec('return document.querySelector("[role=dialog]").innerText;'),/fixture accepted/),'Timeline reference opens event');await tap('[role=dialog] .notesModalBody button');
-  for(const [width,name] of [[800,'overview-narrow'],[600,'overview-small']]) {
-    await request(base,`/session/${sessionId}/window/rect`,'POST',{width,height:1000});
+  for(const requested of width.widths.slice(1)) {
+    await request(base,`/session/${sessionId}/window/rect`,'POST',{width:requested,height:1000});
     await exec("document.querySelector('.overview').scrollTop=0;");
     const geometry=await exec(`const e=document.querySelector('.overview');return {width:innerWidth,scroll:e.scrollWidth,client:e.clientWidth,rows:[...document.querySelectorAll('.momentumRow')].map(r=>({right:r.getBoundingClientRect().right,left:r.getBoundingClientRect().left}))};`);
-    assert.ok(geometry.width<=width+2,'requested native narrow window');assert.ok(geometry.scroll<=geometry.client+1,'Overview has no horizontal overflow');
-    assert.ok(geometry.rows.every(r=>r.left>=0&&r.right<=geometry.width));await shot(name);
+    width.observations.push({requested,observed:geometry.width});assert.ok(geometry.scroll<=geometry.client+1,'Overview has no horizontal overflow');
+    assert.ok(geometry.rows.every(r=>r.left>=0&&r.right<=geometry.width));await shot('overview-'+requested);
   }
+  assertWidthReceipt(width,mode);
   await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1000});
   await tap('[data-testid="tab-notes"]');
   for(const [mode,name,selector] of [['empire_todo','todo-private','.empireTodoRow'],['progress','progress-private','.progressTaskList'],['timeline','timeline-private','.timelineFeed']]) {
     await tap(`[data-testid="notes-mode-${mode}"]`);
     await eventually(async()=>assert.ok(await exec('return !!document.querySelector(arguments[0]);',[selector])),name);
     await shot(name);
-    await request(base,`/session/${sessionId}/window/rect`,'POST',{width:800,height:1000});await shot(name+'-narrow');
+    await request(base,`/session/${sessionId}/window/rect`,'POST',{width:width.widths[1],height:1000});await shot(name+'-'+width.widths[1]);
     await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1000});
   }
   assert.deepEqual(await readFile(fixture.empireTodoPath),legacy,'native work edits must not touch tracked legacy records');
-  const result={ok:true,checks:['overview','six-momentum-rows','assessed-unassessed-ongoing','blocked-missing-next','needs-you','explicit-pins','meaningful-events','native-review-save','explicit-proposal-acceptance','task-reference','timeline-reference','narrow-800-600','migrated-work-surfaces','legacy-unchanged'],evidence};
+  const result={ok:true,width,bridgeReadOnly:expectBridge,checks:['overview','six-momentum-rows','assessed-unassessed-ongoing','blocked-missing-next','needs-you','explicit-pins','meaningful-events','native-review-save','explicit-proposal-acceptance','task-reference','timeline-reference',width.kind,'migrated-work-surfaces','legacy-unchanged'],evidence};
   await writeFile(path.join(evidence,'acceptance.json'),JSON.stringify(result)+'\n',{mode:0o600});return result;
 }

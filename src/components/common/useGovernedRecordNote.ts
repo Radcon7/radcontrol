@@ -3,6 +3,7 @@ import { persistGovernedRecordNote } from "./governedRecordNote";
 import { O2FileNotFoundError, readO2File } from "./o2Files";
 import { fileTimestamp } from "./fileTimestamp";
 
+import { WORK_BRIDGE_NOTICE } from "../overview/workModel";
 import { listWork, mutateWork } from "../overview/workApi";
 
 type ResolvePath = () => Promise<string | null> | string | null;
@@ -20,6 +21,7 @@ type Options = {
 };
 
 type Result = {
+  readOnly: boolean;
   path: string | null;
   text: string;
   loading: boolean;
@@ -44,6 +46,8 @@ export function useGovernedRecordNote({
   debounceMs = 700,
   registerBeforeTabChangeSaver,
 }: Options): Result {
+  const [readOnly, setReadOnly] = useState(privateProject);
+  const readOnlyRef = useRef(privateProject);
   const [reload, setReload] = useState(0);
   const [path, setPath] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -73,6 +77,7 @@ export function useGovernedRecordNote({
 
   const saveCurrentRevision = useCallback(async (): Promise<boolean> => {
     if (revisionRef.current === 0) return true;
+    if (readOnlyRef.current) return false;
     if (savePromiseRef.current) return savePromiseRef.current;
 
     const notePath = pathRef.current;
@@ -149,12 +154,14 @@ export function useGovernedRecordNote({
       }
 
       setLoading(true);
+      readOnlyRef.current = privateProject; setReadOnly(privateProject);
       setError("");
 
       try {
         if (privateProject) {
           const result = await listWork();
           if (cancelled) return;
+          readOnlyRef.current = result.authority !== "private"; setReadOnly(readOnlyRef.current);
           const note = result.data.projectNotes.find(n => n.id === recordKey);
           workRevisionRef.current = result.revision; projectKeyRef.current = recordKey;
           revisionRef.current = 0;
@@ -234,13 +241,14 @@ export function useGovernedRecordNote({
   }, [debounceMs, loading, path, recordKey, saveCurrentRevision, text]);
 
   const onTextChange = useCallback((value: string): void => {
+    if (readOnlyRef.current || loadingRef.current) return;
     revisionRef.current += 1;
     textRef.current = value;
     setText(value);
   }, []);
 
   const dirty = revisionRef.current > 0;
-  const status = loading
+  const status = readOnly && !loading && !error ? WORK_BRIDGE_NOTICE : loading
     ? "Loading note..."
     : saving
       ? "Saving..."
@@ -255,6 +263,7 @@ export function useGovernedRecordNote({
               : missingStatus;
 
   return {
+    readOnly,
     path,
     text,
     loading,

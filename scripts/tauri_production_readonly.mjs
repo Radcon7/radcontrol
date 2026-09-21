@@ -182,6 +182,8 @@ const operatorWorkSource = path.join(tempRoot, "operator-work");
 await mkdir(operatorWorkSource, {mode:0o700});
 try { await cp(path.join(path.dirname(INSTALLED_O2_ROOT), "operator-work"), operatorWorkSource, {recursive:true}); }
 catch (error) { if (error.code !== "ENOENT") throw error; }
+try { await cp(path.join(path.dirname(INSTALLED_O2_ROOT), "operator-work.activated"), path.join(path.dirname(operatorWorkSource), "operator-work.activated")); }
+catch (error) { if (error.code !== "ENOENT") throw error; }
 const sandboxedApp = await createBubblewrapApplication({
   app,
   tempRoot,
@@ -250,6 +252,20 @@ try {
       artifactSha256:expectedArtifactSha, diagnosticsVerified:true};
   } else {
   const wave1Checks = await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
+  const activatedWork = await readFile(path.join(path.dirname(operatorWorkSource), "operator-work.activated"), "utf8").then(() => true, error => { if (error.code === "ENOENT") return false; throw error; });
+  const expectedWork = activatedWork ? JSON.parse(await readFile(path.join(operatorWorkSource,"work.json"),"utf8")) : null;
+  await click(base,sessionId,'[data-testid="tab-overview"]');
+  await eventually(async()=>{
+    const view = await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return {text:document.querySelector(".overview")?.innerText, rows:[...document.querySelectorAll(".momentumRow")].map(e=>e.dataset.testid)};',args:[]});
+    if (activatedWork) {
+      assert.deepEqual(view.rows,expectedWork.data.initiatives.map(row=>'momentum-'+row.id));
+      assert.doesNotMatch(view.text,/Work is temporarily read-only/);
+    } else {
+      assert.match(view.text,/Work is temporarily read-only/);assert.deepEqual(view.rows,[]);
+    }
+  },'actual Work authority drives Overview');
+  const workAuthorityChecks = {authority:activatedWork?'private':'legacy-readonly',initiativeCount:expectedWork?.data.initiatives.length || 0,revision:expectedWork?.revision || 0};
+
   await click(base, sessionId, '[data-testid="tab-notes"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /To-Do[\s\S]*Progress[\s\S]*Timeline[\s\S]*My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);
   await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
@@ -659,6 +675,7 @@ try {
     artifactSha256: expectedArtifactSha,
     todoSha256: installedBefore.todoSha256,
     wave1Checks,
+    workAuthorityChecks,
     diagnosticsVerified: diagnostics.includes("Listener-free production mode"),
     sentinelCurrentHealth: currentHealthPresentation.current,
     sentinelMeasurementHealth: currentHealthPresentation.declaredCurrent,

@@ -95,6 +95,7 @@ scripts/native_wave11_matrix.json
 scripts/native_wave11_receipt.mjs
 scripts/native_wave11_release.mjs
 scripts/native_wave2a_acceptance.mjs
+scripts/native_width_contract.mjs
 scripts/o2_index_repo.sh
 scripts/o2_session_start.sh
 scripts/release_candidate.py
@@ -264,6 +265,7 @@ tests/native_sentinel_assertions_test.mjs
 tests/native_wave11_fixture.py
 tests/native_wave11_fixture_test.py
 tests/native_wave11_receipt_test.mjs
+tests/native_width_contract_test.mjs
 tests/o2_runtime_boundary_behavior.mjs
 tests/project_intent_preview_behavior.mjs
 tests/release_candidate_evidence_test.py

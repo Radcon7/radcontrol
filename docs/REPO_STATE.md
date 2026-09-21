@@ -125,7 +125,7 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   structured Empire To-Do workspace. My Notes use
   `.state/radcontrol-operator/my-notes.md`; Blueprint uses its single canonical
   `docs/radcontrol/empire_blueprint/empire_blueprint_20260822.md`; To-Do records
-  now live in the O2-owned private operator-work store; their tracked JSON is
+  use the O2-owned private operator-work store after explicit activation; their tracked JSON is
   retained import evidence. O2 Knowledge
   reads a deterministic O2 projection at request time and owns no RadControl
   knowledge cache, registry, or database. Legal is a six-view executive
@@ -204,8 +204,17 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   Legacy files remain import evidence, not a second writable authority. The
   `~/dev/o2/contracts/o2-radcontrol/v1/README.md` contract
   owns migration, bounds and release preservation. Source work and native
-  fixtures do not imply installation: the Wave 1.1 rollback pair cannot read
-  this authority and must be rejected before activation.
+  fixtures do not imply installation. The `operator.work.private-v1` capability
+  means the binary understands explicit activation, not that private state exists.
+  Before activation, legacy To-Do, Progress, Timeline and Project Notes remain
+  readable and temporarily read-only. No editor queues changes, writes tracked
+  source or creates storage; Overview makes no initiative-authority claim.
+  “Work is temporarily read-only while private storage is prepared.” is sufficient
+  explanation. Explicit coordinator activation is permitted only after the
+  compatible bridge is accepted and is the sole current recovery generation.
+  The same binary refreshes from private authority and enables edits after that
+  transition. Failure never restores tracked-source writes. Wave 1.1 rollback is
+  safe only before activation; afterward private-compatible readers are required.
 - Task
   completion offers exactly one governed Timeline milestone or an explicit
   no-Timeline completion choice before marking the item complete.
@@ -337,7 +346,12 @@ are enforced by the content-preservation tests.
 meaningful movement and editor conflicts. O2 tests the actual process lock,
 CAS, crash boundaries, migration and release comparisons. The existing native
 harness repeats six-row Overview, review/acceptance, record references,
-800/600px layout and migrated Work surfaces using test-owned private data.
+production-supported layout and migrated Work surfaces using test-owned private
+ data. Production retains its 1500px minimum and proves 1650/1500 widths. The
+ debug/E2E-only 500px minimum permits separate 800/600 responsive proof. Native
+ receipts identify the width class and requested/observed dimensions; a clamped
+ production window cannot count as responsive acceptance. Each release fixture
+ proves read-only bridge mode before explicitly activating its isolated store.
 `RADCONTROL_WAVE2A_EVIDENCE_DIR` selects retained screenshots;
 `RADCONTROL_KEEP_FIXTURE=1` retains the full debug fixture. Candidate/installed
 entrypoints run the same coverage under their existing exact-identity and

@@ -46,6 +46,7 @@ export type EmpireTodoItem = {
 };
 
 export type EmpireTodoListResponse = {
+  authority?: "legacy-readonly" | "private";
   revision: number;
   ok: boolean;
   items: EmpireTodoItem[];

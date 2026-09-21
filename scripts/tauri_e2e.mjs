@@ -402,6 +402,9 @@ await Promise.all([access(app), access(path.join(sourceO2Root, "scripts", "run_o
 
 const fixture = await prepareIsolatedO2Root();
 await assertWritableFixtureIsolation(fixture);
+const activateFixture=spawnSync('python3',['-c','from o2_operator_work import store,import_legacy; store().activate(import_legacy)'],{
+  encoding:'utf8',env:{...process.env,O2_ROOT_OVERRIDE:fixture.o2Root,PYTHONPATH:path.join(fixture.o2Root,'scripts'),PYTHONDONTWRITEBYTECODE:'1'}});
+assert.equal(activateFixture.status,0,activateFixture.stdout+activateFixture.stderr);
 const installedBefore = await snapshotInstalledO2();
 const workFile = path.join(fixture.o2Root, ".state/radcontrol-operator/work/work.json");
 const readWork = async () => JSON.parse(await readFile(workFile, "utf8"));
@@ -1031,7 +1034,7 @@ try {
     assert.match(await bodyText(base,sessionId), /Aug 22, 2026[\s\S]*Backdated fixture milestone/);
   }, "existing event date supports backdating without changing creation metadata");
 
-  await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually});
+  await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode:'e2e'});
   await runWave11Acceptance({fixture,base,sessionId,request,click,eventually});
   console.error("[e2e] passed: My Notes create/edit/restart/delete, O2 Knowledge read-only projection, Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
 } catch (error) {

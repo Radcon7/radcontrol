@@ -3,6 +3,7 @@ import { completeEmpireTodo, listEmpireTodos, saveEmpireTodo } from "./empireTod
 import { createTodoDrafts, type TodoTextField } from "./empireTodoDrafts";
 import { EMPIRE_TODO_STATUSES, empireTodoLane, groupEmpireTodos, isEmpireTodoComplete, type EmpireTodoItem } from "./empireTodoModel";
 
+import { WORK_BRIDGE_NOTICE } from "../overview/workModel";
 import { TaskProgress } from "./TaskProgress";
 
 type Props = { mode?: "queued" | "progress"; busy?: boolean; registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void };
@@ -14,6 +15,7 @@ const detailFields: [TodoTextField, string][] = [
 export function EmpireTodoWorkspace({ mode = "queued", busy, registerBeforeTabChangeSaver }: Props) {
   const [, refresh] = useState(0);
   const [store] = useState(() => createTodoDrafts({ save: saveEmpireTodo, complete: completeEmpireTodo }, () => refresh((n) => n + 1)));
+  const [readOnly, setReadOnly] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [view, setView] = useState<"primary" | "other" | "completed">("primary");
@@ -31,6 +33,7 @@ export function EmpireTodoWorkspace({ mode = "queued", busy, registerBeforeTabCh
     try {
       const response = await listEmpireTodos();
       if (!response.ok || !Array.isArray(response.items)) throw new Error(response.error || "Empire To-Do unavailable");
+      setReadOnly(response.authority !== "private");
       store.load(response.items, response.revision);
     } catch (reason) { setLoadError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setLoading(false); }
@@ -44,16 +47,16 @@ export function EmpireTodoWorkspace({ mode = "queued", busy, registerBeforeTabCh
   const groups = groupEmpireTodos(visible);
   const selected = items.find((item) => item.id === selectedId && empireTodoLane(item.status) === lane) || (!progressWorkspace ? groups[0]?.items[0] : undefined);
   const otherCount = items.filter((item) => empireTodoLane(item.status) === "other").length;
-  const disabled = Boolean(busy || saving || loading || loadError);
-  const editorDisabled = Boolean(busy || completing || loading || loadError || (selected && !EMPIRE_TODO_STATUSES.includes(selected.status)));
+  const disabled = Boolean(readOnly || busy || saving || loading || loadError);
+  const editorDisabled = Boolean(readOnly || busy || completing || loading || loadError || (selected && !EMPIRE_TODO_STATUSES.includes(selected.status)));
   function update(field: TodoTextField, value: string) {
-    if (!selected) return;
+    if (!selected || readOnly) return;
     setSelectedId(selected.id);
     store.update(selected.id, field, value); cancelTimer();
     timer.current = window.setTimeout(() => { void store.flush(); timer.current = null; }, 700);
   }
   async function complete(withTimeline: boolean) {
-    if (!candidate) return;
+    if (!candidate || readOnly) return;
     cancelTimer();
     if (await store.complete(candidate.id, withTimeline)) setCandidate(null);
   }
@@ -78,6 +81,7 @@ export function EmpireTodoWorkspace({ mode = "queued", busy, registerBeforeTabCh
       </div>
       {!progressWorkspace ? <button className="btn btnGhost btnCompact" type="button" disabled={disabled} onClick={() => { setView("primary"); setQuery(""); setSelectedId(store.add()); }}>Add item</button> : null}
     </div>
+    {readOnly && !loading && !loadError ? <div data-testid="work-bridge-notice">{WORK_BRIDGE_NOTICE}</div> : null}
     {loadError || error ? <div className="panelError" role="alert">{loadError || error}{error ? <button className="btn btnGhost btnCompact" disabled={!!saving} onClick={() => { cancelTimer(); void load(); }}>Discard drafts & reload</button> : null}{loadError ? <button className="btn btnGhost btnCompact" onClick={() => void load()}>Retry</button> : null}</div> : null}
     {loading ? <div className="timelineStatus">Loading Empire To-Do…</div> : !loadError ? <div className={progressWorkspace ? "progressTaskList" : "todoMasterDetail"}>
       <div className="empireTodoList" aria-label="Tasks">

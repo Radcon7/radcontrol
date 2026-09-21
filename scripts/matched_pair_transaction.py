@@ -341,33 +341,39 @@ class Transaction:
         if state_root.stat().st_mode & 0o077:
             raise fail(f"private state is group/world accessible: {state_root}")
 
-    def assert_operator_work_rollback(self, new_root: Path, old_root: Path) -> None:
-        """Refuse activation before an old pair can recognize the sole work authority.
+    def assert_operator_work_pair(self, root: Path, pair: dict, label: str) -> None:
+        """Require the versioned explicit-activation contract on both sides."""
+        if not (root / "scripts/o2_operator_work_store.py").is_file():
+            raise fail(f"operator-work {label} incompatible: O2 cannot recognize private work")
+        required = {"operator.work.list", "operator.work.mutate", "operator.work.private-v1"}
+        provider = existing_file(root / "scripts/o2_contract_info.sh", "work provider").read_text()
+        if not required <= set(provider.split()):
+            raise fail(f"operator-work {label} provider capability missing")
+        repository = Path(__file__).resolve().parents[1]
+        try:
+            client = json.loads(git_run(repository, "show", pair["radcontrolSourceSha"] + ":contracts/o2-radcontrol/v1/client.json"))
+        except (RuntimeError, ValueError, KeyError) as error:
+            raise fail(f"operator-work {label} client proof unavailable") from error
+        if not required <= set(client.get("requiredCapabilities", [])):
+            raise fail(f"operator-work {label} client cannot display current authority")
 
-        The stable store is never copied by generation/.state exchanges. Merely
-        retaining those bytes does not make a legacy UI safe to resume.
+    def assert_operator_work_rollback(self, new_root: Path, old_root: Path) -> None:
+        """Inactive explicit bridge may roll back; private bytes never may be
+        exposed to a legacy-only pair, even if its activation marker is damaged.
+        The fixed private store is never copied by generation exchanges.
         """
         work_root = (self.test_root / "operator-work" if self.test_root else
                      Path("/home/chris/.local/share/radcontrol/operator-work"))
-        marker = "scripts/o2_operator_work_store.py"
-        if not (new_root / marker).exists() and not work_root.exists():
+        marker = work_root.parent / "operator-work.activated"
+        present = work_root.exists() or work_root.is_symlink() or marker.exists() or marker.is_symlink()
+        if not (new_root / "scripts/o2_operator_work_store.py").exists() and not present:
             return
-        if not (old_root / marker).is_file():
-            raise fail("operator-work rollback incompatible: prior O2 cannot recognize private work; installation held")
-        required = {"operator.work.list", "operator.work.mutate"}
-        provider = existing_file(old_root / "scripts/o2_contract_info.sh", "rollback work provider").read_text()
-        if not all(capability in provider.split() for capability in required):
-            raise fail("operator-work rollback provider capability missing")
-        # Read the immutable old client through the retained repository objects,
-        # never infer support from whichever source currently happens to be main.
-        repository = Path(__file__).resolve().parents[1]
-        try:
-            raw = git_run(repository, "show", self.old_pair["radcontrolSourceSha"] + ":contracts/o2-radcontrol/v1/client.json")
-            client = json.loads(raw)
-        except (RuntimeError, ValueError, KeyError) as error:
-            raise fail("operator-work rollback client proof unavailable") from error
-        if not required <= set(client.get("requiredCapabilities", [])):
-            raise fail("operator-work rollback client cannot display current authority; installation held")
+        self.assert_operator_work_pair(new_root, self.new_pair, "candidate")
+        if not present:
+            # Only explicit private-v1 code promises noncreating, read-only
+            # legacy operation. Earlier auto-importing Wave 2A is not exempt.
+            return
+        self.assert_operator_work_pair(old_root, self.old_pair, "rollback")
 
     def assert_private_state(self, root: Path) -> None:
         self.assert_private_state_directory(root / ".state")
@@ -563,6 +569,21 @@ class Transaction:
                 or any(wave11.get(key) != receipt.get(key)
                        for key in ("o2Sha", "radcontrolSha", "artifactSha256"))):
             raise fail(f"{phase} complete bound Wave 1.1 native receipt required")
+        wave2a = wave11.get("wave2a", {})
+        width = wave2a.get("width", {})
+        window = json.loads((Path(__file__).resolve().parents[1] / "src-tauri/tauri.conf.json").read_text())["app"]["windows"][0]
+        expected = [window["width"], window["minWidth"]]
+        observations = width.get("observations", [])
+        if (wave2a.get("ok") is not True or wave2a.get("bridgeReadOnly") is not True
+                or width.get("kind") != "production-supported-width"
+                or width.get("minimum") != window["minWidth"] or width.get("widths") != expected
+                or not isinstance(observations, list) or len(observations) != len(expected)
+                or any(not isinstance(row, dict) or row.get("requested") != requested
+                       or type(row.get("observed")) not in (int, float)
+                       or not requested - 2 <= row["observed"] <= requested + 2
+                       for row, requested in zip(observations, expected))):
+            raise fail(f"{phase} production-supported-width and bridge native receipt required")
+
 
     def accept_first(self) -> None:
         self.accept_native("first", "new-live", "new-live-first-accepted")

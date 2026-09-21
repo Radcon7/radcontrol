@@ -93,8 +93,8 @@ export async function runReleaseWave11({app, o2Source, identities, entrypoint, m
       await request(b,`/session/${s}/execute/sync`,'POST',{script:'arguments[0].scrollIntoView({block:"center"});',args:[element]});
       await request(b,`/session/${s}/element/${id}/click`,'POST',{});await delay(250);
     };
-    await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually});
-    matrix=await runWave11Acceptance({fixture,base,sessionId,request,click,eventually});
+    const wave2a = await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode,expectBridge:true});
+    matrix={...await runWave11Acceptance({fixture,base,sessionId,request,click,eventually}),wave2a};
   } catch(error) {
     if(sessionId) {
       const body=await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return document.body.innerText;',args:[]}).catch(()=>'<unavailable>');

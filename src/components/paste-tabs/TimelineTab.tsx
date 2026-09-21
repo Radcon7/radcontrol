@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { WORK_BRIDGE_NOTICE } from "../overview/workModel";
 import { MilestoneModal } from "./MilestoneModal";
 import { timelinePresentation, validEventDate } from "./timelineModel";
 import {
   createTimelineMilestone,
   listTimelineMilestones,
+  timelineReadOnly,
   type TimelineMilestone,
   type NewMilestoneInput,
 } from "./timelineLoader";
@@ -48,6 +50,7 @@ type Group = {
 
 export function TimelineTab() {
   const [items, setItems] = useState<TimelineMilestone[]>([]);
+  const [readOnly, setReadOnly] = useState(true);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -58,7 +61,7 @@ export function TimelineTab() {
 
     try {
       const next = await listTimelineMilestones();
-      setItems(next);
+      setItems(next); setReadOnly(timelineReadOnly());
     } catch (error) {
       setErr(error instanceof Error ? error.message : String(error));
     } finally {
@@ -114,12 +117,13 @@ export function TimelineTab() {
         <button
           className="btn btnPrimary btnCompact"
           onClick={() => setShowCreate(true)}
-          disabled={busy}
+          disabled={busy || readOnly}
         >
           Add Milestone
         </button>
       </div>
 
+      {!busy && !err && readOnly ? <div data-testid="work-bridge-notice">{WORK_BRIDGE_NOTICE}</div> : null}
       {err ? <div className="panelError" role="alert">{err}</div> : null}
 
       <div className="timelineFeed">

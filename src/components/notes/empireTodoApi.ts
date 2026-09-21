@@ -2,7 +2,7 @@ import { listWork, mutateWork } from "../overview/workApi";
 import type { EmpireTodoItem, EmpireTodoListResponse, EmpireTodoSaveResponse } from "./empireTodoModel";
 export async function listEmpireTodos(): Promise<EmpireTodoListResponse> {
   const result = await listWork();
-  return { ok:true, items:result.data.tasks, revision:result.revision, seededCount:0, persistence:"o2-operator-work/v1", path:"operator-work/work.json" };
+  return { ok:true, items:result.data.tasks, revision:result.revision, authority:result.authority, seededCount:0, persistence:result.authority === "private" ? "o2-operator-work/v1" : "legacy-readonly", path:result.authority === "private" ? "operator-work/work.json" : "docs/radcontrol/empire_todo/items.json" };
 }
 async function save(expectedRevision: number, operation: string, value: unknown): Promise<EmpireTodoSaveResponse> {
   const result = await mutateWork(expectedRevision, operation, value);

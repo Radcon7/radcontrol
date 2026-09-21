@@ -9,6 +9,7 @@ type Props = {
   noteText: string;
   noteStatus: string;
   noteLoading: boolean;
+  noteReadOnly: boolean;
   onNoteChange: (value: string) => void;
   onNoteReload?: () => void;
   onEditLaunchDate: () => void;
@@ -32,6 +33,7 @@ export function ProjectBrief({
   noteText,
   noteStatus,
   noteLoading,
+  noteReadOnly,
   onNoteChange,
   onNoteReload,
   onEditLaunchDate,
@@ -74,6 +76,7 @@ export function ProjectBrief({
           text={noteText}
           status={noteStatus}
           loading={noteLoading}
+          readOnly={noteReadOnly}
           onChange={onNoteChange}
           onReload={onNoteReload}
         />

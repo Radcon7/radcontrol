@@ -10,7 +10,8 @@ export type Initiative = {
   pinned: boolean; createdAt: string; updatedAt: string;
 };
 export type WorkData = { tasks: EmpireTodoItem[]; events: WorkEvent[]; initiatives: Initiative[]; projectNotes: { id: string; content: string; updatedAt?: string }[] };
-export type WorkResponse = { ok: boolean; revision: number; data: WorkData; recordId?: string; error?: string };
+export const WORK_BRIDGE_NOTICE = "Work is temporarily read-only while private storage is prepared.";
+export type WorkResponse = { authority: "legacy-readonly" | "private"; ok: boolean; revision: number; data: WorkData; recordId?: string; error?: string };
 export const unassessed = () => ({ method: "unassessed" as const, percent: null, basis: "", assessedAt: "" });
 export function momentum(row: Initiative): { percent: number | null; label: string } {
   if (row.kind === "ongoing") return { percent: null, label: row.status === "active" || row.status === "proposal" ? "Ongoing" : row.status[0].toUpperCase() + row.status.slice(1) };
