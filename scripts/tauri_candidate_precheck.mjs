@@ -50,7 +50,8 @@ await writeFile(path.join(root,'o2/.git'),`gitdir: ${gitdir}\n`,{mode:0o600});
 await cp(path.join(before.root,'.state'),path.join(root,'o2/.state'),{recursive:true,preserveTimestamps:true});
 await cp(artifact,path.join(root,'radcontrol-app'));await chmod(path.join(root,'radcontrol-app'),0o700);
 assert.equal(await sha256File(path.join(root,'radcontrol-app')),hash);
-const app=await createBubblewrapApplication({app:path.join(root,'radcontrol-app'),tempRoot:root,
+const operatorWorkSource=path.join(root,'operator-work'); await mkdir(operatorWorkSource,{mode:0o700});
+const app=await createBubblewrapApplication({app:path.join(root,'radcontrol-app'),tempRoot:root,operatorWorkSource,
  home:path.join(root,'home'),xdgCacheHome:path.join(root,'cache'),xdgConfigHome:path.join(root,'config'),xdgDataHome:path.join(root,'data'),
  overlays:[{source:path.join(root,'o2'),destination:before.root},{source:path.join(root,'dconf'),destination:`/run/user/${process.getuid()}/dconf`}],
  environment:{RADCONTROL_ACCEPTANCE_READ_ONLY:'1'}});

@@ -10,6 +10,7 @@ type Props = {
   noteStatus: string;
   noteLoading: boolean;
   onNoteChange: (value: string) => void;
+  onNoteReload?: () => void;
   onEditLaunchDate: () => void;
   onSetRetired: (retired: boolean) => void;
 };
@@ -32,6 +33,7 @@ export function ProjectBrief({
   noteStatus,
   noteLoading,
   onNoteChange,
+  onNoteReload,
   onEditLaunchDate,
   onSetRetired,
 }: Props) {
@@ -73,6 +75,7 @@ export function ProjectBrief({
           status={noteStatus}
           loading={noteLoading}
           onChange={onNoteChange}
+          onReload={onNoteReload}
         />
         <label className="surfaceSummaryRow surfaceToggleRow">
           <span className="surfaceLabel">Retired</span>

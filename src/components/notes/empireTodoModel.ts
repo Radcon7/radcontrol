@@ -46,6 +46,7 @@ export type EmpireTodoItem = {
 };
 
 export type EmpireTodoListResponse = {
+  revision: number;
   ok: boolean;
   items: EmpireTodoItem[];
   seededCount: number;
@@ -55,6 +56,7 @@ export type EmpireTodoListResponse = {
 };
 
 export type EmpireTodoSaveResponse = {
+  revision: number;
   ok: boolean;
   item: EmpireTodoItem;
   itemCount: number;

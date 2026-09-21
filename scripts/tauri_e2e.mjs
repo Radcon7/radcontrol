@@ -1,4 +1,5 @@
 import { assertWave1Work, assertSentinelHealth, assertSentinelDetails } from "./native_sentinel_assertions.mjs";
+import { runWave2aAcceptance } from "./native_wave2a_acceptance.mjs";
 import { runWave11Acceptance } from "./native_wave11_acceptance.mjs";
 import assert from "node:assert/strict";
 import { access, cp, mkdir, mkdtemp, readFile, readdir, rename, symlink, unlink, rm, writeFile } from "node:fs/promises";
@@ -402,6 +403,9 @@ await Promise.all([access(app), access(path.join(sourceO2Root, "scripts", "run_o
 const fixture = await prepareIsolatedO2Root();
 await assertWritableFixtureIsolation(fixture);
 const installedBefore = await snapshotInstalledO2();
+const workFile = path.join(fixture.o2Root, ".state/radcontrol-operator/work/work.json");
+const readWork = async () => JSON.parse(await readFile(workFile, "utf8"));
+const readTasks = async () => ({ items: (await readWork()).data.tasks });
 const listenersBefore = tcpListeners();
 assertPortAbsent(listenersBefore, 1420);
 const sandboxedApp = await createBubblewrapApplication({
@@ -438,7 +442,8 @@ let sessionId;
 const cleanup = installNativeAcceptanceSignalCleanup(async () => {
   if (sessionId) await request(base, `/session/${sessionId}`, "DELETE").catch(() => {});
   await stopChild(driver);
-  await rm(fixture.tempRoot, { recursive: true, force: true });
+  if (process.env.RADCONTROL_KEEP_FIXTURE !== "1") await rm(fixture.tempRoot, { recursive: true, force: true });
+  else console.error(`[e2e] retained fixture ${fixture.tempRoot}`);
   await assertInstalledO2Unchanged(installedBefore);
   const listenersAfter = tcpListeners();
   assertPortAbsent(listenersAfter, 1420);
@@ -527,7 +532,7 @@ try {
   const todoProbe = "E2E roadmap draft survives governed persistence";
   await replaceValue(base, sessionId, empireTodoNotes, todoProbe);
   await eventually(async () => {
-    const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
+    const todoPayload = await readTasks();
     const dinosaurItem = todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content");
     assert.match(dinosaurItem?.notes || "", new RegExp(todoProbe));
     assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
@@ -537,16 +542,16 @@ try {
   await eventually(async () => assert.match(await bodyText(base, sessionId), /Complete “DQOTD Dinosaur Content”[\s\S]*Cancel[\s\S]*Complete without Timeline[\s\S]*Add to Timeline/), "render completion dialog for Cancel");
   await click(base, sessionId, '.notesModalCard .btnGhost');
   await eventually(async () => {
-    const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
+    const todoPayload = await readTasks();
     assert.equal(todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content")?.status, "In Progress");
-    assert.equal((await readdir(fixture.timelineDir)).length, 0);
+    assert.equal((await readWork()).data.events.length, 0);
   }, "Cancel keeps deterministic task active without a Timeline event");
   completionModes.push(await activateCompletionCheckbox(base, sessionId, "DQOTD Dinosaur Content"));
   await click(base, sessionId, '[data-testid="empire-todo-complete-without-timeline"]');
   await eventually(async () => {
-    const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
+    const todoPayload = await readTasks();
     assert.equal(todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content")?.status, "Complete");
-    assert.equal((await readdir(fixture.timelineDir)).length, 0);
+    assert.equal((await readWork()).data.events.length, 0);
   }, "Complete without Timeline persists only the task completion");
   await activateView(base, sessionId, "completed", '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
   await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'), "show completed Empire To-Do history");
@@ -559,14 +564,12 @@ try {
   completionModes.push(await activateCompletionCheckbox(base, sessionId, timelineTask));
   await click(base, sessionId, '[data-testid="empire-todo-complete-with-timeline"]');
   const timelineFile = await eventually(async () => {
-    const names = await readdir(fixture.timelineDir);
-    assert.equal(names.length, 1, "exactly one Timeline milestone is created");
-    const file = path.join(fixture.timelineDir, names[0]);
-    const content = await readFile(file, "utf8");
-    assert.match(content, /title: "RadControl Operator Cockpit completed"/);
-    assert.match(content, /date: "\d{4}-\d{2}-\d{2}"/);
-    assert.doesNotMatch(content, new RegExp(todoProbe));
-    return file;
+    const events = (await readWork()).data.events;
+    assert.equal(events.length, 1, "exactly one Timeline milestone is created");
+    assert.equal(events[0].title, "RadControl Operator Cockpit completed");
+    assert.match(events[0].date, /^\d{4}-\d{2}-\d{2}$/);
+    assert.doesNotMatch(events[0].notes, new RegExp(todoProbe));
+    return workFile;
   }, "Add to Timeline creates one bounded milestone without copying task scratch notes");
   await activateView(base, sessionId, "completed", '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
   await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]'), "show Timeline-completed task in completed history");
@@ -583,10 +586,10 @@ try {
   await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
   await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'), "reload completed Empire To-Do item after native restart");
   await eventually(async () => {
-    const todoPayload = JSON.parse(await readFile(fixture.empireTodoPath, "utf8"));
+    const todoPayload = await readTasks();
     assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
     assert.equal(todoPayload.items.find((item) => item.id === "radcontrol-operator-cockpit")?.status, "Complete");
-    assert.equal((await readdir(fixture.timelineDir)).length, 1);
+    assert.equal((await readWork()).data.events.length, 1);
     await access(timelineFile);
   }, "preserve one Empire To-Do item after native restart");
   assert.ok(completionModes.length === 3 && completionModes.every((mode) => mode === "webdriver" || mode === "dom-click"), "completion dialogs used a real enabled checkbox control");
@@ -990,7 +993,7 @@ try {
   const notes = await eventually(() => element(base, sessionId, '[data-testid="project-notes"]'), "load isolated fixture note");
   await replaceValue(base, sessionId, notes, "Temporary E2E fixture note.\nE2E autosave probe");
   await eventually(async () => {
-    assert.match(await readFile(fixture.notesPath, "utf8"), /E2E autosave probe/);
+    assert.match((await readWork()).data.projectNotes.find(n => n.id === fixtureKey).content, /E2E autosave probe/);
   }, "persist autosave into isolated O2 root");
 
   await eventually(async () => {
@@ -1000,34 +1003,35 @@ try {
   await click(base, sessionId, '[data-testid="tab-notes"]');
   await click(base, sessionId, '[data-testid="notes-mode-timeline"]');
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl Operator Cockpit completed/), "task-specific Timeline title");
-  const timelineBackup = `${fixture.timelineDir}-test-backup`;
-  await rename(fixture.timelineDir, timelineBackup);
-  await symlink(fixture.tempRoot, fixture.timelineDir);
+  const timelineBackup = `${workFile}.test-backup`;
+  await rename(workFile, timelineBackup);
+  await symlink(fixture.empireTodoPath, workFile);
   await click(base, sessionId, '.workspaceActionRow .btnGhost');
   await eventually(() => element(base, sessionId, '.workspaceShell [role="alert"]'), "Timeline load failure is visible");
   assert.equal(await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:'return !!document.querySelector(".timelineEmptyState");',args:[]}),false);
-  await unlink(fixture.timelineDir); await rename(timelineBackup, fixture.timelineDir);
+  await unlink(workFile); await rename(timelineBackup, workFile);
   await click(base, sessionId, '.workspaceActionRow .btnGhost');
   await eventually(async () => assert.equal(await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:'return document.querySelector(".workspaceActionRow .btnPrimary").disabled;',args:[]}),false), "Timeline retry is ready");
   await click(base, sessionId, '.workspaceActionRow .btnPrimary');
   await replaceValue(base, sessionId, await element(base, sessionId, '.timelineModalCard input:not([type=date])'), 'Backdated fixture milestone');
   await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:`const e=document.querySelector('.timelineModalCard input[type=date]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'2026-08-22');e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));`,args:[]});
-  await rename(fixture.timelineDir, timelineBackup);
-  await symlink(fixture.tempRoot, fixture.timelineDir);
+  await rename(workFile, timelineBackup);
+  await symlink(fixture.empireTodoPath, workFile);
   await click(base, sessionId, '.timelineModalCard .btnPrimary');
   await eventually(() => element(base, sessionId, '.timelineModalError'), "failed Timeline save retains the modal and reports an error");
-  assert.equal((await readdir(timelineBackup)).length, 1);
-  await unlink(fixture.timelineDir); await rename(timelineBackup, fixture.timelineDir);
+  assert.equal(JSON.parse(await readFile(timelineBackup, "utf8")).data.events.length, 1);
+  await unlink(workFile); await rename(timelineBackup, workFile);
   await click(base, sessionId, '.timelineModalCard .btnPrimary');
   await eventually(async () => {
-    const names = await readdir(fixture.timelineDir);
-    assert.equal(names.length, 2);
-    const backdated = await readFile(path.join(fixture.timelineDir,names.find(n=>n.includes('backdated_fixture'))), 'utf8');
-    assert.match(backdated, /date: "2026-08-22"/);
-    assert.doesNotMatch(backdated, /created: "2026-08-22/);
+    const events = (await readWork()).data.events;
+    assert.equal(events.length, 2);
+    const backdated = events.find(event => event.title === 'Backdated fixture milestone');
+    assert.equal(backdated.date, '2026-08-22');
+    assert.ok(!backdated.createdAt.startsWith('2026-08-22'));
     assert.match(await bodyText(base,sessionId), /Aug 22, 2026[\s\S]*Backdated fixture milestone/);
   }, "existing event date supports backdating without changing creation metadata");
 
+  await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually});
   await runWave11Acceptance({fixture,base,sessionId,request,click,eventually});
   console.error("[e2e] passed: My Notes create/edit/restart/delete, O2 Knowledge read-only projection, Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
 } catch (error) {

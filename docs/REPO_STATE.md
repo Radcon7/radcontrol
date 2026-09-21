@@ -11,6 +11,16 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 
 ## Current surfaces
 
+- Overview: the first command-center workspace. Full-width Momentum rows show
+  finite operator-assessed progress (with basis), honest unassessed outcomes,
+  and nonnumeric ongoing responsibilities. Six initial proposals require review;
+  an initiative is not automatically a repository. A contextual editor accepts,
+  renames, pauses, classifies, pins and reviews one Next Move, blocker, phase and
+  progress. What Needs You is bounded to five recorded attention items; Next
+  Moves use at most five explicit pins. Recent Movement uses Timeline evidence,
+  never Git/autosave timestamps. Task and Timeline references open their current
+  records. A compact Security link avoids claiming unmeasured system health.
+
 - Projects: governed registry, runtime controls, project evidence, notes, and a
   capability-driven formation/bootstrap entry backed by O2 Modern Web
   Foundation v1. The selected website shape records an explicit repository
@@ -115,7 +125,8 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   structured Empire To-Do workspace. My Notes use
   `.state/radcontrol-operator/my-notes.md`; Blueprint uses its single canonical
   `docs/radcontrol/empire_blueprint/empire_blueprint_20260822.md`; To-Do records
-  live at `docs/radcontrol/empire_todo/items.json`. O2 Knowledge
+  now live in the O2-owned private operator-work store; their tracked JSON is
+  retained import evidence. O2 Knowledge
   reads a deterministic O2 projection at request time and owns no RadControl
   knowledge cache, registry, or database. Legal is a six-view executive
   workspace over the single O2 portfolio blueprint: Structure is first and
@@ -150,9 +161,9 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   without rewriting them.
 - Logs start collapsed with visible output/running/attention/error status and
   quick expansion. Existing Copy/Clear and full retained output remain available.
-- Wave 2 still owns private task/Timeline persistence and cross-process save
-  concurrency. Wave 1 retains their tracked O2 paths; it does not make them a
-  private work store or introduce Initiative, Momentum or Overview models.
+- Wave 2A replaces tracked task/Timeline writes with one private O2 work owner.
+  Existing Wave 1/1.1 task presentation remains; initiative assessment is a
+  distinct model and never derives percentages from task counts.
 
 ## Work and Sentinel actions — Wave 1.1
 
@@ -185,7 +196,17 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   read-only through `knowledge.operator_workspace`. Legal reads the validated
   O2 `docs/portfolio/PORTFOLIO_BLUEPRINT.json` projection. It owns no browser
   legal registry and preserves existing archive writes through O2 file verbs.
-- Empire To-Do writes use the validated O2 `empire.todo.save` payload route;
+- Tasks, Timeline, Project Notes and initiatives use `operator.work.list` and
+  revision-checked stdin `operator.work.mutate`. Each editor retains its loaded
+  revision; conflicts preserve drafts and offer explicit discard/reload. The
+  stable private root is `~/.local/share/radcontrol/operator-work`, with 0700
+  directories, 0600 files, a cross-process lock and atomic fsynced JSON commits.
+  Legacy files remain import evidence, not a second writable authority. The
+  `~/dev/o2/contracts/o2-radcontrol/v1/README.md` contract
+  owns migration, bounds and release preservation. Source work and native
+  fixtures do not imply installation: the Wave 1.1 rollback pair cannot read
+  this authority and must be rejected before activation.
+- Task
   completion offers exactly one governed Timeline milestone or an explicit
   no-Timeline completion choice before marking the item complete.
   Sentinel runtime state and audit use the O2 Sentinel contract rather than
@@ -309,3 +330,15 @@ operational/reference tools. A specifically authorized asset removal or tab
 replacement does not authorize collateral content loss. The recovery baseline
 and acceptance matrix live in `docs/RADCONTROL_CONTENT_PRESERVATION.json` and
 are enforced by the content-preservation tests.
+
+## Wave 2A acceptance
+
+`npm run test:wave2a` verifies truthful assessment, bounded attention/pins,
+meaningful movement and editor conflicts. O2 tests the actual process lock,
+CAS, crash boundaries, migration and release comparisons. The existing native
+harness repeats six-row Overview, review/acceptance, record references,
+800/600px layout and migrated Work surfaces using test-owned private data.
+`RADCONTROL_WAVE2A_EVIDENCE_DIR` selects retained screenshots;
+`RADCONTROL_KEEP_FIXTURE=1` retains the full debug fixture. Candidate/installed
+entrypoints run the same coverage under their existing exact-identity and
+namespace boundaries. Native launches still require task-specific authorization.

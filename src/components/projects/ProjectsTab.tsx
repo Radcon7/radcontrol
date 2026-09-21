@@ -35,7 +35,6 @@ type Props = {
   onProofPack: (project: ProjectRow) => Promise<void> | void;
   onSetRetired: (project: ProjectRow, retired: boolean) => Promise<void> | void;
   onSetLaunchDate: (project: ProjectRow, startDate: string) => Promise<void> | void;
-  onEnsureNotes: (project: ProjectRow) => Promise<ProjectRow> | ProjectRow;
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
   statusForRow: (project: ProjectRow) => StatusLike | unknown;
 };
@@ -64,7 +63,6 @@ export function ProjectsTab({
   onProofPack,
   onSetRetired,
   onSetLaunchDate,
-  onEnsureNotes,
   registerBeforeTabChangeSaver,
   statusForRow,
 }: Props) {
@@ -114,14 +112,8 @@ export function ProjectsTab({
     [selectedKey, sortedProjects],
   );
   const governedNote = useGovernedRecordNote({
-    recordKey: selectedProject?.key || null,
-    path: selectedProject?.notesPath || null,
-    resolvePath: selectedProject
-      ? async () => {
-          const latestProject = await onEnsureNotes(selectedProject);
-          return (latestProject || selectedProject).notesPath?.trim() || null;
-        }
-      : undefined,
+    recordKey: selectedProject?.sourceProjectKey || selectedProject?.key || null,
+    privateProject: true,
     missingStatus: "Governed note",
     registerBeforeTabChangeSaver,
   });
@@ -205,6 +197,7 @@ export function ProjectsTab({
                 noteStatus={governedNote.status}
                 noteLoading={governedNote.loading}
                 onNoteChange={governedNote.onTextChange}
+                onNoteReload={governedNote.error ? governedNote.discardAndReload : undefined}
                 onEditLaunchDate={() =>
                   setLaunchDateModal({ open: true, value: selectedLaunchDate })
                 }

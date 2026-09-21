@@ -557,6 +557,7 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
     match verb {
         "contract_info" => return Ok(read("contract.info", "o2-runtime")),
         "list_projects" => return Ok(read("project.list", "project-registry")),
+        "operator.work.list" => return Ok(read("operator-work.list", "operator-work")),
         "empire.todo.list" => return Ok(read("empire-todo.list", "empire-todo")),
         "radcontrol.scratchpad.read" => {
             return Ok(read("radcontrol-scratchpad.read", "radcontrol-scratchpad"))
@@ -787,6 +788,7 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
 fn payload_spec(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
     let (dispatch, operation, target) = match verb {
         "files.write" => ("files.write.stdin", "files.write", "o2-documents"),
+        "operator.work.mutate" => ("operator.work.mutate.stdin", "operator-work.mutate", "operator-work"),
         "empire.todo.save" => ("empire.todo.save.stdin", "empire-todo.save", "empire-todo"),
         "empire.todo.complete" => (
             "empire.todo.complete.stdin",
@@ -938,7 +940,11 @@ pub fn runtime_diagnostics() -> RuntimeDiagnostics {
     let project_registry_path = root.join("registry/projects.json");
     let audit_transport_path = root.join("scripts/o2_radcontrol_audit.py");
     let empire_todo_seed_path = root.join("registry/empire-todo-seeds.json");
-    let empire_todo_store_path = root.join("docs/radcontrol/empire_todo/items.json");
+    let empire_todo_store_path = if e2e_mode() {
+        root.join(".state/radcontrol-operator/work/work.json")
+    } else {
+        PathBuf::from("/home/chris/.local/share/radcontrol/operator-work/work.json")
+    };
     let runtime_mode = if e2e_mode() {
         "e2e"
     } else if cfg!(debug_assertions) {

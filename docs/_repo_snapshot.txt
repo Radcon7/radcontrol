@@ -33,6 +33,7 @@ test:tauri-production-readonly
 test:wave1
 test:wave11
 test:wave11-native
+test:wave2a
 verify:agents-architecture
 verify:change-guardian-policy
 verify:ci-contract
@@ -93,6 +94,7 @@ scripts/native_wave11_acceptance.mjs
 scripts/native_wave11_matrix.json
 scripts/native_wave11_receipt.mjs
 scripts/native_wave11_release.mjs
+scripts/native_wave2a_acceptance.mjs
 scripts/o2_index_repo.sh
 scripts/o2_session_start.sh
 scripts/release_candidate.py
@@ -214,6 +216,10 @@ src/components/notes/empireTodoDrafts.ts
 src/components/notes/empireTodoModel.ts
 src/components/notes/myNotesApi.ts
 src/components/notes/o2KnowledgeApi.ts
+src/components/overview/Overview.tsx
+src/components/overview/overview.css
+src/components/overview/workApi.ts
+src/components/overview/workModel.ts
 src/components/paste-tabs/DocumentLibraryPanel.tsx
 src/components/paste-tabs/LegalHubTab.tsx
 src/components/paste-tabs/MilestoneModal.tsx
@@ -285,6 +291,7 @@ tests/verify_tauri_e2e_contract.mjs
 tests/verify_tauri_security.mjs
 tests/wave11_behavior.mjs
 tests/wave1_behavior.mjs
+tests/wave2a_behavior.mjs
 tsconfig.json
 tsconfig.node.json
 vite.config.ts

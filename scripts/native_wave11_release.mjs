@@ -7,6 +7,7 @@ import path from 'node:path';
 import os from 'node:os';
 import net from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
+import { runWave2aAcceptance } from './native_wave2a_acceptance.mjs';
 import { runWave11Acceptance } from './native_wave11_acceptance.mjs';
 import { bindWave11Receipt } from './native_wave11_receipt.mjs';
 import { request } from './native_sentinel_assertions.mjs';
@@ -62,7 +63,9 @@ export async function runReleaseWave11({app, o2Source, identities, entrypoint, m
     executable=path.join(tempRoot,'radcontrol-app');await cp(app,executable);await chmod(executable,0o700);
     assert.equal(await sha256File(executable),identities.artifactSha256);
   }
-  const sandboxed=await createBubblewrapApplication({app:executable,tempRoot,home:fixture.e2eHome,
+  const operatorWorkSource=path.join(fixture.o2Root,'.state/radcontrol-operator/work');
+  await mkdir(operatorWorkSource,{recursive:true,mode:0o700});
+  const sandboxed=await createBubblewrapApplication({app:executable,tempRoot,operatorWorkSource,home:fixture.e2eHome,
     xdgCacheHome:fixture.xdgCacheHome,xdgConfigHome:fixture.xdgConfigHome,xdgDataHome:fixture.xdgDataHome,
     overlays:[...(mode==='production'?[{source:fixture.o2Root,destination:INSTALLED_O2_ROOT}]:[]),
       {source:path.join(tempRoot,'dconf'),destination:`/run/user/${process.getuid()}/dconf`}],
@@ -90,6 +93,7 @@ export async function runReleaseWave11({app, o2Source, identities, entrypoint, m
       await request(b,`/session/${s}/execute/sync`,'POST',{script:'arguments[0].scrollIntoView({block:"center"});',args:[element]});
       await request(b,`/session/${s}/element/${id}/click`,'POST',{});await delay(250);
     };
+    await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually});
     matrix=await runWave11Acceptance({fixture,base,sessionId,request,click,eventually});
   } catch(error) {
     if(sessionId) {
