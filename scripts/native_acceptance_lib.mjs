@@ -4,6 +4,7 @@ import {
   chmod,
   lstat,
   readFile,
+  readdir,
   realpath,
   writeFile,
 } from "node:fs/promises";
@@ -168,6 +169,7 @@ export async function createBubblewrapApplication({
   writablePaths = [],
   overlays = [],
   environment = {},
+  operatorWorkSource = null,
 }) {
   command("/usr/bin/bwrap", ["--version"]);
   const canonicalApp = await canonicalRegularFile(app, "native acceptance application");
@@ -193,6 +195,19 @@ export async function createBubblewrapApplication({
     "--share-net",
     "--die-with-parent",
   ];
+  if (operatorWorkSource) {
+    const source = await privateDirectory(operatorWorkSource, "test-owned operator work");
+    assert.ok(pathInside(source, canonicalTemp), "operator work overlay must be test-owned");
+    const packageRoot = path.dirname(INSTALLED_O2_ROOT);
+    // Mount a private namespace parent so the new leaf need not exist on the
+    // workstation. Preserve each existing sibling read-only; no host mkdir.
+    args.push("--tmpfs", packageRoot);
+    for (const name of await readdir(packageRoot)) {
+      if (name === "operator-work") continue;
+      args.push("--ro-bind", path.join(packageRoot, name), path.join(packageRoot, name));
+    }
+    args.push("--bind", source, path.join(packageRoot, "operator-work"));
+  }
   for (const candidate of writable) args.push("--bind", candidate, candidate);
   for (const overlay of canonicalOverlays) args.push("--bind", overlay.source, overlay.destination);
   for (const [key, value] of Object.entries({

@@ -27,7 +27,7 @@ assert.doesNotMatch(parent, /className=\{`surfaceNavButton/);
 assert.doesNotMatch(parent, /persistGovernedRecordNote/);
 assert.match(parent, /useGovernedRecordNote/);
 assert.match(parent, /await governedNote\.flush\(\)/);
-assert.match(parent, /const latestProject = await onEnsureNotes\(selectedProject\)/);
+assert.match(parent, /privateProject: true/);
 
 assert.match(model, /export type ProjectDetail =/);
 assert.match(model, /export type SortMode =/);

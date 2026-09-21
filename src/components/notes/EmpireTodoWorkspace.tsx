@@ -31,7 +31,7 @@ export function EmpireTodoWorkspace({ mode = "queued", busy, registerBeforeTabCh
     try {
       const response = await listEmpireTodos();
       if (!response.ok || !Array.isArray(response.items)) throw new Error(response.error || "Empire To-Do unavailable");
-      store.load(response.items);
+      store.load(response.items, response.revision);
     } catch (reason) { setLoadError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setLoading(false); }
   }, [store]);
@@ -78,7 +78,7 @@ export function EmpireTodoWorkspace({ mode = "queued", busy, registerBeforeTabCh
       </div>
       {!progressWorkspace ? <button className="btn btnGhost btnCompact" type="button" disabled={disabled} onClick={() => { setView("primary"); setQuery(""); setSelectedId(store.add()); }}>Add item</button> : null}
     </div>
-    {loadError || error ? <div className="panelError" role="alert">{loadError || error}{loadError ? <button className="btn btnGhost btnCompact" onClick={() => void load()}>Retry</button> : null}</div> : null}
+    {loadError || error ? <div className="panelError" role="alert">{loadError || error}{error ? <button className="btn btnGhost btnCompact" disabled={!!saving} onClick={() => { cancelTimer(); void load(); }}>Discard drafts & reload</button> : null}{loadError ? <button className="btn btnGhost btnCompact" onClick={() => void load()}>Retry</button> : null}</div> : null}
     {loading ? <div className="timelineStatus">Loading Empire To-Do…</div> : !loadError ? <div className={progressWorkspace ? "progressTaskList" : "todoMasterDetail"}>
       <div className="empireTodoList" aria-label="Tasks">
         {groups.map((group) => <section className="empireTodoGroup" key={group.key}>

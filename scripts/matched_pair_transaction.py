@@ -341,6 +341,34 @@ class Transaction:
         if state_root.stat().st_mode & 0o077:
             raise fail(f"private state is group/world accessible: {state_root}")
 
+    def assert_operator_work_rollback(self, new_root: Path, old_root: Path) -> None:
+        """Refuse activation before an old pair can recognize the sole work authority.
+
+        The stable store is never copied by generation/.state exchanges. Merely
+        retaining those bytes does not make a legacy UI safe to resume.
+        """
+        work_root = (self.test_root / "operator-work" if self.test_root else
+                     Path("/home/chris/.local/share/radcontrol/operator-work"))
+        marker = "scripts/o2_operator_work_store.py"
+        if not (new_root / marker).exists() and not work_root.exists():
+            return
+        if not (old_root / marker).is_file():
+            raise fail("operator-work rollback incompatible: prior O2 cannot recognize private work; installation held")
+        required = {"operator.work.list", "operator.work.mutate"}
+        provider = existing_file(old_root / "scripts/o2_contract_info.sh", "rollback work provider").read_text()
+        if not all(capability in provider.split() for capability in required):
+            raise fail("operator-work rollback provider capability missing")
+        # Read the immutable old client through the retained repository objects,
+        # never infer support from whichever source currently happens to be main.
+        repository = Path(__file__).resolve().parents[1]
+        try:
+            raw = git_run(repository, "show", self.old_pair["radcontrolSourceSha"] + ":contracts/o2-radcontrol/v1/client.json")
+            client = json.loads(raw)
+        except (RuntimeError, ValueError, KeyError) as error:
+            raise fail("operator-work rollback client proof unavailable") from error
+        if not required <= set(client.get("requiredCapabilities", [])):
+            raise fail("operator-work rollback client cannot display current authority; installation held")
+
     def assert_private_state(self, root: Path) -> None:
         self.assert_private_state_directory(root / ".state")
 
@@ -665,6 +693,7 @@ class Transaction:
         self.assert_private_state(target_root)
 
     def preflight(self) -> None:
+        self.assert_operator_work_rollback(self.candidate_o2, self.live_o2)
         self.assert_stopped()
         self.assert_stage_private()
         self.assert_pair(self.old_pair, self.rollback_files, "old pair")
@@ -707,6 +736,7 @@ class Transaction:
             raise
 
     def rollback(self) -> None:
+        self.assert_operator_work_rollback(self.live_o2, self.old_parked_o2)
         self.assert_stopped()
         self.assert_stage_private()
         state = self.transaction_state()
@@ -759,6 +789,7 @@ class Transaction:
             raise
 
     def reinstall(self) -> None:
+        self.assert_operator_work_rollback(self.new_parked_o2, self.live_o2)
         self.assert_stopped()
         if self.schema_version != 2:
             raise fail("reinstall requires transaction schemaVersion 2")

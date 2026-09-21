@@ -54,6 +54,7 @@ const projects = consumers.find(
   (consumer) => consumer.path === "projects/ProjectsTab.tsx",
 )?.source;
 assert.ok(projects);
-assert.match(projects, /const latestProject = await onEnsureNotes\(selectedProject\)/);
+assert.match(projects, /privateProject: true/);
+assert.match(hook, /mutateWork\(workRevisionRef.current, "project-note.save"/);
 
 console.log("governed note controller contract: shared lifecycle verified");

@@ -178,9 +178,14 @@ await Promise.all([
 ]);
 await cp(path.join(INSTALLED_O2_ROOT, ".state"), stateOverlay, { recursive: true, preserveTimestamps: true });
 await mkdir(path.join(stateOverlay, "radcontrol-runtime", "tmp"), { recursive: true, mode: 0o700 });
+const operatorWorkSource = path.join(tempRoot, "operator-work");
+await mkdir(operatorWorkSource, {mode:0o700});
+try { await cp(path.join(path.dirname(INSTALLED_O2_ROOT), "operator-work"), operatorWorkSource, {recursive:true}); }
+catch (error) { if (error.code !== "ENOENT") throw error; }
 const sandboxedApp = await createBubblewrapApplication({
   app,
   tempRoot,
+  operatorWorkSource,
   home: acceptanceHome,
   xdgCacheHome,
   xdgConfigHome,

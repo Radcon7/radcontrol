@@ -15,7 +15,7 @@ assert root.parent.name.startswith("radcontrol-tauri-e2e-")
 assert (root / "wave11-fixture.json").is_file()
 verb = sys.argv[1]
 intercepted = {
-    "sentinel.status", "sentinel.host.current", "sentinel.host.check", "empire.todo.list",
+    "sentinel.status", "sentinel.host.current", "sentinel.host.check", "empire.todo.list", "operator.work.list",
     "workstation.cleanup.pop_upgrade.preview", "workstation.cleanup.pop_upgrade.apply",
 }
 # Fail closed: an accidental fixture click must never fall through to a real
@@ -39,6 +39,10 @@ hot = phase in {"nonactionable", "multiple", "remaining"}
 zombie = phase in {"multiple", "remaining"}
 if verb == "empire.todo.list":
     result = json.loads((root / "wave11-tasks.json").read_text())
+elif verb == "operator.work.list":
+    tasks = json.loads((root / "wave11-tasks.json").read_text())
+    result = {"ok": True, "revision": tasks.get("revision", 1),
+              "data": {"tasks": tasks["items"], "events": [], "initiatives": [], "projectNotes": []}}
 elif verb == "workstation.cleanup.pop_upgrade.preview":
     result = {"ok": True, "candidate": {"id": "service:pop-upgrade.service", "service": "pop-upgrade.service"},
               "requiresOperatorConfirmation": True, "requiresOsAuthorization": phase != "invalid-preview"}

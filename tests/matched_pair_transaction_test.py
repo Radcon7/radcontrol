@@ -858,5 +858,39 @@ class MatchedPairTransactionTests(unittest.TestCase):
         self.assertIn("candidate binary does not match transaction newPair", completed.stderr)
 
 
+class OperatorWorkRollbackTests(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.root=Path(self.temp.name)
+        self.new=self.root/'new';self.old=self.root/'old'
+        for root in [self.new,self.old]: (root/'scripts').mkdir(parents=True)
+        (self.new/'scripts/o2_operator_work_store.py').write_text('# private authority capability')
+        self.tx=object.__new__(transaction_module.Transaction)
+        self.tx.test_root=self.root;self.tx.old_pair={'radcontrolSourceSha':'1'*40}
+
+    def test_current_legacy_generation_blocks_before_any_promotion(self):
+        with self.assertRaisesRegex(RuntimeError,'prior O2 cannot recognize private work'):
+            self.tx.assert_operator_work_rollback(self.new,self.old)
+        self.assertFalse((self.root/'operator-work').exists())
+        self.assertTrue(self.old.exists());self.assertTrue(self.new.exists())
+
+    def test_old_client_cannot_be_admitted_from_new_provider_only(self):
+        (self.old/'scripts/o2_operator_work_store.py').write_text('# compatible reader')
+        (self.old/'scripts/o2_contract_info.sh').write_text('operator.work.list operator.work.mutate')
+        with patch.object(transaction_module,'git_run',return_value=json.dumps({'requiredCapabilities':['empire.todo.list']})):
+            with self.assertRaisesRegex(RuntimeError,'client cannot display current authority'):
+                self.tx.assert_operator_work_rollback(self.new,self.old)
+        with patch.object(transaction_module,'git_run',return_value=json.dumps({'requiredCapabilities':['operator.work.list','operator.work.mutate']})) as git:
+            self.tx.assert_operator_work_rollback(self.new,self.old)
+            self.assertEqual(git.call_args.args[2], '1'*40+':contracts/o2-radcontrol/v1/client.json')
+
+    def test_existing_private_bytes_prevent_legacy_candidate_bypass(self):
+        (self.new/'scripts/o2_operator_work_store.py').unlink()
+        work=self.root/'operator-work';work.mkdir();(work/'work.json').write_text('protected bytes')
+        with self.assertRaisesRegex(RuntimeError,'rollback incompatible'):
+            self.tx.assert_operator_work_rollback(self.new,self.old)
+        self.assertEqual((work/'work.json').read_text(),'protected bytes')
+
+
 if __name__ == "__main__":
     unittest.main()

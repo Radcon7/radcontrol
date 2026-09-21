@@ -5,6 +5,7 @@ import "./App.css";
 
 import { SecurityTab } from "./components/security/SecurityTab";
 
+import { Overview } from "./components/overview/Overview";
 import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
 import { LegalHubTab } from "./components/paste-tabs/LegalHubTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
@@ -49,6 +50,7 @@ type LibraryTabKey = "notes" | "legal";
 type DocTabKey = LibraryTabKey;
 
 type TabKey =
+  | "overview"
   | "projects"
   | "infrastructure"
   | "agents"
@@ -67,6 +69,7 @@ const DOC_TABS: DocTabMeta[] = [
 ];
 
 const ALL_TABS: TabKey[] = [
+  "overview",
   "projects",
   "infrastructure",
   "agents",
@@ -91,6 +94,7 @@ function tabLabel(t: TabKey): string {
   if (isDocTab(t)) return docTabMeta(t).label;
 
   const m: Record<Exclude<TabKey, DocTabKey>, string> = {
+    overview: "Overview",
     projects: "Projects",
     infrastructure: "Infrastructure",
     agents: "Agents",
@@ -164,7 +168,7 @@ type ProjectBootstrapResult = {
 };
 
 export default function App() {
-  const [tab, setTab] = useState<TabKey>("projects");
+  const [tab, setTab] = useState<TabKey>("overview");
   const [busy, setBusy] = useState(false);
   const [portsBusy, setPortsBusy] = useState(false);
 
@@ -551,33 +555,6 @@ export default function App() {
     }
   }
 
-  async function ensureProjectNotes(project: ProjectRow): Promise<ProjectRow> {
-    if (busy) return project;
-
-    const shouldEnsure = !project.notesAvailable;
-    if (shouldEnsure) {
-      const payload = encodeO2JsonPayload({ projectKey: project.key });
-      const verb = `project_note.ensure.${payload}`;
-
-      setBusy(true);
-      appendLog(
-        `\n[o2] Ensure notes for ${project.label} → run_o2("${redactO2Verb(verb)}")\n`,
-      );
-      try {
-        const out = await runO2Text(verb);
-        appendLog(out || "(no output)");
-      } catch (e) {
-        appendLog("\n[o2] ERROR:\n" + fmtErr(e));
-      } finally {
-        setBusy(false);
-      }
-    }
-
-    const rows = await loadRegistry();
-    const latest = rows.find((p) => p.key === project.key);
-    return latest ?? project;
-  }
-
   async function showOriginalProjectRequest(project: ProjectRow): Promise<void> {
     if (!project.intakeAvailable || !project.intakePath) {
       appendLog(`[original-request] no governed request is available for ${project.label}`);
@@ -862,7 +839,7 @@ export default function App() {
       </header>
 
       <main className="mainArea">
-        {tab === "projects" ? (
+        {tab === "overview" ? <Overview onSecurity={() => void requestTabChange("sentinel")} registerBeforeTabChangeSaver={registerBeforeTabChangeSaver} /> : tab === "projects" ? (
           <>
             <ProjectsTab
               projects={projects}
@@ -887,7 +864,6 @@ export default function App() {
               }
               onSetRetired={setProjectRetired}
               onSetLaunchDate={setProjectLaunchDate}
-              onEnsureNotes={ensureProjectNotes}
               registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
               statusForRow={statusForRow}
             />

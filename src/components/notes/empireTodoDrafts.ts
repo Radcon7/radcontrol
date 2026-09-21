@@ -7,8 +7,8 @@ const sameContent = (a: EmpireTodoItem, b: EmpireTodoItem) =>
 
 /** One editor's write queue, not concurrency control for independent O2 writers. */
 export function createTodoDrafts(api: {
-  save: (item: EmpireTodoItem) => Promise<EmpireTodoSaveResponse>;
-  complete: (id: string, timeline: { title: string; notes: string } | null) => Promise<EmpireTodoSaveResponse>;
+  save: (item: EmpireTodoItem, expectedRevision: number) => Promise<EmpireTodoSaveResponse>;
+  complete: (id: string, timeline: { title: string; notes: string } | null, expectedRevision: number) => Promise<EmpireTodoSaveResponse>;
 }, changed: () => void) {
   const saved = new Map<string, EmpireTodoItem>();
   const drafts = new Map<string, EmpireTodoItem>();
@@ -16,6 +16,7 @@ export function createTodoDrafts(api: {
   let tail: Promise<boolean> = Promise.resolve(true);
   let saving: string | null = null;
   let completing = false;
+  let revision = 0;
   let error = "";
   const rows = () => [...saved.keys()].map((id) => drafts.get(id) || saved.get(id)!);
   const notify = () => changed();
@@ -26,6 +27,7 @@ export function createTodoDrafts(api: {
   };
   const accept = (response: EmpireTodoSaveResponse) => {
     if (!response.ok || !response.item) throw new Error(response.error || "Task save failed");
+    if (Number.isInteger(response.revision)) revision = response.revision;
     return response.item;
   };
   async function drain(id: string): Promise<boolean> {
@@ -38,7 +40,7 @@ export function createTodoDrafts(api: {
       if (!draft.title.trim()) { error = "A task title is required. Your draft is retained."; notify(); return false; }
       saving = id; error = ""; notify();
       try {
-        const result = accept(await api.save({ ...draft }));
+        const result = accept(await api.save({ ...draft }, revision));
         saved.set(id, result); added.delete(id);
         // An older reply must not erase edits made while it was in flight.
         if (drafts.get(id) === draft) drafts.delete(id);
@@ -55,7 +57,7 @@ export function createTodoDrafts(api: {
     state: () => ({ saving, error, completing }),
     dirty: (id: string) => drafts.has(id),
     isNew: (id: string) => added.has(id),
-    load(items: EmpireTodoItem[]) { saved.clear(); drafts.clear(); added.clear(); for (const item of items) saved.set(item.id, item); notify(); },
+    load(items: EmpireTodoItem[], loadedRevision = 0) { revision = loadedRevision; saved.clear(); drafts.clear(); added.clear(); for (const item of items) saved.set(item.id, item); notify(); },
     update(id: string, field: TodoTextField, value: string) {
       const baseline = saved.get(id); if (!baseline) return;
       const draft = { ...(drafts.get(id) || baseline), [field]: value };
@@ -73,7 +75,7 @@ export function createTodoDrafts(api: {
         for (const dirty of [...drafts.keys()]) if (!await drain(dirty)) return false;
         const item = saved.get(id); if (!item) return false;
         saving = id; error = ""; notify();
-        const result = accept(await api.complete(id, withTimeline ? { title: `${item.title} completed`, notes: "Completed from Empire To-Do." } : null));
+        const result = accept(await api.complete(id, withTimeline ? { title: `${item.title} completed`, notes: "Completed from Empire To-Do." } : null, revision));
         saved.set(id, result); return true;
       } catch (reason) { error = reason instanceof Error ? reason.message : String(reason); return false; }
       finally { saving = null; completing = false; notify(); }

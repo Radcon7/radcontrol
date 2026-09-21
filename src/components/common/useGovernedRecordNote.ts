@@ -3,10 +3,13 @@ import { persistGovernedRecordNote } from "./governedRecordNote";
 import { O2FileNotFoundError, readO2File } from "./o2Files";
 import { fileTimestamp } from "./fileTimestamp";
 
+import { listWork, mutateWork } from "../overview/workApi";
+
 type ResolvePath = () => Promise<string | null> | string | null;
 
 type Options = {
   recordKey: string | null;
+  privateProject?: boolean;
   recordVersion?: string | number | null;
   path?: string | null;
   resolvePath?: ResolvePath;
@@ -27,10 +30,12 @@ type Result = {
   status: string;
   onTextChange: (value: string) => void;
   flush: () => Promise<boolean>;
+  discardAndReload: () => void;
 };
 
 export function useGovernedRecordNote({
   recordKey,
+  privateProject = false,
   recordVersion = null,
   path: directPath = null,
   resolvePath,
@@ -39,6 +44,7 @@ export function useGovernedRecordNote({
   debounceMs = 700,
   registerBeforeTabChangeSaver,
 }: Options): Result {
+  const [reload, setReload] = useState(0);
   const [path, setPath] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,6 +54,10 @@ export function useGovernedRecordNote({
   const [exists, setExists] = useState(false);
 
   const revisionRef = useRef(0);
+  const workRevisionRef = useRef(0);
+  const projectKeyRef = useRef<string | null>(null);
+  const privateProjectRef = useRef(privateProject);
+  privateProjectRef.current = privateProject;
   const pathRef = useRef<string | null>(null);
   const textRef = useRef("");
   const loadingRef = useRef(false);
@@ -74,7 +84,12 @@ export function useGovernedRecordNote({
       setSaving(true);
       setError("");
       try {
-        const nextSavedAt = await persistGovernedRecordNote(notePath, content);
+        let nextSavedAt: number | null;
+        if (privateProjectRef.current) {
+          const result = await mutateWork(workRevisionRef.current, "project-note.save", { id: projectKeyRef.current, content });
+          workRevisionRef.current = result.revision;
+          nextSavedAt = Date.parse(result.data.projectNotes.find(n => n.id === projectKeyRef.current)?.updatedAt || "") || null;
+        } else nextSavedAt = await persistGovernedRecordNote(notePath, content);
         if (
           revisionRef.current === revision &&
           pathRef.current === notePath
@@ -137,6 +152,17 @@ export function useGovernedRecordNote({
       setError("");
 
       try {
+        if (privateProject) {
+          const result = await listWork();
+          if (cancelled) return;
+          const note = result.data.projectNotes.find(n => n.id === recordKey);
+          workRevisionRef.current = result.revision; projectKeyRef.current = recordKey;
+          revisionRef.current = 0;
+          setPath(`operator-work/project-notes/${recordKey}`);
+          setText(note?.content || ""); setExists(!!note);
+          setSavedAt(note?.updatedAt ? Date.parse(note.updatedAt) || null : null);
+          return;
+        }
         const nextPath = resolvePathRef.current
           ? await resolvePathRef.current()
           : directPath;
@@ -194,7 +220,7 @@ export function useGovernedRecordNote({
     return () => {
       cancelled = true;
     };
-  }, [directPath, flush, recordKey, recordVersion]);
+  }, [directPath, flush, recordKey, recordVersion, privateProject, reload]);
 
   useEffect(() => {
     if (!recordKey || !path || loading || revisionRef.current === 0) return;
@@ -239,5 +265,6 @@ export function useGovernedRecordNote({
     status,
     onTextChange,
     flush,
+    discardAndReload: () => { if (!saving) { revisionRef.current = 0; setReload(n => n + 1); } },
   };
 }

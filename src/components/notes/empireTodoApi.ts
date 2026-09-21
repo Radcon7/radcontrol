@@ -1,32 +1,18 @@
-import {
-  runO2ParsedJson,
-  runO2StdinPayloadParsedJson,
-} from "../common/o2Client";
-import type {
-  EmpireTodoItem,
-  EmpireTodoListResponse,
-  EmpireTodoSaveResponse,
-} from "./empireTodoModel";
-
+import { listWork, mutateWork } from "../overview/workApi";
+import type { EmpireTodoItem, EmpireTodoListResponse, EmpireTodoSaveResponse } from "./empireTodoModel";
 export async function listEmpireTodos(): Promise<EmpireTodoListResponse> {
-  return runO2ParsedJson<EmpireTodoListResponse>(
-    "empire.todo.list",
-    "Could not load the Empire To-Do List",
-    "Empire To-Do List returned invalid data",
-  );
+  const result = await listWork();
+  return { ok:true, items:result.data.tasks, revision:result.revision, seededCount:0, persistence:"o2-operator-work/v1", path:"operator-work/work.json" };
 }
-
-export async function saveEmpireTodo(
-  item: EmpireTodoItem,
-): Promise<EmpireTodoSaveResponse> {
-  return runO2StdinPayloadParsedJson<EmpireTodoSaveResponse>(
-    "empire.todo.save",
-    { item },
-    "Could not save the Empire To-Do item",
-    "Empire To-Do save returned invalid data",
-  );
+async function save(expectedRevision: number, operation: string, value: unknown): Promise<EmpireTodoSaveResponse> {
+  const result = await mutateWork(expectedRevision, operation, value);
+  const item = result.data.tasks.find(row => row.id === result.recordId);
+  if (!item) throw new Error("Saved task was not returned");
+  return {ok:true,item,revision:result.revision,itemCount:result.data.tasks.length,seededCount:0};
 }
-
-export async function completeEmpireTodo(itemId: string, timeline: { title: string; notes: string } | null): Promise<EmpireTodoSaveResponse> {
-  return runO2StdinPayloadParsedJson<EmpireTodoSaveResponse>("empire.todo.complete", { itemId, timeline }, "Could not complete the Empire To-Do item", "Empire To-Do completion returned invalid data");
+export function saveEmpireTodo(item: EmpireTodoItem, expectedRevision: number): Promise<EmpireTodoSaveResponse> {
+  return save(expectedRevision, "task.save", item);
+}
+export function completeEmpireTodo(itemId: string, timeline: { title:string; notes:string } | null, expectedRevision: number): Promise<EmpireTodoSaveResponse> {
+  return save(expectedRevision, "task.complete", {itemId,timeline});
 }
