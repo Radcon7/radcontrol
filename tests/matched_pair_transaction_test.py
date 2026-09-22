@@ -908,6 +908,11 @@ class OperatorWorkRollbackTests(unittest.TestCase):
         (self.new/'scripts/o2_operator_work_store.py').write_text('# private authority capability')
         self.tx=object.__new__(transaction_module.Transaction)
         self.tx.test_root=self.root;self.tx.old_pair={'radcontrolSourceSha':'1'*40}
+        for root, source in [(self.old, '1'*40), (self.new, '2'*40)]:
+            pin = root / transaction_module.COMPATIBILITY_PATH
+            pin.parent.mkdir(parents=True)
+            pin.write_text(json.dumps({'radcontrolSourceSha': source}))
+            pin.chmod(0o600)
 
     capabilities = ['operator.work.list','operator.work.mutate','operator.work.private-v1']
 
@@ -959,6 +964,31 @@ class OperatorWorkRollbackTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'candidate incompatible'):
             self.tx.assert_operator_work_rollback(self.new,self.old)
         self.assertEqual((work/'work.json').read_text(),'protected bytes')
+
+    def test_active_private_work_rejects_missing_or_substituted_old_source(self):
+        self.bridge(); (self.root/'operator-work').mkdir()
+        (self.old/'scripts/o2_operator_work_store.py').write_text('# compatible reader')
+        (self.old/'scripts/o2_contract_info.sh').write_text(' '.join(self.capabilities))
+        for old_pair in [{}, {'radcontrolSourceSha': '2'*40}, {'radcontrolSourceSha': '3'*40}]:
+            with self.subTest(old_pair=old_pair):
+                self.tx.old_pair = old_pair
+                with patch.object(transaction_module, 'git_run', return_value=json.dumps({'requiredCapabilities': self.capabilities})):
+                    with self.assertRaisesRegex(RuntimeError, 'rollback source provenance missing or mismatched'):
+                        self.tx.assert_operator_work_rollback(self.new, self.old)
+
+    def test_schema_accepts_explicit_rollback_source_without_invalidating_history(self):
+        path = self.root/'manifest.json'
+        base = {'o2Commit':'a'*40, 'o2Tree':'b'*40, 'binarySha256':'c'*64}
+        payload = dict(schemaVersion=2, transactionId='fixture', primaryO2Repository='', live={}, stage={},
+                       oldPair=base, newPair={**base, 'radcontrolSourceSha':'d'*40, 'radcontrolSourceTree':'e'*40})
+        for old_pair in [base, {**base, 'radcontrolSourceSha':'f'*40}]:
+            payload['oldPair'] = old_pair
+            path.write_text(json.dumps(payload));path.chmod(0o600)
+            self.assertEqual(transaction_module.load_manifest(path, 'preflight')['oldPair'], old_pair)
+        payload['oldPair'] = {**base, 'radcontrolSourceSha': 'not-a-source'}
+        path.write_text(json.dumps(payload))
+        with self.assertRaisesRegex(RuntimeError, 'full lowercase'):
+            transaction_module.load_manifest(path, 'preflight')
 
 
 if __name__ == "__main__":

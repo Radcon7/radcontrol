@@ -169,7 +169,12 @@ def load_manifest(path: Path, action: str) -> dict[str, Any]:
     )
     for name in ("oldPair", "newPair"):
         pair = payload.get(name)
-        if not isinstance(pair, dict) or set(pair) != pair_keys[name]:
+        allowed = [pair_keys[name]]
+        if schema_version == 2 and name == "oldPair":
+            # Historical manifests remain readable; active private Work still
+            # requires the explicit provenance below, never a candidate fallback.
+            allowed.append(OLD_PAIR_KEYS | {"radcontrolSourceSha"})
+        if not isinstance(pair, dict) or set(pair) not in allowed:
             raise fail(f"{name} has an unexpected identity shape for schemaVersion {schema_version}")
         for key, value in pair.items():
             expected_length = 64 if key in SHA256_KEYS else 40
@@ -349,6 +354,10 @@ class Transaction:
         provider = existing_file(root / "scripts/o2_contract_info.sh", "work provider").read_text()
         if not required <= set(provider.split()):
             raise fail(f"operator-work {label} provider capability missing")
+        compatibility, _ = capture_evidence_json(
+            root / COMPATIBILITY_PATH, f"{label} work compatibility", maximum=64_000)
+        if not pair.get("radcontrolSourceSha") or pair["radcontrolSourceSha"] != compatibility.get("radcontrolSourceSha"):
+            raise fail(f"operator-work {label} source provenance missing or mismatched")
         repository = Path(__file__).resolve().parents[1]
         try:
             client = json.loads(git_run(repository, "show", pair["radcontrolSourceSha"] + ":contracts/o2-radcontrol/v1/client.json"))

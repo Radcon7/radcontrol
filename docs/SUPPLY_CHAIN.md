@@ -125,6 +125,15 @@ or incomplete results fail before receipt publication; the receiver independentl
 rejects missing, mismatched or incomplete installed matrix receipts. A generic
 passing precheck cannot stand in for these scenarios.
 
+Newly prepared `oldPair` evidence includes `radcontrolSourceSha`, resolved from
+the clean installed O2 compatibility pin and verified installed binary, never
+from candidate source. Active private Work requires that source to match the
+rollback runtime's pin and declare the private-store client capabilities.
+Historical three-field `oldPair` manifests remain readable for their existing
+recovery semantics; missing provenance never admits an active-private-Work
+release. O2's coordinator generates and freshly checks this identity before
+staging/readiness; operators must not repair retained manifests by hand.
+
 New schema-v2 receiver transitions are:
 
 `promote -> new-live -> accept-first -> new-live-first-accepted -> rollback -> old-live -> verify-rollback -> old-live-verified -> reinstall -> new-live-awaiting-final -> accept-final -> new-live-final`.
