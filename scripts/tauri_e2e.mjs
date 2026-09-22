@@ -1,3 +1,4 @@
+import { configureWorkspace } from './native_workspace.mjs';
 import { assertWave1Work, assertSentinelHealth, assertSentinelDetails } from "./native_sentinel_assertions.mjs";
 import { runWave2aAcceptance } from "./native_wave2a_acceptance.mjs";
 import { runWave11Acceptance } from "./native_wave11_acceptance.mjs";
@@ -456,6 +457,7 @@ try {
   console.error("[e2e] waiting for isolated desktop session");
   await eventually(() => request(base, "/status"), "start tauri-driver");
   sessionId = await startDesktopSession(base, sandboxedApp);
+  configureWorkspace(base,sessionId,{evidenceDir:path.join(fixture.tempRoot,'navigation'),fixture:{kind:'e2e'}});
 
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "render isolated RadControl");
   await click(base, sessionId, 'button[title^="Show the installed app build"]');
@@ -578,6 +580,7 @@ try {
   await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]'), "show Timeline-completed task in completed history");
   await request(base, `/session/${sessionId}`, "DELETE");
   sessionId = await startDesktopSession(base, sandboxedApp);
+  configureWorkspace(base,sessionId,{evidenceDir:path.join(fixture.tempRoot,'navigation'),fixture:{kind:'e2e'}});
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "restart isolated RadControl");
   await click(base, sessionId, '[data-testid="tab-notes"]');
   await click(base, sessionId, '[data-testid="notes-mode-notes"]');

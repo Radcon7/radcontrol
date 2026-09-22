@@ -16,6 +16,7 @@ assert (root / "wave11-fixture.json").is_file()
 verb = sys.argv[1]
 intercepted = {
     "sentinel.status", "sentinel.host.current", "sentinel.host.check", "empire.todo.list", "operator.work.list",
+    "sentinel.host.explain_fans",
     "workstation.cleanup.pop_upgrade.preview", "workstation.cleanup.pop_upgrade.apply",
 }
 # Fail closed: an accidental fixture click must never fall through to a real
@@ -37,7 +38,17 @@ now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 updater = phase in {"actionable", "multiple", "failure", "invalid-preview"}
 hot = phase in {"nonactionable", "multiple", "remaining"}
 zombie = phase in {"multiple", "remaining"}
-if verb == "empire.todo.list":
+if verb == "sentinel.host.explain_fans":
+    token = state.get("fanFixture")
+    if not isinstance(token, str) or not token.startswith("ordered-"):
+        print(json.dumps({"ok": False, "error": "Test-owned fan fixture absent"}))
+        sys.exit(1)
+    metrics = json.loads((root / "wave11-current.json").read_text())["metrics"]
+    for metric in metrics.values():
+        metric.update(status="healthy", measuredAt=now, reason="Synthetic fan observation")
+    result = {"ok": True, "explanation": "Native fan fixture " + token,
+              "report": {"ok": True, "guardian": "host", "metrics": metrics}}
+elif verb == "empire.todo.list":
     result = json.loads((root / "wave11-tasks.json").read_text())
 elif verb == "operator.work.list":
     tasks = json.loads((root / "wave11-tasks.json").read_text())

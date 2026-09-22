@@ -1,3 +1,4 @@
+import { assertOrderedNavigation } from './native_workspace_sequence.mjs';
 import assert from 'node:assert/strict';
 import { assertWidthReceipt } from './native_width_contract.mjs';
 import { readFile } from 'node:fs/promises';
@@ -10,6 +11,7 @@ export function assertWave11Scenarios(result) {
   assert.equal(result?.realRepair, false, 'Wave 1.1 scenarios must be synthetic');
   assert.deepEqual(result?.scenarios, wave11Matrix.scenarios, 'complete Wave 1.1 scenario matrix required');
   assert.equal(result?.simulatedApplyCount, 2, 'confirmation and failure simulations required');
+  assertOrderedNavigation(result.orderedNavigation);
   return result;
 }
 

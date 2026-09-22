@@ -1,13 +1,16 @@
+import { request, assertWorkspace } from './native_workspace.mjs';
+export { request } from './native_workspace.mjs';
 import assert from "node:assert/strict";
 
 // Foreground measurement health and the operator card are different truths:
 // retained findings can require attention while current measurements are healthy.
 export async function assertSentinelHealth(base, sessionId, expected = {}) {
+  await assertWorkspace(base, sessionId, 'sentinel');
   const state = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-    script: `const heroes = document.querySelectorAll('.sentinelOperatorHero');
-      const cards = document.querySelectorAll('[data-testid="sentinel-current-now"]');
+    script: `const heroes = document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.sentinelOperatorHero');
+      const cards = document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-current-now"]');
       const hero = heroes[0], card = cards[0];
-      const summary = document.querySelector('[data-testid="sentinel-status-header"]');
+      const summary = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('[data-testid="sentinel-status-header"]');
       const states = [...(card?.classList || [])].filter(c => c.startsWith('sentinelOperatorState-'));
       return {
         heroCount: heroes.length, currentCount: cards.length,
@@ -19,7 +22,7 @@ export async function assertSentinelHealth(base, sessionId, expected = {}) {
         reviewCount: card?.querySelectorAll('[data-testid="sentinel-review-current"]').length || 0,
         summaryCardCount: summary?.children.length || 0,
         summaryText: summary?.innerText || '',
-        removedCardCount: document.querySelectorAll('[data-testid="sentinel-last-full-scan"]').length
+        removedCardCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-last-full-scan"]').length
       };`,
     args: [],
   });
@@ -63,10 +66,12 @@ export function assertSentinelHealthState(state, expected = {}) {
 }
 
 export async function assertSentinelDetails(base, sessionId, expectedOpen) {
+  await assertWorkspace(base, sessionId, 'sentinel');
   const state = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-    script: `const disclosures = [...document.querySelectorAll('details.sentinelAdvancedWorkspace')];
+    script: `const root = document.querySelector('[data-testid="radcon-sentinel"]');
+      const disclosures = [...root.querySelectorAll('details.sentinelAdvancedWorkspace')];
       const details = disclosures[0];
-      const panel = document.querySelector('[data-testid="sentinel-health-measurements"]');
+      const panel = root.querySelector('[data-testid="sentinel-health-measurements"]');
       const summary = details?.querySelector(':scope > summary');
       const retainedContent = Boolean(panel && details?.contains(panel) && !summary?.contains(panel));
       if (details?.open && panel) panel.scrollIntoView({ block: 'start' });
@@ -87,7 +92,7 @@ export async function assertSentinelDetails(base, sessionId, expectedOpen) {
         open: details?.open ?? null,
         retainedContent,
         measurementVisible: retainedContent && !suppressed && hasLayout,
-        measurementTextExposed: document.body.innerText.includes('MEASUREMENT DETAILS'),
+        measurementTextExposed: root.innerText.includes('MEASUREMENT DETAILS'),
         technicalTextExposed: /MEASUREMENT DETAILS|ADVANCED SYSTEM INFORMATION|SYSTEM EVIDENCE|SCAN COVERAGE|SAFETY & PERMISSIONS/.test(document.body.innerText),
         measurementHit: Boolean(hit && panel?.contains(hit)),
       };`,
@@ -109,11 +114,12 @@ export function assertSentinelDetailsState(state, expectedOpen) {
 
 
 export async function guardianActivityGeometry(base, sessionId) {
+  await assertWorkspace(base, sessionId, 'sentinel');
   return request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `
-      const header = document.querySelector('.guardianActivityColumns');
-      const scroll = document.querySelector('.guardianActivityScroll');
-      const rows = [...document.querySelectorAll('[data-testid="guardian-activity-row"]')];
+      const header = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('.guardianActivityColumns');
+      const scroll = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('.guardianActivityScroll');
+      const rows = [...document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="guardian-activity-row"]')];
       const rect = (node) => {
         const value = node.getBoundingClientRect();
         return { top: value.top, right: value.right, bottom: value.bottom, left: value.left, width: value.width, height: value.height };
@@ -182,19 +188,6 @@ export function assertGuardianActivityGeometry(layout, label, { desktop }) {
       });
     }
   }
-}
-
-
-export async function request(base, route, method = "GET", body) {
-  const response = await fetch(`${base}${route}`, {
-    signal: AbortSignal.timeout(30_000),
-    method,
-    headers: body ? { "content-type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload.value?.error) throw new Error(`${method} ${route}: ${JSON.stringify(payload)}`);
-  return payload.value;
 }
 
 

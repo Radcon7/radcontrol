@@ -252,6 +252,9 @@ class MatchedPairTransactionTests(unittest.TestCase):
                                   [*matrix["harnessFiles"], "scripts/tauri_production_readonly.mjs"]},
                               **{key: value[key] for key in ["o2Sha", "radcontrolSha", "artifactSha256"]})
         value['wave11']['wave2a']['taskProgress'] = dict(ok=True, checks=matrix['taskProgressScenarios'], width=value['wave11']['wave2a']['width'])
+        value['wave11']['orderedNavigation'] = dict(ok=True, route=matrix['orderedNavigation']['route'],
+            regressions=matrix['orderedNavigation']['regressions'],
+            runs=[dict(run=i,ok=True) for i in range(1,matrix['orderedNavigation']['runs']+1)])
         target = self.stage / "evidence" / f"native-{phase}.json"
         target.write_text(json.dumps(value), encoding="utf-8")
         target.chmod(0o600)
@@ -484,6 +487,31 @@ class MatchedPairTransactionTests(unittest.TestCase):
                 result = self.action_result("accept-first")
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("complete task progress native receipt required", result.stdout + result.stderr)
+        self.receipt("first")
+        self.action("accept-first")
+
+    def test_acceptance_requires_complete_ordered_navigation(self):
+        self.action("promote")
+        for defect in ("missing", "route", "regressions", "runs", "failure", "duplicate", "boolean"):
+            with self.subTest(defect=defect):
+                self.receipt("first")
+                target = self.stage / "evidence/native-first.json"
+                receipt = json.loads(target.read_text())
+                navigation = receipt["wave11"]["orderedNavigation"]
+                if defect == "missing":
+                    del receipt["wave11"]["orderedNavigation"]
+                elif defect in ("route", "regressions", "runs"):
+                    navigation[defect].pop()
+                elif defect == "failure":
+                    navigation["runs"][-1]["ok"] = False
+                elif defect == "duplicate":
+                    navigation["runs"][-1]["run"] = 1
+                else:
+                    navigation["runs"][0]["run"] = True
+                target.write_text(json.dumps(receipt))
+                result = self.action_result("accept-first")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("complete ordered workspace navigation receipt required", result.stdout + result.stderr)
         self.receipt("first")
         self.action("accept-first")
 

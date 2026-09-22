@@ -1,3 +1,5 @@
+import { runOrderedWorkspaceSequence } from './native_workspace_sequence.mjs';
+import { assertWorkspace, workspaceText, workspaceFixture } from './native_workspace.mjs';
 import assert from 'node:assert/strict';
 import { cp, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
@@ -10,10 +12,14 @@ import { assertWave11Scenarios, wave11Matrix } from './native_wave11_receipt.mjs
 // The production dispatcher and installed runtime are never replaced.
 export async function runWave11Acceptance({ fixture, base, sessionId, request, click, eventually }) {
   await assertWritableFixtureIsolation(fixture);
-  const execute = (script, args = []) => request(base, `/session/${sessionId}/execute/sync`, 'POST', {script, args});
+  let activeWorkspace=null;
+  const execute = async (script, args = []) => {
+    if(activeWorkspace) await assertWorkspace(base,sessionId,activeWorkspace);
+    return request(base, `/session/${sessionId}/execute/sync`, 'POST', {script, args});
+  };
   const tap = selector => click(base, sessionId, selector);
-  const count = selector => execute('return document.querySelectorAll(arguments[0]).length;', [selector]);
-  const text = selector => execute('return document.querySelector(arguments[0])?.innerText || "";', [selector]);
+  const count = selector => execute('return (arguments[1] ? document.querySelector(arguments[1]) : document).querySelectorAll(arguments[0]).length;', [selector, activeWorkspace === 'sentinel' ? '[data-testid="radcon-sentinel"]' : null]);
+  const text = selector => activeWorkspace ? workspaceText(base,sessionId,activeWorkspace,selector) : execute('return document.querySelector(arguments[0])?.innerText || "";', [selector]);
   const health = (declaredCurrent, cardState, fixCount, reviewCount) => eventually(
     () => assertSentinelHealth(base, sessionId, {declaredCurrent, cardState, fixCount, reviewCount}),
     'semantic measurement health, operator presentation and governed actions');
@@ -106,10 +112,13 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   assert.deepEqual(await readFile(fixture.empireTodoPath),todoBefore,'read-only work navigation must not rewrite records');
 
   async function scenario(phase) {
+    activeWorkspace=null;
+    workspaceFixture(base,sessionId,{phase});
     await tap('[data-testid="tab-projects"]');
     await writeFile(statePath,JSON.stringify({phase}));
     await tap('[data-testid="tab-sentinel"]');
     await tap('[data-testid="security-mode-sentinel"]');
+    activeWorkspace='sentinel';
     await eventually(async()=>assert.match(await text('[data-testid="sentinel-current-now"]'),/Measured:/),'fresh scenario');
   }
   await scenario('healthy');
@@ -182,17 +191,22 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   assert.equal(await applyCount(),2);
   pass('invalid-preview');
   await tap('[data-testid="security-mode-empire_operations"]');
-  await eventually(async()=>assert.match(await text('.securityControlRoom'), /OPERATIONAL TRUTH/),'Empire Operations');
+  activeWorkspace='empire_operations';
+  await eventually(async()=>assert.match(await text('[data-testid=empire-operations-workspace]'), /OPERATIONAL TRUTH/),'Empire Operations');
   await tap('[data-testid="security-mode-security_guardian"]');
-  await eventually(async()=>assert.match(await text('.securityControlRoom'), /VISIBILITY NOW/),'Security Guardian');
+  activeWorkspace='security_guardian';
+  await eventually(async()=>assert.match(await text('[data-testid=security-guardian-workspace]'), /VISIBILITY NOW/),'Security Guardian');
   pass('three-security-workspaces');
   await tap('button[title^="Show the installed app build"]');
+  activeWorkspace='runtime';
   await eventually(async()=>assert.match(await text('.runtimeModalCard'), /Runtime & Build/),'Runtime Diagnostics');
   assert.ok(await count('.runtimeModalCard'));
   await tap('.runtimeModalCard .btnGhost');
   pass('runtime-diagnostics');
   assert.deepEqual(await readFile(fixture.empireTodoPath),todoBefore,'scenarios must not write task data');
-  const result = {ok:true, realRepair:false, scenarios: wave11Matrix.scenarios.filter(name=>passed.has(name)), simulatedApplyCount:await applyCount()};
+  activeWorkspace=null;
+  const orderedNavigation=await runOrderedWorkspaceSequence({fixture,base,sessionId,request});
+  const result = {ok:true, realRepair:false,orderedNavigation, scenarios: wave11Matrix.scenarios.filter(name=>passed.has(name)), simulatedApplyCount:await applyCount()};
   assertWave11Scenarios(result);
   if(evidence) await writeFile(path.join(evidence,'native-wave11-results.json'),JSON.stringify({...result,calls:await calls()},null,2));
   console.error('[native] complete shared Wave 1.1 synthetic scenario matrix passed');

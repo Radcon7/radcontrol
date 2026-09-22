@@ -1,3 +1,4 @@
+import { orderedWorkspaceRoute, workspaceRegressions } from '../scripts/native_workspace_sequence.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { nativeWidthContract } from '../scripts/native_width_contract.mjs';
@@ -8,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 const width=()=>({...nativeWidthContract('production'),observations:[{requested:1650,observed:1650},{requested:1500,observed:1500}]});
-const complete=()=>({ok:true,realRepair:false,scenarios:[...wave11Matrix.scenarios],simulatedApplyCount:2,wave2a:{ok:true,bridgeReadOnly:true,readiness:[...wave11Matrix.workReadinessScenarios],width:width(),taskProgress:{ok:true,checks:[...wave11Matrix.taskProgressScenarios],width:width()}}});
+const complete=()=>({ok:true,realRepair:false,orderedNavigation:{ok:true,route:orderedWorkspaceRoute,regressions:workspaceRegressions,runs:[1,2,3,4,5].map(run=>({run,ok:true}))},scenarios:[...wave11Matrix.scenarios],simulatedApplyCount:2,wave2a:{ok:true,bridgeReadOnly:true,readiness:[...wave11Matrix.workReadinessScenarios],width:width(),taskProgress:{ok:true,checks:[...wave11Matrix.taskProgressScenarios],width:width()}}});
 for(const entrypoint of ['tauri_candidate_precheck.mjs','tauri_production_readonly.mjs']) {
   test(`${entrypoint}: missing or incomplete matrix cannot become release acceptance`,async()=>{
     const ids={o2Sha:'a'.repeat(40),radcontrolSha:'b'.repeat(40),artifactSha256:'c'.repeat(64)};

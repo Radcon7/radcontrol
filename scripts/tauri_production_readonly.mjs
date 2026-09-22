@@ -1,3 +1,4 @@
+import { configureWorkspace, nativeClick, assertWorkspace, workspaceText, assertFanResult, captureWorkspaceFailure } from './native_workspace.mjs';
 import { runReleaseWave11 } from "./native_wave11_release.mjs";
 import { transactionReceiptContext, writeTransactionReceipt } from "./native_transaction_receipt.mjs";
 import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, request } from "./native_sentinel_assertions.mjs";
@@ -107,16 +108,7 @@ async function element(base, sessionId, selector) {
   return value["element-6066-11e4-a52e-4f735466cecf"];
 }
 
-async function click(base, sessionId, selector) {
-  await eventually(async () => {
-    const id = await element(base, sessionId, selector);
-    await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-      script: "arguments[0].scrollIntoView({ block: 'center', inline: 'center' });",
-      args: [{ "element-6066-11e4-a52e-4f735466cecf": id }],
-    });
-    await request(base, `/session/${sessionId}/element/${id}/click`, "POST", {});
-  }, `click ${selector}`);
-}
+const click = nativeClick;
 
 async function bodyText(base, sessionId) {
   const id = await element(base, sessionId, "body");
@@ -226,12 +218,13 @@ try {
     capabilities: { alwaysMatch: { browserName: "wry", "tauri:options": { application: sandboxedApp } } },
   });
   sessionId = session.sessionId;
+  configureWorkspace(base, sessionId, {evidenceDir: receiptContext ? path.join(path.dirname(receiptContext.output), `navigation-${receiptContext.binding.phase}`) : `${tempRoot}-navigation`, fixture:{kind:'installed-readonly',phase:receiptContext?.binding.phase || 'standalone'}});
   assert.ok(sessionId, "desktop session id is required");
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "render installed RadControl");
 
   await click(base, sessionId, 'button[title^="Show the installed app build"]');
   const diagnostics = await eventually(async () => {
-    const text = await bodyText(base, sessionId);
+    const text = await workspaceText(base, sessionId, 'runtime');
     assert.match(text, /READY\s*Listener-free production mode/);
     assert.match(text, /LIVE PRODUCT READY/);
     if (!rollbackSmoke || activatedWork) {
@@ -431,17 +424,22 @@ try {
   assert.match(await eventually(() => bodyText(base, sessionId), "render Infrastructure"), /INFRASTRUCTURE ASSETS/);
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
   const sentinelText = await eventually(async () => {
-    const text = await bodyText(base, sessionId);
-    assert.ok(/Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/i.test(text), "Security control-room navigation is missing");
+    const text = await workspaceText(base, sessionId, 'sentinel');
+    await assertWorkspace(base, sessionId, 'sentinel');
+    // The three Security labels are asserted independently below; content is scoped.
+    await assertWorkspace(base, sessionId, 'sentinel');
     assert.ok(/Is my computer okay\?[\s\S]*CURRENT NOW[\s\S]*RECENT EVENTS[\s\S]*Details/.test(text), "Sentinel primary hierarchy is incorrect");
+    await assertWorkspace(base, sessionId, 'sentinel');
     assert.ok(!text.includes("Advanced evidence, controls, and workstation records"), "The retired Advanced umbrella disclosure is still rendered");
     return text;
   }, "render the installed Radcon Sentinel control room");
   await assertSentinelDetails(base, sessionId, false);
   await click(base, sessionId, '.sentinelAdvancedWorkspace > summary');
   await assertSentinelDetails(base, sessionId, true);
-  const detailsText = await bodyText(base, sessionId);
+  const detailsText = await workspaceText(base, sessionId, 'sentinel');
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.match(detailsText, /MEASUREMENT DETAILS[\s\S]*ADVANCED SYSTEM INFORMATION/);
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.match(detailsText, /Refreshes every 60 seconds/);
   for (const heading of ["SYSTEM EVIDENCE", "SCAN COVERAGE", "MAINTENANCE & UPDATES", "AUTOMATION", "WORKSTATION RECORD & NOTES", "SAFETY & PERMISSIONS"]) assert.ok(detailsText.includes(heading), `Advanced area ${heading} is missing`);
   await click(base, sessionId, '.sentinelAdvancedWorkspace > summary');
@@ -458,13 +456,19 @@ try {
       };`,
     args: [],
   });
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.deepEqual(securityNavigation.labels, ["Radcon Sentinel", "Empire Operations", "Security Guardian"], "Security navigation must contain only the three workspace titles");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(securityNavigation.miniDescriptionCount, 0, "Security navigation must not render mini descriptions");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(securityNavigation.titleFontSizes.every((size) => size >= 18), "Security workspace titles must use larger typography");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal((sentinelText.match(/CURRENT NOW/g) || []).length, 1, "Current Now must have one primary home");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal((sentinelText.match(/Fans are loud/g) || []).length, 1, "The primary loud-fan action must appear exactly once");
   const currentHealthPresentation = await assertSentinelHealth(base, sessionId);
   const desktopActivityGeometry = await guardianActivityGeometry(base, sessionId);
+  await assertWorkspace(base, sessionId, 'sentinel');
   assertGuardianActivityGeometry(desktopActivityGeometry, "installed desktop Guardian Activity", { desktop: true });
   if (process.env.RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH) {
     const activityElement = await element(base, sessionId, '[data-testid="recent-guardian-activity"]');
@@ -477,17 +481,20 @@ try {
   }
   const processFindingPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `var visible = [];
-      document.querySelectorAll('.guardianFindingList strong').forEach(function (node) { visible.push(node.textContent || ''); });
-      document.querySelectorAll('.sentinelCoverageGrid small').forEach(function (node) { visible.push(node.textContent || ''); });
+      document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.guardianFindingList strong').forEach(function (node) { visible.push(node.textContent || ''); });
+      document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.sentinelCoverageGrid small').forEach(function (node) { visible.push(node.textContent || ''); });
       var retained = [];
-      document.querySelectorAll('.guardianScanEvidence pre').forEach(function (node) { retained.push(node.textContent || ''); });
+      document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.guardianScanEvidence pre').forEach(function (node) { retained.push(node.textContent || ''); });
       return { visible: visible.join(' | '), retained: retained.join(' | ') };`,
     args: [],
   });
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(!processFindingPresentation.visible.includes("high-CPU process, stale test browser, or zombie process"), "installed Sentinel must not collapse visible process evidence into a generic finding");
   if (processFindingPresentation.retained.includes("high-CPU process, stale test browser, or zombie process")) {
+    await assertWorkspace(base, sessionId, 'sentinel');
     assert.match(processFindingPresentation.visible, /PID \d+|zombie process(?:es)? detected · parent evidence:/, "legacy process findings must display exact evidence retained in their immutable snapshot");
   }
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(!sentinelText.includes("Review / Fix"), "installed Sentinel must not imply a repair on every finding");
 
   const sentinelEventsPath = path.join(stateOverlay, "sentinel", "events.jsonl");
@@ -497,33 +504,43 @@ try {
   await click(base, sessionId, '[data-testid="sentinel-diagnose-fix"]');
   const diagnosisResult = await eventually(async () => {
     const result = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-      script: `const card = document.querySelector('[data-testid="sentinel-diagnosis-result"]'); return {
+      script: `const card = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('[data-testid="sentinel-diagnosis-result"]'); return {
         text: card?.textContent || '',
-        bodyText: document.body.innerText,
-        diagnoseCount: document.querySelectorAll('[data-testid="sentinel-diagnose-fix"]').length,
-        fullScanCount: document.querySelectorAll('[data-testid="sentinel-health-check"]').length,
-        foregroundStamp: document.querySelector('.sentinelHealthMeasurements .sentinelSectionHeading strong')?.textContent || '',
-        repairButtonCount: Array.from(document.querySelectorAll('button')).filter((button) => /^(Fix now|Authorize & fix)$/.test(button.textContent?.trim() || '')).length,
+        bodyText: document.querySelector('[data-testid="radcon-sentinel"]').innerText,
+        diagnoseCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-diagnose-fix"]').length,
+        fullScanCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-health-check"]').length,
+        foregroundStamp: document.querySelector('[data-testid="radcon-sentinel"]').querySelector('.sentinelHealthMeasurements .sentinelSectionHeading strong')?.textContent || '',
+        repairButtonCount: Array.from(document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('button')).filter((button) => /^(Fix now|Authorize & fix)$/.test(button.textContent?.trim() || '')).length,
       };`,
       args: [],
     });
+    await assertWorkspace(base, sessionId, 'sentinel');
     assert.match(result.text, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/);
+    await assertWorkspace(base, sessionId, 'sentinel');
     assert.match(result.text, /Scan:[\s\S]*Duration:[\s\S]*Repair ran: NO[\s\S]*PRIMARY FINDING[\s\S]*SUPPORTING EVIDENCE[\s\S]*NEXT STEP/);
     return result;
   }, "complete one installed Sentinel diagnosis", 60_000);
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(diagnosisResult.diagnoseCount, 1, "Diagnose must remain a distinct stable control after completion");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(diagnosisResult.fullScanCount, 1, "Run Full Scan must remain a separate manual control after diagnosis");
   const newDiagnosisEvents = (await readChainRecords(sentinelEventsPath)).slice(eventsBeforeDiagnosis.length);
   const newDiagnosisActions = (await readChainRecords(sentinelActionsPath)).slice(actionsBeforeDiagnosis.length);
   const deepEvents = newDiagnosisEvents.filter((record) => record.type === "host.deep-check");
   const deepActions = newDiagnosisActions.filter((record) => record.requestedCapability === "host.inspect.deep");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(deepEvents.length, 1, "Diagnose must run exactly one deterministic deep-check workflow");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(deepActions.length, 1, "Diagnose must retain exactly one deep-check action record");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(deepEvents[0].observedValues?.repairOccurred, false, "Diagnosis must not claim an automatic repair");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(Array.isArray(deepEvents[0].observedValues?.findings), "deep-check event must retain projected findings");
   for (const finding of deepEvents[0].observedValues.findings) {
+    await assertWorkspace(base, sessionId, 'sentinel');
     assert.ok(finding.findingKey && finding.summary && Array.isArray(finding.evidence), "each installed finding must retain identity, exact summary, and evidence");
     if (["high-current-cpu", "stale-test-browser", "zombie-process"].includes(finding.kind)) {
+      await assertWorkspace(base, sessionId, 'sentinel');
       assert.ok(diagnosisResult.bodyText.includes(finding.summary), `operator UI omitted exact process finding: ${finding.summary}`);
     }
   }
@@ -533,12 +550,14 @@ try {
   await eventually(async () => {
     const state = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
       script: `return {
-        result: document.querySelector('[data-testid="sentinel-diagnosis-result"]')?.textContent || '',
-        foregroundStamp: document.querySelector('.sentinelHealthMeasurements .sentinelSectionHeading strong')?.textContent || '',
+        result: document.querySelector('[data-testid="radcon-sentinel"]').querySelector('[data-testid="sentinel-diagnosis-result"]')?.textContent || '',
+        foregroundStamp: document.querySelector('[data-testid="radcon-sentinel"]').querySelector('.sentinelHealthMeasurements .sentinelSectionHeading strong')?.textContent || '',
       };`,
       args: [],
     });
+    await assertWorkspace(base, sessionId, 'sentinel');
     assert.notEqual(state.foregroundStamp, diagnosisResult.foregroundStamp, "foreground measurement timestamp has not refreshed yet");
+    await assertWorkspace(base, sessionId, 'sentinel');
     assert.match(state.result, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/, "diagnosis result disappeared after foreground refresh");
     return state;
   }, "retain diagnosis across a later foreground refresh", 75_000);
@@ -548,13 +567,13 @@ try {
   await assertSentinelDetails(base, sessionId, true);
   const sentinelPresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `
-      const activity = document.querySelector('.guardianActivityScroll');
-      const measurementList = document.querySelector('.sentinelMeasurementList');
-      const measurementPanel = document.querySelector('[data-testid="sentinel-health-measurements"]');
-      const small = document.querySelector('.securityControlRoom .sentinelShell small');
-      const normalRowInvestigateButtons = document.querySelectorAll('.guardianActivityRow-healthy [data-testid="guardian-review-finding"]');
-      const shell = document.querySelector('.securityControlRoom .sentinelShell');
-      const importantReading = document.querySelector('.securityControlRoom .sentinelMeasurementRow > strong');
+      const activity = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('.guardianActivityScroll');
+      const measurementList = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('.sentinelMeasurementList');
+      const measurementPanel = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('[data-testid="sentinel-health-measurements"]');
+      const small = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('.securityControlRoom .sentinelShell small');
+      const normalRowInvestigateButtons = document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.guardianActivityRow-healthy [data-testid="guardian-review-finding"]');
+      const shell = document.querySelector('[data-testid="radcon-sentinel"]');
+      const importantReading = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('.securityControlRoom .sentinelMeasurementRow > strong');
       const measurementStyle = measurementList ? getComputedStyle(measurementList) : null;
       const activityStyle = activity ? getComputedStyle(activity) : null;
       return {
@@ -569,41 +588,59 @@ try {
         smallFontSize: small ? Number.parseFloat(getComputedStyle(small).fontSize) : null,
         normalFontSize: shell ? Number.parseFloat(getComputedStyle(shell).fontSize) : null,
         importantReadingFontSize: importantReading ? Number.parseFloat(getComputedStyle(importantReading).fontSize) : null,
-        measurementRowCount: document.querySelectorAll('[data-testid="sentinel-measurement-row"]').length,
-        activityRowCount: document.querySelectorAll('[data-testid="guardian-activity-row"]').length,
-        olderActivityToggleCount: document.querySelectorAll('.guardianActivityToggle').length,
-        automationControlCount: document.querySelectorAll('.sentinelAutomationControl').length,
-        automationSelectCount: document.querySelectorAll('.sentinelAutomationControl select').length,
-        automationToggleCount: document.querySelectorAll('[data-testid="sentinel-automation-toggle"]').length,
-        advancedUmbrellaCount: document.querySelectorAll('details.sentinelAdvancedWorkspace').length,
-        advancedAreaCount: document.querySelectorAll('[data-testid^="advanced-"]').length,
-        fanActionCount: document.querySelectorAll('[data-testid="sentinel-fans-loud"]').length,
+        measurementRowCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-measurement-row"]').length,
+        activityRowCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="guardian-activity-row"]').length,
+        olderActivityToggleCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.guardianActivityToggle').length,
+        automationControlCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.sentinelAutomationControl').length,
+        automationSelectCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.sentinelAutomationControl select').length,
+        automationToggleCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-automation-toggle"]').length,
+        advancedUmbrellaCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('details.sentinelAdvancedWorkspace').length,
+        advancedAreaCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid^="advanced-"]').length,
+        fanActionCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-fans-loud"]').length,
         normalRowInvestigateButtonCount: normalRowInvestigateButtons.length,
       };
     `,
     args: [],
   });
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.activityOverflowY, "auto", "Recent Guardian Activity must be visibly bounded and scrollable");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.measurementOverflowY, "auto", "Current Measurements must be a bounded scrollable row list");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(sentinelPresentation.activityMarginLeft >= 16 && sentinelPresentation.activityMarginRight >= 16, "Recent Guardian Activity must leave outer-scroll gutters");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(sentinelPresentation.measurementMarginLeft >= 16 && sentinelPresentation.measurementMarginRight >= 16, "Current Measurements must leave outer-scroll gutters");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(sentinelPresentation.measurementWidth < sentinelPresentation.measurementPanelWidth - 30, "the measurement list must not consume the complete panel width");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.measurementRowCount, 8, "all eight current measurements must render as rows");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(sentinelPresentation.activityRowCount > 0 && sentinelPresentation.activityRowCount <= 6, "Recent Guardian Activity must show at most six grouped events");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.olderActivityToggleCount, 1, "Older Guardian history must remain explicitly reachable");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.automationControlCount, 1, "Automatic Guardian must have one authoritative control surface");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.automationSelectCount, 1, "Automatic Guardian must have one frequency selector");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.automationToggleCount, 1, "Automatic Guardian must have one enable control");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.advancedUmbrellaCount, 1, "Advanced System Information must remain inside the single Details disclosure");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.advancedAreaCount, 6, "Advanced System Information must retain exactly six distinct areas");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.fanActionCount, 1, "the loud-fan action must have one primary control");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(sentinelPresentation.normalFontSize >= 15, "Security operator text must remain 15px or larger");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(sentinelPresentation.smallFontSize >= 14, "Security supporting typography must remain 14px or larger");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(sentinelPresentation.importantReadingFontSize >= 18, "Important measurements must remain visually prominent");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(sentinelPresentation.normalRowInvestigateButtonCount, 0, "Investigate / Fix must not appear on normal rows");
   const workstationRecords = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `return ['host-configuration-note', 'host-operator-notes'].map((testId) => {
-      const field = document.querySelector('[data-testid="' + testId + '"]');
+      const field = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('[data-testid="' + testId + '"]');
       return {
         testId,
         readOnly: field?.readOnly ?? false,
@@ -613,8 +650,11 @@ try {
     });`,
     args: [],
   });
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.deepEqual(workstationRecords.map((row) => row.readOnly), [true, true], "tracked workstation source records must be read-only in the installed app");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(workstationRecords.every((row) => row.valueLength > 0), "canonical workstation source records must remain visible");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(workstationRecords.every((row) => row.status.includes("Canonical source · read-only here")), "the installed workstation record boundary must be understandable");
 
   await click(base, sessionId, '.sentinelAdvancedWorkspace > summary');
@@ -623,39 +663,42 @@ try {
   const eventsBeforeFan = await readChainRecords(sentinelEventsPath);
   const actionsBeforeFan = await readChainRecords(sentinelActionsPath);
   await click(base, sessionId, '[data-testid="sentinel-fans-loud"]');
-  await eventually(async () => {
-    const text = await bodyText(base, sessionId);
-    assert.match(text, /FAN INVESTIGATION[\s\S]*(NO FIX NEEDED|FIX AVAILABLE)[\s\S]*Outcome retained in Sentinel history/);
-  }, "run the installed loud-fan workflow", 45_000);
+  await assertFanResult(base, sessionId, {timeoutMs:45_000});
   const newFanEvents = (await readChainRecords(sentinelEventsPath)).slice(eventsBeforeFan.length);
   const newFanActions = (await readChainRecords(sentinelActionsPath)).slice(actionsBeforeFan.length);
   const fanEvent = newFanEvents.find((record) => record.type === "host.fans-check");
   const fanAction = newFanActions.find((record) => record.requestedCapability === "host.inspect.fans");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(fanEvent?.id && fanEvent.observedValues?.keyMeasurements, "the installed fan workflow must retain a bounded Sentinel event with measurements");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(fanEvent.observedValues.actionOccurred, false, "routine fan observation must not claim a repair");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(fanAction?.evidenceIds?.includes(fanEvent.id), "the Sentinel action must bind the retained fan event");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(fanAction.executionResult, "observed", "the retained fan action must record its observation outcome");
 
   await click(base, sessionId, '.guardianActivityToggle');
   const expandedActivity = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `return {
-      rowCount: document.querySelectorAll('[data-testid="guardian-activity-row"]').length,
-      text: document.querySelector('[data-testid="recent-guardian-activity"]')?.textContent || '',
+      rowCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="guardian-activity-row"]').length,
+      text: document.querySelector('[data-testid="radcon-sentinel"]').querySelector('[data-testid="recent-guardian-activity"]')?.textContent || '',
     };`,
     args: [],
   });
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(expandedActivity.rowCount, 20, "Expanded Guardian history must remain bounded to the latest 20 records");
+  await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(expandedActivity.text.trim().length > 0, "Expanded Guardian history must render retained evidence");
 
   await click(base, sessionId, '[data-testid="security-mode-empire_operations"]');
   await eventually(async () => {
-    const text = await bodyText(base, sessionId);
+    const text = await workspaceText(base, sessionId, 'empire_operations');
     assert.match(text, /Development-system integrity[\s\S]*OPERATIONAL TRUTH[\s\S]*SOURCE GOLDEN[\s\S]*INSTALLED GOLDEN[\s\S]*AUTOMATION HEALTH[\s\S]*REGISTRY \+ TOPOLOGY[\s\S]*SECURITY \+ AUDIT/);
     assert.ok(
       text.includes(`O2 ${expectedO2Sha.slice(0, 9)} · RadControl ${expectedRadcontrolSha.slice(0, 9)}`),
       "Empire Operations did not render the exact accepted source pair",
     );
-    assert.match(text, /CI \+ CODEQLNot connected yet/);
+    assert.match(text, /CI \+ CODEQL\s*Not connected yet/);
     assert.match(text, /Empire Map[\s\S]*Snapshot[\s\S]*Empire Sweep/);
   }, "render truthful installed Empire Operations");
   const operationalTruthScroll = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
@@ -675,7 +718,7 @@ try {
 
   await click(base, sessionId, '[data-testid="security-mode-security_guardian"]');
   await eventually(async () => {
-    const text = await bodyText(base, sessionId);
+    const text = await workspaceText(base, sessionId, 'security_guardian');
     assert.match(text, /Online technology estate[\s\S]*VISIBILITY NOW[\s\S]*PROVIDERS \+ SECURITY SYSTEMS[\s\S]*REGISTERED WEBSITES \+ APPS/);
     assert.match(text, /CONTROL READINESS[\s\S]*View User Activity[\s\S]*Authentication Logs[\s\S]*Security Events[\s\S]*Suspicious Activity[\s\S]*Lock Down RCE[\s\S]*Maintenance \/ Restrict Access/);
     assert.match(text, /Not connected yet/i);
@@ -716,6 +759,7 @@ try {
 }
 } catch (error) {
   acceptanceError = error;
+  if(sessionId) await captureWorkspaceFailure(base,sessionId,null,'production-native-assertion').catch(()=>{});
 } finally {
   await cleanup();
 }
