@@ -60,6 +60,18 @@ export function EmpireTodoWorkspace({ mode = "queued", busy, registerBeforeTabCh
     cancelTimer();
     if (await store.complete(candidate.id, withTimeline)) setCandidate(null);
   }
+  const rowContext = (item: EmpireTodoItem) => <span className="todoRowContext">
+    {empireTodoLane(item.status) === "other" ? <span className="todoRowState">State: {item.status || "Not recorded"}</span> : null}
+    {item.currentState ? <span className="todoRowState" title={item.currentState}>{item.currentState}</span> : null}
+    <span className="todoRowNext" title={item.nextActions}><b>Next</b> {item.nextActions || "Not recorded"}</span>
+    {item.status === "Blocked" ? <span className="todoRowBlocker" title={item.dependencies || item.currentState}><b>Blocked by</b> {item.dependencies || item.currentState || "Not recorded"}</span> : null}
+    {item.acceptanceCriteria ? <span className="todoRowAcceptance" title={item.acceptanceCriteria}><b>Done when</b> {item.acceptanceCriteria}</span> : null}
+  </span>;
+  const selectButton = (item: EmpireTodoItem) => <button className="todoRowSelect" data-testid={`empire-todo-select-${item.id}`}
+    type="button" aria-pressed={selected?.id === item.id} onClick={() => setSelectedId(progressWorkspace && selectedId === item.id ? null : item.id)}>
+    <span className="todoRowTitle"><strong>{item.title || "New task"}</strong>{!progressWorkspace ? <TaskProgress item={item} /> : null}</span>
+    {!progressWorkspace ? rowContext(item) : null}
+  </button>;
   const detail = selected ? <aside className="todoDetail" data-testid="empire-todo-detail" aria-label="Selected task detail">
         <div className="todoDetailHeading"><TaskProgress item={selected} />{progressWorkspace ? <button className="btn btnGhost btnCompact" type="button" onClick={() => setSelectedId(null)} aria-label="Close task detail">Close</button> : null}<span role="status">{saving === selected.id ? "Saving…" : store.dirty(selected.id) ? "Unsaved" : "Saved"}</span></div>
         <label className="empireTodoField"><span>Task</span><input className="input" aria-label="Task title" value={selected.title} disabled={editorDisabled} onChange={(event) => update("title", event.target.value)} onBlur={() => void flush()} /></label>
@@ -89,15 +101,11 @@ export function EmpireTodoWorkspace({ mode = "queued", busy, registerBeforeTabCh
           <div className="empireTodoGroupHeading"><strong>{group.label}</strong><span>{group.items.length}</span></div>
           {group.items.map((item) => <div className="taskRowWithDetail" key={item.id}><article className={`empireTodoRow ${selected?.id === item.id ? "isSelected" : ""}`} data-testid={`empire-todo-item-${item.id}`}>
             <input aria-label={`Complete ${item.title}`} type="checkbox" checked={isEmpireTodoComplete(item)} disabled={disabled || isEmpireTodoComplete(item) || store.isNew(item.id) || !EMPIRE_TODO_STATUSES.includes(item.status)} onChange={() => setCandidate(item)} />
-            <button className="todoRowSelect" data-testid={`empire-todo-select-${item.id}`} type="button" aria-pressed={selected?.id === item.id} onClick={() => setSelectedId(progressWorkspace && selectedId === item.id ? null : item.id)}>
-              <span className="todoRowTitle"><strong>{item.title || "New task"}</strong>{!progressWorkspace ? <TaskProgress item={item} /> : null}</span>
-              {progressWorkspace ? <TaskProgress item={item} rail /> : null}
-              {empireTodoLane(item.status) === "other" ? <span className="todoRowState">State: {item.status || "Not recorded"}</span> : null}
-              {item.currentState ? <span className="todoRowState" title={item.currentState}>{item.currentState}</span> : null}
-              <span className="todoRowNext" title={item.nextActions}><b>Next</b> {item.nextActions || "Not recorded"}</span>
-              {item.status === "Blocked" ? <span className="todoRowBlocker" title={item.dependencies || item.currentState}><b>Blocked by</b> {item.dependencies || item.currentState || "Not recorded"}</span> : null}
-              {item.acceptanceCriteria ? <span className="todoRowAcceptance" title={item.acceptanceCriteria}><b>Done when</b> {item.acceptanceCriteria}</span> : null}
-            </button>
+            {progressWorkspace ? <div className="taskProgressContent">
+              <TaskProgress item={item} rail title={selectButton(item)} disabled={disabled || !!error || completing}
+                onAssess={readOnly ? undefined : async percent => { cancelTimer(); store.assessProgress(item.id, percent); return store.flush(); }} />
+              {rowContext(item)}
+            </div> : selectButton(item)}
           </article>{progressWorkspace && selected?.id === item.id ? detail : null}</div>)}
         </section>)}
         {!visible.length ? <div className="surfaceEmptyState">{query ? "No matching tasks." : `No ${showCompleted ? "completed" : progressWorkspace ? "underway" : view === "other" ? "deferred or unclassified" : "queued"} tasks.`}</div> : null}

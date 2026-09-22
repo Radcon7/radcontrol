@@ -4570,11 +4570,19 @@ pre {
 .empireProgressWorkspace .todoRowSelect { gap: 7px; }
 .empireProgressWorkspace .todoRowTitle strong { font-size: 17px; }
 .empireProgressWorkspace .todoRowNext { font-size: 15px; }
-.taskProgressRail { display: flex; width: 100%; flex-direction: column; align-items: stretch; gap: 7px; }
-.taskProgressRail .todoProgressLabel { text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
-.taskProgressTrack { display: block; width: 100%; height: 7px; border-radius: 4px; border: 1px solid currentColor; opacity: .8; background: repeating-linear-gradient(110deg, currentColor 0 2px, transparent 2px 12px); }
-.todoProgress-blocked .taskProgressTrack { background: repeating-linear-gradient(90deg, currentColor 0 10px, transparent 10px 17px); }
-.todoProgress-done .taskProgressTrack { background: currentColor; }
+.taskProgressContent { width:100%; min-width:0; display:grid; gap:7px; }
+.todoRowContext { display:grid; gap:3px; min-width:0; }
+.taskProgressRail { display:grid; width:100%; min-width:0; gap:8px; --progress-color:#a9d5ff; }
+.taskProgressRail.todoProgress-blocked { --progress-color:#ffcf82; }
+.taskProgressRail.todoProgress-done { --progress-color:#8ce6b5; }
+.taskProgressHeading { display:flex; gap:16px; justify-content:space-between; align-items:center; min-width:0; }
+.taskProgressHeading .todoRowSelect { flex:1; }
+.taskProgressValue { font-size:22px; line-height:1.2; white-space:nowrap; color:var(--progress-color); }
+.taskProgressStatus { text-transform:uppercase; letter-spacing:.04em; font-size:12px; font-weight:600; }
+.taskProgressNumber { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); }
+.taskProgressNumber .input { width:76px; min-width:0; padding:3px 6px; }
+.taskSetProgress { justify-self:start; }
+@media(max-width:850px) { .taskProgressHeading { gap:8px; align-items:flex-start; } .taskProgressValue { font-size:18px; } .taskProgressNumber { flex-wrap:wrap; } }
 .empireProgressWorkspace .todoDetail { margin: 0 12px 14px 40px; max-height: 420px; overflow-y: auto; }
 .empireProgressWorkspace .todoDetailHeading { position: sticky; top: 0; background: var(--panel); z-index: 1; }
 .sentinelHealthActions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 5px; }

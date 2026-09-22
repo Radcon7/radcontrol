@@ -36,6 +36,11 @@ assert.throws(
   () => assertCompatibleO2Contract({ ...valid, capabilities: [] }),
   /missing required capabilities/,
 );
+assert.throws(
+  () => assertCompatibleO2Contract({ ...valid, capabilities: valid.capabilities.filter(value => value !== 'operator.work.task-progress-v1') }),
+  /operator\.work\.task-progress-v1/,
+  'an older provider must not silently discard task assessments',
+);
 
 const transport = await readFile(
   new URL("../src/components/common/o2Client.ts", import.meta.url),

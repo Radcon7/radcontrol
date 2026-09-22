@@ -44,7 +44,7 @@ assert.match(component, /Acceptance \/ done condition/);
 assert.doesNotMatch(component, /Large notes field/);
 assert.match(component, /Blocked by/);
 assert.match(component, /createTodoDrafts/);
-assert.match(await readFile(new URL("../src/components/notes/TaskProgress.tsx", import.meta.url), "utf8"), /data-progress-basis="lifecycle"/);
+assert.match(await readFile(new URL("../src/components/notes/TaskProgress.tsx", import.meta.url), "utf8"), /"completion" : item.progress \? "operator" : "unassessed"/);
 assert.match(component, /Add to Timeline/);
 assert.match(component, /Complete without Timeline/);
 assert.match(component, /Cancel/);

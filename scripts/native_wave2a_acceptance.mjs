@@ -121,7 +121,81 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
     await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1000});
   }
   assert.deepEqual(await readFile(fixture.empireTodoPath),legacy,'native work edits must not touch tracked legacy records');
+  const taskProgress = await runTaskProgressAcceptance({command,exec,tap,set,shot,request,base,sessionId,eventually,width,workFile});
+  assert.deepEqual(await readFile(fixture.empireTodoPath),legacy,'task assessment never writes legacy records');
   readiness.push(...await assertNativeWorkRecovery(runtimeOptions));
-  const result={ok:true,width,bridgeReadOnly:expectBridge,readiness,checks:['overview','six-momentum-rows','assessed-unassessed-ongoing','blocked-missing-next','needs-you','explicit-pins','meaningful-events','native-review-save','explicit-proposal-acceptance','task-reference','timeline-reference',width.kind,'migrated-work-surfaces','legacy-unchanged'],evidence};
+  const result={ok:true,width,bridgeReadOnly:expectBridge,readiness,taskProgress,checks:['overview','six-momentum-rows','assessed-unassessed-ongoing','blocked-missing-next','needs-you','explicit-pins','meaningful-events','native-review-save','explicit-proposal-acceptance','task-reference','timeline-reference',width.kind,'migrated-work-surfaces','legacy-unchanged'],evidence};
   await writeFile(path.join(evidence,'acceptance.json'),JSON.stringify(result)+'\n',{mode:0o600});return result;
+}
+
+async function runTaskProgressAcceptance({command,exec,tap,set,shot,request,base,sessionId,eventually,width,workFile}) {
+  let state=command(); const initiatives=structuredClone(state.data.initiatives);
+  const {progress:ignored,...template}=state.data.tasks[0];
+  const fixtures=[['15','In Progress',15],['45','In Progress',45],['72','In Progress',72],['blocked','Blocked',72],['unassessed','In Progress',null],['done','Complete',100]];
+  for(const [id,status,percent] of fixtures) {
+    const task={...template,id:`wave2b-${id}`,title:`Wave 2B ${id}`,status,category:'Now',currentState:'',nextActions:'Review the next proven result',dependencies:status==='Blocked'?'Await fixture approval':'',acceptanceCriteria:''};
+    if(percent!==null)task.progress={percent,method:'operator',reviewedAt:''};
+    state=command('task.save',task,state.revision);
+  }
+  const read=async()=>JSON.parse(await readFile(workFile,'utf8'));
+  const task=async id=>(await read()).data.tasks.find(r=>r.id===`wave2b-${id}`);
+  const row=id=>`[data-testid="empire-todo-item-wave2b-${id}"]`;
+  async function open() {
+    await tap('[data-testid="tab-projects"]');await tap('[data-testid="tab-notes"]');await tap('[data-testid="notes-mode-progress"]');
+    await eventually(async()=>assert.ok(await exec('return !!document.querySelector(arguments[0]);',[row('15')])),'task progress reload');
+    await set('[aria-label="Find tasks"]','Wave 2B');
+  }
+  await open();
+  for(const [id,status,percent] of fixtures.filter(r=>r[0]!=='done')) {
+    const observed=await exec('const r=document.querySelector(arguments[0]);return {text:r.innerText,range:r.querySelector("input[type=range]")?.value??null};',[row(id)]);
+    assert.match(observed.text,new RegExp(status==='Blocked'?'Blocked':'In Progress','i'));
+    if(percent===null) {assert.match(observed.text,/Unassessed/);assert.doesNotMatch(observed.text,/%/);assert.equal(observed.range,null);}
+    else {assert.match(observed.text,new RegExp(`${percent}%`));assert.equal(Number(observed.range),percent);}
+  }
+  const observations=[];
+  for(const requested of width.widths) {
+    await request(base,`/session/${sessionId}/window/rect`,'POST',{width:requested,height:1100});
+    const geometry=await exec(`return {width:innerWidth,rows:[...document.querySelectorAll('.empireTodoRow')].map(r=>({left:r.getBoundingClientRect().left,right:r.getBoundingClientRect().right,available:r.querySelector('.taskProgressContent').clientWidth,track:r.querySelector('.progressRailTrack')?.clientWidth,scroll:r.scrollWidth,client:r.clientWidth}))};`);
+    observations.push({requested,observed:geometry.width});assert.equal(geometry.rows.length,5);
+    for(const r of geometry.rows){assert.ok(r.left>=0&&r.right<=geometry.width);assert.ok(r.scroll<=r.client+1);if(r.track)assert.ok(r.track>r.available*.7,'dominant full-width task rail');}
+    await shot(`wave2b-progress-${requested}`);
+  }
+  assertWidthReceipt({...width,observations},width.kind==='production-supported-width'?'production':'e2e');
+  await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1100});
+  await exec('document.querySelector(arguments[0]).scrollIntoView({block:"end"});',[row('blocked')]);
+  await shot('wave2b-blocked-and-unassessed');
+  await tap('[data-testid="empire-todo-completed-view"]');
+  await eventually(async()=>assert.match(await exec('return document.querySelector(arguments[0])?.innerText;',[row('done')]),/100%/),'Done is 100');
+  assert.equal(await exec('return document.querySelector(arguments[0]).querySelectorAll("input[type=range]").length;',[row('done')]),0);
+  await shot('wave2b-done-100');await tap('[data-testid="empire-todo-active-view"]');
+  await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1100});
+  await tap('[aria-label="Set progress for Wave 2B unassessed"]');
+  const number='[aria-label="Percent for Wave 2B unassessed"]', range='[aria-label="Progress for Wave 2B unassessed"]';
+  assert.equal(await exec('return document.querySelector(arguments[0]).value;',[number]),'');
+  const before=(await read()).revision;
+  await set(number,'0');assert.equal((await read()).revision,before,'typing previews without saving');
+  await exec('document.querySelector(arguments[0]).dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",bubbles:true}));',[number]);
+  await eventually(async()=>assert.equal((await task('unassessed')).progress?.percent,0),'explicit zero saved');
+  assert.equal((await read()).revision,before+1);
+  await exec('document.querySelector(arguments[0]).focus();',[range]);
+  const element=await request(base,`/session/${sessionId}/element`,'POST',{using:'css selector',value:range});
+  await request(base,`/session/${sessionId}/element/${element['element-6066-11e4-a52e-4f735466cecf']}/value`,'POST',{text:'\uE014',value:['\uE014']});
+  await eventually(async()=>assert.equal((await task('unassessed')).progress.percent,1),'native keyboard assessment');
+  const dragBefore=(await read()).revision;
+  const rect=await exec('const r=document.querySelector(arguments[0]);r.scrollIntoView({block:"center"});const b=r.getBoundingClientRect();return {x:b.x,y:b.y,width:b.width,height:b.height};',[range]);
+  const actions=async actions=>request(base,`/session/${sessionId}/actions`,'POST',{actions:[{type:'pointer',id:'progress-pointer',parameters:{pointerType:'mouse'},actions}]});
+  await actions([{type:'pointerMove',duration:0,x:Math.round(rect.x+10+(rect.width-20)*.01),y:Math.round(rect.y+rect.height/2)},{type:'pointerDown',button:0},{type:'pointerMove',duration:200,x:Math.round(rect.x+10+(rect.width-20)*.72),y:Math.round(rect.y+rect.height/2)}]);
+  assert.equal((await read()).revision,dragBefore,'dragging never continuously writes');
+  await actions([{type:'pointerUp',button:0}]);
+  await eventually(async()=>assert.equal((await read()).revision,dragBefore+1),'pointer release commits once');
+  const dragged=(await task('unassessed')).progress.percent;assert.ok(dragged>=70&&dragged<=74);
+  await open();assert.equal(await exec('return Number(document.querySelector(arguments[0]).value);',[range]),dragged);
+  state=command();command('task.save',{...state.data.tasks.find(r=>r.id==='wave2b-15'),notes:'Independent fixture writer'},state.revision);
+  const conflictBefore=await read();await set(number,'33');
+  await exec('document.querySelector(arguments[0]).dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",bubbles:true}));',[number]);
+  await eventually(async()=>assert.match(await exec('return document.querySelector(".panelError")?.innerText;'),/Work changed in another editor[\s\S]*draft is retained/),'stale assessment rejected');
+  assert.deepEqual(await read(),conflictBefore);assert.equal(await exec('return document.querySelector(arguments[0]).value;',[number]),'33','conflicting draft retained');
+  await tap('.panelError button');await eventually(async()=>assert.equal(await exec('return Number(document.querySelector(arguments[0])?.value);',[range]),dragged),'explicit conflict reload');
+  assert.deepEqual((await read()).data.initiatives,initiatives,'task assessments never change initiatives');
+  return {ok:true,checks:['15-45-72','blocked-72','unassessed','done-100','full-width','native-keyboard','drag-commit-on-release','explicit-zero','save-reload','revision-conflict','separate-initiatives'],width:{...width,observations}};
 }

@@ -35,6 +35,11 @@
     "src-tauri/tauri.e2e.conf.json",
     "scripts/native_work_readiness.mjs"
   ],
+  "taskProgressScenarios": [
+    "15-45-72", "blocked-72", "unassessed", "done-100", "full-width",
+    "native-keyboard", "drag-commit-on-release", "explicit-zero", "save-reload",
+    "revision-conflict", "separate-initiatives"
+  ],
   "workReadinessScenarios": [
     "bridge-ready",
     "private-ready",

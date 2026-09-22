@@ -251,6 +251,7 @@ class MatchedPairTransactionTests(unittest.TestCase):
                               harnessDigests={name: digest(repository / name) for name in
                                   [*matrix["harnessFiles"], "scripts/tauri_production_readonly.mjs"]},
                               **{key: value[key] for key in ["o2Sha", "radcontrolSha", "artifactSha256"]})
+        value['wave11']['wave2a']['taskProgress'] = dict(ok=True, checks=matrix['taskProgressScenarios'], width=value['wave11']['wave2a']['width'])
         target = self.stage / "evidence" / f"native-{phase}.json"
         target.write_text(json.dumps(value), encoding="utf-8")
         target.chmod(0o600)
@@ -462,6 +463,27 @@ class MatchedPairTransactionTests(unittest.TestCase):
                 result = self.action_result("accept-first")
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("bridge native receipt required", result.stdout + result.stderr)
+        self.receipt("first")
+        self.action("accept-first")
+
+    def test_acceptance_requires_complete_task_progress_evidence(self):
+        self.action("promote")
+        for defect in ("missing", "partial", "width"):
+            with self.subTest(defect=defect):
+                self.receipt("first")
+                target = self.stage / "evidence/native-first.json"
+                receipt = json.loads(target.read_text())
+                task = receipt["wave11"]["wave2a"]["taskProgress"]
+                if defect == "missing":
+                    del receipt["wave11"]["wave2a"]["taskProgress"]
+                elif defect == "partial":
+                    task["checks"].pop()
+                else:
+                    task["width"]["observations"][1]["observed"] = 800
+                target.write_text(json.dumps(receipt))
+                result = self.action_result("accept-first")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("complete task progress native receipt required", result.stdout + result.stderr)
         self.receipt("first")
         self.action("accept-first")
 

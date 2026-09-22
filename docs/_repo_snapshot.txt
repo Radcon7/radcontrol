@@ -196,6 +196,7 @@ src/components/agents/infrastructureModel.ts
 src/components/agents/infrastructureReports.ts
 src/components/common/ArtifactListPanel.tsx
 src/components/common/LogsDrawer.tsx
+src/components/common/ProgressRail.tsx
 src/components/common/SplitTextPanel.tsx
 src/components/common/SystemStateShell.tsx
 src/components/common/copyText.ts
@@ -206,6 +207,7 @@ src/components/common/logStatus.ts
 src/components/common/o2Client.ts
 src/components/common/o2Contract.ts
 src/components/common/o2Files.ts
+src/components/common/progressRail.css
 src/components/common/useArtifactStore.ts
 src/components/common/useGovernedRecordNote.ts
 src/components/notes/BlueprintWorkspace.tsx
