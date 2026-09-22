@@ -125,9 +125,10 @@ export async function assertWorkspace(base,id,destination) {
   let state;
   try {
     state=await workspaceState(base,id,destination);assertWorkspaceState(state,destination);
+    const selectedBefore=state.selected;
     await request(base,`/session/${id}/execute/async`,'POST',{script:'const done=arguments[arguments.length-1];requestAnimationFrame(()=>requestAnimationFrame(()=>done()));',args:[]});
-    const after=await workspaceState(base,id,destination);assertWorkspaceState(after,destination);
-    assert.deepEqual(after.selected,state.selected,'workspace changed during assertion');return after;
+    state=await workspaceState(base,id,destination);assertWorkspaceState(state,destination);
+    assert.deepEqual(state.selected,selectedBefore,'workspace changed during assertion');return state;
   }
   catch(error){await captureWorkspaceFailure(base,id,destination,'workspace-proof',state).catch(()=>{});throw error;}
 }
