@@ -5,7 +5,8 @@ import { assertWave2aReceipt, assertWave11Scenarios, bindWave11Receipt, wave11Ma
 import { writeTransactionReceipt } from '../scripts/native_transaction_receipt.mjs';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-const complete=()=>({ok:true,realRepair:false,scenarios:[...wave11Matrix.scenarios],simulatedApplyCount:2,wave2a:{ok:true,bridgeReadOnly:true,readiness:[...wave11Matrix.workReadinessScenarios],width:{...nativeWidthContract('production'),observations:[{requested:1650,observed:1650},{requested:1500,observed:1500}]}}});
+const width=()=>({...nativeWidthContract('production'),observations:[{requested:1650,observed:1650},{requested:1500,observed:1500}]});
+const complete=()=>({ok:true,realRepair:false,scenarios:[...wave11Matrix.scenarios],simulatedApplyCount:2,wave2a:{ok:true,bridgeReadOnly:true,readiness:[...wave11Matrix.workReadinessScenarios],width:width(),taskProgress:{ok:true,checks:[...wave11Matrix.taskProgressScenarios],width:width()}}});
 for(const entrypoint of ['tauri_candidate_precheck.mjs','tauri_production_readonly.mjs']) {
   test(`${entrypoint}: missing or incomplete matrix cannot become release acceptance`,async()=>{
     const ids={o2Sha:'a'.repeat(40),radcontrolSha:'b'.repeat(40),artifactSha256:'c'.repeat(64)};
@@ -44,4 +45,12 @@ test('release receipt requires every real Work readiness scenario',()=>{
   const result=complete();result.wave2a.readiness=result.wave2a.readiness.filter(s=>s!==scenario);
   assert.throws(()=>assertWave2aReceipt(result),/Work readiness matrix/);
  }
+});
+test('release receipt requires every task progress scenario and observed width',()=>{
+ for(const scenario of wave11Matrix.taskProgressScenarios) {
+  const result=complete();result.wave2a.taskProgress.checks=result.wave2a.taskProgress.checks.filter(s=>s!==scenario);
+  assert.throws(()=>assertWave2aReceipt(result),/task progress matrix/);
+ }
+ const missing=complete();delete missing.wave2a.taskProgress;assert.throws(()=>assertWave2aReceipt(missing),/task progress native/);
+ const wrong=complete();wrong.wave2a.taskProgress.width.observations[1].observed=800;assert.throws(()=>assertWave2aReceipt(wrong));
 });

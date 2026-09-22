@@ -50,8 +50,9 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   const tasksPath = path.join(fixture.o2Root, 'wave11-tasks.json');
   const tasks = JSON.parse(await readFile(tasksPath, 'utf8'));
   assert.ok(tasks.items.length > 0);
+  const {progress:priorAssessment,...unassessedTemplate}=tasks.items[0];
   tasks.items = ['Backlog', 'Planned', 'In Progress', 'Blocked', 'Deferred', 'Legacy'].map((status, index) => ({
-    ...tasks.items[0], id: `wave11-${index}`, title: `Wave 1.1 ${status}`, status,
+    ...unassessedTemplate, id: `wave11-${index}`, title: `Wave 1.1 ${status}`, status,
     currentState: `Synthetic ${status}`, nextActions: 'Verify next action',
     dependencies: status === 'Blocked' ? 'Wait for fixture dependency' : '',
   }));
@@ -86,8 +87,8 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   assert.match(await text('.empireTodoList'), /Wave 1.1 In Progress/);
   assert.match(await text('.empireTodoList'), /Wave 1.1 Blocked/);
   const rows = await execute(`return [...document.querySelectorAll('.empireTodoRow')].map(row=>({
-    width: row.querySelector('.taskProgressTrack').getBoundingClientRect().width,
-    available: row.querySelector('.todoRowSelect').getBoundingClientRect().width,
+    width: row.querySelector('.taskProgressRail').getBoundingClientRect().width,
+    available: row.querySelector('.taskProgressContent').getBoundingClientRect().width,
     next: row.querySelector('.todoRowNext')?.innerText
   }));`);
   for (const row of rows) { assert.ok(row.width > row.available * .9); assert.match(row.next,/Verify next action/); }

@@ -43,6 +43,7 @@ export type EmpireTodoItem = {
   notes: string;
   createdAt: string;
   updatedAt: string;
+  progress?: { percent: number; method: "operator"; reviewedAt: string };
 };
 
 export type EmpireTodoListResponse = {
@@ -96,14 +97,15 @@ export function empireTodoLane(status: unknown): EmpireTodoLane {
   return "other";
 }
 
-/** The current O2 task schema has lifecycle only: no percentage or typed checklist. */
+/** Lifecycle is independent of explicit assessment; completion is authoritative. */
 export function empireTodoProgress(item: EmpireTodoItem): { label: string; percent: number | null; tone: string } {
   if (isEmpireTodoComplete(item)) return { label: "Done", percent: 100, tone: "done" };
-  if (item.status === "Blocked") return { label: "Blocked", percent: null, tone: "blocked" };
-  if (item.status === "In Progress") return { label: "In Progress", percent: null, tone: "active" };
-  if (item.status === "Deferred") return { label: "Deferred", percent: null, tone: "deferred" };
-  if (empireTodoLane(item.status) === "queued") return { label: "Not Started", percent: null, tone: "planned" };
-  return { label: "Unclassified", percent: null, tone: "unknown" };
+  const percent = item.progress?.percent ?? null;
+  if (item.status === "Blocked") return { label: "Blocked", percent, tone: "blocked" };
+  if (item.status === "In Progress") return { label: "In Progress", percent, tone: "active" };
+  if (item.status === "Deferred") return { label: "Deferred", percent, tone: "deferred" };
+  if (empireTodoLane(item.status) === "queued") return { label: "Not Started", percent, tone: "planned" };
+  return { label: "Unclassified", percent, tone: "unknown" };
 }
 
 function priorityRank(priority: EmpireTodoPriority): number {

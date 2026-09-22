@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { listWork, mutateWork } from "./workApi";
 import { WORK_BRIDGE_NOTICE, momentum, needsYou, nextMoves, recentMovement, unassessed, type Initiative, type WorkResponse } from "./workModel";
 import "./overview.css";
+import { ProgressRail } from "../common/ProgressRail";
 type Props = { onSecurity: () => void; registerBeforeTabChangeSaver: (fn: (() => Promise<boolean>) | null) => void };
 export function Overview({ onSecurity, registerBeforeTabChangeSaver }: Props) {
   const [snapshot, setSnapshot] = useState<WorkResponse | null>(null);
@@ -50,7 +51,7 @@ export function Overview({ onSecurity, registerBeforeTabChangeSaver }: Props) {
             <div className="momentumArea">{row.area}</div>
             <div className="momentumBody"><div className="momentumTitle"><h3>{row.title}</h3><span className="momentumStatus">{row.status === "proposal" ? "For review" : row.blocker ? "Blocked" : row.status}</span></div>
               {row.phase ? <div className="momentumPhase">{row.phase}</div> : null}
-              {progress.percent !== null ? <div className="momentumAssessment"><span>0</span><div className="momentumRail" role="progressbar" aria-label={`${row.title} progress`} aria-valuenow={progress.percent} aria-valuemin={0} aria-valuemax={100}><div style={{ width: `${progress.percent}%` }} /><i style={{ left: `${progress.percent}%` }} /></div><span>100</span><strong>{progress.percent}%</strong></div> : <div className="momentumState" data-testid="momentum-nonnumeric">{progress.label}</div>}
+              {progress.percent !== null ? <div className="momentumAssessment"><ProgressRail percent={progress.percent} label={`${row.title} progress`} trackClassName="momentumRail" /><strong>{progress.percent}%</strong></div> : <div className="momentumState" data-testid="momentum-nonnumeric">{progress.label}</div>}
               {progress.percent !== null ? <span className="momentumProvenance" title={`${row.progress.basis} · ${row.progress.assessedAt}`}>{progress.label}</span> : null}
               <div className="momentumNext"><b>Next</b><span>{row.nextMove || "Not set"}</span></div>
               {row.blocker ? <div className="momentumBlocker"><b>Blocked</b><span>{row.blocker}</span></div> : null}

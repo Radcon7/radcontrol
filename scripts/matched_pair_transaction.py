@@ -584,6 +584,11 @@ class Transaction:
                        or not requested - 2 <= row["observed"] <= requested + 2
                        for row, requested in zip(observations, expected))):
             raise fail(f"{phase} production-supported-width and bridge native receipt required")
+        task_progress = wave2a.get("taskProgress", {})
+        if (task_progress.get("ok") is not True
+                or task_progress.get("checks") != matrix["taskProgressScenarios"]
+                or task_progress.get("width") != width):
+            raise fail(f"{phase} complete task progress native receipt required")
 
 
     def accept_first(self) -> None:

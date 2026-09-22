@@ -58,6 +58,7 @@
     "workstation.cleanup.pop_upgrade.preview",
     "workstation.updates.check",
     "workstation.updates.history",
-    "operator.work.private-v1"
+    "operator.work.private-v1",
+    "operator.work.task-progress-v1"
   ]
 }

@@ -224,8 +224,10 @@ export async function assertWave1Work(base, sessionId, click, until) {
   for (const name of ['Current state','Next Action','Dependencies / blockers','Acceptance / done condition','Summary','Context','Why it matters']) assert.ok(compact.fields.includes(name), name);
   assert.equal(compact.fields.length, 8);
   for (const state of compact.progress) {
-    assert.equal(state.basis, 'lifecycle');
-    assert.ok(!state.text.includes('%') || state.text === 'Done · 100%', 'No invented task percentage');
+    assert.ok(['unassessed','operator','completion'].includes(state.basis));
+    if(state.basis==='unassessed')assert.ok(!state.text.includes('%'), 'No invented task percentage');
+    if(state.basis==='completion')assert.equal(state.text,'Done · 100%');
+    if(state.basis==='operator')assert.match(state.text,/\d+%/);
   }
   for (const selector of compact.selectors) {
     await click(`[data-testid="${selector}"]`);
@@ -234,15 +236,15 @@ export async function assertWave1Work(base, sessionId, click, until) {
   await click('[data-testid="notes-mode-progress"]');
   await until(async () => assert.ok(await execute('return document.querySelectorAll(".taskProgressRail").length > 0;')));
   const progress = await execute(`return [...document.querySelectorAll('.empireTodoRow')].map(row => ({
-    state: row.querySelector('.taskProgressRail')?.innerText,
-    width: row.querySelector('.taskProgressTrack')?.getBoundingClientRect().width,
-    available: row.querySelector('.todoRowSelect')?.getBoundingClientRect().width,
+    state: row.querySelector('.taskProgressStatus')?.innerText,
+    width: row.querySelector('.taskProgressRail')?.getBoundingClientRect().width,
+    available: row.querySelector('.taskProgressContent')?.getBoundingClientRect().width,
     next: !!row.querySelector('.todoRowNext'), selector: row.querySelector('.todoRowSelect')?.dataset.testid
   }));`);
   assert.ok(progress.length > 1, 'Progress retains several active tasks');
   for (const row of progress) {
     assert.match(row.state.trim(), /^(In progress|Blocked)$/i);
-    assert.ok(row.width > row.available * 0.9, 'Lifecycle rail spans the active row');
+    assert.ok(row.width > row.available * 0.9, 'Task progress spans the active row');
     assert.equal(row.next, true);
   }
   assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 0);

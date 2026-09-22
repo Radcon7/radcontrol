@@ -150,9 +150,11 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   field and the explicit Timeline/no-Timeline completion choice. Task selection
   and unchanged navigation do not save; local draft writes are serialized and
   older responses cannot clear newer edits. Pristine Add can be cancelled.
-- The present task schema supplies lifecycle, not percentage or typed checklist
-  progress. Show Not Started, In Progress, Blocked or Deferred; authoritative
-  Complete alone may show Done / 100%. Narrative percentages are not measurements.
+- Task lifecycle and assessment are independent. Wave 2B accepts an optional
+  private operator percentage with a provider-stamped review time. Missing
+  assessment stays Unassessed; explicit zero is distinct. Blocked retains its
+  assessment and Complete is authoritative Done / 100%. Narrative percentages,
+  task counts and checklists never become measurements.
 - Project-note saved times normalize O2 seconds and recognized millisecond input;
   absent/invalid time is unknown, never a fabricated epoch or current time.
 - Timeline gives the human title precedence, retains context/details, and accepts
@@ -162,8 +164,8 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - Logs start collapsed with visible output/running/attention/error status and
   quick expansion. Existing Copy/Clear and full retained output remain available.
 - Wave 2A replaces tracked task/Timeline writes with one private O2 work owner.
-  Existing Wave 1/1.1 task presentation remains; initiative assessment is a
-  distinct model and never derives percentages from task counts.
+  Wave 2B extends task presentation with explicit assessment; initiative
+  assessment remains a distinct model and never derives from task counts.
 
 ## Work and Sentinel actions — Wave 1.1
 
@@ -171,9 +173,11 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   workspace for In Progress and Blocked tasks. Deferred/unrecognized states stay
   reachable under Deferred / unclassified, without guessing whether they started.
   Completed remains an explicit existing filter. Views never rewrite records.
-- Active-task rails communicate lifecycle through labeled state and texture, not
-  fractional fill, numeric ticks or an invented percentage. The current schema has
-  no authoritative percentage/checklist. Complete alone may display Done / 100%.
+- Active-task rails show the saved operator percentage prominently above a
+  full-width 0–100 rail. Click/drag, keyboard and a secondary number input commit
+  only when interaction completes through the existing revision/conflict path.
+  Unassessed tasks show Set progress without a fabricated zero or rail fill.
+  Task and Initiative Momentum reuse one visual rail while keeping separate data.
   Selecting a Progress row expands its existing full detail inline; other rows
   and their Next Action, relevant blocker and acceptance remain available.
 - The Sentinel health card offers Fix it only for the exact updater finding and

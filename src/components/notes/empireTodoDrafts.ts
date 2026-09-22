@@ -3,7 +3,8 @@ import { createBlankEmpireTodo, type EmpireTodoItem, type EmpireTodoSaveResponse
 export const TODO_TEXT_FIELDS = ["title", "summary", "detailedContext", "whyItMatters", "currentState", "nextActions", "dependencies", "acceptanceCriteria", "notes"] as const;
 export type TodoTextField = typeof TODO_TEXT_FIELDS[number];
 const sameContent = (a: EmpireTodoItem, b: EmpireTodoItem) =>
-  TODO_TEXT_FIELDS.every((field) => a[field] === b[field]) && a.status === b.status && a.priority === b.priority && a.category === b.category;
+  TODO_TEXT_FIELDS.every((field) => a[field] === b[field]) && a.status === b.status && a.priority === b.priority && a.category === b.category
+  && a.progress?.percent === b.progress?.percent && a.progress?.method === b.progress?.method && a.progress?.reviewedAt === b.progress?.reviewedAt;
 
 /** One editor's write queue, not concurrency control for independent O2 writers. */
 export function createTodoDrafts(api: {
@@ -63,6 +64,14 @@ export function createTodoDrafts(api: {
       const draft = { ...(drafts.get(id) || baseline), [field]: value };
       if (!added.has(id) && saving !== id && sameContent(draft, baseline)) drafts.delete(id);
       else drafts.set(id, draft);
+      notify();
+    },
+    assessProgress(id: string, percent: number) {
+      const baseline = saved.get(id); if (!baseline) return;
+      if (!Number.isInteger(percent) || percent < 0 || percent > 100) throw new Error("Enter a whole percentage from 0 to 100.");
+      const current = drafts.get(id) || baseline;
+      if (!["In Progress", "Blocked"].includes(current.status)) return;
+      drafts.set(id, { ...current, progress: { percent, method: "operator", reviewedAt: "" } });
       notify();
     },
     add() { const item = createBlankEmpireTodo(); saved.set(item.id, item); drafts.set(item.id, item); added.add(item.id); notify(); return item.id; },
