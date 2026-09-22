@@ -184,6 +184,8 @@ try { await cp(path.join(path.dirname(INSTALLED_O2_ROOT), "operator-work"), oper
 catch (error) { if (error.code !== "ENOENT") throw error; }
 try { await cp(path.join(path.dirname(INSTALLED_O2_ROOT), "operator-work.activated"), path.join(path.dirname(operatorWorkSource), "operator-work.activated")); }
 catch (error) { if (error.code !== "ENOENT") throw error; }
+const activatedWork = await readFile(path.join(path.dirname(operatorWorkSource), "operator-work.activated"), "utf8").then(() => true, error => { if (error.code === "ENOENT") return false; throw error; });
+const expectedWork = activatedWork ? JSON.parse(await readFile(path.join(operatorWorkSource,"work.json"),"utf8")) : null;
 const sandboxedApp = await createBubblewrapApplication({
   app,
   tempRoot,
@@ -232,9 +234,10 @@ try {
     const text = await bodyText(base, sessionId);
     assert.match(text, /READY\s*Listener-free production mode/);
     assert.match(text, /LIVE PRODUCT READY/);
-    if (!rollbackSmoke) {
+    if (!rollbackSmoke || activatedWork) {
       const state=await request(base,`/session/${sessionId}/execute/sync`,"POST",{script:'return document.querySelector("[data-testid=runtime-work-readiness]")?.dataset.state;',args:[]});
       assert.ok(['bridge','private'].includes(state),'actual Work authority must pass Runtime Diagnostics');
+      if (activatedWork) assert.equal(state, 'private', 'active private Work must never fall back to legacy');
     }
     assert.match(text, /production/);
     assert.ok(text.includes(expectedO2Sha), "production diagnostics did not render the expected O2 identity");
@@ -250,14 +253,9 @@ try {
   }, "render exact production runtime diagnostics");
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
-  if (rollbackSmoke) {
-    acceptanceResult = {ok:true, acceptance:'rollback-native-smoke',
-      o2Sha:installedBefore.head, radcontrolSha:expectedRadcontrolSha,
-      artifactSha256:expectedArtifactSha, diagnosticsVerified:true};
-  } else {
-  const wave1Checks = await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
-  const activatedWork = await readFile(path.join(path.dirname(operatorWorkSource), "operator-work.activated"), "utf8").then(() => true, error => { if (error.code === "ENOENT") return false; throw error; });
-  const expectedWork = activatedWork ? JSON.parse(await readFile(path.join(operatorWorkSource,"work.json"),"utf8")) : null;
+  // Legacy rollback generations predate Overview; active-private generations
+  // must prove current records with their own presentation, not Wave 2B rails.
+  if (!rollbackSmoke || activatedWork) {
   await click(base,sessionId,'[data-testid="tab-overview"]');
   await eventually(async()=>{
     const view = await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return {text:document.querySelector(".overview")?.innerText, rows:[...document.querySelectorAll(".momentumRow")].map(e=>e.dataset.testid)};',args:[]});
@@ -268,7 +266,36 @@ try {
       assert.match(view.text,/Work is temporarily read-only/);assert.deepEqual(view.rows,[]);
     }
   },'actual Work authority drives Overview');
+  }
   const workAuthorityChecks = {authority:activatedWork?'private':'legacy-readonly',initiativeCount:expectedWork?.data.initiatives.length || 0,revision:expectedWork?.revision || 0};
+
+  if (rollbackSmoke) {
+    if (activatedWork) {
+      await click(base,sessionId,'[data-testid="tab-notes"]');
+      const seen = new Set();
+      for (const mode of ['empire_todo','progress']) {
+        const statuses = mode === 'empire_todo' ? ['Backlog','Planned'] : ['In Progress','Blocked'];
+        const expectedRows = expectedWork.data.tasks.filter(task=>statuses.includes(task.status));
+        await click(base,sessionId,`[data-testid="notes-mode-${mode}"]`);
+        await eventually(async()=>{
+          const view = await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return {ready:!!document.querySelector("[data-testid=empire-todo-workspace]"),text:document.body.innerText,rows:[...document.querySelectorAll(".todoRowSelect")].map(e=>({id:e.dataset.testid.replace("empire-todo-select-",""),text:e.innerText}))};',args:[]});
+          assert.equal(view.ready,true);assert.doesNotMatch(view.text,/Loading Empire To-Do|Work is temporarily read-only/);
+          assert.deepEqual(view.rows.map(row=>row.id).sort(),expectedRows.map(task=>task.id).sort(),'rollback must display the exact current private task set');
+          for (const row of view.rows) {
+            const task=expectedWork.data.tasks.find(item=>item.id===row.id);
+            assert.ok(task,'rollback displayed a task outside current private authority');
+            assert.ok(row.text.includes(task.title),'rollback task title differs from private authority');seen.add(row.id);
+          }
+        },'restored private Work records');
+      }
+      if (expectedWork.data.tasks.some(task=>['Backlog','Planned','In Progress','Blocked'].includes(task.status))) assert.ok(seen.size>0,'restored Work must display current tasks');
+    }
+    acceptanceResult = {ok:true, acceptance:'rollback-native-smoke',
+      o2Sha:installedBefore.head, radcontrolSha:expectedRadcontrolSha,
+      artifactSha256:expectedArtifactSha, diagnosticsVerified:true,
+      privateWorkVerified:activatedWork, workAuthorityChecks};
+  } else {
+  const wave1Checks = await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /To-Do[\s\S]*Progress[\s\S]*Timeline[\s\S]*My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);

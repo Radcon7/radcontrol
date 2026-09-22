@@ -125,6 +125,15 @@ or incomplete results fail before receipt publication; the receiver independentl
 rejects missing, mismatched or incomplete installed matrix receipts. A generic
 passing precheck cannot stand in for these scenarios.
 
+Newly prepared `oldPair` evidence includes `radcontrolSourceSha`, resolved from
+the clean installed O2 compatibility pin and verified installed binary, never
+from candidate source. Active private Work requires that source to match the
+rollback runtime's pin and declare the private-store client capabilities.
+Historical three-field `oldPair` manifests remain readable for their existing
+recovery semantics; missing provenance never admits an active-private-Work
+release. O2's coordinator generates and freshly checks this identity before
+staging/readiness; operators must not repair retained manifests by hand.
+
 New schema-v2 receiver transitions are:
 
 `promote -> new-live -> accept-first -> new-live-first-accepted -> rollback -> old-live -> verify-rollback -> old-live-verified -> reinstall -> new-live-awaiting-final -> accept-final -> new-live-final`.
@@ -138,7 +147,10 @@ transaction manifest, pair, binary and expected phase. `accept-first` and
 In production it also invokes the existing read-only native harness in a
 rollback-only mode: the actual restored executable must populate its window and
 render exact runtime identities before a bound `native-rollback.json` receipt
-permits `old-live-verified`. This mode cannot replace first/final acceptance or
+permits `old-live-verified`. With private Work active, that receipt also requires
+private readiness, exact current task IDs/titles and Overview initiatives from
+the preserved store; diagnostics alone cannot prove current Work visibility.
+This mode cannot replace first/final acceptance or
 their complete Wave 1.1 receipts. Fixture transactions use non-native binaries
 and test this boundary with a controlled subprocess double.
 Reinstall cannot follow a rejected first acceptance or skip rollback verification.

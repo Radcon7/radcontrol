@@ -17,7 +17,7 @@ export async function transactionReceiptContext(argv, identities) {
   assert.equal(manifestPath, path.join(manifest.stage.root, 'transaction-manifest.json'));
   const pair = phase === 'rollback' ? manifest.oldPair : manifest.newPair;
   assert.equal(pair.o2Commit, identities.o2Sha);
-  if (phase !== 'rollback') assert.equal(pair.radcontrolSourceSha, identities.radcontrolSha);
+  if (phase !== 'rollback' || pair.radcontrolSourceSha !== undefined) assert.equal(pair.radcontrolSourceSha, identities.radcontrolSha);
   assert.equal(pair.binarySha256, identities.artifactSha256);
   const state = (await readFile(manifest.stage.stateFile, 'utf8')).trim();
   assert.equal(state, phase === 'rollback' ? 'old-live' : phase === 'first' ? 'new-live' : 'new-live-awaiting-final');
