@@ -147,7 +147,10 @@ transaction manifest, pair, binary and expected phase. `accept-first` and
 In production it also invokes the existing read-only native harness in a
 rollback-only mode: the actual restored executable must populate its window and
 render exact runtime identities before a bound `native-rollback.json` receipt
-permits `old-live-verified`. This mode cannot replace first/final acceptance or
+permits `old-live-verified`. With private Work active, that receipt also requires
+private readiness, exact current task IDs/titles and Overview initiatives from
+the preserved store; diagnostics alone cannot prove current Work visibility.
+This mode cannot replace first/final acceptance or
 their complete Wave 1.1 receipts. Fixture transactions use non-native binaries
 and test this boundary with a controlled subprocess double.
 Reinstall cannot follow a rejected first acceptance or skip rollback verification.

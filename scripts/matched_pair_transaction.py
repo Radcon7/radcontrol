@@ -663,6 +663,8 @@ class Transaction:
                         artifactSha256=self.old_pair["binarySha256"])
         if any(receipt.get(key) != value for key, value in expected.items()):
             raise fail("rollback native receipt does not match restored pair")
+        if (self.live_o2.parent / "operator-work").exists() and receipt.get("privateWorkVerified") is not True:
+            raise fail("rollback native receipt must verify current private Work")
         self.assert_stopped()
         self.assert_pair(self.old_pair, self.rollback_files, "restored prior native pair")
 

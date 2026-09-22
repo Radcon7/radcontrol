@@ -7,7 +7,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -989,6 +989,24 @@ class OperatorWorkRollbackTests(unittest.TestCase):
         path.write_text(json.dumps(payload))
         with self.assertRaisesRegex(RuntimeError, 'full lowercase'):
             transaction_module.load_manifest(path, 'preflight')
+
+    def test_rollback_native_receipt_requires_private_work_proof_when_active(self):
+        tx = self.tx; tx.test_root = None; tx.live_o2 = self.old
+        tx.stage_root = self.root/'stage'; (tx.stage_root/'evidence').mkdir(parents=True)
+        tx.manifest_path = tx.stage_root/'transaction-manifest.json'
+        tx.manifest_path.write_text('{}');tx.transaction_id = 'fixture'
+        tx.old_pair = dict(o2Commit='a'*40,radcontrolSourceSha='1'*40,binarySha256='b'*64)
+        tx.rollback_files = {};tx.assert_stopped = Mock();tx.assert_pair = Mock()
+        (self.root/'operator-work').mkdir()
+        receipt = dict(ok=True,acceptance='rollback-native-smoke',diagnosticsVerified=True,
+                       phase='rollback',transactionId='fixture',manifestSha256=digest(tx.manifest_path),
+                       transactionState='old-live',o2Sha='a'*40,radcontrolSha='1'*40,artifactSha256='b'*64)
+        target=tx.stage_root/'evidence/native-rollback.json';target.write_text(json.dumps(receipt))
+        with patch.object(transaction_module.subprocess,'run',return_value=Mock(returncode=0)):
+            with self.assertRaisesRegex(RuntimeError,'must verify current private Work'):
+                tx.rollback_native_smoke()
+            receipt['privateWorkVerified']=True;target.write_text(json.dumps(receipt))
+            tx.rollback_native_smoke()
 
 
 if __name__ == "__main__":
