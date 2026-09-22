@@ -38,3 +38,15 @@ class NativeFixtureTests(unittest.TestCase):
     def test_read_only_fallback_is_explicit(self):
         self.assertEqual(self.call("contract_info","healthy").returncode,0)
         self.assertTrue((self.root / "scripts/real-dispatcher-called").exists())
+    def test_fan_fixture_requires_explicit_test_owned_identity_and_never_falls_through(self):
+        missing = self.call("sentinel.host.explain_fans", "healthy")
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertFalse(json.loads(missing.stdout)["ok"])
+        (self.root / "wave11-current.json").write_text(json.dumps({"metrics": {"cpu": {"status": "unknown"}}}))
+        (self.root / "wave11-fixture.json").write_text(json.dumps({"phase": "healthy", "fanFixture": "ordered-1"}))
+        present = subprocess.run(["python3", str(self.root / "scripts/native_wave11_fixture.py"), "sentinel.host.explain_fans"], capture_output=True, text=True)
+        self.assertEqual(present.returncode, 0)
+        result = json.loads(present.stdout)
+        self.assertEqual(result["explanation"], "Native fan fixture ordered-1")
+        self.assertEqual(result["report"]["metrics"]["cpu"]["status"], "healthy")
+        self.assertFalse((self.root / "scripts/real-dispatcher-called").exists())

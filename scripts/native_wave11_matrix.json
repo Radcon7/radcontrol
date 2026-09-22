@@ -33,12 +33,22 @@
     "scripts/native_width_contract.mjs",
     "src-tauri/tauri.conf.json",
     "src-tauri/tauri.e2e.conf.json",
-    "scripts/native_work_readiness.mjs"
+    "scripts/native_work_readiness.mjs",
+    "scripts/native_workspace.mjs",
+    "scripts/native_workspace_sequence.mjs"
   ],
   "taskProgressScenarios": [
-    "15-45-72", "blocked-72", "unassessed", "done-100", "full-width",
-    "native-keyboard", "drag-commit-on-release", "explicit-zero", "save-reload",
-    "revision-conflict", "separate-initiatives"
+    "15-45-72",
+    "blocked-72",
+    "unassessed",
+    "done-100",
+    "full-width",
+    "native-keyboard",
+    "drag-commit-on-release",
+    "explicit-zero",
+    "save-reload",
+    "revision-conflict",
+    "separate-initiatives"
   ],
   "workReadinessScenarios": [
     "bridge-ready",
@@ -46,5 +56,32 @@
     "active-missing-store",
     "active-corrupt-store",
     "store-without-activation"
-  ]
+  ],
+  "orderedNavigation": {
+    "runs": 5,
+    "route": [
+      "todo",
+      "progress",
+      "sentinel",
+      "fan",
+      "details",
+      "empire_operations",
+      "security_guardian",
+      "runtime",
+      "notes",
+      "sentinel"
+    ],
+    "regressions": [
+      "progress-decoy",
+      "notes-wrong-workspace",
+      "delayed-container",
+      "unsettled-timeout",
+      "missing-fixture",
+      "outside-result",
+      "inconsistent-selection",
+      "correct-fixture",
+      "progress-to-sentinel",
+      "notes-to-sentinel"
+    ]
+  }
 }

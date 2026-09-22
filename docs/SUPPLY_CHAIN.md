@@ -125,6 +125,25 @@ or incomplete results fail before receipt publication; the receiver independentl
 rejects missing, mismatched or incomplete installed matrix receipts. A generic
 passing precheck cannot stand in for these scenarios.
 
+Candidate and installed acceptance also execute the same ordered native path
+five consecutive times: To-Do / Progress, Security / Sentinel, the test-owned
+fan result, Details closed/open/reclosed, Empire Operations, Security Guardian,
+Runtime Diagnostics, and My Notes back to Sentinel. One shared workspace helper
+proves selected top navigation, consistent subtab state, unique visible content,
+the target anchor, absence of competing Work/Security content, and bounded
+settling. Sentinel content checks are scoped to its root. Wrong workspace,
+unrelated matching text, missing/outside fan fixtures, inconsistent selection,
+and delayed/unsettled containers must fail their focused negative cases.
+
+Navigation failures retain a private, release-local evidence packet with the
+intended action, prior/current selection, ARIA map, container/settle predicates,
+focus, pointer target when available, bounded event trace, fixture identifiers,
+timestamp, redacted DOM summary and masked layout screenshot. Raw operator
+text, input values and full DOM bodies are not diagnostic output. Installed
+failures write beneath the existing transaction evidence directory; candidate
+and synthetic failures use their existing private acceptance evidence. A pass
+requires the complete ordered-run receipt and exact shared harness digests.
+
 Newly prepared `oldPair` evidence includes `radcontrolSourceSha`, resolved from
 the clean installed O2 compatibility pin and verified installed binary, never
 from candidate source. Active private Work requires that source to match the

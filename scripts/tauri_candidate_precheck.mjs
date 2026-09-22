@@ -1,3 +1,4 @@
+import { configureWorkspace, nativeClick, assertWorkspace, workspaceText, captureWorkspaceFailure } from './native_workspace.mjs';
 import { runReleaseWave11 } from './native_wave11_release.mjs';
 import assert from 'node:assert/strict';
 import { cp, mkdir, mkdtemp, readFile, writeFile, chmod, realpath, lstat } from 'node:fs/promises';
@@ -63,7 +64,7 @@ async function request(route,method='GET',body){const r=await fetch(base+route,{
 async function until(fn){let error;for(let n=0;n<120;n++){try{return await fn();}catch(e){error=e;await delay(250);}}throw error;}
 async function exec(script,args=[]){return request(`/session/${session}/execute/sync`,'POST',{script,args});}
 async function element(selector){return (await request(`/session/${session}/element`,'POST',{using:'css selector',value:selector}))['element-6066-11e4-a52e-4f735466cecf'];}
-async function click(selector){const id=await until(()=>element(selector));await exec('arguments[0].scrollIntoView({block:"center"});',[{'element-6066-11e4-a52e-4f735466cecf':id}]);await request(`/session/${session}/element/${id}/click`,'POST',{});await delay(300);}
+const click=selector=>nativeClick(base,session,selector);
 
 let cleaned=false;
 async function cleanup(){
@@ -78,12 +79,13 @@ const signals=installNativeAcceptanceSignalCleanup(cleanup);
 try {
  await until(()=>request('/status'));
  const s=await request('/session','POST',{capabilities:{alwaysMatch:{browserName:'wry','tauri:options':{application:app}}}});session=s.sessionId;
+ configureWorkspace(base,session,{evidenceDir:path.join(evidence,'navigation'),fixture:{kind:'candidate-readonly'}});
  await until(async()=>assert.match(await exec('return document.body.innerText;'),/Projects/));
  await assertWave1Work(base,session,click,until);
  await click('[data-testid="tab-sentinel"]');
  await until(async()=>assert.match(await exec('return document.body.innerText;'),/RECENT EVENTS/));
- const text=await exec('return document.body.innerText;');
- assert.match(text,/Radcon Sentinel[\s\S]*Empire Operations[\s\S]*Security Guardian/i);
+ const text=await workspaceText(base,session,'sentinel');
+ await assertWorkspace(base,session,'sentinel');
  assert.match(text,/Is my computer okay\?[\s\S]*CURRENT NOW[\s\S]*RECENT EVENTS[\s\S]*Details/);
  assert.equal((text.match(/CURRENT NOW/g)||[]).length,1);
  await assertSentinelHealth(base,session);
@@ -111,6 +113,9 @@ try {
  await exec("document.querySelector('details.sentinelAdvancedWorkspace').append(window.testPanel);delete window.testPanel;");
  await assertSentinelDetails(base,session,false);
 
+}catch(error){
+ if(session)await captureWorkspaceFailure(base,session,null,'candidate-native-assertion').catch(()=>{});
+ throw error;
 }finally{ await signals(); }
 assert.equal(await sha256File(artifact),hash,'candidate changed during native precheck');
 assert.equal(await sha256File(releasePath),manifestHash,'admission changed during native precheck');

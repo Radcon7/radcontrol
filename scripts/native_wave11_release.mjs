@@ -1,3 +1,4 @@
+import { configureWorkspace, nativeClick, captureWorkspaceFailure } from './native_workspace.mjs';
 // Synthetic scenarios run in a separate, test-owned native session. The real
 // candidate/installed identity and read-only probes remain in their entrypoints.
 import assert from 'node:assert/strict';
@@ -86,21 +87,14 @@ export async function runReleaseWave11({app, o2Source, identities, entrypoint, m
     await eventually(()=>request(base,'/status'),'native driver');
     const session=await request(base,'/session','POST',{capabilities:{alwaysMatch:{browserName:'wry','tauri:options':{application:sandboxed}}}});
     sessionId=session.sessionId;
+    configureWorkspace(base,sessionId,{evidenceDir:path.join(tempRoot,'navigation'),fixture:{kind:'synthetic',entrypoint}});
     await eventually(async()=>assert.match(await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return document.body.innerText;',args:[]}),/Projects/),'fixture launch');
-    const click=async(b,s,selector)=>{
-      const element=await eventually(()=>request(b,`/session/${s}/element`,'POST',{using:'css selector',value:selector}),selector);
-      const id=element['element-6066-11e4-a52e-4f735466cecf'];
-      await request(b,`/session/${s}/execute/sync`,'POST',{script:'arguments[0].scrollIntoView({block:"center"});',args:[element]});
-      await request(b,`/session/${s}/element/${id}/click`,'POST',{});await delay(250);
-    };
+    const click=nativeClick;
     const wave2a = await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode,expectBridge:true});
     matrix={...await runWave11Acceptance({fixture,base,sessionId,request,click,eventually}),wave2a};
   } catch(error) {
     if(sessionId) {
-      const body=await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return document.body.innerText;',args:[]}).catch(()=>'<unavailable>');
-      console.error('[native] fixture body at failure:',body.slice(0,6000));
-      const shot=await request(base,`/session/${sessionId}/screenshot`).catch(()=>null);
-      if(shot) await writeFile(path.join(tempRoot,'failure.png'),Buffer.from(shot,'base64'));
+      await captureWorkspaceFailure(base,sessionId,null,'synthetic-native-assertion').catch(()=>{});
     }
     throw error;
   } finally { await cleanup(); }

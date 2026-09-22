@@ -598,6 +598,17 @@ class Transaction:
                 or task_progress.get("checks") != matrix["taskProgressScenarios"]
                 or task_progress.get("width") != width):
             raise fail(f"{phase} complete task progress native receipt required")
+        navigation = wave11.get("orderedNavigation", {})
+        required_navigation = matrix["orderedNavigation"]
+        runs = navigation.get("runs", []) if isinstance(navigation, dict) else []
+        if (not isinstance(navigation, dict) or navigation.get("ok") is not True
+                or navigation.get("route") != required_navigation["route"]
+                or navigation.get("regressions") != required_navigation["regressions"]
+                or not isinstance(runs, list) or len(runs) != required_navigation["runs"]
+                or any(not isinstance(row, dict) or type(row.get("run")) is not int
+                       or row["run"] != number or row.get("ok") is not True
+                       for number, row in enumerate(runs, 1))):
+            raise fail(f"{phase} complete ordered workspace navigation receipt required")
 
 
     def accept_first(self) -> None:
