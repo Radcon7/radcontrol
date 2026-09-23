@@ -112,7 +112,8 @@ assert.match(productionAcceptance, /from "\.\/native_sentinel_assertions\.mjs"/)
 assert.match(nativeAssertions, /function assertGuardianActivityGeometry/);
 assert.match(nativeAssertions, /getBoundingClientRect\(\)/);
 assert.match(nativeAssertions, /escapingDescendants/);
-assert.match(nativeAssertions, /details:not\(\[open\]\)/);
+assert.match(nativeAssertions, /ancestor instanceof HTMLDetailsElement && !ancestor\.open/);
+assert.match(nativeAssertions, /ancestor\.querySelector\(':scope > summary'\)\?\.contains\(node\)/);
 assert.match(nativeAssertions, /rowCrossings/);
 assert.match(productionAcceptance, /desktop Guardian Activity/);
 assert.match(nativeAssertions, /headerColumnCount/);

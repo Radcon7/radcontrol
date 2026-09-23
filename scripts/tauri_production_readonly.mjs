@@ -1,7 +1,7 @@
 import { configureWorkspace, nativeClick, assertWorkspace, workspaceText, assertFanResult, captureWorkspaceFailure } from './native_workspace.mjs';
 import { runReleaseWave11 } from "./native_wave11_release.mjs";
 import { transactionReceiptContext, writeTransactionReceipt } from "./native_transaction_receipt.mjs";
-import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, request } from "./native_sentinel_assertions.mjs";
+import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, assertSentinelRawEvidence, request } from "./native_sentinel_assertions.mjs";
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
@@ -470,6 +470,7 @@ try {
   const desktopActivityGeometry = await guardianActivityGeometry(base, sessionId);
   await assertWorkspace(base, sessionId, 'sentinel');
   assertGuardianActivityGeometry(desktopActivityGeometry, "installed desktop Guardian Activity", { desktop: true });
+  await assertSentinelRawEvidence(base, sessionId, selector => click(base, sessionId, selector));
   if (process.env.RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH) {
     const activityElement = await element(base, sessionId, '[data-testid="recent-guardian-activity"]');
     await request(base, `/session/${sessionId}/execute/sync`, "POST", {
