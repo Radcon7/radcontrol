@@ -126,11 +126,16 @@ export async function guardianActivityGeometry(base, sessionId) {
         return { top: value.top, right: value.right, bottom: value.bottom, left: value.left, width: value.width, height: value.height };
       };
       const isVisible = (node) => {
-        const closedDetails = node.closest('details:not([open])');
-        if (closedDetails && !node.closest('summary')) return false;
-        const style = getComputedStyle(node);
+        // A nested summary can itself be hidden by an outer closed episode
+        // disclosure. Only each closed ancestor's own summary stays painted.
+        for (let ancestor = node; ancestor; ancestor = ancestor.parentElement) {
+          if (ancestor instanceof HTMLDetailsElement && !ancestor.open &&
+              !ancestor.querySelector(':scope > summary')?.contains(node)) return false;
+          const style = getComputedStyle(ancestor);
+          if (ancestor.hidden || style.display === 'none' || style.visibility !== 'visible' || Number(style.opacity) === 0) return false;
+        }
         const value = node.getBoundingClientRect();
-        return style.display !== 'none' && style.visibility !== 'hidden' && value.width > 0 && value.height > 0;
+        return value.width > 0 && value.height > 0;
       };
       const rowGeometry = rows.map((row) => {
         const bounds = rect(row);
@@ -140,7 +145,14 @@ export async function guardianActivityGeometry(base, sessionId) {
           columnRects: [...row.children].map(rect),
           directChildCount: row.children.length,
           findingCount: row.querySelectorAll('.guardianFindingList > div').length,
-          buttonCount: row.querySelectorAll('button').length,
+          actionCount: row.querySelectorAll('button, details > summary').length,
+          identity: row.querySelector('[data-activity-label="Concern"] > strong')?.innerText || '',
+          state: row.querySelector('.sentinelStatus')?.innerText || '',
+          observed: row.querySelector('[data-activity-label="Observed"]')?.innerText || '',
+          evidence: row.querySelector('[data-activity-label="Evidence"]')?.innerText || '',
+          resolution: row.querySelector('[data-activity-label="State"] > small')?.innerText || '',
+          action: row.querySelector('[data-activity-label="Concern"] > small')?.innerText || '',
+          trendCount: row.querySelectorAll('[data-testid="sentinel-episode-details"] > summary').length,
           escapingDescendants: descendants.filter((node) => {
             const child = node.getBoundingClientRect();
             return child.top < bounds.top - 1 || child.bottom > bounds.bottom + 1;
@@ -170,9 +182,19 @@ export async function guardianActivityGeometry(base, sessionId) {
 }
 
 export function assertGuardianActivityGeometry(layout, label, { desktop }) {
-  assert.ok(layout.rowCount >= 2, `${label}: multiple retained Guardian rows are required`);
-  assert.ok(layout.rows.some((row) => row.findingCount >= 2), `${label}: at least one multi-finding row is required`);
-  assert.ok(layout.rows.some((row) => row.buttonCount > 0), `${label}: a rendered finding action is required`);
+  assert.ok(layout.rowCount >= 1, `${label}: a retained episode or persistent concern is required`);
+  assert.equal(layout.rows.length, layout.rowCount, `${label}: row inventory must be complete`);
+  for (const row of layout.rows) {
+    assert.ok(row.identity.trim(), `${label}: concern identity must be visible`);
+    assert.match(row.state, /^(WATCHING|NEEDS ATTENTION|UNKNOWN)$/, `${label}: concise concern state required`);
+    assert.match(row.observed, /Last /, `${label}: first/last observation required`);
+    assert.match(row.evidence, /\d+ observations[\s\S]*\d+ proven recurrences/, `${label}: observation and recurrence evidence required`);
+    assert.match(row.resolution, /^(Present now|Present at last observation|Observed clear|Not currently determined)$/, `${label}: presence required`);
+    assert.match(row.action, /repair|Recovery verified|Governed updater action/, `${label}: repair/action truth required`);
+    assert.equal(row.findingCount, 0, `${label}: raw finding lists belong in Details, not compact episode rows`);
+    assert.equal(row.trendCount, 1, `${label}: each concern must expose Review trend`);
+    assert.ok(row.actionCount > 0, `${label}: a rendered action or disclosure is required`);
+  }
   assert.equal(layout.overflowY, "auto", `${label}: Guardian Activity must remain vertically scrollable`);
   assert.ok(layout.scrollHeight >= layout.clientHeight, `${label}: the scroll container must retain its complete content height`);
   assert.ok(layout.scrollHeight + 2 >= layout.contentBottom, `${label}: scrollHeight does not contain every activity row`);
@@ -188,6 +210,83 @@ export function assertGuardianActivityGeometry(layout, label, { desktop }) {
         assert.ok(Math.abs(column.left - layout.headerColumnRects[index].left) <= 20, `${label}: row column ${index + 1} does not align with its header`);
       });
     }
+  }
+}
+
+// Prove both presentation layers using native clicks and WebKit painted/hit-test
+// semantics. A retained layout box under closed Details is not visibility.
+export async function assertSentinelRawEvidence(base, sessionId, click, expected = {}) {
+  const execute = (script, args = []) => request(base, `/session/${sessionId}/execute/sync`, 'POST', {script, args});
+  const selector = '[data-testid="sentinel-raw-history"]';
+  const probe = async () => {
+    await assertWorkspace(base, sessionId, 'sentinel');
+    return execute(`
+      const details = document.querySelector('details.sentinelAdvancedWorkspace');
+      const raw = document.querySelector(arguments[0]);
+      const summary = raw?.querySelector('.guardianScanEvidence > summary');
+      if (details?.open) summary?.scrollIntoView({block:'center'});
+      let suppressed = !raw;
+      for (let node = raw; node; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        suppressed ||= node.hidden || style.display === 'none' || style.visibility !== 'visible' || Number(style.opacity) === 0;
+        suppressed ||= node instanceof HTMLDetailsElement && !node.open;
+      }
+      const bounds = summary?.getBoundingClientRect();
+      const hit = bounds && document.elementFromPoint(bounds.left + bounds.width/2, bounds.top + bounds.height/2);
+      return {retained: Boolean(raw && details?.contains(raw)),
+        visible: Boolean(!suppressed && bounds?.width > 0 && bounds?.height > 0),
+        exposed: document.body.innerText.includes('RAW SCAN EVIDENCE'),
+        hit: Boolean(hit && summary?.contains(hit)),
+        rows: [...(raw?.querySelectorAll('[data-testid="guardian-raw-row"]') || [])].map(row => ({
+          findings: [...row.querySelectorAll('.guardianFindingList > div > strong')].map(n => n.textContent),
+          snapshot: row.querySelector('.guardianScanEvidence pre')?.textContent || '',
+          evidenceControl: row.querySelector('.guardianScanEvidence > summary')?.textContent || '',
+        }))};`, [selector]);
+  };
+  await assertSentinelDetails(base, sessionId, false);
+  const closed = await probe();
+  assertSentinelRawEvidenceState(closed, false, {minRows:1, minFindings:0});
+  await click('.sentinelAdvancedWorkspace > summary');
+  await assertSentinelDetails(base, sessionId, true);
+  const expandOlder = await execute("return document.querySelector('.guardianRawToggle')?.innerText.includes('older observations') || false;");
+  if (expandOlder) await click('.guardianRawToggle');
+  const opened = await probe();
+  assertSentinelRawEvidenceState(opened, true, expected);
+  const visibleRows = Math.min(opened.rows.length, expected.inspectRows ?? 2);
+  for (let index = 0; index < visibleRows; index++) {
+    const row = `${selector} [data-testid="guardian-raw-row"]:nth-child(${index + 1})`;
+    await click(`${row} .guardianScanEvidence > summary`);
+    assert.equal(await execute(`const pre=document.querySelector(arguments[0]+' pre');
+      pre?.scrollIntoView({block:'center'}); const r=pre?.getBoundingClientRect();
+      const hit=r && document.elementFromPoint(r.left+10,r.top+10);
+      return Boolean(pre && document.querySelector(arguments[0]).open && pre.innerText.includes('"metrics"') && pre.contains(hit));`, [`${row} .guardianScanEvidence`]), true, 'raw snapshot must be visible and hit-testable when disclosed');
+    await click(`${row} .guardianScanEvidence > summary`);
+  }
+  await click('.sentinelAdvancedWorkspace > summary');
+  await assertSentinelDetails(base, sessionId, false);
+  assertSentinelRawEvidenceState(await probe(), false, expected);
+  await click('.sentinelAdvancedWorkspace > summary');
+  await assertSentinelDetails(base, sessionId, true);
+  const reopened = await probe();
+  assertSentinelRawEvidenceState(reopened, true, expected);
+  assert.deepEqual(reopened.rows, opened.rows, 'closing/reopening must retain complete raw evidence');
+  if (expandOlder) await click('.guardianRawToggle');
+  await click('.sentinelAdvancedWorkspace > summary');
+  await assertSentinelDetails(base, sessionId, false);
+  assertSentinelRawEvidenceState(await probe(), false, {minRows:1, minFindings:0});
+  return opened;
+}
+
+export function assertSentinelRawEvidenceState(state, open, {minRows = 2, minFindings = 1} = {}) {
+  assert.equal(state.retained, true, 'raw evidence must remain under Details');
+  for (const key of ['visible', 'exposed', 'hit']) assert.equal(state[key], open, `raw evidence ${key} must follow Details`);
+  assert.ok(state.rows.length >= minRows, 'underlying observations must remain inspectable');
+  assert.ok(state.rows.some(row => row.findings.length >= minFindings), 'underlying multi-finding evidence must be complete');
+  for (const row of state.rows) {
+    assert.equal(row.evidenceControl, 'View evidence');
+    // Legacy records can truthfully lack a normalized snapshot; available ones
+    // must remain parseable. Synthetic fixtures additionally bind exact values.
+    if (row.snapshot) assert.ok(JSON.parse(row.snapshot).metrics, 'raw metrics must remain intact');
   }
 }
 

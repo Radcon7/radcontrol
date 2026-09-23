@@ -10,7 +10,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createBubblewrapApplication, snapshotInstalledO2, assertInstalledO2Unchanged,
   tcpListeners, assertNoNewTcpListeners, assertProcessNotRunning, assertPortAbsent,
   sha256File, installNativeAcceptanceSignalCleanup } from './native_acceptance_lib.mjs';
-import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry } from './native_sentinel_assertions.mjs';
+import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, assertSentinelRawEvidence } from './native_sentinel_assertions.mjs';
 
 function arg(name) {
   const i=process.argv.indexOf(name), value=i < 0 ? null : process.argv[i+1];
@@ -90,6 +90,7 @@ try {
  assert.equal((text.match(/CURRENT NOW/g)||[]).length,1);
  await assertSentinelHealth(base,session);
  assertGuardianActivityGeometry(await guardianActivityGeometry(base,session),'candidate activity',{desktop:true});
+ await assertSentinelRawEvidence(base,session,click);
  await assertSentinelDetails(base,session,false);
  await click('.sentinelAdvancedWorkspace > summary');await assertSentinelDetails(base,session,true);
  await click('.sentinelAdvancedWorkspace > summary');await assertSentinelDetails(base,session,false);

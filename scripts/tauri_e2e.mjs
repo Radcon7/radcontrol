@@ -1,5 +1,5 @@
 import { configureWorkspace } from './native_workspace.mjs';
-import { assertWave1Work, assertSentinelHealth, assertSentinelDetails } from "./native_sentinel_assertions.mjs";
+import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, assertSentinelRawEvidence } from "./native_sentinel_assertions.mjs";
 import { runWave2aAcceptance } from "./native_wave2a_acceptance.mjs";
 import { runWave11Acceptance } from "./native_wave11_acceptance.mjs";
 import assert from "node:assert/strict";
@@ -847,6 +847,8 @@ try {
 
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
   await eventually(async () => assert.match(await bodyText(base, sessionId), /CURRENT NOW/), "load current Sentinel presentation");
+  assertGuardianActivityGeometry(await guardianActivityGeometry(base, sessionId), 'debug native episode rows', {desktop:true});
+  await assertSentinelRawEvidence(base, sessionId, selector => click(base, sessionId, selector));
   await assertSentinelDetails(base,sessionId,false);
   await click(base,sessionId,'.sentinelAdvancedWorkspace > summary');
   await assertSentinelDetails(base,sessionId,true);

@@ -115,7 +115,7 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
         synthetic["projectRuntimes"]["value"]["zombies"] = {"count": 1, "parents": [{"pid": 101, "process": "fixture-parent", "count": 1}]}
         fs.append({"kind": "zombie-process", "key": "projectRuntimes", "findingKey": "runtime:zombies:101", "title": "Zombie process", "status": "attention", "reason": "Synthetic zombie parent evidence"})
     def scan(index, values, findings):
-        stamp = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=30-index*5)).isoformat()
+        stamp = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=120-index*5)).isoformat()
         values = copy.deepcopy(values)
         for entry in values.values(): entry["observedAt"] = stamp
         return {"id": "fixture-episode-" + str(index), "guardian": "host", "timestamp": stamp, "type": "host.health-check", "source": "fixture", "severity": "attention" if findings else "informational", "observedValues": {"scanKind": "full", "findings": findings, "snapshot": {"metrics": values}}}
@@ -124,9 +124,16 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
         warm = copy.deepcopy(synthetic);warm["thermal"]["value"][0]["temperatureC"] = 102;warm["thermal"]["status"] = "attention"
         thermal_finding = {"kind": "thermal", "key": "thermal", "findingKey": "metric:thermal", "title": "Thermal activity", "status": "attention", "reason": "Synthetic CPU 102°C"}
         events = [scan(0, warm, [thermal_finding]), scan(1, synthetic, [])]
-        if phase == "recurrent": events += [scan(2, warm, [thermal_finding]), scan(3, synthetic, [])]
+        if phase == "recurrent":
+            def thermal_scan(index, temperature):
+                values = copy.deepcopy(warm)
+                values["thermal"]["value"][0]["temperatureC"] = temperature
+                finding = dict(thermal_finding, reason=f"Synthetic CPU {temperature}°C")
+                return scan(index, values, [finding])
+            events = [thermal_scan(0, 94), thermal_scan(1, 102), scan(2, synthetic, []),
+                      thermal_scan(3, 96), scan(4, synthetic, [])]
     elif phase == "zombie":
-        events.append(scan(1, synthetic, fs))
+        events = [scan(index, synthetic, fs) for index in range(8)]
     if phase == "unknown": synthetic["thermal"] = {"status": "unavailable", "value": None, "observedAt": now}
     projection = episode_projection(events, policy)
     interpretation = operator_projection(synthetic, fs, policy, retained=projection, current=verb == "sentinel.host.current", known_state={"repairNeedsOperator": phase == "failed"})

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertSentinelDetailsState, assertSentinelHealthState } from '../scripts/native_sentinel_assertions.mjs';
+import { assertSentinelDetailsState, assertSentinelHealthState, assertGuardianActivityGeometry, assertSentinelRawEvidenceState } from '../scripts/native_sentinel_assertions.mjs';
 import { transactionReceiptContext, writeTransactionReceipt } from '../scripts/native_transaction_receipt.mjs';
 import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -66,6 +66,53 @@ test('closed/open/reclosed uses rendered exposure and hit testing',()=>{
   assertSentinelDetailsState(closed,false);
   assertSentinelDetailsState({...closed,open:true,measurementVisible:true,measurementTextExposed:true,measurementHit:true},true);
   assertSentinelDetailsState(closed,false);
+});
+
+const episodeRow = {
+  identity:'Thermal activity',state:'WATCHING',observed:'Sep 23, 2026\nLast Sep 23, 2026',
+  evidence:'3 observations\n1 proven recurrences\nPeak 102°C',resolution:'Observed clear',
+  action:'No automatic repair available',findingCount:0,trendCount:1,actionCount:1,
+  bounds:{height:100,top:0,bottom:100},directChildCount:4,escapingDescendants:[],
+  columnRects:[{left:0},{left:200},{left:400},{left:600}],
+};
+const episodeLayout = {
+  rowCount:1,rows:[episodeRow],overflowY:'auto',scrollHeight:100,clientHeight:100,contentBottom:100,
+  rowCrossings:[],headerDisplay:'grid',headerColumnCount:4,headerColumnRects:episodeRow.columnRects,
+};
+const rawEvidence = {retained:true,visible:true,exposed:true,hit:true,rows:[94,102].map(temperature=>({
+  findings:[`CPU ${temperature}°C`, 'Supporting fan measurement'],evidenceControl:'View evidence',
+  snapshot:JSON.stringify({metrics:{thermal:{value:[{temperatureC:temperature}]}}}),
+}))};
+test('new episode contract passes without legacy multi-finding lists and preserves them in Details',()=>{
+  assert.equal(episodeLayout.rows.some(row=>row.findingCount>=2),false,'old multi-finding requirement would fail');
+  assertGuardianActivityGeometry(episodeLayout,'thermal',{desktop:true});
+  assertSentinelRawEvidenceState(rawEvidence,true,{minRows:2,minFindings:2});
+  assertSentinelRawEvidenceState({...rawEvidence,visible:false,exposed:false,hit:false},false,{minRows:2,minFindings:2});
+  assertGuardianActivityGeometry({...episodeLayout,rows:[{...episodeRow,identity:'Zombie process',evidence:'8 observations\n0 proven recurrences',resolution:'Present at last observation'}]},'zombie',{desktop:true});
+});
+for(const [name,patch] of Object.entries({
+  identity:{identity:''},state:{state:'HEALTHY'},counts:{evidence:'No evidence'},resolution:{resolution:''},
+  actionTruth:{action:''},rawSpam:{findingCount:2},missingTrend:{trendCount:0},missingAction:{actionCount:0},
+  cells:{directChildCount:3},clipping:{escapingDescendants:['button']},collapsed:{bounds:{height:20}},
+  alignment:{columnRects:[{left:90},{left:200},{left:400},{left:600}]},
+})) test(`episode geometry rejects ${name}`,()=>assert.throws(()=>assertGuardianActivityGeometry({...episodeLayout,rows:[{...episodeRow,...patch}]},name,{desktop:true})));
+test('episode geometry still rejects missing rows, overlap, overflow and wrong header',()=>{
+  for(const patch of [{rowCount:0,rows:[]},{rowCrossings:[10]},{overflowY:'hidden'},{contentBottom:200},{headerColumnCount:3}])
+    assert.throws(()=>assertGuardianActivityGeometry({...episodeLayout,...patch},'invalid',{desktop:true}));
+});
+test('raw evidence rejects loss, leaked hidden content, missing findings and damaged snapshots',()=>{
+  for(const patch of [{retained:false},{visible:false},{exposed:false},{hit:false},{rows:rawEvidence.rows.slice(0,1)},
+    {rows:rawEvidence.rows.map(row=>({...row,findings:[]}))},{rows:rawEvidence.rows.map(row=>({...row,snapshot:'{}'}))}])
+    assert.throws(()=>assertSentinelRawEvidenceState({...rawEvidence,...patch},true,{minRows:2,minFindings:2}));
+  for(const key of ['visible','exposed','hit'])
+    assert.throws(()=>assertSentinelRawEvidenceState({...rawEvidence,visible:false,exposed:false,hit:false,[key]:true},false));
+});
+test('debug, candidate and installed paths exercise the same two-layer contract',async()=>{
+  for(const file of ['tauri_e2e.mjs','tauri_candidate_precheck.mjs','tauri_production_readonly.mjs']) {
+    const source=await readFile(new URL(`../scripts/${file}`,import.meta.url),'utf8');
+    assert.match(source,/assertGuardianActivityGeometry\(await guardianActivityGeometry|assertGuardianActivityGeometry\(desktopActivityGeometry/);
+    assert.match(source,/await assertSentinelRawEvidence\(/);
+  }
 });
 for (const [key,value] of Object.entries({count:2,open:true,retainedContent:false,measurementVisible:true,
  measurementTextExposed:true,technicalTextExposed:true,measurementHit:true})) {
