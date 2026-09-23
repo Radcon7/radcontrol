@@ -2,8 +2,6 @@ import type { SentinelCurrentMeasurements, SentinelHostFinding, SentinelStatus }
 import type { PopUpgradeCleanupPreviewResponse } from "./sentinelApi";
 
 const PREVIEW = "workstation.cleanup.pop_upgrade.preview";
-const attention = (value: string) => ["attention", "elevated", "critical"].includes(value);
-const identity = (finding: SentinelHostFinding) => finding.findingKey || `${finding.key}:${finding.reason}`;
 
 export function validUpdaterPreview(preview: PopUpgradeCleanupPreviewResponse | null): boolean {
   return Boolean(preview?.ok && preview.candidate?.id === "service:pop-upgrade.service"
@@ -14,24 +12,17 @@ export function validUpdaterPreview(preview: PopUpgradeCleanupPreviewResponse | 
 /** Operator projection only. A visible action grants no repair authorization. */
 export function sentinelHealthActions(status: SentinelStatus | null, current: SentinelCurrentMeasurements | null,
   fresh: boolean, statusError = "", repairFailed = false) {
-  const retained = new Map<string, SentinelHostFinding>();
-  // Latest resolution wins, including resolved records. Never resurrect an older open copy.
-  for (const finding of [...(status?.host.findings || []), ...(status?.recentHostObservations || []).flatMap(row => row.observedValues?.findings || [])]) {
-    if (!retained.has(identity(finding))) retained.set(identity(finding), finding);
-  }
   const findings = new Map<string, SentinelHostFinding>();
-  for (const finding of retained.values()) {
-    if (finding.resolution && finding.resolution.state !== "unresolved") continue;
-    if (!attention(finding.status)) continue;
-    // A historical thermal/load/etc. verdict never replaces its foreground measurement.
-    if (current?.metrics[finding.key]) continue;
-    if (finding.key === "knownIncident" && !status?.knownIncidentState?.active) continue;
-    findings.set(identity(finding), finding);
-  }
-  if (fresh) for (const [key, metric] of Object.entries(current?.metrics || {})) {
-    if (attention(metric.status)) findings.set(`current:${key}`, {
-      findingKey: `current:${key}`, key, status: metric.status, reason: metric.reason,
-      repairCapability: null,
+  for (const concern of current?.interpretation?.concerns || []) {
+    if (!["attention", "critical"].includes(concern.significance) || concern.presence === "observed-clear") continue;
+    const finding = concern.finding;
+    findings.set(concern.concernKey, {
+      ...finding, findingKey: concern.concernKey, key: finding?.key || concern.kind,
+      status: concern.significance === "critical" ? "critical" : "attention",
+      reason: concern.kind === "thermal" && typeof concern.currentTemperatureC === "number"
+        ? `CPU unusually hot · ${concern.currentTemperatureC}°C` : concern.title,
+      repairCapability: concern.actionability === "governed-action-available" ? concern.repairCapability : null,
+      nextStep: concern.presence === "unknown" ? "Current domain evidence is unavailable. Investigate before acting." : finding?.nextStep,
     });
   }
   const operatorRequired = Boolean(status?.knownIncidentState?.repairNeedsOperator || status?.knownIncidentState?.midScanNeedsOperator);

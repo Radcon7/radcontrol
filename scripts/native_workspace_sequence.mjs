@@ -27,7 +27,7 @@ export async function runOrderedWorkspaceSequence({fixture,base,sessionId,reques
     await assertWorkspace(base,sessionId,'sentinel');
   }
   const decoy=async()=>exec(`const e=document.createElement('section');e.id='native-fan-decoy';
-    e.innerText='FAN INVESTIGATION NO FIX NEEDED Outcome retained in Sentinel history.';document.body.append(e);`);
+    e.innerText='FAN INVESTIGATION NO AUTOMATIC REPAIR AVAILABLE Outcome retained in Sentinel history.';document.body.append(e);`);
   const removeDecoy=()=>exec("document.getElementById('native-fan-decoy')?.remove();");
   for(let run=1;run<=contract.runs;run++) {
     const started=new Date().toISOString(), token=`ordered-${run}`;

@@ -60,7 +60,7 @@ const exactAutomaticSelfHeal = {
   key: "host.maintenance.pop-upgrade-self-heal",
   implemented: true,
   dryRunOnly: false,
-  autonomousAuthority: "due-scheduled-exact-final-guard",
+  autonomousAuthority: "qualified-exact-final-guard",
   approvalRequirement: "preauthorized-exact-machine-scope",
   protectedTargets: ["all-other-services", "operator-applications", "arbitrary-processes"],
   targetScope: ["pop-upgrade.service"],

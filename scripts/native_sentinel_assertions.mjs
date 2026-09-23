@@ -33,6 +33,7 @@ export async function assertSentinelHealth(base, sessionId, expected = {}) {
 export function assertSentinelHealthState(state, expected = {}) {
   const presentation = {
     HEALTHY: { label: "HEALTHY", threat: "normal" },
+    WATCHING: { label: "WATCHING", threat: "watching" },
     ATTENTION: { label: "NEEDS ATTENTION", threat: "attention" },
     PROBLEM: { label: "NEEDS ATTENTION", threat: "critical" },
     UNKNOWN: { label: "UNKNOWN", threat: "unknown_visibility" },
@@ -42,7 +43,7 @@ export function assertSentinelHealthState(state, expected = {}) {
   assert.ok(Object.hasOwn(presentation, state.declaredCurrent), "unknown raw measurement health");
   assert.ok(Object.hasOwn(presentation, state.cardState), "unknown operator card state");
   assert.ok(state.cardState === state.declaredCurrent ||
-    (state.cardState === "ATTENTION" && ["HEALTHY", "UNKNOWN"].includes(state.declaredCurrent)),
+    (["ATTENTION", "WATCHING", "UNKNOWN"].includes(state.cardState) && ["HEALTHY", "UNKNOWN"].includes(state.declaredCurrent)),
   "operator card must preserve measurement severity or require review of retained findings");
   assert.equal(state.current, presentation[state.cardState].label, "health display must represent the operator card state");
   assert.deepEqual(state.heroClass.split(/\s+/).filter(c => c.startsWith('sentinelThreat-')),

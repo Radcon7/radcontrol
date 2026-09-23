@@ -1,3 +1,4 @@
+import type { SentinelInterpretation, SentinelEpisodeProjection } from "./sentinelEpisodes";
 export const SENTINEL_EVIDENCE_STATUSES = [
   "healthy",
   "attention",
@@ -58,6 +59,7 @@ export type SentinelScanCoverage = {
 };
 
 export type SentinelHostState = {
+  interpretation?: SentinelInterpretation;
   guardian: "host";
   overallStatus: SentinelEvidenceStatus;
   checkedAt: string | null;
@@ -179,6 +181,7 @@ export type SentinelHostObservation = SentinelEvent & {
 };
 
 export type SentinelCurrentMeasurements = {
+  interpretation?: SentinelInterpretation;
   ok: boolean;
   guardian: "host";
   measuredAt: string;
@@ -261,6 +264,7 @@ export type SentinelAutomation = {
 };
 
 export type SentinelStatus = {
+  episodeProjection?: SentinelEpisodeProjection;
   ok: boolean;
   overallStatus: SentinelEvidenceStatus;
   host: SentinelHostState;
@@ -508,7 +512,7 @@ export function sentinelCapabilityLevelState(
       exactSelfHeal.mutating &&
       exactSelfHeal.implemented &&
       !exactSelfHeal.dryRunOnly &&
-      exactSelfHeal.autonomousAuthority === "due-scheduled-exact-final-guard" &&
+      exactSelfHeal.autonomousAuthority === "qualified-exact-final-guard" &&
       exactSelfHeal.approvalRequirement === "preauthorized-exact-machine-scope" &&
       exactSelfHeal.argumentKeys?.length === 0 &&
       exactSelfHeal.targetScope?.length === 1 &&

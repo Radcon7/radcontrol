@@ -515,9 +515,9 @@ try {
       args: [],
     });
     await assertWorkspace(base, sessionId, 'sentinel');
-    assert.match(result.text, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/);
+    assert.match(result.text, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|WATCHING|UNKNOWN|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/);
     await assertWorkspace(base, sessionId, 'sentinel');
-    assert.match(result.text, /Scan:[\s\S]*Duration:[\s\S]*Repair ran: NO[\s\S]*PRIMARY FINDING[\s\S]*SUPPORTING EVIDENCE[\s\S]*NEXT STEP/);
+    assert.match(result.text, /Scan:[\s\S]*Duration:[\s\S]*Repair ran: NO[\s\S]*Process context[\s\S]*NEXT STEP/);
     return result;
   }, "complete one installed Sentinel diagnosis", 60_000);
   await assertWorkspace(base, sessionId, 'sentinel');
@@ -558,7 +558,7 @@ try {
     await assertWorkspace(base, sessionId, 'sentinel');
     assert.notEqual(state.foregroundStamp, diagnosisResult.foregroundStamp, "foreground measurement timestamp has not refreshed yet");
     await assertWorkspace(base, sessionId, 'sentinel');
-    assert.match(state.result, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/, "diagnosis result disappeared after foreground refresh");
+    assert.match(state.result, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|WATCHING|UNKNOWN|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/, "diagnosis result disappeared after foreground refresh");
     return state;
   }, "retain diagnosis across a later foreground refresh", 75_000);
 
@@ -589,8 +589,8 @@ try {
         normalFontSize: shell ? Number.parseFloat(getComputedStyle(shell).fontSize) : null,
         importantReadingFontSize: importantReading ? Number.parseFloat(getComputedStyle(importantReading).fontSize) : null,
         measurementRowCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-measurement-row"]').length,
-        activityRowCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="guardian-activity-row"]').length,
-        olderActivityToggleCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.guardianActivityToggle').length,
+        activityRowCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelector('[data-testid="recent-guardian-activity"]').querySelectorAll('[data-testid="guardian-activity-row"]').length,
+        olderActivityToggleCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.guardianRawToggle').length,
         automationControlCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.sentinelAutomationControl').length,
         automationSelectCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.sentinelAutomationControl select').length,
         automationToggleCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-automation-toggle"]').length,
@@ -677,11 +677,12 @@ try {
   await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(fanAction.executionResult, "observed", "the retained fan action must record its observation outcome");
 
-  await click(base, sessionId, '.guardianActivityToggle');
+  await click(base, sessionId, '[data-testid="sentinel-open-details"]');
+  await click(base, sessionId, '.guardianRawToggle');
   const expandedActivity = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
     script: `return {
-      rowCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="guardian-activity-row"]').length,
-      text: document.querySelector('[data-testid="radcon-sentinel"]').querySelector('[data-testid="recent-guardian-activity"]')?.textContent || '',
+      rowCount: document.querySelector('[data-testid="sentinel-raw-history"]').querySelectorAll('[data-testid="guardian-raw-row"]').length,
+      text: document.querySelector('[data-testid="radcon-sentinel"]').querySelector('[data-testid="sentinel-raw-history"]')?.textContent || '',
     };`,
     args: [],
   });

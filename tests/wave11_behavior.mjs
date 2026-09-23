@@ -14,32 +14,40 @@ test('unsupported numeric/checklist/narrative fields never become percentage evi
  for(const state of ['In Progress','Blocked','Deferred','Legacy']) assert.equal(empireTodoProgress({...item,status:state,percent:62,checklist:[{done:true}],currentState:'62%'}).percent,null);
  assert.equal(empireTodoProgress({...item,status:'Complete'}).percent,100);assert.equal(empireTodoProgress({...item,status:'Legacy'}).label,'Unclassified');
 });
-test('healthy state has no repair or attention action',()=>{const view=sentinelHealthActions(status([]),sample,true);assert.equal(view.needsAttention,false);assert.equal(view.repairableCount,0);});
-test('exact actionable updater finding permits only entry into preview',()=>{assert.equal(sentinelHealthActions(status(),sample,true).repairableCount,1);});
-test('temperature and zombie findings do not fabricate fixes',()=>{const view=sentinelHealthActions(status([thermal,zombie]),{...sample,metrics:{thermal:{status:'attention',reason:'CPU temperature 96°C'}}},true);assert.equal(view.findings.length,2);assert.equal(view.repairableCount,0);});
-test('unknown repair capability cannot expose Fix it',()=>{assert.equal(sentinelHealthActions(status([{...updater,repairCapability:'host.kill'}]),sample,true).repairableCount,0);});
-test('missing or broadened capability metadata fails closed',()=>{
- for(const cap of [{...capability,implemented:false},{...capability,dryRunOnly:true},{...capability,targetScope:['pop-upgrade.service','other.service']},{...capability,argumentKeys:['pid']},{...capability,mutating:false},{...capability,level:2}]) assert.equal(sentinelHealthActions({...status(),capabilities:[cap]},sample,true).repairableCount,0);
+const projected = (rows) => ({...sample, interpretation:{concerns: rows.map(f => ({
+  concernKey:f.findingKey, kind:f.key, title:f.reason, finding:f, presence:'present', significance:'attention',
+  actionability:f.repairCapability ? 'governed-action-available' : 'operator-investigation-required', repairCapability:f.repairCapability,
+}))}});
+test('healthy projection has no repair or attention action',()=>{const view=sentinelHealthActions(status([]),projected([]),true);assert.equal(view.needsAttention,false);assert.equal(view.repairableCount,0);});
+test('exact projected updater permits only preview entry',()=>assert.equal(sentinelHealthActions(status(),projected([updater]),true).repairableCount,1));
+test('temperature and zombie concerns do not fabricate fixes',()=>{const view=sentinelHealthActions(status([thermal,zombie]),projected([thermal,zombie]),true);assert.equal(view.findings.length,2);assert.equal(view.repairableCount,0);});
+test('unknown repair capability cannot expose Fix it',()=>assert.equal(sentinelHealthActions(status(),projected([{...updater,repairCapability:'host.kill'}]),true).repairableCount,0));
+test('missing or broadened metadata fails closed',()=>{
+ for(const cap of [{...capability,implemented:false},{...capability,dryRunOnly:true},{...capability,targetScope:['pop-upgrade.service','other.service']},{...capability,argumentKeys:['pid']},{...capability,mutating:false},{...capability,level:2}]) assert.equal(sentinelHealthActions({...status(),capabilities:[cap]},projected([updater]),true).repairableCount,0);
 });
-test('stale current evidence, status error, bad audit or boundary cannot offer Fix it',()=>{
- assert.equal(sentinelHealthActions(status(),sample,false).repairableCount,0);assert.equal(sentinelHealthActions(status(),sample,true,'status unavailable').repairableCount,0);
- for(const patch of [{privilegedBoundary:{ready:false}},{auditVerification:{ok:false}},{ok:false}]) assert.equal(sentinelHealthActions({...status(),...patch},sample,true).repairableCount,0);
+test('stale evidence, status errors, bad audit and boundary deny repair',()=>{
+ assert.equal(sentinelHealthActions(status(),projected([updater]),false).repairableCount,0);
+ assert.equal(sentinelHealthActions(status(),projected([updater]),true,'unavailable').repairableCount,0);
+ for(const patch of [{privilegedBoundary:{ready:false}},{auditVerification:{ok:false}},{ok:false}]) assert.equal(sentinelHealthActions({...status(),...patch},projected([updater]),true).repairableCount,0);
 });
-test('manual entry does not require the automatic scheduler',()=>{assert.equal(sentinelHealthActions({...status(),automation:{enabled:false,active:false}},sample,true).repairableCount,1);});
-test('failed/unresolved repair remains attention and offers no new restart',()=>{
- const failed=sentinelHealthActions(status([]),sample,true,'',true);assert.equal(failed.needsAttention,true);assert.equal(failed.repairableCount,0);
- for(const latch of ['repairNeedsOperator','midScanNeedsOperator']){const s=status();s.knownIncidentState[latch]=true;const v=sentinelHealthActions(s,sample,true);assert.equal(v.needsAttention,true);assert.equal(v.repairableCount,0);}
+test('manual preview does not require automatic scheduler',()=>assert.equal(sentinelHealthActions({...status(),automation:{enabled:false,active:false}},projected([updater]),true).repairableCount,1));
+test('failed/unresolved repairs offer no restart',()=>{
+ const failed=sentinelHealthActions(status([]),projected([]),true,'',true);assert.equal(failed.needsAttention,true);assert.equal(failed.repairableCount,0);
+ for(const latch of ['repairNeedsOperator','midScanNeedsOperator']){const s=status();s.knownIncidentState[latch]=true;const v=sentinelHealthActions(s,projected([updater]),true);assert.equal(v.needsAttention,true);assert.equal(v.repairableCount,0);}
 });
-test('one successful repair does not clear two unrelated findings',()=>{
- const current={...sample,metrics:{thermal:{status:'attention',reason:'CPU temperature 96°C'}}};
- const before=sentinelHealthActions(status([updater,thermal,zombie]),current,true);assert.equal(before.findings.length,3);assert.equal(before.repairableCount,1);
- const after=sentinelHealthActions(status([thermal,zombie]),current,true);assert.equal(after.findings.length,2);assert.equal(after.repairableCount,0);assert.equal(after.needsAttention,true);
+test('one verified repair leaves unrelated concerns visible',()=>{
+ const before=sentinelHealthActions(status([updater,thermal,zombie]),projected([updater,thermal,zombie]),true);assert.equal(before.findings.length,3);assert.equal(before.repairableCount,1);
+ const after=sentinelHealthActions(status([thermal,zombie]),projected([thermal,zombie]),true);assert.equal(after.findings.length,2);assert.equal(after.repairableCount,0);
 });
-test('latest resolution wins and historical thermal attention cannot replace healthy foreground',()=>{
- const resolved={...zombie,resolution:{state:'resolved'}};const s=status([thermal,resolved]);s.recentHostObservations=[{observedValues:{findings:[zombie]}}];
- assert.equal(sentinelHealthActions(s,sample,true).findings.length,0);
+test('Watching and observed-clear project no attention action',()=>{
+ const input=projected([thermal,zombie]);input.interpretation.concerns[0].presence='observed-clear';input.interpretation.concerns[1].significance='watching';
+ assert.equal(sentinelHealthActions(status([thermal,zombie]),input,true).findings.length,0);
 });
-test('duplicate retained findings counted once',()=>{const s=status([zombie]);s.recentHostObservations=[{observedValues:{findings:[zombie,zombie]}}];assert.equal(sentinelHealthActions(s,sample,true).findings.length,1);});
+test('raw historic rows cannot override authoritative projection',()=>{
+ const s=status([updater,zombie]);s.recentHostObservations=[{observedValues:{findings:[updater,zombie]}}];
+ assert.equal(sentinelHealthActions(s,projected([]),true).findings.length,0);
+ assert.equal(sentinelHealthActions(s,sample,true).repairableCount,0);
+});
 test('exact preview still requires confirmation and OS authorization',()=>{
  const p={ok:true,candidate:{id:'service:pop-upgrade.service',service:'pop-upgrade.service'},requiresOperatorConfirmation:true,requiresOsAuthorization:true};assert.equal(validUpdaterPreview(p),true);
  for(const patch of [{ok:false},{candidate:null},{candidate:{id:'service:other',service:'other'}},{requiresOperatorConfirmation:false},{requiresOsAuthorization:false}])assert.equal(validUpdaterPreview({...p,...patch}),false);assert.equal(validUpdaterPreview(null),false);

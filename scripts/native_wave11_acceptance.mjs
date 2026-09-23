@@ -132,6 +132,7 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   await screenshot('sentinel-healthy');
   await tap('[data-testid="sentinel-open-details"]');
   await assertSentinelDetails(base,sessionId,true);
+  await screenshot("sentinel-details-expanded");
   await tap('.sentinelAdvancedWorkspace > summary');
   await assertSentinelDetails(base,sessionId,false);
   pass('details-rendered-text-hit-testing');
@@ -156,14 +157,14 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   pass('nonactionable-review');
   await screenshot('sentinel-nonactionable');
   await scenario('multiple');
-  await eventually(async()=>assert.match(await text('[data-testid="sentinel-finding-count"]'),/3 findings · 1 safely repairable/),'multiple findings');
+  await eventually(async()=>assert.match(await text('[data-testid="sentinel-finding-count"]'),/3 concerns · 1 safe governed action available/),'multiple findings');
   await health('ATTENTION', 'ATTENTION', 1, 1);
   assert.match(await text('[data-testid="sentinel-current-now"]'),/Fix available: pop-upgrade.service/);
   await screenshot('sentinel-multiple');
   await tap('[data-testid="sentinel-fix-it"]');
   await eventually(async()=>assert.match(await text('[data-testid="pop-upgrade-safe-cleanup"]'),/Authorize & fix/),'preview multiple');
   await tap('[data-testid="pop-upgrade-safe-cleanup"] .sentinelActions .btnPrimary');
-  await eventually(async()=>assert.match(await text('[data-testid="sentinel-finding-count"]'),/2 findings · 0 safely repairable/),'remaining findings after simulated repair');
+  await eventually(async()=>assert.match(await text('[data-testid="sentinel-finding-count"]'),/2 concerns · no automatic repair/),'remaining findings after simulated repair');
   await health('ATTENTION', 'ATTENTION', 0, 1);
   assert.equal(await applyCount(),1);
   const afterApply=(await calls()).slice((await calls()).findIndex(c=>c.verb.endsWith('pop_upgrade.apply'))+1);
@@ -190,6 +191,31 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   assert.doesNotMatch(await text('[data-testid="pop-upgrade-safe-cleanup"]'),/Authorize & fix/);
   assert.equal(await applyCount(),2);
   pass('invalid-preview');
+  for (const phase of ['watching', 'recurrent', 'zombie', 'unknown', 'diagnosis']) {
+    await scenario(phase);
+    await health(phase === 'unknown' ? 'UNKNOWN' : 'HEALTHY', phase === 'unknown' ? 'UNKNOWN' : 'WATCHING', 0, 1);
+    await screenshot(`sentinel-wave2a-${phase}-current`);
+    if (phase !== 'unknown') {
+      assert.equal(await count('[data-testid="recent-guardian-activity"] [data-testid="guardian-activity-row"]'), 1);
+      await tap('[data-testid="sentinel-review-current"]');
+      assert.equal(await execute(`return document.querySelector('[data-testid="sentinel-episode-details"]').open;`), true);
+      assert.match(await text('[data-testid="recent-guardian-activity"]'), /actual duration unknown/);
+      if (phase === 'recurrent') assert.match(await text('[data-testid="recent-guardian-activity"]'), /1 proven recurrences/);
+      if (phase === 'zombie') assert.match(await text('[data-testid="recent-guardian-activity"]'), /2 observations[\s\S]*process birth identity unavailable/);
+    }
+    if (phase === 'diagnosis') {
+      await tap('[data-testid="sentinel-diagnose-fix"]');
+      await eventually(async()=>assert.match(await text('[data-testid="sentinel-diagnosis-result"]'), /DIAGNOSIS COMPLETE[\s\S]*WATCHING[\s\S]*fixture-worker/), 'dated diagnosis with retained process context');
+      assert.equal(await count('[data-testid="sentinel-diagnosis-result"]'), 1);
+      const contextBefore = await text('[data-testid="sentinel-diagnosis-result"] [data-testid="sentinel-process-context"]');
+      await execute('document.dispatchEvent(new Event("visibilitychange"));');
+      await eventually(async()=>assert.equal(await text('[data-testid="sentinel-diagnosis-result"] [data-testid="sentinel-process-context"]'), contextBefore), 'foreground cannot erase completed process context');
+      pass('sentinel-process-provenance', 'sentinel-concise-diagnosis');
+    }
+    await screenshot(`sentinel-wave2a-${phase}`);
+    pass(`sentinel-${phase}`);
+  }
+  pass('sentinel-episode-history');
   await tap('[data-testid="security-mode-empire_operations"]');
   activeWorkspace='empire_operations';
   await eventually(async()=>assert.match(await text('[data-testid=empire-operations-workspace]'), /OPERATIONAL TRUTH/),'Empire Operations');

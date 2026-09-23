@@ -18,7 +18,15 @@
     "current-now-history",
     "details-rendered-text-hit-testing",
     "three-security-workspaces",
-    "runtime-diagnostics"
+    "runtime-diagnostics",
+    "sentinel-watching",
+    "sentinel-recurrent",
+    "sentinel-zombie",
+    "sentinel-unknown",
+    "sentinel-diagnosis",
+    "sentinel-process-provenance",
+    "sentinel-concise-diagnosis",
+    "sentinel-episode-history"
   ],
   "harnessFiles": [
     "scripts/native_wave11_acceptance.mjs",

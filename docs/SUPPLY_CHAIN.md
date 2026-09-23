@@ -95,7 +95,7 @@ and the three Security workspaces do not change.
 
 The same shared native assertions distinguish raw foreground measurement health
 from the aggregate operator card state. Retained findings can require ATTENTION
-while measurements remain HEALTHY; ATTENTION and PROBLEM both display NEEDS
+or WATCHING while measurements remain HEALTHY; ATTENTION and PROBLEM both display NEEDS
 ATTENTION but retain different severity styling. Candidate, installed and debug
 probes validate this relation rather than equating raw enums and display text.
 Synthetic scenarios additionally bind exact raw/card states and Fix it versus
@@ -109,7 +109,7 @@ This synthetic UI/contract phase is distinct from real installed identity,
 normal read-only surfaces, private-state preservation and rollback acceptance.
 It covers queued/active/blocked/Deferred/legacy tasks, lifecycle rails and
 selection, healthy/actionable/non-actionable/multiple Sentinel findings,
-preview/cancel/confirmation, surviving findings, failed repair, Details,
+preview/cancel/confirmation, surviving findings, failed repair, Watching and recurrent thermal episodes, stable zombie and unavailable evidence, dated diagnosis process context, Details,
 all three Security workspaces and Runtime Diagnostics.
 
 The synthetic dispatcher implements only those scenario responses. Unrelated

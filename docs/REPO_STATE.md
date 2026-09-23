@@ -56,54 +56,40 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   hierarchy rather than small type or tall card grids. Every bounded child list
   leaves an inset outer-scroll gutter and does not trap overscroll.
 
-  Radcon Sentinel presents health first, one token-free foreground measurement
-  home second, bounded durable Guardian activity third, and Advanced System
-  Information fourth.
-  Its top answer uses the current token-free foreground measurement and presents
-  one Current Now card. Last Full Scan, unresolved findings, Next Full Scan, and
-  schedule state stay in Recent Guardian Activity and the single schedule or
-  automation surfaces instead of repeating as top summary cards. A 15-minute timer wake is
-  not scan freshness: it runs a full scan only when the configured daily or
-  twice-daily interval is due and otherwise performs only the exact known Pop
-  updater incident probe. Missing optional or learning evidence is a visible
-  coverage limitation and does not erase an otherwise complete healthy core or
-  make a recent durable result stale. O2 owns health severity and sensor
-  authority, while RadControl presents baseline maturity only as secondary
-  comparison metadata. The Sentinel order is fixed as “Is my computer okay?”,
-  “Current Measurements”, “Recent Guardian Activity”, then “Advanced System
-  Information”. The eight measurements and durable activity use compact wide
-  rows rather than card grids. Activity is bounded to 20 durable records but initially shows a
-  compact recent set. New records retain scan duration, specific findings, primary finding,
-  coverage, limitations, bounded normalized evidence, proposed/taken action,
-  repair outcome, current resolution projection, and post-repair proof; legacy records and retained
-  Attention/UNKNOWN states must state exactly what evidence is absent. The
-  top-box Diagnose workflow runs one deterministic deep check and retains an
-  explicit result card across foreground refreshes with scan kind, duration,
-  exact finding/evidence, repair truth, outcome, and next step. Run Full Scan is
-  a visually separate manual action. Known issues route to existing governed
-  actions, while the read-only
-  diagnostic advisor only when the cause remains genuinely unknown. “Fans are
-  loud” is one primary top-box
-  workflow composed from the existing governed fan explanation, conditional
-  deterministic deep check, exact Safe Cleanup preview/apply when eligible,
-  remeasurement, and existing Sentinel event, action, incident, and remediation
-  evidence. Specific process history projects available process/PID/current
-  CPU or project/PID/age and zombie parent evidence. Later full scans may mark
-  an old finding resolved or no longer present without rewriting its historical
-  severity. Routine runtime outcomes never append to tracked workstation source.
-  Stale browser and zombie findings expose no generic kill, process-group,
-  service-restart, or project-stop authority. Other workstation symptoms
-  remain reachable through one secondary chooser. Automatic Guardian has one
-  compact authoritative control and one top status strip, rather than repeated
-  status/control copies. Advanced information has six full-width areas: System
-  Evidence, Scan Coverage, Maintenance & Updates, Automation, Workstation Record
-  & Notes, and Safety & Permissions. Scan Coverage distinguishes actively
-  watched, unsupported, unavailable, and historical-only evidence. A manual Deep Check remains only within
-  System Evidence; standalone Diagnostics and Quick Answers are intentionally
-  removed. The tracked workstation configuration and notes remain readable
-  canonical source references in the installed app; deliberate edits use the
-  normal governed source workflow, while routine observations and operator
-  actions stay in existing Sentinel history.
+  Radcon Sentinel renders O2's evidence interpretation: Healthy, Watching,
+  Needs Attention, or Unknown/not current. Existing critical evidence retains
+  urgent emphasis. One Current Now card gives one primary message and the
+  relevant action: exact guarded Fix it, Investigate, Review trend, or Details.
+  Presence, significance and actionability are separate; React never recomputes
+  Sentinel policy. A stale/failed foreground sample never supplies current health.
+  Four primary signals retain CPU, temperature, fan and load; high RPM is
+  supporting evidence, not an independent warning.
+
+  One dated diagnostic result survives lightweight refreshes, including the
+  completed scan's process context, capture time, provenance and stale state.
+  Raw supporting evidence stays under the single initially closed Details
+  disclosure. Missing evidence never means healthy and absence of repair
+  capability says No automatic repair available, not No fix needed.
+  Compact Recent Events renders bounded O2 concerns/episodes with first/last
+  observation, counts, recurrence, observed clearance and repair truth. Current
+  recurrence cannot be hidden by an older clear episode. Review trend opens
+  the actual retained projection; full recent scan snapshots, original severity,
+  coverage and evidence references remain in Details. Raw history is never
+  rewritten or deleted. A repeated zombie signature is not proof of continuous
+  same-process identity, and no zombie/parent killing is offered.
+
+  Details preserves eight measurements, the single automation control and the
+  six full-width areas: System Evidence, Scan Coverage, Maintenance &
+  Updates, Automation, Workstation Record & Notes, and Safety & Permissions.
+  The standalone Diagnostics and Quick Answers are intentionally removed.
+  Workstation source references remain read-only. Diagnose runs one bounded
+  deterministic deep check; Run Full Scan and Fans are loud remain distinct
+  working actions. A genuinely unknown retained observation alone may enter
+  the explicitly requested read-only advisor. Automatic full scans remain twice
+  daily when configured; the existing 15-minute wake does not become thermal
+  monitoring. No new collector, daemon, store, LLM routine or repair target is
+  introduced. The one exact updater action still requires fresh preview,
+  operator confirmation and the independent root helper guard.
   Empire Operations combines deterministic matched-pair, automation, audit, and
   topology truth with governed Map, Snapshot, and Sweep artifacts in the same
   wide-row presentation system. Its bounded Operational Truth rows retain a
