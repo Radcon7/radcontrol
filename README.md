@@ -17,14 +17,14 @@ RadControl owns UI layout, local presentation state, document viewing and editin
 - **Security**: one coherent three-workspace control room with large title-only
   navigation, readable operator typography, and inset wide-row lists. Radcon
   Sentinel answers whether this computer is okay from current foreground
-  evidence and presents one Current Now card; full-scan history, unresolved
+  evidence and O2-owned Healthy / Watching / Needs Attention / Unknown interpretation in one Current Now card; full-scan history, unresolved
   findings, next-scan timing, and schedule state remain in their detailed
   activity and automation homes instead of repeating in top summary cards. Daily or
   twice-daily full scans retain bounded expandable evidence; the 15-minute wake
   performs only a due check and the exact known-incident probe between scans.
   Diagnose runs exactly one deterministic deep check and leaves a persistent
-  result with exact finding evidence, duration, repair truth, and next step;
-  repair wording appears only when a governed repair exists. The read-only
+  result with dated retained process context, duration, repair truth, and next step;
+  repair wording appears only when a governed repair exists. Bounded concerns and episodes group repeated observations without inventing duration, process identity, or continuous coverage; raw records remain in Details. The read-only
   advisor remains limited to genuinely unknown retained observations. The single loud-fan investigation plus any
   exact governed Safe Cleanup action stays in the top operating box. Routine fan
   outcomes remain in existing Sentinel history; the tracked workstation

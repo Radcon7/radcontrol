@@ -60,7 +60,7 @@ const probeScript = `
   }
   const target=document.querySelector(roots[destination]);const rect=target?.getBoundingClientRect();
   const trace=window.__nativeWorkspaceTrace;const pointer=trace.pointer;
-  const known=['CURRENT NOW','RECENT EVENTS','FAN INVESTIGATION','NO FIX NEEDED','FIX AVAILABLE','Outcome retained in Sentinel history.','OPERATIONAL TRUTH','VISIBILITY NOW','Runtime & Build'];
+  const known=['CURRENT NOW','RECENT EVENTS','FAN INVESTIGATION','NO AUTOMATIC REPAIR AVAILABLE','FIX AVAILABLE','Outcome retained in Sentinel history.','OPERATIONAL TRUTH','VISIBILITY NOW','Runtime & Build'];
   return {destination,selected:selected(),retainedSecurityMode:sessionStorage.getItem('radcontrol.security.mode'),aria:[...document.querySelectorAll('[data-testid="security-workspace"] [role="tab"]')].map(e=>({id:e.dataset.testid,selected:e.getAttribute('aria-selected')})),
     containers:Object.fromEntries(Object.entries(roots).map(([name,selector])=>[name,{count:document.querySelectorAll(selector).length,visible:visible(document.querySelector(selector))}])),
     workPresent:!!document.querySelector('[data-testid="empire-todo-workspace"]'),
@@ -159,7 +159,7 @@ export async function assertFanResult(base,id,{fixtureText,timeoutMs=20_000}={})
   do {
     // Wrong workspace fails immediately, before reading or retrying content.
     const text=await workspaceText(base,id,'sentinel','[data-testid="sentinel-fan-investigation-result"]');
-    if(/FAN INVESTIGATION[\s\S]*(NO FIX NEEDED|FIX AVAILABLE)[\s\S]*Outcome retained in Sentinel history/.test(text)
+    if(/FAN INVESTIGATION[\s\S]*(NO AUTOMATIC REPAIR AVAILABLE|FIX AVAILABLE)[\s\S]*Outcome retained in Sentinel history/.test(text)
       &&(!fixtureText||text.includes(fixtureText)))return;
     await delay(100);
   }while(Date.now()<deadline);

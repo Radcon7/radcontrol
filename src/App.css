@@ -4610,3 +4610,13 @@ pre {
   .todoDetail { overflow-y: visible; }
   .todoRowTitle { flex-wrap: wrap; gap: 4px; }
 }
+
+/* Sentinel operator significance is distinct from raw measurement severity. */
+.sentinelThreat-watching { border-color: rgba(114, 186, 255, .45); }
+.sentinelStatus-watching, .sentinelOperatorState-watching > strong { color: #a3d1ff; }
+.sentinelProcessContext { display: grid; gap: 6px; }
+.sentinelProcessContext p { margin: 0; }
+.sentinelProcessContext small { color: var(--muted); }
+
+.sentinelShell .guardianActivityCell > strong,
+.sentinelShell .guardianActivityCell > small { display: block; margin-block: 3px; }

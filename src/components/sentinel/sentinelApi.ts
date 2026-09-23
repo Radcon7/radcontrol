@@ -1,3 +1,4 @@
+import type { SentinelInterpretation } from "./sentinelEpisodes";
 import {
   runO2ParsedJson,
   runO2PayloadParsedJson,
@@ -12,6 +13,7 @@ import type {
 } from "./sentinelModel";
 
 export type HostCheckResponse = {
+  interpretation?: SentinelInterpretation;
   ok: boolean;
   overallStatus: string;
   checkedAt?: string;

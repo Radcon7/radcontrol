@@ -47,7 +47,7 @@ assert.doesNotMatch(repoState, /New Project intentionally uses an AI-only prompt
 assert.match(repoState, /Infrastructure: governed provider\/platform assets/);
 assert.match(repoState, /Agents: governed profiles/);
 assert.match(repoState, /Security: three first-class workspaces over O2-owned truth/);
-assert.match(repoState, /Current Measurements”, “Recent Guardian Activity”/);
+assert.match(repoState, /Current Now[\s\S]*Recent Events/);
 assert.match(repoState, /six full-width areas:[\s\S]*Scan Coverage/);
 assert.match(repoState, /standalone Diagnostics and Quick Answers are intentionally/);
 assert.match(repoState, /One[\s\S]*exact Level 1 allowlist is active/);

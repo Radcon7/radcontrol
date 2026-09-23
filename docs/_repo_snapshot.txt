@@ -255,8 +255,10 @@ src/components/security/EmpireOperationsWorkspace.tsx
 src/components/security/SecurityTab.tsx
 src/components/sentinel/HostUpdatesPanel.tsx
 src/components/sentinel/SecurityGuardianTab.tsx
+src/components/sentinel/SentinelEpisodes.tsx
 src/components/sentinel/SentinelTab.tsx
 src/components/sentinel/sentinelApi.ts
+src/components/sentinel/sentinelEpisodes.ts
 src/components/sentinel/sentinelHealthActions.ts
 src/components/sentinel/sentinelModel.ts
 src/main.tsx
@@ -277,6 +279,7 @@ tests/o2_runtime_boundary_behavior.mjs
 tests/project_intent_preview_behavior.mjs
 tests/release_candidate_evidence_test.py
 tests/sentinel_behavior.mjs
+tests/sentinel_episodes_behavior.mjs
 tests/sentinel_render.mjs
 tests/verify_agents_architecture_contract.mjs
 tests/verify_change_guardian_policy.mjs

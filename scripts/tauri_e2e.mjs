@@ -879,15 +879,15 @@ try {
   await click(base, sessionId, '[data-testid="sentinel-diagnose-fix"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
-    assert.match(text, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/);
-    assert.match(text, /Scan:[\s\S]*Duration:[\s\S]*Repair ran: NO[\s\S]*PRIMARY FINDING[\s\S]*NEXT STEP/);
+    assert.match(text, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|WATCHING|UNKNOWN|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/);
+    assert.match(text, /Scan:[\s\S]*Duration:[\s\S]*Repair ran: NO[\s\S]*Process context[\s\S]*NEXT STEP/);
     assert.match(text, /Diagnose[\s\S]*Run Full Scan/);
   }, "retain a structured Sentinel diagnosis result", 45_000);
   const hostObservationRow = await eventually(
     () => element(base, sessionId, '[data-testid="guardian-activity-row"]'),
     "render the durable Host Guardian observation",
   );
-  assert.match(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /Operator|Automatic/);
+  assert.match(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /observations|Observed/);
   assert.doesNotMatch(await elementProperty(base, sessionId, hostObservationRow, "textContent"), /No recorded anomaly/);
 
   await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1100, height: 900 });
