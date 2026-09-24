@@ -43,7 +43,9 @@
     "src-tauri/tauri.e2e.conf.json",
     "scripts/native_work_readiness.mjs",
     "scripts/native_workspace.mjs",
-    "scripts/native_workspace_sequence.mjs"
+    "scripts/native_workspace_sequence.mjs",
+    "scripts/native_work_authority.mjs",
+    "src/components/notes/empireTodoModel.ts"
   ],
   "taskProgressScenarios": [
     "15-45-72",

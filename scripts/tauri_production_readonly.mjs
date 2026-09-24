@@ -1,3 +1,4 @@
+import { copyWorkSnapshot, snapshotWork, assertWorkUnchanged, workReceipt, assertNativeWorkDiagnostics, assertNativeWorkRows } from './native_work_authority.mjs';
 import { configureWorkspace, nativeClick, assertWorkspace, workspaceText, assertFanResult, captureWorkspaceFailure } from './native_workspace.mjs';
 import { runReleaseWave11 } from "./native_wave11_release.mjs";
 import { transactionReceiptContext, writeTransactionReceipt } from "./native_transaction_receipt.mjs";
@@ -100,7 +101,7 @@ async function eventually(action, description, timeoutMs = 20_000) {
   while (Date.now() < deadline) {
     try { return await action(); } catch (error) { lastError = error; await delay(250); }
   }
-  throw new Error(`${description}: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+  throw new Error(`${description}: ${lastError instanceof Error ? lastError.message.split('\n')[0] : 'assertion failed'}`);
 }
 
 async function element(base, sessionId, selector) {
@@ -171,13 +172,9 @@ await Promise.all([
 await cp(path.join(INSTALLED_O2_ROOT, ".state"), stateOverlay, { recursive: true, preserveTimestamps: true });
 await mkdir(path.join(stateOverlay, "radcontrol-runtime", "tmp"), { recursive: true, mode: 0o700 });
 const operatorWorkSource = path.join(tempRoot, "operator-work");
-await mkdir(operatorWorkSource, {mode:0o700});
-try { await cp(path.join(path.dirname(INSTALLED_O2_ROOT), "operator-work"), operatorWorkSource, {recursive:true}); }
-catch (error) { if (error.code !== "ENOENT") throw error; }
-try { await cp(path.join(path.dirname(INSTALLED_O2_ROOT), "operator-work.activated"), path.join(path.dirname(operatorWorkSource), "operator-work.activated")); }
-catch (error) { if (error.code !== "ENOENT") throw error; }
-const activatedWork = await readFile(path.join(path.dirname(operatorWorkSource), "operator-work.activated"), "utf8").then(() => true, error => { if (error.code === "ENOENT") return false; throw error; });
-const expectedWork = activatedWork ? JSON.parse(await readFile(path.join(operatorWorkSource,"work.json"),"utf8")) : null;
+const liveWorkRoot = path.join(path.dirname(INSTALLED_O2_ROOT), "operator-work");
+const expectedWork = await copyWorkSnapshot(INSTALLED_O2_ROOT, liveWorkRoot, operatorWorkSource);
+const activatedWork = expectedWork.authority === 'private';
 const sandboxedApp = await createBubblewrapApplication({
   app,
   tempRoot,
@@ -206,7 +203,11 @@ let acceptanceError;
 const cleanup = installNativeAcceptanceSignalCleanup(async () => {
   if (sessionId) await request(base, `/session/${sessionId}`, "DELETE").catch(() => undefined);
   await stopChild(driver);
+  const workAfter = await snapshotWork(INSTALLED_O2_ROOT, liveWorkRoot);
+  const copyAfter = await snapshotWork(INSTALLED_O2_ROOT, operatorWorkSource);
   await rm(tempRoot, { recursive: true, force: true });
+  assertWorkUnchanged(expectedWork, workAfter);
+  assertWorkUnchanged(expectedWork, copyAfter);
   await assertInstalledO2Unchanged(installedBefore);
   const listenersAfter = tcpListeners();
   assertPortAbsent(listenersAfter, 1420);
@@ -239,7 +240,7 @@ try {
     for (const project of installedProjects) {
       assert.ok(text.includes(project.label), `production diagnostics omitted ${project.label}`);
     }
-    assert.match(text, /Empire To-Do · 34 durable items/);
+    await assertNativeWorkDiagnostics(base, sessionId, expectedWork);
     assert.match(text, /Infrastructure · 10 governed profiles/);
     assert.match(text, /Security \/ Radcon Sentinel/);
     return text;
@@ -253,42 +254,23 @@ try {
   await eventually(async()=>{
     const view = await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return {text:document.querySelector(".overview")?.innerText, rows:[...document.querySelectorAll(".momentumRow")].map(e=>e.dataset.testid)};',args:[]});
     if (activatedWork) {
-      assert.deepEqual(view.rows,expectedWork.data.initiatives.map(row=>'momentum-'+row.id));
+      assert.ok(JSON.stringify(view.rows) === JSON.stringify(expectedWork.initiativeIds.map(id=>'momentum-'+id)), 'Overview initiative identities differ from authority');
       assert.doesNotMatch(view.text,/Work is temporarily read-only/);
     } else {
       assert.match(view.text,/Work is temporarily read-only/);assert.deepEqual(view.rows,[]);
     }
   },'actual Work authority drives Overview');
   }
-  const workAuthorityChecks = {authority:activatedWork?'private':'legacy-readonly',initiativeCount:expectedWork?.data.initiatives.length || 0,revision:expectedWork?.revision || 0};
+  const workAuthorityChecks = workReceipt(expectedWork);
+  await assertNativeWorkRows(base,sessionId,expectedWork,selector=>click(base,sessionId,selector),fn=>eventually(fn,'authoritative Work task sets'));
 
   if (rollbackSmoke) {
-    if (activatedWork) {
-      await click(base,sessionId,'[data-testid="tab-notes"]');
-      const seen = new Set();
-      for (const mode of ['empire_todo','progress']) {
-        const statuses = mode === 'empire_todo' ? ['Backlog','Planned'] : ['In Progress','Blocked'];
-        const expectedRows = expectedWork.data.tasks.filter(task=>statuses.includes(task.status));
-        await click(base,sessionId,`[data-testid="notes-mode-${mode}"]`);
-        await eventually(async()=>{
-          const view = await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return {ready:!!document.querySelector("[data-testid=empire-todo-workspace]"),text:document.body.innerText,rows:[...document.querySelectorAll(".todoRowSelect")].map(e=>({id:e.dataset.testid.replace("empire-todo-select-",""),text:e.innerText}))};',args:[]});
-          assert.equal(view.ready,true);assert.doesNotMatch(view.text,/Loading Empire To-Do|Work is temporarily read-only/);
-          assert.deepEqual(view.rows.map(row=>row.id).sort(),expectedRows.map(task=>task.id).sort(),'rollback must display the exact current private task set');
-          for (const row of view.rows) {
-            const task=expectedWork.data.tasks.find(item=>item.id===row.id);
-            assert.ok(task,'rollback displayed a task outside current private authority');
-            assert.ok(row.text.includes(task.title),'rollback task title differs from private authority');seen.add(row.id);
-          }
-        },'restored private Work records');
-      }
-      if (expectedWork.data.tasks.some(task=>['Backlog','Planned','In Progress','Blocked'].includes(task.status))) assert.ok(seen.size>0,'restored Work must display current tasks');
-    }
     acceptanceResult = {ok:true, acceptance:'rollback-native-smoke',
       o2Sha:installedBefore.head, radcontrolSha:expectedRadcontrolSha,
       artifactSha256:expectedArtifactSha, diagnosticsVerified:true,
       privateWorkVerified:activatedWork, workAuthorityChecks};
   } else {
-  const wave1Checks = await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
+  const wave1Checks = await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"), expectedWork);
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /To-Do[\s\S]*Progress[\s\S]*Timeline[\s\S]*My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);
@@ -298,28 +280,6 @@ try {
     assert.match(text, /O2 KNOWLEDGE[\s\S]*WHAT O2 KNOWS[\s\S]*HOST-LOCAL\/NON-AUTHORITATIVE/);
     assert.match(text, /Canonical source/);
   }, "render O2 Knowledge without mutating installed O2");
-  await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
-  await eventually(async () => {
-    const text = await bodyText(base, sessionId);
-    assert.match(text, /To-Do[\s\S]*Progress[\s\S]*Queued[\s\S]*Completed/);
-    assert.match(text, /BUSINESS FOUNDATION[\s\S]*CONTROL PLANE[\s\S]*DQOTD LAUNCH \/ PREMIUM[\s\S]*COMMERCIAL PROOF/);
-  }, "render grouped current Empire To-Do operating sequence");
-  await click(base, sessionId, '[data-testid="notes-mode-progress"]');
-  assert.match(
-    await eventually(() => bodyText(base, sessionId), "read blocked active task dependencies"),
-    /Blocked[\s\S]*Blocked by[\s\S]*Delivered email verification; staging editor authorization; hosted browser acceptance/i,
-  );
-  await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
-  assert.match(
-    await eventually(() => bodyText(base, sessionId), "load completed Empire To-Do operator view"),
-    /Underway[\s\S]*Completed[\s\S]*No completed tasks\./,
-  );
-  await click(base, sessionId, '[data-testid="empire-todo-active-view"]');
-  assert.match(
-    await eventually(() => bodyText(base, sessionId), "return to active Empire To-Do operator view"),
-    /NOW[\s\S]*Blocked[\s\S]*Blocked by[\s\S]*Delivered email verification; staging editor authorization; hosted browser acceptance/i,
-  );
-
   await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
   await click(base, sessionId, '[data-testid="tab-legal"]');
   await eventually(async () => {
@@ -760,7 +720,7 @@ try {
   };
 }
 } catch (error) {
-  acceptanceError = error;
+  acceptanceError = new Error(error?.code === 'ERR_ASSERTION' ? 'Production native assertion failed; see private redacted navigation evidence' : String(error?.message || 'Production native acceptance failed'));
   if(sessionId) await captureWorkspaceFailure(base,sessionId,null,'production-native-assertion').catch(()=>{});
 } finally {
   await cleanup();
