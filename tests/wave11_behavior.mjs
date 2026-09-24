@@ -33,7 +33,7 @@ test('stale evidence, status errors, bad audit and boundary deny repair',()=>{
 test('manual preview does not require automatic scheduler',()=>assert.equal(sentinelHealthActions({...status(),automation:{enabled:false,active:false}},projected([updater]),true).repairableCount,1));
 test('failed/unresolved repairs offer no restart',()=>{
  const failed=sentinelHealthActions(status([]),projected([]),true,'',true);assert.equal(failed.needsAttention,true);assert.equal(failed.repairableCount,0);
- for(const latch of ['repairNeedsOperator','midScanNeedsOperator']){const s=status();s.knownIncidentState[latch]=true;const v=sentinelHealthActions(s,projected([updater]),true);assert.equal(v.needsAttention,true);assert.equal(v.repairableCount,0);}
+ for(const latch of ['repairNeedsOperator','midScanNeedsOperator']){const s=status();s.knownIncidentState[latch]=true;const v=sentinelHealthActions(s,projected([updater]),true);assert.equal(v.needsAttention,true);assert.equal(v.repairableCount,0);assert.equal(v.findings.length,1,'one updater incident retains its recovery blocker');}
 });
 test('one verified repair leaves unrelated concerns visible',()=>{
  const before=sentinelHealthActions(status([updater,thermal,zombie]),projected([updater,thermal,zombie]),true);assert.equal(before.findings.length,3);assert.equal(before.repairableCount,1);

@@ -6,6 +6,7 @@ export type SentinelActionability = 'no-automatic-action' | 'governed-action-ava
 export type ProcessContext = {
   capturedAt?: string | null; source: string; coverage: 'available' | 'unavailable';
   attribution: string; cpuBasis?: string;
+  workload?: {classification: string; message: string; progressVerified: boolean; automaticTerminationPermitted: boolean};
   processes: Array<{process?: string; pid?: number; ppid?: number; cpuPercent?: number; projectKey?: string}>;
 };
 type Range = {min: number; max: number};

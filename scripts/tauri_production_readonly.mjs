@@ -462,13 +462,13 @@ try {
   const sentinelActionsPath = path.join(stateOverlay, "sentinel", "audit.jsonl");
   const eventsBeforeDiagnosis = await readChainRecords(sentinelEventsPath);
   const actionsBeforeDiagnosis = await readChainRecords(sentinelActionsPath);
-  await click(base, sessionId, '[data-testid="sentinel-diagnose-fix"]');
+  await click(base, sessionId, '[data-testid="sentinel-fans-loud"]');
   const diagnosisResult = await eventually(async () => {
     const result = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
       script: `const card = document.querySelector('[data-testid="radcon-sentinel"]').querySelector('[data-testid="sentinel-diagnosis-result"]'); return {
         text: card?.textContent || '',
         bodyText: document.querySelector('[data-testid="radcon-sentinel"]').innerText,
-        diagnoseCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-diagnose-fix"]').length,
+        diagnoseCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('.sentinelHealthActions .btnPrimary').length,
         fullScanCount: document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('[data-testid="sentinel-health-check"]').length,
         foregroundStamp: document.querySelector('[data-testid="radcon-sentinel"]').querySelector('.sentinelHealthMeasurements .sentinelSectionHeading strong')?.textContent || '',
         repairButtonCount: Array.from(document.querySelector('[data-testid="radcon-sentinel"]').querySelectorAll('button')).filter((button) => /^(Fix now|Authorize & fix)$/.test(button.textContent?.trim() || '')).length,
@@ -482,7 +482,7 @@ try {
     return result;
   }, "complete one installed Sentinel diagnosis", 60_000);
   await assertWorkspace(base, sessionId, 'sentinel');
-  assert.equal(diagnosisResult.diagnoseCount, 1, "Diagnose must remain a distinct stable control after completion");
+  assert.equal(diagnosisResult.diagnoseCount, 1, "Exactly one primary action must remain after the shared diagnosis");
   await assertWorkspace(base, sessionId, 'sentinel');
   assert.equal(diagnosisResult.fullScanCount, 1, "Run Full Scan must remain a separate manual control after diagnosis");
   const newDiagnosisEvents = (await readChainRecords(sentinelEventsPath)).slice(eventsBeforeDiagnosis.length);
@@ -627,8 +627,8 @@ try {
   await assertFanResult(base, sessionId, {timeoutMs:45_000});
   const newFanEvents = (await readChainRecords(sentinelEventsPath)).slice(eventsBeforeFan.length);
   const newFanActions = (await readChainRecords(sentinelActionsPath)).slice(actionsBeforeFan.length);
-  const fanEvent = newFanEvents.find((record) => record.type === "host.fans-check");
-  const fanAction = newFanActions.find((record) => record.requestedCapability === "host.inspect.fans");
+  const fanEvent = newFanEvents.find((record) => record.type === "host.deep-check");
+  const fanAction = newFanActions.find((record) => record.requestedCapability === "host.inspect.deep");
   await assertWorkspace(base, sessionId, 'sentinel');
   assert.ok(fanEvent?.id && fanEvent.observedValues?.keyMeasurements, "the installed fan workflow must retain a bounded Sentinel event with measurements");
   await assertWorkspace(base, sessionId, 'sentinel');

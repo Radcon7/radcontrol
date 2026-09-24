@@ -289,6 +289,13 @@ export type SentinelStatus = {
   providerMutation: string;
   scheduler: string;
   automation: SentinelAutomation;
+  updaterWorkflow?: {
+    phase: "idle" | "checking" | "detected" | "blocked" | "manual-action-needed" | "recovering" | "recovered" | "unknown";
+    active: boolean; reason: string; checkedAt?: string | null; projectedAt: string;
+    incidentId?: string | null; signature: string; observationSeconds: number;
+    recurrenceCount: number; blockers: string[]; actionOccurred: boolean; outcome?: string | null;
+    versions: Record<string, string | number | null>;
+  };
   knownIncidentState?: {
     active: boolean;
     repairNeedsOperator?: boolean;
@@ -535,6 +542,7 @@ export function currentMeasurementFresh(
 export function automaticUpdaterReady(status: SentinelStatus | null): boolean {
   return Boolean(status?.automation.enabled && status.automation.active
     && status.privilegedBoundary?.ready && status.auditVerification.ok
+    && status.updaterWorkflow?.phase !== "manual-action-needed"
     && !status.knownIncidentState?.repairNeedsOperator && !status.knownIncidentState?.midScanNeedsOperator
     && status.capabilities.some((row) => row.key === "host.maintenance.pop-upgrade-self-heal"
       && row.implemented && !row.dryRunOnly));

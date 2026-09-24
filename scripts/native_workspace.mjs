@@ -168,7 +168,7 @@ export async function assertFanResult(base,id,{fixtureText,timeoutMs=20_000}={})
   do {
     // Wrong workspace fails immediately, before reading or retrying content.
     const text=await workspaceText(base,id,'sentinel','[data-testid="sentinel-fan-investigation-result"]');
-    if(/FAN INVESTIGATION[\s\S]*(NO AUTOMATIC REPAIR AVAILABLE|FIX AVAILABLE)[\s\S]*Outcome retained in Sentinel history/.test(text)
+    if(/DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|WATCHING|NEEDS YOUR HELP|FIX AVAILABLE)[\s\S]*Outcome retained in Sentinel history/.test(text)
       &&(!fixtureText||text.includes(fixtureText)))return;
     await delay(100);
   }while(Date.now()<deadline);

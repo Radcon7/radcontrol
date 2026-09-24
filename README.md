@@ -20,9 +20,9 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   evidence and O2-owned Healthy / Watching / Needs Attention / Unknown interpretation in one Current Now card; full-scan history, unresolved
   findings, next-scan timing, and schedule state remain in their detailed
   activity and automation homes instead of repeating in top summary cards. Daily or
-  twice-daily full scans retain bounded expandable evidence; the 15-minute wake
+  twice-daily full scans retain bounded expandable evidence; the 30-second updater wake
   performs only a due check and the exact known-incident probe between scans.
-  Diagnose runs exactly one deterministic deep check and leaves a persistent
+  Investigate and Fans are loud enter the same single deterministic deep check and leaves a persistent
   result with dated retained process context, duration, repair truth, and next step;
   repair wording appears only when a governed repair exists. Bounded concerns and episodes group repeated observations without inventing duration, process identity, or continuous coverage; raw records remain in Details. The read-only
   advisor remains limited to genuinely unknown retained observations. The single loud-fan investigation plus any

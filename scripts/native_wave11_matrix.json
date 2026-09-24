@@ -26,7 +26,14 @@
     "sentinel-diagnosis",
     "sentinel-process-provenance",
     "sentinel-concise-diagnosis",
-    "sentinel-episode-history"
+    "sentinel-episode-history",
+    "updater-checking",
+    "updater-blocked",
+    "updater-recovered",
+    "updater-manual",
+    "updater-recovering",
+    "productive-load",
+    "user-application-load"
   ],
   "harnessFiles": [
     "scripts/native_wave11_acceptance.mjs",
