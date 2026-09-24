@@ -1,7 +1,9 @@
+import { copyWorkSnapshot, snapshotWork, assertWorkUnchanged, workReceipt, assertNativeWorkDiagnostics, assertNativeWorkRows } from './native_work_authority.mjs';
+import os from 'node:os';
 import { configureWorkspace, nativeClick, assertWorkspace, workspaceText, captureWorkspaceFailure } from './native_workspace.mjs';
 import { runReleaseWave11 } from './native_wave11_release.mjs';
 import assert from 'node:assert/strict';
-import { cp, mkdir, mkdtemp, readFile, writeFile, chmod, realpath, lstat } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, writeFile, chmod, realpath, lstat, rm } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import net from 'node:net';
@@ -41,7 +43,7 @@ command(['python3',path.join(o2,'scripts/o2_radcontrol_linux_abi.py'),artifact,'
 const hash=await sha256File(artifact);
 const before=await snapshotInstalledO2(); const listeners=tcpListeners();
 assertProcessNotRunning('radcontrol-app'); assertPortAbsent(listeners,1420);
-const root=await mkdtemp(path.join(evidence,'candidate-native-'));await chmod(root,0o700);
+const root=await mkdtemp(path.join(os.tmpdir(),'radcontrol-candidate-native-'));await chmod(root,0o700);
 for(const d of ['home','cache','config','data','dconf','o2'])await mkdir(path.join(root,d),{mode:0o700});
 const archive=spawnSync('/usr/bin/git',['-C',o2,'archive','HEAD'],{maxBuffer:64*1024*1024});
 assert.equal(archive.status,0,'exact O2 archive failed');
@@ -51,7 +53,9 @@ await writeFile(path.join(root,'o2/.git'),`gitdir: ${gitdir}\n`,{mode:0o600});
 await cp(path.join(before.root,'.state'),path.join(root,'o2/.state'),{recursive:true,preserveTimestamps:true});
 await cp(artifact,path.join(root,'radcontrol-app'));await chmod(path.join(root,'radcontrol-app'),0o700);
 assert.equal(await sha256File(path.join(root,'radcontrol-app')),hash);
-const operatorWorkSource=path.join(root,'operator-work'); await mkdir(operatorWorkSource,{mode:0o700});
+const operatorWorkSource=path.join(root,'operator-work');
+const liveWorkRoot=path.join(path.dirname(before.root),'operator-work');
+const expectedWork=await copyWorkSnapshot(path.join(root,'o2'),liveWorkRoot,operatorWorkSource);
 const app=await createBubblewrapApplication({app:path.join(root,'radcontrol-app'),tempRoot:root,operatorWorkSource,
  home:path.join(root,'home'),xdgCacheHome:path.join(root,'cache'),xdgConfigHome:path.join(root,'config'),xdgDataHome:path.join(root,'data'),
  overlays:[{source:path.join(root,'o2'),destination:before.root},{source:path.join(root,'dconf'),destination:`/run/user/${process.getuid()}/dconf`}],
@@ -73,6 +77,10 @@ async function cleanup(){
  try{process.kill(-driver.pid,'SIGTERM');}catch(error){if(error.code!=='ESRCH')throw error;}
  await delay(1000);
  try{process.kill(-driver.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}
+ const workAfter=await snapshotWork(path.join(root,'o2'),liveWorkRoot);
+ const copyAfter=await snapshotWork(path.join(root,'o2'),operatorWorkSource);
+ await rm(root,{recursive:true,force:true});
+ assertWorkUnchanged(expectedWork,workAfter);assertWorkUnchanged(expectedWork,copyAfter);
  await assertInstalledO2Unchanged(before);assertNoNewTcpListeners(listeners,tcpListeners());
 }
 const signals=installNativeAcceptanceSignalCleanup(cleanup);
@@ -81,7 +89,11 @@ try {
  const s=await request('/session','POST',{capabilities:{alwaysMatch:{browserName:'wry','tauri:options':{application:app}}}});session=s.sessionId;
  configureWorkspace(base,session,{evidenceDir:path.join(evidence,'navigation'),fixture:{kind:'candidate-readonly'}});
  await until(async()=>assert.match(await exec('return document.body.innerText;'),/Projects/));
- await assertWave1Work(base,session,click,until);
+ await click('button[title^="Show the installed app build"]');
+ await until(()=>assertNativeWorkDiagnostics(base,session,expectedWork));
+ await click('.runtimeModalCard .btnGhost');
+ await assertNativeWorkRows(base,session,expectedWork,click,until);
+ await assertWave1Work(base,session,click,until,expectedWork);
  await click('[data-testid="tab-sentinel"]');
  await until(async()=>assert.match(await exec('return document.body.innerText;'),/RECENT EVENTS/));
  const text=await workspaceText(base,session,'sentinel');
@@ -116,15 +128,15 @@ try {
 
 }catch(error){
  if(session)await captureWorkspaceFailure(base,session,null,'candidate-native-assertion').catch(()=>{});
- throw error;
+ throw new Error(String(error?.message || 'Candidate native assertion failed').split('\n')[0]);
 }finally{ await signals(); }
 assert.equal(await sha256File(artifact),hash,'candidate changed during native precheck');
 assert.equal(await sha256File(releasePath),manifestHash,'admission changed during native precheck');
 const wave11 = await runReleaseWave11({app:artifact,o2Source:o2,identities:{o2Sha,radcontrolSha:radSha,artifactSha256:hash},entrypoint:'tauri_candidate_precheck.mjs'});
-const result={wave11,ok:true,acceptance:'candidate-native-precheck',o2Sha,radcontrolSha:radSha,
+const result={wave11,workAuthorityChecks:workReceipt(expectedWork),ok:true,acceptance:'candidate-native-precheck',o2Sha,radcontrolSha:radSha,
  artifactSha256:hash,releaseManifestSha256:manifestHash,
  harnessSha256:await sha256File(fileURLToPath(import.meta.url)),
  assertionsSha256:await sha256File(new URL('./native_sentinel_assertions.mjs',import.meta.url)),
- checks:['wave1-work-surfaces','native-launch','current-now','grouped-activity','details-closed-open-reclosed','rendered-text','hit-testing','five-leakage-fixtures','hidden-open-panel','missing-panel','installed-preserved','listeners-preserved']};
+ checks:['authoritative-private-work','wave1-work-surfaces','native-launch','current-now','grouped-activity','details-closed-open-reclosed','rendered-text','hit-testing','five-leakage-fixtures','hidden-open-panel','missing-panel','installed-preserved','listeners-preserved']};
 await writeFile(path.join(evidence,'candidate-native.json'),JSON.stringify(result)+'\n',{flag:'wx',mode:0o600});
 console.log(JSON.stringify(result));

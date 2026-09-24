@@ -1,3 +1,4 @@
+import { taskLane } from './native_work_authority.mjs';
 import { request, assertWorkspace } from './native_workspace.mjs';
 export { request } from './native_workspace.mjs';
 import assert from "node:assert/strict";
@@ -293,7 +294,7 @@ export function assertSentinelRawEvidenceState(state, open, {minRows = 2, minFin
 
 // Shared candidate/installed Wave 1 proof. This file is already digest-bound by
 // the governed candidate receipt; navigation here never edits operational data.
-export async function assertWave1Work(base, sessionId, click, until) {
+export async function assertWave1Work(base, sessionId, click, until, expectedWork = null) {
   const execute = (script, args = []) => request(base, `/session/${sessionId}/execute/sync`, "POST", { script, args });
   const text = () => execute('return document.body.innerText;');
   await until(async () => assert.equal(await execute('return document.querySelector("[data-testid=logs-toggle]")?.getAttribute("aria-expanded");'), 'false'));
@@ -303,7 +304,9 @@ export async function assertWave1Work(base, sessionId, click, until) {
   await click('[data-testid="logs-toggle"]');
   await click('[data-testid="tab-notes"]');
   await click('[data-testid="notes-mode-empire_todo"]');
-  await until(async () => assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 1));
+  const queuedCount = expectedWork ? expectedWork.tasks.filter(row=>taskLane(row.status)==='queued').length : null;
+  const progressCount = expectedWork ? expectedWork.tasks.filter(row=>taskLane(row.status)==='progress').length : null;
+  await until(async () => assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), queuedCount === 0 ? 0 : 1));
   const compact = await execute(`return {
     rows: document.querySelectorAll('.empireTodoRow').length,
     rowEditors: document.querySelectorAll('.empireTodoRow textarea,.empireTodoRow input:not([type=checkbox])').length,
@@ -312,10 +315,11 @@ export async function assertWave1Work(base, sessionId, click, until) {
     progress: [...document.querySelectorAll('.todoProgress')].map(e=>({text:e.innerText,basis:e.dataset.progressBasis})),
     selectors: [...document.querySelectorAll('.todoRowSelect')].slice(0,2).map(e=>e.dataset.testid)
   };`);
-  assert.ok(compact.rows > 0); assert.equal(compact.rowEditors, 0);
+  if (queuedCount === null) assert.ok(compact.rows > 0); else assert.equal(compact.rows,queuedCount);
+  assert.equal(compact.rowEditors, 0);
   assert.equal(compact.next, compact.rows);
-  for (const name of ['Current state','Next Action','Dependencies / blockers','Acceptance / done condition','Summary','Context','Why it matters']) assert.ok(compact.fields.includes(name), name);
-  assert.equal(compact.fields.length, 8);
+  for (const name of (queuedCount === 0 ? [] : ['Current state','Next Action','Dependencies / blockers','Acceptance / done condition','Summary','Context','Why it matters'])) assert.ok(compact.fields.includes(name), name);
+  assert.equal(compact.fields.length, queuedCount === 0 ? 0 : 8);
   for (const state of compact.progress) {
     assert.ok(['unassessed','operator','completion'].includes(state.basis));
     if(state.basis==='unassessed')assert.ok(!state.text.includes('%'), 'No invented task percentage');
@@ -327,25 +331,29 @@ export async function assertWave1Work(base, sessionId, click, until) {
     await until(async () => assert.equal(await execute('return document.querySelector("[data-testid=empire-todo-detail] [role=status]")?.innerText;'), 'Saved'));
   }
   await click('[data-testid="notes-mode-progress"]');
-  await until(async () => assert.ok(await execute('return document.querySelectorAll(".taskProgressRail").length > 0;')));
+  await until(async () => { const count=await execute('return document.querySelectorAll(".taskProgressRail").length;');
+    if (progressCount === null) assert.ok(count > 0); else assert.equal(count,progressCount); });
   const progress = await execute(`return [...document.querySelectorAll('.empireTodoRow')].map(row => ({
     state: row.querySelector('.taskProgressStatus')?.innerText,
     width: row.querySelector('.taskProgressRail')?.getBoundingClientRect().width,
     available: row.querySelector('.taskProgressContent')?.getBoundingClientRect().width,
     next: !!row.querySelector('.todoRowNext'), selector: row.querySelector('.todoRowSelect')?.dataset.testid
   }));`);
-  assert.ok(progress.length > 1, 'Progress retains several active tasks');
+  if (progressCount === null) assert.ok(progress.length > 1, 'Synthetic Progress retains several active tasks');
+  else assert.equal(progress.length,progressCount);
   for (const row of progress) {
     assert.match(row.state.trim(), /^(In progress|Blocked)$/i);
     assert.ok(row.width > row.available * 0.9, 'Task progress spans the active row');
     assert.equal(row.next, true);
   }
   assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 0);
+  if (progress.length) {
   await click(`[data-testid="${progress[0].selector}"]`);
   await until(async () => assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 1));
   assert.equal(await execute('return document.querySelectorAll(".empireTodoRow").length;'), progress.length);
   await click('[aria-label="Close task detail"]');
   await until(async () => assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 0));
+  }
   await click('[data-testid="notes-mode-timeline"]');
   await until(async () => {
     const body = await text(); assert.match(body, /Timeline/i); assert.doesNotMatch(body, /Loading timeline/i);

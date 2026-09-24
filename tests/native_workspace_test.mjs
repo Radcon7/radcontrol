@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertWorkspaceState } from '../scripts/native_workspace.mjs';
+import { assertWorkspaceState, workAnchorPresent } from '../scripts/native_workspace.mjs';
 import { assertOrderedNavigation, orderedWorkspaceRoute, workspaceRegressions } from '../scripts/native_workspace_sequence.mjs';
 
 const selected=()=>({selected:{top:['tab-sentinel'],security:['security-mode-sentinel'],notes:[]},
@@ -27,4 +27,13 @@ test('release proof cannot omit or reduce ordered runs or negative workspace cov
     const r=complete();r[key]=r[key].slice(1);assert.throws(()=>assertOrderedNavigation(r));
   }
   const failed=complete();failed.runs[4].ok=false;assert.throws(()=>assertOrderedNavigation(failed));
+});
+
+test('empty mutable Work lanes require explicit loaded zero state, never a missing row alone',()=>{
+  const valid={anchorPresent:false,emptyWork:{visible:true,count:'0 tasks',loading:false,error:false}};
+  for(const lane of ['todo','progress'])assert.equal(workAnchorPresent(valid,lane),true);
+  assert.equal(workAnchorPresent(valid,'sentinel'),false);
+  for(const emptyWork of [undefined,{...valid.emptyWork,count:'1 tasks'},{...valid.emptyWork,visible:false},
+    {...valid.emptyWork,loading:true},{...valid.emptyWork,error:true}])
+    assert.equal(Boolean(workAnchorPresent({...valid,emptyWork},'todo')),false);
 });

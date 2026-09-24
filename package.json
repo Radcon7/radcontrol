@@ -49,7 +49,7 @@
     "test:tauri-e2e": "npx tauri build --debug --no-bundle --config src-tauri/tauri.e2e.conf.json && node scripts/tauri_e2e.mjs",
     "test:tauri-production-readonly": "node scripts/tauri_production_readonly.mjs",
     "test:tauri-candidate-precheck": "node scripts/tauri_candidate_precheck.mjs",
-    "test:native-sentinel-assertions": "node --test tests/native_sentinel_assertions_test.mjs && node --test tests/native_workspace_test.mjs",
+    "test:native-sentinel-assertions": "node --test tests/native_sentinel_assertions_test.mjs && node --test tests/native_workspace_test.mjs && node --test tests/native_work_authority_test.mjs",
     "test:wave1": "node --experimental-strip-types tests/wave1_behavior.mjs",
     "test:wave11": "node --experimental-strip-types tests/wave11_behavior.mjs",
     "test:wave11-native": "node tests/native_wave11_receipt_test.mjs && python3 -B -m unittest tests/native_wave11_fixture_test.py",

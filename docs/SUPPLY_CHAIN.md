@@ -84,6 +84,22 @@ O2 is overlaid read-only with a test-owned source/private-state copy. Only the
 owned driver process group is stopped. Installed identities and listeners must
 remain unchanged; candidate evidence is retained for review.
 
+Mutable Work acceptance uses `native_work_authority.mjs` in candidate,
+first installed, rollback and final reinstall checks. It reads a validated O2
+Work snapshot independently of the renderer. Runtime Diagnostics counts every
+validated task, including completed and deferred tasks; events, initiatives and
+history do not contribute. Acceptance checks the exact displayed count, titles,
+and task identities across all lifecycle lanes. No live count or task content
+is a fixed release fixture. Fixed synthetic scenarios retain their exact checks.
+
+Candidate acceptance exercises the same private authority before promotion.
+Live records are copied only into an ephemeral private native namespace, removed
+on normal completion, never into retained candidate artifacts or source. Receipts
+contain counts, revision and digests only. Both the real store and namespace copy
+must retain their baseline digests and revision; concurrent drift requires fresh
+acceptance and is reported separately from a display mismatch. Missing or invalid
+authority fails explicitly through O2 validation without reseeding or fallback.
+
 Candidate and installed probes import `native_sentinel_assertions.mjs`. WebKit
 may retain closed-Details geometry and report displayed=true. Its WebDriver
 `/text` can include unpainted closed content. The shared assertion instead checks
