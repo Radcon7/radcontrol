@@ -65,6 +65,9 @@ const probeScript = `
     containers:Object.fromEntries(Object.entries(roots).map(([name,selector])=>[name,{count:document.querySelectorAll(selector).length,visible:visible(document.querySelector(selector))}])),
     workPresent:!!document.querySelector('[data-testid="empire-todo-workspace"]'),
     targetVisible:visible(target),anchorPresent:visible(target?.querySelector(anchors[destination])),
+    emptyWork: {visible:visible(target?.querySelector('.empireTodoList > .surfaceEmptyState')),
+      count:target?.querySelector('.todoCount')?.innerText,
+      loading:!!target?.querySelector('.timelineStatus'),error:!!target?.querySelector('[role=alert]')},
     ready:document.readyState==='complete',busy:!!target?.closest('[aria-busy="true"]')||!!target?.querySelector('[aria-busy="true"]'),
     bounds:rect?{x:rect.x,y:rect.y,width:rect.width,height:rect.height}:null,
     focused:identity(document.activeElement),pointer,underPointer:pointer?identity(document.elementFromPoint(pointer.x,pointer.y)):null,
@@ -75,6 +78,12 @@ export async function workspaceState(base,id,destination) {
   assert.ok(Object.hasOwn(roots,destination),'unsupported workspace');
   return execute(base,id,probeScript,[roots,anchors,destination]);
 }
+export function workAnchorPresent(state,destination) {
+  if (state.anchorPresent) return true;
+  const empty=state.emptyWork;
+  return ['todo','progress'].includes(destination) && empty?.visible === true &&
+    empty.count === '0 tasks' && empty.loading === false && empty.error === false;
+}
 export function workspaceConditions(state,destination) {
   const isSecurity=security.includes(destination), isWork=['todo','progress','notes'].includes(destination);
   const selected=state.selected;
@@ -84,7 +93,7 @@ export function workspaceConditions(state,destination) {
       JSON.stringify(selected.notes)===JSON.stringify([`notes-mode-${destination==='todo'?'empire_todo':destination}`])),
     consistentAria:!isSecurity||state.aria.length===3&&state.aria.every(row=>row.selected===(row.id===`security-mode-${destination}`?'true':'false')),
     uniqueContainer:state.containers[destination]?.count===1,
-    targetVisible:state.targetVisible,anchorPresent:state.anchorPresent,ready:state.ready,notBusy:!state.busy,
+    targetVisible:state.targetVisible,anchorPresent:workAnchorPresent(state,destination),ready:state.ready,notBusy:!state.busy,
     noWorkSurface:!isSecurity||!state.workPresent,
     noOtherSecurity:!isSecurity||security.filter(s=>s!==destination).every(s=>state.containers[s]?.count===0),
     noSecuritySurface:!isWork||security.every(s=>state.containers[s]?.count===0),
