@@ -83,11 +83,9 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   Updates, Automation, Workstation Record & Notes, and Safety & Permissions.
   The standalone Diagnostics and Quick Answers are intentionally removed.
   Workstation source references remain read-only. Diagnose runs one bounded
-  deterministic deep check; Run Full Scan and Fans are loud remain distinct
-  working actions. A genuinely unknown retained observation alone may enter
+  deterministic deep check shared by Investigate and Fans are loud. The incident has one primary action/status and one Details expansion. Run Full Scan and other symptoms remain in Details. A genuinely unknown retained observation alone may enter
   the explicitly requested read-only advisor. Automatic full scans remain twice
-  daily when configured; the existing 15-minute wake does not become thermal
-  monitoring. No new collector, daemon, store, LLM routine or repair target is
+  daily when configured; the 30-second wake targets only the exact updater and does not increase full-scan frequency. No new collector, daemon, store, LLM routine or repair target is
   introduced. The one exact updater action still requires fresh preview,
   operator confirmation and the independent root helper guard.
   Empire Operations combines deterministic matched-pair, automation, audit, and
@@ -152,6 +150,8 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - Wave 2A replaces tracked task/Timeline writes with one private O2 work owner.
   Wave 2B extends task presentation with explicit assessment; initiative
   assessment remains a distinct model and never derives from task counts.
+
+Sentinel renders O2 workload attribution without inventing useful-progress proof. Recognized builds/tests and user application CPU are observed without automatic termination. Recovery in progress is explicit; hardware-critical and independent unexplained heat concerns remain visible.
 
 ## Work and Sentinel actions — Wave 1.1
 

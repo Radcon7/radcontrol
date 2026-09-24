@@ -1,17 +1,18 @@
-import type { ProcessContext, SentinelConcern, SentinelEpisodeProjection } from './sentinelEpisodes';
-import { processContextState } from './sentinelEpisodes';
+import type { ProcessContext, SentinelConcern, SentinelEpisodeProjection } from './sentinelEpisodes.ts';
+import { processContextState } from './sentinelEpisodes.ts';
 
 const time = (value?: string | null) => value ? new Date(value).toLocaleString() : 'Unknown';
 export function SentinelProcessContext({context, now}: {context?: ProcessContext; now: number}) {
   return <div className="sentinelProcessContext" data-testid="sentinel-process-context"><strong>Process context</strong>
     <small>Captured {time(context?.capturedAt)} · {processContextState(context, now)} · {context?.source || 'No retained source'}</small>
     {context?.processes.length ? <p>{context.processes.map(row => `${row.process || 'Process'} · PID ${row.pid ?? '?'} · ${row.cpuPercent ?? '?'}% CPU`).join(' / ')}</p> : <p>Process evidence unknown.</p>}
+    {context?.workload ? <p data-testid="sentinel-workload-attribution">{context.workload.message}</p> : null}
     {context?.processes.length ? <small>Workload correlation; cause not established.</small> : null}
   </div>;
 }
-export function SentinelEpisodes({projection, current, expanded, onExpand, onInvestigate}: {
+export function SentinelEpisodes({projection, current, expanded, onExpand}: {
   projection?: SentinelEpisodeProjection; current: SentinelConcern[]; expanded: boolean;
-  onExpand: () => void; onInvestigate: () => void;
+  onExpand: () => void;
 }) {
   const rows = projection?.concerns || [];
   return <section className="guardianActivity" data-testid="recent-guardian-activity">
@@ -29,7 +30,6 @@ export function SentinelEpisodes({projection, current, expanded, onExpand, onInv
           <div className="guardianActivityCell guardianActivityContext" data-activity-label="Concern"><strong>{row.title}</strong>
             <small>{row.repair?.verificationComplete ? row.repair.actionOccurred ? 'Sentinel repair succeeded' : 'Recovery verified; no new repair' : present.actionability === 'governed-action-available' ? 'Governed updater action · fresh preview required' : 'No automatic repair available'}</small>
             {present.currentRecurrence ? <small>Hot again now; earlier clearance remains historical.</small> : null}
-            {present.significance === 'attention' || present.significance === 'critical' ? <button className="btn btnGhost btnCompact" onClick={onInvestigate}>Investigate</button> : null}
             <details className="guardianScanEvidence" data-testid="sentinel-episode-details"><summary>Review trend</summary>
               {row.fanRpm ? <p>Cooling response: fan {row.fanRpm.min.toLocaleString()}–{row.fanRpm.max.toLocaleString()} RPM.</p> : <p>Fan coverage unknown.</p>}
               <p>Throttle increase: {row.throttle?.observed === true ? 'observed' : row.throttle?.observed === false ? 'not observed in retained sample' : 'unknown'}. Workload attribution: {row.attributionStatus || 'unavailable'}.</p>

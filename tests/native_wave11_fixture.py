@@ -16,7 +16,7 @@ assert (root / "wave11-fixture.json").is_file()
 verb = sys.argv[1]
 intercepted = {
     "sentinel.status", "sentinel.host.current", "sentinel.host.check", "empire.todo.list", "operator.work.list",
-    "sentinel.host.explain_fans",
+    "sentinel.host.explain_fans", "sentinel.host.deep_check",
     "workstation.cleanup.pop_upgrade.preview", "workstation.cleanup.pop_upgrade.apply",
 }
 # Fail closed: an accidental fixture click must never fall through to a real
@@ -24,8 +24,6 @@ intercepted = {
 read_only = {"contract_info", "list_projects", "radcontrol.runtime_status", "empire.operations.status", "radcontrol.golden_state", "router.health"}
 # The bridge must still audit synthetic preview/apply in this private O2 root.
 fixture_writes = {"radcontrol.audit.append.stdin"}
-if verb == "sentinel.host.deep_check" and json.loads((root / "wave11-fixture.json").read_text()).get("phase") == "diagnosis":
-    intercepted.add(verb)
 if verb not in intercepted:
     if verb not in fixture_writes and verb not in read_only and not verb.startswith(("files.read.", "files.list.")):
         print(json.dumps({"ok": False, "error": "Native fixture denied non-read operation", "verb": verb}))
@@ -34,11 +32,17 @@ if verb not in intercepted:
 state_path = root / "wave11-fixture.json"
 state = json.loads(state_path.read_text())
 phase = state["phase"]
+if verb == "sentinel.host.deep_check" and state.get("requireFanFixture") and not str(state.get("fanFixture", "")).startswith("ordered-"):
+    print(json.dumps({"ok": False, "error": "Test-owned fan fixture absent"}))
+    sys.exit(1)
+if verb == "sentinel.host.deep_check" and not (root / "wave11-current.json").is_file():
+    print(json.dumps({"ok": False, "error": "Test-owned diagnostic fixture absent"}))
+    sys.exit(1)
 with (root / "wave11-calls.jsonl").open("a") as handle:
     handle.write(json.dumps({"verb": verb, "phase": phase}) + "\n")
 now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 updater = phase in {"actionable", "multiple", "failure", "invalid-preview"}
-hot = phase in {"nonactionable", "multiple", "remaining"}
+hot = phase in {"nonactionable", "multiple", "remaining", "updater-recovered", "productive-load"}
 zombie = phase in {"multiple", "remaining"}
 if verb == "sentinel.host.explain_fans":
     token = state.get("fanFixture")
@@ -114,6 +118,10 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
     if zombie or phase == "zombie":
         synthetic["projectRuntimes"]["value"]["zombies"] = {"count": 1, "parents": [{"pid": 101, "process": "fixture-parent", "count": 1}]}
         fs.append({"kind": "zombie-process", "key": "projectRuntimes", "findingKey": "runtime:zombies:101", "title": "Zombie process", "status": "attention", "reason": "Synthetic zombie parent evidence"})
+    if phase in {"productive-load", "user-application-load"}:
+        synthetic["processes"].update(status="attention", value=[{"process": "rustc" if phase == "productive-load" else "chrome", "pid": 321, "ppid": 111, "cpuPercent": 180, "cpuSampled": True, "workloadKind": "build-test" if phase == "productive-load" else "user-application", "projectKey": "fixture", "parentProcess": "cargo" if phase == "productive-load" else "chrome"}])
+        synthetic["cpu"]["value"] = {"utilizationPercent": 75}
+        fs.append({"kind": "high-current-cpu", "key": "processes", "findingKey": "process:fixture-321", "title": "Synthetic workload", "status": "attention"})
     def scan(index, values, findings):
         stamp = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=120-index*5)).isoformat()
         values = copy.deepcopy(values)
@@ -136,15 +144,32 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
         events = [scan(index, synthetic, fs) for index in range(8)]
     if phase == "unknown": synthetic["thermal"] = {"status": "unavailable", "value": None, "observedAt": now}
     projection = episode_projection(events, policy)
-    interpretation = operator_projection(synthetic, fs, policy, retained=projection, current=verb == "sentinel.host.current", known_state={"repairNeedsOperator": phase == "failed"})
+    interpretation = operator_projection(synthetic, fs, policy, retained=projection, current=verb == "sentinel.host.current", known_state={"active": phase in {"updater-blocked", "updater-manual", "updater-recovering"}, "watch": {"phase": "checking" if phase == "updater-checking" else "idle"}, "repairNeedsOperator": phase in {"failed", "updater-manual"}})
     if verb == "sentinel.status":
         result["episodeProjection"] = projection
         result["recentHostObservations"] = list(reversed(events))
         result["host"].update(metrics=synthetic, interpretation=interpretation)
+        from o2_sentinel_updater_watch import incident_projection
+        workflow_states = {
+            "updater-recovering": {"active": True, "repairNeedsOperator": True, "lastOutcome": "attempted", "repairCheckedAt": now},
+            "updater-checking": {"watch": {"phase": "checking", "observedSeconds": 30}},
+            "updater-blocked": {"active": True, "lastOutcome": "blocked", "repairReason": "A live package transaction owns the package lock.", "repairBlockers": ["Owned package lock"]},
+            "updater-recovered": {"active": False, "lastOutcome": "verified", "lastActionOccurred": True},
+            "updater-manual": {"active": True, "repairNeedsOperator": True, "lastOutcome": "failed", "repairReason": "Recovery verification failed. Automatic retries are blocked."},
+        }
+        if phase in workflow_states:
+            workflow_state = workflow_states[phase] | {"watchCheckedAt": now, "recurrenceCount": 2}
+            result["updaterWorkflow"] = incident_projection(workflow_state, now=now)
+            result["knownIncidentState"].update(workflow_state)
+        else:
+            result.pop("updaterWorkflow", None)
     elif verb == "sentinel.host.deep_check":
         result = {"ok": True, "guardian": "host", "checkedAt": now, "eventId": "fixture-diagnosis", "scanKind": "full", "scanDurationMs": 1234, "metrics": synthetic, "interpretation": interpretation}
+        if str(state.get("fanFixture", "")).startswith("ordered-"):
+            result["interpretation"]["message"] = "Native fan fixture " + state["fanFixture"]
     else:
         # Foreground intentionally omits processes. The completed context must survive this read.
         foreground = {key: value for key, value in synthetic.items() if key not in {"processes", "projectRuntimes", "knownIncident"}}
-        result.update(metrics=foreground, measuredAt=now, interpretation=operator_projection(foreground, [f for f in fs if f["key"] == "thermal"], policy, retained=projection, current=True, known_state={"repairNeedsOperator": phase == "failed"}))
+        if phase in {"productive-load", "user-application-load"}: foreground = synthetic
+        result.update(metrics=foreground, measuredAt=now, interpretation=operator_projection(foreground, [f for f in fs if f["key"] == "thermal" or phase in {"productive-load", "user-application-load"}], policy, retained=projection, current=True, known_state={"active": phase in {"updater-blocked", "updater-manual", "updater-recovering"}, "watch": {"phase": "checking" if phase == "updater-checking" else "idle"}, "repairNeedsOperator": phase in {"failed", "updater-manual"}}))
 print(json.dumps(result))

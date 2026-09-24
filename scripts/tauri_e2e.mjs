@@ -878,12 +878,12 @@ try {
   const durableStatusText = await elementProperty(base, sessionId, durableStatus, "textContent");
   await assertSentinelHealth(base, sessionId);
   assert.doesNotMatch(durableStatusText, /LAST FULL SCAN|NEXT FULL SCAN|FULL-SCAN FINDING/i);
-  await click(base, sessionId, '[data-testid="sentinel-diagnose-fix"]');
+  await click(base, sessionId, '[data-testid="sentinel-fans-loud"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);
     assert.match(text, /DIAGNOSIS COMPLETE[\s\S]*(NO ISSUE FOUND|WATCHING|UNKNOWN|FIX AVAILABLE|NEEDS YOUR HELP|FIXED|STILL PRESENT)/);
     assert.match(text, /Scan:[\s\S]*Duration:[\s\S]*Repair ran: NO[\s\S]*Process context[\s\S]*NEXT STEP/);
-    assert.match(text, /Diagnose[\s\S]*Run Full Scan/);
+    assert.match(text, /Fans are loud[\s\S]*Run Full Scan/);
   }, "retain a structured Sentinel diagnosis result", 45_000);
   const hostObservationRow = await eventually(
     () => element(base, sessionId, '[data-testid="guardian-activity-row"]'),

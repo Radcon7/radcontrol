@@ -152,13 +152,13 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   await eventually(async()=>assert.match(await text('[data-testid="sentinel-current-now"]'),/96°C/),'thermal issue');
   assert.equal(await count('[data-testid="sentinel-fix-it"]'),0);
   await tap('[data-testid="sentinel-review-current"]');
-  assert.match(await text('[data-testid="sentinel-current-review"]'),/96°C/);
+  await eventually(async()=>assert.match(await text('[data-testid="sentinel-diagnosis-result"]'),/96°C/),'one diagnostic result');
   await health('ATTENTION', 'ATTENTION', 0, 1);
   pass('nonactionable-review');
   await screenshot('sentinel-nonactionable');
   await scenario('multiple');
   await eventually(async()=>assert.match(await text('[data-testid="sentinel-finding-count"]'),/3 concerns · 1 safe governed action available/),'multiple findings');
-  await health('ATTENTION', 'ATTENTION', 1, 1);
+  await health('ATTENTION', 'ATTENTION', 1, 0);
   assertGuardianActivityGeometry(await guardianActivityGeometry(base,sessionId), 'multiple concern fixture', {desktop:true});
   const multiRaw = await assertSentinelRawEvidence(base,sessionId,tap,{minRows:1,minFindings:3});
   assert.equal(multiRaw.rows[0].findings.length,3,'all three raw findings remain under Details');
@@ -194,6 +194,27 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   assert.doesNotMatch(await text('[data-testid="pop-upgrade-safe-cleanup"]'),/Authorize & fix/);
   assert.equal(await applyCount(),2);
   pass('invalid-preview');
+  for (const [phase, label] of [['updater-checking','CHECKING UPDATER'],['updater-recovering','RECOVERING UPDATER'],['updater-blocked','RECOVERY BLOCKED'],['updater-recovered','UPDATER RECOVERED'],['updater-manual','YOUR ACTION NEEDED']]) {
+    await scenario(phase);
+    await eventually(async()=>assert.match(await text('[data-testid="sentinel-updater-workflow"]'),new RegExp(label)),phase);
+    assert.equal(await count('[data-testid="sentinel-updater-workflow"]'),1);
+    if(['updater-blocked','updater-manual'].includes(phase)) await health('HEALTHY','ATTENTION',0,1);
+    if(phase==='updater-checking') await health('HEALTHY','WATCHING',0,1);
+    if(phase==='updater-recovering') assert.doesNotMatch(await text('[data-testid="sentinel-current-now"]'),/no automatic repair/,'an active recovery must not be labelled absent');
+    assert.equal(await count('[data-testid="recent-guardian-activity"] button:not(.guardianActivityToggle)'),0,'history must not offer recursive Investigate actions');
+    assert.equal(await execute(`return document.querySelector('[data-testid="sentinel-current-now"]').querySelectorAll('button:not([data-testid="sentinel-open-details"])').length;`),1,'one primary action');
+    if(phase==='updater-recovered') assert.match(await text('[data-testid="sentinel-current-now"]'),/NEEDS ATTENTION[\s\S]*96°C/,'updater recovery cannot clear heat');
+    await screenshot(phase);
+    pass(phase);
+  }
+  for(const phase of ['productive-load','user-application-load']) {
+    await scenario(phase);
+    await eventually(async()=>assert.match(await text('[data-testid="sentinel-current-now"]'),/WATCHING/),phase);
+    await tap('[data-testid="sentinel-fans-loud"]');
+    await eventually(async()=>assert.match(await text('[data-testid="sentinel-workload-attribution"]'),phase==='productive-load'?/Recognized build\/test/:/User application CPU/),phase+' attribution');
+    assert.equal(await count('[data-testid="sentinel-fix-it"]'),0,'workload attribution grants no repair');
+    await screenshot(phase);pass(phase);
+  }
   for (const phase of ['watching', 'recurrent', 'zombie', 'unknown', 'diagnosis']) {
     await scenario(phase);
     await health(phase === 'unknown' ? 'UNKNOWN' : 'HEALTHY', phase === 'unknown' ? 'UNKNOWN' : 'WATCHING', 0, 1);
@@ -216,14 +237,14 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
         assert.equal(raw.rows.length,8);
         for(const row of raw.rows) assert.equal(JSON.parse(row.snapshot).metrics.projectRuntimes.value.zombies.count,1);
       }
-      await tap('[data-testid="sentinel-review-current"]');
+      await tap('[data-testid="sentinel-episode-details"] > summary');
       assert.equal(await execute(`return document.querySelector('[data-testid="sentinel-episode-details"]').open;`), true);
       assert.match(await text('[data-testid="recent-guardian-activity"]'), /actual duration unknown/);
       if (phase === 'recurrent') assert.match(await text('[data-testid="recent-guardian-activity"]'), /1 proven recurrences/);
       if (phase === 'zombie') assert.match(await text('[data-testid="recent-guardian-activity"]'), /8 observations[\s\S]*process birth identity unavailable/);
     }
     if (phase === 'diagnosis') {
-      await tap('[data-testid="sentinel-diagnose-fix"]');
+      await tap('[data-testid="sentinel-review-current"], [data-testid="sentinel-diagnose-fix"]');
       await eventually(async()=>assert.match(await text('[data-testid="sentinel-diagnosis-result"]'), /DIAGNOSIS COMPLETE[\s\S]*WATCHING[\s\S]*fixture-worker/), 'dated diagnosis with retained process context');
       assert.equal(await count('[data-testid="sentinel-diagnosis-result"]'), 1);
       const contextBefore = await text('[data-testid="sentinel-diagnosis-result"] [data-testid="sentinel-process-context"]');

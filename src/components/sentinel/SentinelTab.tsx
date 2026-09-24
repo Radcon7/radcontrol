@@ -1,6 +1,6 @@
 import { SentinelEpisodes, SentinelProcessContext } from "./SentinelEpisodes";
-import type { ProcessContext } from "./sentinelEpisodes";
-import { strongestProcessContext } from "./sentinelEpisodes";
+import type { ProcessContext } from "./sentinelEpisodes.ts";
+import { strongestProcessContext } from "./sentinelEpisodes.ts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useGovernedRecordNote } from "../common/useGovernedRecordNote";
 import { HostUpdatesPanel } from "./HostUpdatesPanel";
@@ -8,7 +8,6 @@ import {
   applyPopUpgradeCleanup,
   askSentinel,
   configureHostAutomation,
-  explainFans,
   investigateHostObservation,
   loadCurrentHostMeasurements,
   loadSentinelStatus,
@@ -56,16 +55,10 @@ type HostSignal = {
 
 type OperatorHealthState = "HEALTHY" | "WATCHING" | "ATTENTION" | "PROBLEM" | "UNKNOWN";
 type InvestigationKind = "slow" | "network" | "suspicious" | "codex" | "other";
-type FanInvestigationOutcome = "NO AUTOMATIC REPAIR AVAILABLE" | "FIX AVAILABLE" | "FIXED" | "STILL PRESENT";
-type FanInvestigation = {
-  diagnosis: string;
-  evidence: string;
-  outcome: FanInvestigationOutcome;
-  deepCheckUsed: boolean;
-};
 type DiagnosisOutcome = "WATCHING" | "UNKNOWN" | "NO ISSUE FOUND" | "FIX AVAILABLE" | "NEEDS YOUR HELP" | "FIXED" | "STILL PRESENT";
 type DiagnosisResult = {
   phase: "diagnosing" | "complete";
+  origin?: "fans" | "diagnostic";
   outcome?: DiagnosisOutcome;
   observationId?: string;
   scanKind?: string;
@@ -226,12 +219,6 @@ function resolutionLabel(finding: SentinelHostFinding | undefined): string {
   return resolution.resolvedAt ? `${state} · ${formatDateTime(resolution.resolvedAt)}` : state;
 }
 
-function fanInvestigationNeedsDeepCheck(result: { explanation: string; report: HostCheckResponse }): boolean {
-  const statuses = Object.values((result.report.metrics || {}) as Record<string, SentinelObservation>).map(observationStatus);
-  return result.explanation.toLowerCase().includes("insufficient")
-    || statuses.some((value) => ["attention", "elevated", "critical", "unknown", "unavailable", "unsupported"].includes(value));
-}
-
 function materiallyDifferentTimestamp(value: string | undefined, sample: string | undefined): boolean {
   if (!value || !sample) return false;
   const rowTime = Date.parse(value);
@@ -320,10 +307,8 @@ export function SentinelTab() {
   const [answer, setAnswer] = useState<AskSentinelResponse | null>(null);
   const [automationFrequency, setAutomationFrequency] = useState<SentinelAutomation["frequency"]>("twice-daily");
   const [popUpgradePreview, setPopUpgradePreview] = useState<PopUpgradeCleanupPreviewResponse | null>(null);
-  const [fanInvestigation, setFanInvestigation] = useState<FanInvestigation | null>(null);
   const [showRawHistory, setShowRawHistory] = useState(false);
   const [showOlderActivity, setShowOlderActivity] = useState(false);
-  const [reviewingFindings, setReviewingFindings] = useState(false);
   const [repairRequested, setRepairRequested] = useState(false);
   const [repairFailed, setRepairFailed] = useState(false);
   const detailsRef = useRef<HTMLDetailsElement>(null);
@@ -394,7 +379,7 @@ export function SentinelTab() {
     setBusyAction(key); setError(""); setNotice("");
     try {
       const result = await action();
-      if (key === "health" || key === "deep") { setDiagnosis(diagnosisFromReport(result as HostCheckResponse)); setFanInvestigation(null); }
+      if (key === "health" || key === "deep") { setDiagnosis(diagnosisFromReport(result as HostCheckResponse)); }
       await refresh(true);
       await refreshCurrent();
       setNotice(success);
@@ -407,24 +392,7 @@ export function SentinelTab() {
   }
 
   async function investigateFans(): Promise<void> {
-    if (busyAction) return;
-    setBusyAction("fans"); setError(""); setNotice(""); setFanInvestigation(null); setPopUpgradePreview(null);
-    try {
-      const result = await explainFans();
-      const deepCheckUsed = fanInvestigationNeedsDeepCheck(result);
-      const report = deepCheckUsed ? await runHostDeepCheck() : result.report;
-      setDiagnosis(null);
-      const [nextStatus, nextMeasurements] = await Promise.all([refresh(true), refreshCurrent()]);
-      const repairAvailable = Boolean(nextStatus.knownIncidentState?.active && nextStatus.recentIncidents.some((incident) => incident.id === nextStatus.knownIncidentState?.lastIncidentId && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview")));
-      const evidence = compactHostEvidence(report.metrics || nextMeasurements.metrics);
-      const outcome: FanInvestigationOutcome = repairAvailable ? "FIX AVAILABLE" : "NO AUTOMATIC REPAIR AVAILABLE";
-      setFanInvestigation({ diagnosis: report.interpretation?.message || result.explanation, evidence, outcome, deepCheckUsed });
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-      await refresh(true).catch(() => undefined);
-    } finally {
-      setBusyAction(null);
-    }
+    await diagnoseAndFix("fans");
   }
 
   async function investigate(kind: InvestigationKind): Promise<void> {
@@ -472,7 +440,6 @@ export function SentinelTab() {
       const finding = repairFinding || observation.observedValues?.primaryFinding;
       const message = guidance?.message || repairFinding?.nextStep || "Review the exact governed repair before requesting authorization.";
       setDiagnosis({ phase: "complete", outcome: "FIX AVAILABLE", observationId: observation.id, scanKind: observation.observedValues?.scanKind || "full", durationMs: observation.observedValues?.scanDurationMs, finding: exactAvailableFinding(finding, metrics), evidence: exactAvailableFindingEvidence(finding, metrics), repairRan: false, nextStep: message });
-      setFanInvestigation(null);
       setNotice("");
       return;
     }
@@ -493,21 +460,15 @@ export function SentinelTab() {
     });
   }
 
-  async function diagnoseAndFix(): Promise<void> {
+  async function diagnoseAndFix(origin: "fans" | "diagnostic" = "diagnostic"): Promise<void> {
     if (busyAction) return;
     setBusyAction("diagnose-fix"); setError(""); setNotice(""); setPopUpgradePreview(null);
-    setDiagnosis({ phase: "diagnosing", finding: "Collecting current deterministic host evidence…", evidence: [], repairRan: false, nextStep: "One bounded deep check is running. No repair has run." });
+    setDiagnosis({ origin, phase: "diagnosing", finding: "Collecting current deterministic host evidence…", evidence: [], repairRan: false, nextStep: "One bounded deep check is running. No repair has run." });
     try {
       const report = await runHostDeepCheck();
       const result = diagnosisFromReport(report);
-      setDiagnosis(result);
-      const [nextStatus] = await Promise.all([refresh(true), refreshCurrent()]);
-      if (result.outcome === "FIX AVAILABLE" && nextStatus.knownIncidentState?.active) {
-        setFanInvestigation(null);
-        setNotice("A known issue matched. Review the exact Safe Cleanup preview before requesting OS authorization.");
-      } else {
-        setFanInvestigation(null);
-      }
+      setDiagnosis({ ...result, origin });
+      await Promise.all([refresh(true), refreshCurrent()]);
       setNotice("");
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
@@ -533,16 +494,13 @@ export function SentinelTab() {
   }
 
   async function setAutomation(enabled: boolean, frequency = automationFrequency): Promise<void> {
-    await perform("automation", () => configureHostAutomation(enabled, frequency), enabled ? "Automatic full host scans are enabled. The 15-minute timer wake runs a full scan only when due." : "Automatic full host scans are off.");
+    await perform("automation", () => configureHostAutomation(enabled, frequency), enabled ? "Automatic full host scans are enabled. The 30-second updater check runs a full scan only when due." : "Automatic full host scans are off.");
   }
 
   async function previewPopUpgradeRepair(): Promise<void> {
     if (busyAction) return;
     setBusyAction("pop-upgrade-preview"); setError(""); setNotice(""); setRepairRequested(true); setPopUpgradePreview(null);
     try {
-      if (status?.knownIncidentState?.repairNeedsOperator || status?.knownIncidentState?.midScanNeedsOperator) {
-        setFanInvestigation({ diagnosis: "Review blocked updater recovery. The root guard will not retry a failed attempt; it may verify an existing recovered replacement.", evidence: "Fresh preview and explicit confirmation required.", outcome: "FIX AVAILABLE", deepCheckUsed: false });
-      }
       const preview = await previewPopUpgradeCleanup();
       setPopUpgradePreview(preview); await refresh(true);
       setNotice(validUpdaterPreview(preview) ? "Review the exact updater target before requesting operating-system authorization." : "The updater no longer meets the exact Safe Cleanup signature or its authorization requirements.");
@@ -564,12 +522,11 @@ export function SentinelTab() {
       await runHostHealthCheck();
       const [, nextMeasurements] = await Promise.all([refresh(true), refreshCurrent(true)]);
       setRepairRequested(false);
-      const outcome: FanInvestigationOutcome = result.ok ? "FIXED" : "STILL PRESENT";
+      const outcome: DiagnosisOutcome = result.ok ? "FIXED" : "STILL PRESENT";
       const evidence = compactHostEvidence(nextMeasurements.metrics);
       const diagnosis = result.ok
         ? "The exact governed pop-upgrade.service repair completed and post-repair verification passed."
         : "The exact governed repair did not verify recovery. No broader process or service action was attempted.";
-      setFanInvestigation({ diagnosis, evidence, outcome, deepCheckUsed: true });
       setDiagnosis({
         phase: "complete",
         outcome,
@@ -578,7 +535,7 @@ export function SentinelTab() {
         finding: diagnosis,
         evidence: [evidence],
         repairRan: result.actions?.some((action) => action.actionOccurred === true) || false,
-        nextStep: result.ok ? "Post-repair verification passed; continue normal monitoring." : "The finding is still present. No broader repair was attempted; review the retained evidence.",
+        nextStep: result.ok ? "Updater recovery passed. Heat and other host concerns remain separate; review current measurements." : "The finding is still present. No broader repair was attempted; review the retained evidence.",
       });
       setNotice(result.ok ? "Safe Cleanup completed and post-repair evidence was refreshed." : "Safe Cleanup did not verify recovery; review current evidence.");
     } catch (reason) {
@@ -621,11 +578,12 @@ export function SentinelTab() {
   const automationRequested = Boolean(automation?.enabled);
   const automaticStatus = automationActive ? `ON · ${automation?.frequency === "twice-daily" ? "Twice daily" : "Daily"}` : automationRequested ? "Timer unavailable" : "OFF";
   const automaticSelfHealActive = !statusError && automaticUpdaterReady(status);
-  const operatorRequired = Boolean(status?.knownIncidentState?.repairNeedsOperator || status?.knownIncidentState?.midScanNeedsOperator);
+  const operatorRequired = Boolean(status?.knownIncidentState?.repairNeedsOperator || status?.knownIncidentState?.midScanNeedsOperator || status?.updaterWorkflow?.phase === "manual-action-needed");
   const scheduleStatus = automation?.scheduleStatus || "off";
-  const popUpgradeIncident = status?.knownIncidentState?.active
-    ? status.recentIncidents.find((incident) => incident.id === status.knownIncidentState?.lastIncidentId && incident.actionsProposed?.includes("workstation.cleanup.pop_upgrade.preview"))
-    : undefined;
+  const updaterWorkflow = status?.updaterWorkflow;
+  const updaterVisible = updaterWorkflow && updaterWorkflow.phase !== "idle"
+    && diagnosis?.phase !== "diagnosing"
+    && (!diagnosis || Date.parse(updaterWorkflow.checkedAt || "") > Date.parse(diagnosis.capturedAt || "1970-01-01"));
   const currentNowDetail = fresh ? interpretation?.message || "Current interpretation unavailable"
     : liveMeasurements ? "STALE · current health unavailable until refresh succeeds" : "Waiting for current measurements";
   return (
@@ -639,55 +597,46 @@ export function SentinelTab() {
         <div className="sentinelOperatorSummary" data-testid="sentinel-status-header">
           <div className={`sentinelOperatorState sentinelOperatorState-${cardState.toLowerCase()}`} data-testid="sentinel-current-now"><small>CURRENT NOW</small><strong>{cardState === "ATTENTION" || cardState === "PROBLEM" ? "NEEDS ATTENTION" : cardState}</strong>
             <span>{currentNowDetail}</span>
-            {(interpretation?.concerns.length || 0) > 0 ? <span data-testid="sentinel-finding-count">{interpretation?.concerns.length} concern{interpretation?.concerns.length === 1 ? "" : "s"} · {healthActions.repairableCount ? `${healthActions.repairableCount} safe governed action available` : "no automatic repair"}</span> : null}
+            {(interpretation?.concerns.length || 0) > 0 ? <span data-testid="sentinel-finding-count">{interpretation?.concerns.length} concern{interpretation?.concerns.length === 1 ? "" : "s"} · {updaterWorkflow?.phase === "recovering" ? "recovery in progress" : updaterWorkflow?.phase === "blocked" ? "recovery blocked" : healthActions.repairableCount ? `${healthActions.repairableCount} safe governed action available` : "no automatic repair"}</span> : null}
             {healthActions.findings.length > 1 && healthActions.repairableCount > 0 ? <span>Fix available: pop-upgrade.service</span> : null}
             <small>{fresh ? "Measured" : "Last measurement"}: {formatDateTime(liveMeasurements?.measuredAt)}</small>
             <div className="sentinelHealthActions">
-              {healthActions.repairableCount > 0 ? <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void previewPopUpgradeRepair()} data-testid="sentinel-fix-it">{busyAction === "pop-upgrade-preview" ? "Checking…" : "Fix it"}</button> : null}
-              {(healthActions.needsAttention || cardState !== "HEALTHY") && (healthActions.repairableCount === 0 || healthActions.findings.length > 1) ? <button className={`btn ${healthActions.repairableCount ? "btnGhost" : "btnPrimary"}`} type="button" disabled={Boolean(busyAction)} onClick={() => { if (cardState === "WATCHING") { const history = document.querySelector<HTMLDetailsElement>('[data-testid="sentinel-episode-details"]'); if (history) { history.open = true; history.closest(".guardianActivityRow")?.scrollIntoView({block: "start"}); } else openDetails(); } else setReviewingFindings(value => !value); }} data-testid="sentinel-review-current" aria-expanded={reviewingFindings}>{cardState === "WATCHING" ? "Review trend" : "Investigate"}</button> : null}
+              {!repairRequested && healthActions.repairableCount > 0 ? <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void previewPopUpgradeRepair()} data-testid="sentinel-fix-it">{busyAction === "pop-upgrade-preview" ? "Checking…" : "Fix it"}</button> : null}
+              {!repairRequested && healthActions.repairableCount === 0 ? <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction) || ["checking", "recovering"].includes(updaterWorkflow?.phase || "")} onClick={() => void (operatorRequired ? previewPopUpgradeRepair() : diagnoseAndFix())} data-testid={healthActions.needsAttention || cardState !== "HEALTHY" ? "sentinel-review-current" : "sentinel-diagnose-fix"}>{updaterWorkflow?.phase === "recovering" ? "Recovering…" : busyAction || updaterWorkflow?.phase === "checking" ? "Checking…" : operatorRequired ? "Review recovery" : diagnosis ? "Check again" : "Investigate"}</button> : null}
               <button className="btn btnGhost" type="button" onClick={openDetails} data-testid="sentinel-open-details">Details</button>
             </div>
           </div>
         </div>
         <div className="sentinelPrimaryActions" aria-label="Host Guardian actions">
-          <button className="btn btnPrimary sentinelResolveAction" type="button" disabled={Boolean(busyAction)} onClick={() => void diagnoseAndFix()} data-testid="sentinel-diagnose-fix">{busyAction === "diagnose-fix" ? "Diagnosing…" : "Diagnose"}</button>
-          <button className="btn btnGhost sentinelFullScanAction" type="button" disabled={Boolean(busyAction)} onClick={() => void perform("health", runHostHealthCheck, "Full host scan evidence refreshed.")} data-testid="sentinel-health-check">{busyAction === "health" ? "Scanning…" : "Run Full Scan"}</button>
-          <button className="btn btnPrimary sentinelFanAction" type="button" disabled={Boolean(busyAction)} onClick={() => void investigateFans()} data-testid="sentinel-fans-loud">{busyAction === "fans" ? "Investigating…" : "Fans are loud"}</button>
-          <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => setInvestigationOpen((value) => !value)} data-testid="sentinel-investigate-problem">Investigate another problem</button>
-
+          <button className="btn btnGhost sentinelFanAction" type="button" disabled={Boolean(busyAction)} onClick={() => void investigateFans()} data-testid="sentinel-fans-loud">{busyAction === "diagnose-fix" ? "Checking…" : "Fans are loud"}</button>
         </div>
-        <p className="sentinelSubtle">Automatic scans {automaticStatus} · Automatic updater repair {automaticSelfHealActive ? "ready" : "not ready"}</p>
+        <p className="sentinelSubtle">Automatic scans {automaticStatus} · Automatic updater repair {updaterWorkflow?.phase === "blocked" ? "waiting for safety checks" : updaterWorkflow?.phase === "recovering" ? "in progress" : automaticSelfHealActive ? "ready" : "not ready"}</p>
 
 
-        {diagnosis ? <section className={`sentinelDiagnosisResult sentinelDiagnosisResult-${diagnosis.phase}`} data-testid="sentinel-diagnosis-result" aria-live="polite">
+        {updaterVisible ? <section className="sentinelDiagnosisResult" data-testid="sentinel-updater-workflow" aria-live="polite">
+          <strong>{updaterWorkflow.phase === "recovering" ? "RECOVERING UPDATER" : updaterWorkflow.phase === "checking" ? "CHECKING UPDATER" : updaterWorkflow.phase === "manual-action-needed" ? "YOUR ACTION NEEDED" : updaterWorkflow.phase === "recovered" ? "UPDATER RECOVERED" : updaterWorkflow.phase === "blocked" ? "RECOVERY BLOCKED" : updaterWorkflow.phase === "unknown" ? "UPDATER EVIDENCE UNAVAILABLE" : "UPDATER INCIDENT"}</strong>
+          <p>{updaterWorkflow.phase === "checking" ? "Sentinel is measuring sustained updater activity. No repair has run." : updaterWorkflow.reason}</p>
+          {updaterWorkflow.blockers.length ? <p>{updaterWorkflow.blockers.join(" ")}</p> : null}
+          <small>{updaterWorkflow.phase === "recovering" ? "Wait for the guarded result; no user action or second attempt is needed." : updaterWorkflow.phase === "manual-action-needed" ? "Review recovery to inspect the exact guarded verification path. Automatic retries are blocked." : updaterWorkflow.phase === "blocked" ? "Sentinel keeps this incident visible and rechecks eligibility. No broader action is authorized." : updaterWorkflow.phase === "checking" ? "No action is needed while this check runs." : "Review current measurements and any remaining concerns."}</small>
+        </section> : null}
+
+        {diagnosis && !updaterVisible ? <section className={`sentinelDiagnosisResult sentinelDiagnosisResult-${diagnosis.phase}`} data-testid="sentinel-diagnosis-result" aria-live="polite">
+          <div className="sentinelDiagnosisContent" data-testid={diagnosis.origin === "fans" ? "sentinel-fan-investigation-result" : undefined}>
           <div className="sentinelDiagnosisResultHeading"><span>{diagnosis.phase === "diagnosing" ? "DIAGNOSING" : "DIAGNOSIS COMPLETE"}</span><strong>{diagnosis.phase === "diagnosing" ? "IN PROGRESS" : diagnosis.outcome}</strong></div>
           <div className="sentinelDiagnosisResultMeta"><span>Scan: {diagnosis.scanKind ? `${diagnosis.scanKind} deterministic check` : "deep deterministic check"}</span><span>Duration: {typeof diagnosis.durationMs === "number" ? `${(diagnosis.durationMs / 1000).toFixed(1)}s` : diagnosis.phase === "diagnosing" ? "measuring…" : "not retained"}</span><span>Captured {formatDateTime(diagnosis.capturedAt)}</span><span>Repair ran: {diagnosis.repairRan ? "YES" : "NO"}</span></div>
           <strong>{diagnosis.finding}</strong>
           {diagnosis.presence ? <small>{diagnosis.presence === "observed-clear" ? "Observed clear during this diagnostic" : diagnosis.presence === "present" ? "Present at diagnostic endpoint" : "Current presence unknown"}</small> : null}
           <SentinelProcessContext context={diagnosis.processContext} now={now} />
           <div><small>NEXT STEP</small><p>{diagnosis.nextStep}</p></div>
+          {diagnosis.origin === "fans" ? <small>Fan symptom checked through the same diagnostic workflow. Outcome retained in Sentinel history.</small> : null}
+          </div>
         </section> : null}
 
-        {fanInvestigation ? <section className={`sentinelFanResult sentinelFanResult-${fanInvestigation.outcome.toLowerCase().replace(/ /g, "-")}`} data-testid="sentinel-fan-investigation-result">
-          <div className="sentinelFanResultHeading"><span>FAN INVESTIGATION</span><strong>{fanInvestigation.outcome}</strong></div>
-          <p>{fanInvestigation.diagnosis}</p>
-          <small>{fanInvestigation.evidence}</small>
-          <div className="sentinelFanResultMeta"><span>{fanInvestigation.deepCheckUsed ? "Deeper deterministic evidence was collected automatically." : "The normal governed fan explanation was sufficient."}</span><span>Outcome retained in Sentinel history.</span></div>
-
-        </section> : null}
-
-          {repairRequested || ((popUpgradeIncident || operatorRequired) && fanInvestigation?.outcome === "FIX AVAILABLE") ? <div className="guardianRepair" data-testid="pop-upgrade-safe-cleanup">
+          {repairRequested ? <div className="guardianRepair" data-testid="pop-upgrade-safe-cleanup">
             <div><strong>Review the exact pop-upgrade.service target.</strong><span>A fresh preview, explicit confirmation, and OS authorization remain required.</span></div>
             {!validUpdaterPreview(popUpgradePreview) ? <button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void previewPopUpgradeRepair()}>{busyAction === "pop-upgrade-preview" ? "Checking target…" : "Fix now"}</button> : <div><strong>{popUpgradePreview?.candidate?.service}</strong><div className="sentinelActions"><button className="btn btnPrimary" type="button" disabled={Boolean(busyAction)} onClick={() => void applyPopUpgradeRepair()}>{busyAction === "pop-upgrade-apply" ? "Authorizing…" : "Authorize & fix"}</button><button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => { setPopUpgradePreview(null); setRepairRequested(false); }}>Cancel</button></div></div>}
           </div> : null}
-        {reviewingFindings ? <section className="sentinelCurrentReview" data-testid="sentinel-current-review" aria-label="Current findings">
-          <div className="sentinelSectionHeading"><strong>{healthActions.findings.length ? "Findings to review" : "Current evidence unavailable"}</strong><button className="btn btnGhost btnCompact" type="button" onClick={() => setReviewingFindings(false)}>Close</button></div>
-          {healthActions.findings.map(finding => <div className="sentinelReviewFinding" key={finding.findingKey || finding.key + finding.reason}><strong>{finding.reason}</strong><span>{finding.repairable ? "Exact updater repair available · preview required" : finding.nextStep || "No automatic repair. Review the evidence before taking action."}</span></div>)}
-          {!healthActions.findings.length ? <p>{currentNowDetail}</p> : null}
-          <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => void diagnoseAndFix()}>Run diagnostic check</button>
-        </section> : null}
 
-        {investigationOpen ? <section className="sentinelInvestigation" data-testid="sentinel-investigation-workflow"><div><span>INVESTIGATE ANOTHER PROBLEM</span><strong>Choose a symptom. Host Guardian starts with the smallest deterministic check.</strong></div><div className="sentinelInvestigationChoices"><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("slow")}>Computer is slow</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("network")}>Network problem</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("suspicious")}>Something suspicious is happening</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("codex")}>Check whether Codex left something running</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("other")}>Other problem</button></div>{question ? <div className="sentinelGuidanceInline"><textarea className="pasteArea" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Describe the workstation symptom…" /><button className="btn btnPrimary" type="button" onClick={() => void submitQuestion()} disabled={!question.trim() || Boolean(busyAction)}>{busyAction === "ask" ? "Reviewing…" : "Get deterministic guidance"}</button>{answer ? <div className="sentinelAnswer"><strong>{answer.intent.replace(/-/g, " ")}</strong><p>{answer.answer}</p><small>Execution permitted: NO · AI model used: NO</small></div> : null}</div> : null}</section> : null}
       </header>
 
       <div className="sentinelCurrentSignals" data-testid="sentinel-current-signals" aria-label={fresh ? "Current measurements" : "Stale measurements"}>
@@ -696,13 +645,18 @@ export function SentinelTab() {
       </div>
 
       <SentinelEpisodes projection={status?.episodeProjection} current={interpretation?.concerns || []}
-        expanded={showOlderActivity} onExpand={() => setShowOlderActivity(value => !value)} onInvestigate={() => setReviewingFindings(true)} />
+        expanded={showOlderActivity} onExpand={() => setShowOlderActivity(value => !value)} />
 
       {error || statusError ? <div className="panelError">{error || statusError}</div> : null}
       {notice ? <div className="sentinelNotice">{notice}</div> : null}
 
       <details className="sentinelAdvancedWorkspace" ref={detailsRef}>
         <summary>Details · measurements, evidence, updates and automation</summary>
+        <div className="sentinelActions">
+          <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => void perform("health", runHostHealthCheck, "Full host scan evidence refreshed.")} data-testid="sentinel-health-check">{busyAction === "health" ? "Scanning…" : "Run Full Scan"}</button>
+          <button className="btn btnGhost" type="button" disabled={Boolean(busyAction)} onClick={() => setInvestigationOpen(value => !value)} data-testid="sentinel-investigate-problem">Choose another symptom</button>
+        </div>
+        {investigationOpen ? <section className="sentinelInvestigation" data-testid="sentinel-investigation-workflow"><div><span>INVESTIGATE ANOTHER PROBLEM</span><strong>Choose a symptom. Host Guardian starts with the smallest deterministic check.</strong></div><div className="sentinelInvestigationChoices"><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("slow")}>Computer is slow</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("network")}>Network problem</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("suspicious")}>Something suspicious is happening</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("codex")}>Check whether Codex left something running</button><button type="button" className="btn btnGhost" disabled={Boolean(busyAction)} onClick={() => void investigate("other")}>Other problem</button></div>{question ? <div className="sentinelGuidanceInline"><textarea className="pasteArea" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Describe the workstation symptom…" /><button className="btn btnPrimary" type="button" onClick={() => void submitQuestion()} disabled={!question.trim() || Boolean(busyAction)}>{busyAction === "ask" ? "Reviewing…" : "Get deterministic guidance"}</button>{answer ? <div className="sentinelAnswer"><strong>{answer.intent.replace(/-/g, " ")}</strong><p>{answer.answer}</p><small>Execution permitted: NO · AI model used: NO</small></div> : null}</div> : null}</section> : null}
       <section className="guardianActivity" data-testid="sentinel-raw-history">
         <div className="sentinelActivityHeader">
           <div><span>RAW SCAN EVIDENCE</span><strong>Original observations and severity</strong></div>

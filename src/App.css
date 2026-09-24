@@ -4527,7 +4527,7 @@ pre {
 .sentinelCurrentSignals > div { display: flex; flex-direction: column; gap: 4px; padding: 12px; }
 .sentinelNeedsAttention { padding: 12px 16px; }
 .sentinelAdvancedWorkspace > summary { cursor: pointer; padding: 12px; font-weight: 600; }
-.sentinelShell .guardianActivityRow, .sentinelShell .guardianActivityColumns { grid-template-columns: minmax(120px, 0.8fr) 100px 90px minmax(240px, 2fr); }
+.sentinelShell .guardianActivityRow, .sentinelShell .guardianActivityColumns { grid-template-columns: minmax(180px, 1fr) minmax(170px, 0.85fr) minmax(150px, 0.7fr) minmax(280px, 2fr); }
 @media (max-width: 760px) {
   .sentinelCurrentSignals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sentinelShell .guardianActivityRow { grid-template-columns: 1fr; }
@@ -4620,3 +4620,6 @@ pre {
 
 .sentinelShell .guardianActivityCell > strong,
 .sentinelShell .guardianActivityCell > small { display: block; margin-block: 3px; }
+
+.sentinelDiagnosisContent { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+.sentinelDiagnosisResult[data-testid="sentinel-updater-workflow"] { grid-template-columns: minmax(0, 1fr); }

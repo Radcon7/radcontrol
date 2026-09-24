@@ -27,7 +27,7 @@ export async function runOrderedWorkspaceSequence({fixture,base,sessionId,reques
     await assertWorkspace(base,sessionId,'sentinel');
   }
   const decoy=async()=>exec(`const e=document.createElement('section');e.id='native-fan-decoy';
-    e.innerText='FAN INVESTIGATION NO AUTOMATIC REPAIR AVAILABLE Outcome retained in Sentinel history.';document.body.append(e);`);
+    e.innerText='DIAGNOSIS COMPLETE NO ISSUE FOUND Outcome retained in Sentinel history.';document.body.append(e);`);
   const removeDecoy=()=>exec("document.getElementById('native-fan-decoy')?.remove();");
   for(let run=1;run<=contract.runs;run++) {
     const started=new Date().toISOString(), token=`ordered-${run}`;
@@ -55,7 +55,7 @@ export async function runOrderedWorkspaceSequence({fixture,base,sessionId,reques
       await exec("document.querySelector('[data-testid=security-mode-sentinel]').setAttribute('aria-selected','false');");
       try {await assert.rejects(()=>assertFanResult(base,sessionId),/wrong or unsettled workspace sentinel/);}
       finally {await exec("document.querySelector('[data-testid=security-mode-sentinel]').setAttribute('aria-selected','true');");}
-      await writeFile(state,JSON.stringify({phase:'healthy'}));
+      await writeFile(state,JSON.stringify({phase:'healthy',requireFanFixture:true}));
       await click('[data-testid="sentinel-fans-loud"]');
       await decoy();
       try {await assert.rejects(()=>assertFanResult(base,sessionId,{timeoutMs:350}),/scoped Sentinel fan result missing/);}
