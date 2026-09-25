@@ -154,7 +154,8 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
             "updater-recovering": {"active": True, "repairNeedsOperator": True, "lastOutcome": "attempted", "repairCheckedAt": now},
             "updater-checking": {"watch": {"phase": "checking", "observedSeconds": 30}},
             "updater-blocked": {"active": True, "lastOutcome": "blocked", "repairReason": "A live package transaction owns the package lock.", "repairBlockers": ["Owned package lock"]},
-            "updater-recovered": {"active": False, "lastOutcome": "verified", "lastActionOccurred": True},
+            "updater-history": {"active": False, "lastOutcome": "verified", "resolvedAt": "2026-09-15T22:22:47Z"},
+            "updater-recovered": {"active": False, "lastOutcome": "verified", "lastActionOccurred": True, "resolvedAt": "2026-09-15T22:22:47Z"},
             "updater-manual": {"active": True, "repairNeedsOperator": True, "lastOutcome": "failed", "repairReason": "Recovery verification failed. Automatic retries are blocked."},
         }
         if phase in workflow_states:

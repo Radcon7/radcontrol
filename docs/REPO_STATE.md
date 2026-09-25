@@ -75,7 +75,8 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   recurrence cannot be hidden by an older clear episode. Review trend opens
   the actual retained projection; full recent scan snapshots, original severity,
   coverage and evidence references remain in Details. Raw history is never
-  rewritten or deleted. A repeated zombie signature is not proof of continuous
+  rewritten or deleted. Previous updater recovery is a dated, secondary historical line,
+  not a current incident banner; missing legacy dates stay unknown. A repeated zombie signature is not proof of continuous
   same-process identity, and no zombie/parent killing is offered.
 
   Details preserves eight measurements, the single automation control and the
