@@ -30,6 +30,7 @@
     "updater-checking",
     "updater-blocked",
     "updater-recovered",
+    "updater-history",
     "updater-manual",
     "updater-recovering",
     "productive-load",

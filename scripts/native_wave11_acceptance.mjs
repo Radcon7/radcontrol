@@ -132,6 +132,8 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   await screenshot('sentinel-healthy');
   await tap('[data-testid="sentinel-open-details"]');
   await assertSentinelDetails(base,sessionId,true);
+  assert.match(await text('[data-testid="host-guardian-status-strip"]'), /30-second wake/);
+  assert.doesNotMatch(await text('[data-testid="advanced-scan-coverage"]'), /15-minute wake/);
   await screenshot("sentinel-details-expanded");
   await tap('.sentinelAdvancedWorkspace > summary');
   await assertSentinelDetails(base,sessionId,false);
@@ -194,7 +196,7 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   assert.doesNotMatch(await text('[data-testid="pop-upgrade-safe-cleanup"]'),/Authorize & fix/);
   assert.equal(await applyCount(),2);
   pass('invalid-preview');
-  for (const [phase, label] of [['updater-checking','CHECKING UPDATER'],['updater-recovering','RECOVERING UPDATER'],['updater-blocked','RECOVERY BLOCKED'],['updater-recovered','UPDATER RECOVERED'],['updater-manual','YOUR ACTION NEEDED']]) {
+  for (const [phase, label] of [['updater-checking','CHECKING UPDATER'],['updater-recovering','RECOVERING UPDATER'],['updater-blocked','RECOVERY BLOCKED'],['updater-recovered','Previous updater recovery'],['updater-history','Previous updater recovery'],['updater-manual','YOUR ACTION NEEDED']]) {
     await scenario(phase);
     await eventually(async()=>assert.match(await text('[data-testid="sentinel-updater-workflow"]'),new RegExp(label)),phase);
     assert.equal(await count('[data-testid="sentinel-updater-workflow"]'),1);
@@ -203,7 +205,15 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
     if(phase==='updater-recovering') assert.doesNotMatch(await text('[data-testid="sentinel-current-now"]'),/no automatic repair/,'an active recovery must not be labelled absent');
     assert.equal(await count('[data-testid="recent-guardian-activity"] button:not(.guardianActivityToggle)'),0,'history must not offer recursive Investigate actions');
     assert.equal(await execute(`return document.querySelector('[data-testid="sentinel-current-now"]').querySelectorAll('button:not([data-testid="sentinel-open-details"])').length;`),1,'one primary action');
-    if(phase==='updater-recovered') assert.match(await text('[data-testid="sentinel-current-now"]'),/NEEDS ATTENTION[\s\S]*96°C/,'updater recovery cannot clear heat');
+    if(phase==='updater-history') {
+      await health('HEALTHY','HEALTHY',0,0);
+      assert.match(await text('[data-testid="sentinel-updater-workflow"]'),/9\/15\/2026[\s\S]*Historical result/);
+      assert.equal(await count('[data-testid="sentinel-updater-workflow"] button'),0,'historical result has no action');
+    }
+    if(phase==='updater-recovered') {
+      assert.match(await text('[data-testid="sentinel-updater-workflow"]'),/9\/15\/2026/,'retained recovery is dated');
+      assert.match(await text('[data-testid="sentinel-current-now"]'),/NEEDS ATTENTION[\s\S]*96°C/,'updater recovery cannot clear heat');
+    }
     await screenshot(phase);
     pass(phase);
   }

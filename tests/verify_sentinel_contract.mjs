@@ -184,7 +184,7 @@ assert.match(component, /Automatic Full Scans ·/);
 assert.match(component, /Last full scan \{formatDateTime/);
 assert.match(component, /Next full scan/);
 assert.match(component, /Full scans deterministic · no model tokens/);
-assert.match(component, /15-minute wake: due check \+ exact known-incident probe only/);
+assert.match(component, /30-second wake: due check \+ exact known-incident probe only/);
 assert.equal((component.match(/sentinelAutomationControl/g) || []).length, 1);
 
 assert.match(css, /--security-meta-size:\s*14px/);

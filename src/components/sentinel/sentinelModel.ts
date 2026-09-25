@@ -292,6 +292,7 @@ export type SentinelStatus = {
   updaterWorkflow?: {
     phase: "idle" | "checking" | "detected" | "blocked" | "manual-action-needed" | "recovering" | "recovered" | "unknown";
     active: boolean; reason: string; checkedAt?: string | null; projectedAt: string;
+    historical?: boolean; resolvedAt?: string | null;
     incidentId?: string | null; signature: string; observationSeconds: number;
     recurrenceCount: number; blockers: string[]; actionOccurred: boolean; outcome?: string | null;
     versions: Record<string, string | number | null>;

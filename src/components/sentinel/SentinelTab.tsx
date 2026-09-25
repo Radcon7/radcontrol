@@ -581,7 +581,7 @@ export function SentinelTab() {
   const operatorRequired = Boolean(status?.knownIncidentState?.repairNeedsOperator || status?.knownIncidentState?.midScanNeedsOperator || status?.updaterWorkflow?.phase === "manual-action-needed");
   const scheduleStatus = automation?.scheduleStatus || "off";
   const updaterWorkflow = status?.updaterWorkflow;
-  const updaterVisible = updaterWorkflow && updaterWorkflow.phase !== "idle"
+  const updaterVisible = updaterWorkflow && !["idle", "recovered"].includes(updaterWorkflow.phase)
     && diagnosis?.phase !== "diagnosing"
     && (!diagnosis || Date.parse(updaterWorkflow.checkedAt || "") > Date.parse(diagnosis.capturedAt || "1970-01-01"));
   const currentNowDetail = fresh ? interpretation?.message || "Current interpretation unavailable"
@@ -613,8 +613,12 @@ export function SentinelTab() {
         <p className="sentinelSubtle">Automatic scans {automaticStatus} · Automatic updater repair {updaterWorkflow?.phase === "blocked" ? "waiting for safety checks" : updaterWorkflow?.phase === "recovering" ? "in progress" : automaticSelfHealActive ? "ready" : "not ready"}</p>
 
 
+        {updaterWorkflow?.phase === "recovered" ? <p className="sentinelSubtle" data-testid="sentinel-updater-workflow">
+          Previous updater recovery · {formatDateTime(updaterWorkflow.resolvedAt)}. Historical result; current heat and other concerns are separate.
+        </p> : null}
+
         {updaterVisible ? <section className="sentinelDiagnosisResult" data-testid="sentinel-updater-workflow" aria-live="polite">
-          <strong>{updaterWorkflow.phase === "recovering" ? "RECOVERING UPDATER" : updaterWorkflow.phase === "checking" ? "CHECKING UPDATER" : updaterWorkflow.phase === "manual-action-needed" ? "YOUR ACTION NEEDED" : updaterWorkflow.phase === "recovered" ? "UPDATER RECOVERED" : updaterWorkflow.phase === "blocked" ? "RECOVERY BLOCKED" : updaterWorkflow.phase === "unknown" ? "UPDATER EVIDENCE UNAVAILABLE" : "UPDATER INCIDENT"}</strong>
+          <strong>{updaterWorkflow.phase === "recovering" ? "RECOVERING UPDATER" : updaterWorkflow.phase === "checking" ? "CHECKING UPDATER" : updaterWorkflow.phase === "manual-action-needed" ? "YOUR ACTION NEEDED" : updaterWorkflow.phase === "blocked" ? "RECOVERY BLOCKED" : updaterWorkflow.phase === "unknown" ? "UPDATER EVIDENCE UNAVAILABLE" : "UPDATER INCIDENT"}</strong>
           <p>{updaterWorkflow.phase === "checking" ? "Sentinel is measuring sustained updater activity. No repair has run." : updaterWorkflow.reason}</p>
           {updaterWorkflow.blockers.length ? <p>{updaterWorkflow.blockers.join(" ")}</p> : null}
           <small>{updaterWorkflow.phase === "recovering" ? "Wait for the guarded result; no user action or second attempt is needed." : updaterWorkflow.phase === "manual-action-needed" ? "Review recovery to inspect the exact guarded verification path. Automatic retries are blocked." : updaterWorkflow.phase === "blocked" ? "Sentinel keeps this incident visible and rechecks eligibility. No broader action is authorized." : updaterWorkflow.phase === "checking" ? "No action is needed while this check runs." : "Review current measurements and any remaining concerns."}</small>
@@ -732,7 +736,7 @@ export function SentinelTab() {
           <span>Last full scan {formatDateTime(status?.host.checkedAt)}</span>
           <span>Next full scan {automationRequested ? formatDateTime(automation?.nextDueAt) : "Automatic scans off"}</span>
           <span>Full scans deterministic · no model tokens</span>
-          <span>15-minute wake: due check + exact known-incident probe only</span>
+          <span>30-second wake: due check + exact known-incident probe only</span>
           <span>{status?.auditVerification.ok ? "Audit/event/incident chains verified" : "Audit integrity requires attention"}</span>
         </div>
         <header className="sentinelAdvancedHeading"><span>ADVANCED SYSTEM INFORMATION</span><strong>Distinct system evidence, maintenance, automation, records, and safety boundaries</strong></header>
@@ -750,7 +754,7 @@ export function SentinelTab() {
 
         <section className="sentinelAdvancedSection" data-testid="advanced-scan-coverage">
           <div className="sentinelSubCardHeading"><div><span>SCAN COVERAGE</span><strong>Exactly what the last full scan watched—and what remained limited</strong></div><small>{status?.host.scanDurationMs ? `${(status.host.scanDurationMs / 1000).toFixed(1)}s last run` : "No retained duration"}</small></div>
-          <p className="sentinelSubtle">Scheduled full scans trend material thermal and fan alerts. Between scans, the existing 15-minute wake may qualify only the exact updater incident. Every repair uses the same independent root guard and recovery verification.</p>
+          <p className="sentinelSubtle">Scheduled full scans trend material thermal and fan alerts. Between scans, the existing 30-second wake may qualify only the exact updater incident. Every repair uses the same independent root guard and recovery verification.</p>
           <div className="sentinelCoverageGrid securityInsetScroll">
             {(status?.host.coverage || []).map((row) => <div key={row.key}><span><strong>{row.label}</strong><small>{exactAvailableReason(row.reason, status?.host.metrics)}</small></span><StatusPill status={row.status} /></div>)}
             {!status?.host.coverage?.length ? <div><span><strong>Coverage unavailable</strong><small>Run a full scan to establish the first versioned coverage record.</small></span><StatusPill status="unknown" /></div> : null}
