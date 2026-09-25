@@ -34,7 +34,13 @@
     "updater-manual",
     "updater-recovering",
     "productive-load",
-    "user-application-load"
+    "user-application-load",
+    "context-zombies",
+    "context-growth",
+    "context-impact",
+    "context-history",
+    "context-three",
+    "context-updater"
   ],
   "harnessFiles": [
     "scripts/native_wave11_acceptance.mjs",

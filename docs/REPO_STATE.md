@@ -78,6 +78,9 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
   rewritten or deleted. Previous updater recovery is a dated, secondary historical line,
   not a current incident banner; missing legacy dates stay unknown. A repeated zombie signature is not proof of continuous
   same-process identity, and no zombie/parent killing is offered.
+  Current Now uses O2's current unresolved count, excluding cleared, recovered, stale
+  and previous-boot history. Stable impact-free zombie sets are watching regardless
+  of count only when current parent and identity evidence supports that conclusion.
 
   Details preserves eight measurements, the single automation control and the
   six full-width areas: System Evidence, Scan Coverage, Maintenance &

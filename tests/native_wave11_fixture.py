@@ -41,7 +41,7 @@ if verb == "sentinel.host.deep_check" and not (root / "wave11-current.json").is_
 with (root / "wave11-calls.jsonl").open("a") as handle:
     handle.write(json.dumps({"verb": verb, "phase": phase}) + "\n")
 now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-updater = phase in {"actionable", "multiple", "failure", "invalid-preview"}
+updater = phase == "context-updater" or phase in {"actionable", "multiple", "failure", "invalid-preview"}
 hot = phase in {"nonactionable", "multiple", "remaining", "updater-recovered", "productive-load"}
 zombie = phase in {"multiple", "remaining"}
 if verb == "sentinel.host.explain_fans":
@@ -106,6 +106,11 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
     synthetic = copy.deepcopy(metrics)
     for entry in synthetic.values():
         entry["observedAt"] = now
+    synthetic["cpu"]["value"]["bootId"] = "fixture-boot"
+    if phase.startswith("context-") or phase == "zombie":
+        synthetic["cpu"]["value"].update(utilizationPercent=10, logicalCpuCount=4)
+        synthetic["load"]["value"].update(oneMinute=0.5, fiveMinutes=0.5, fifteenMinutes=0.5)
+    synthetic["resourcePressure"] = {"status": "healthy", "value": {}, "observedAt": now}
     synthetic["services"] = {"status": "healthy", "value": [], "observedAt": now}
     synthetic["processes"] = {"status": "healthy", "value": [{"process": "fixture-worker", "pid": 321, "cpuPercent": 2}], "observedAt": now}
     synthetic["projectRuntimes"] = {"status": "healthy", "value": {"zombies": {"count": 0, "parents": []}, "staleTestBrowsers": []}, "observedAt": now}
@@ -115,8 +120,11 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
         fs.append({"kind": "knownIncident", "key": "knownIncident", "findingKey": "metric:knownIncident", "title": "Updater service needs recovery", "status": "attention", "reason": "Exact synthetic updater candidate", "repairCapability": "workstation.cleanup.pop_upgrade.preview"})
     if hot:
         fs.append({"kind": "thermal", "key": "thermal", "findingKey": "metric:thermal", "title": "CPU unusually hot", "status": "attention", "reason": "CPU 96°C"})
-    if zombie or phase == "zombie":
-        synthetic["projectRuntimes"]["value"]["zombies"] = {"count": 1, "parents": [{"pid": 101, "process": "fixture-parent", "count": 1}]}
+    if zombie or phase == "zombie" or phase in {"context-zombies", "context-growth", "context-impact", "context-three", "context-updater"}:
+        count = 3 if phase.startswith("context-") else 1
+        synthetic["projectRuntimes"]["value"]["zombies"] = {"count": count, "bootId": "fixture-boot", "evidenceComplete": True,
+            "parents": [{"pid": 101, "process": "pop-upgrade" if phase == "context-updater" else "fixture-parent", "count": count, "alive": True, "startTicks": 100, "cpuSampled": True, "cpuPercent": 95 if phase == "context-impact" else 0}],
+            "processes": [{"pid": 500+i, "ppid": 101, "startTicks": 200+i, "identityReadable": True} for i in range(count)]}
         fs.append({"kind": "zombie-process", "key": "projectRuntimes", "findingKey": "runtime:zombies:101", "title": "Zombie process", "status": "attention", "reason": "Synthetic zombie parent evidence"})
     if phase in {"productive-load", "user-application-load"}:
         synthetic["processes"].update(status="attention", value=[{"process": "rustc" if phase == "productive-load" else "chrome", "pid": 321, "ppid": 111, "cpuPercent": 180, "cpuSampled": True, "workloadKind": "build-test" if phase == "productive-load" else "user-application", "projectKey": "fixture", "parentProcess": "cargo" if phase == "productive-load" else "chrome"}])
@@ -142,6 +150,21 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
                       thermal_scan(3, 96), scan(4, synthetic, [])]
     elif phase == "zombie":
         events = [scan(index, synthetic, fs) for index in range(8)]
+    if phase.startswith("context-"):
+        historic = [{"kind": "high-current-cpu", "key": "processes", "findingKey": f"process:historic-{i}", "title": f"Historical fixture {i}", "status": "attention"} for i in range(7)]
+        events = [scan(0, synthetic, historic), scan(1, synthetic, [])]
+        if phase == "context-three":
+            synthetic["thermal"]["value"][0]["temperatureC"] = 96
+            synthetic["thermal"]["status"] = "attention"
+            synthetic["services"].update(status="attention", value=["fixture.service"])
+            fs += [{"kind": "thermal", "key": "thermal", "findingKey": "metric:thermal", "title": "Thermal activity", "status": "attention"},
+                   {"kind": "services", "key": "services", "findingKey": "metric:services", "title": "Service failure", "status": "attention"}]
+        if phase != "context-history":
+            prior = copy.deepcopy(synthetic)
+            if phase == "context-growth":
+                z = prior["projectRuntimes"]["value"]["zombies"]
+                z["count"] = 2; z["parents"][0]["count"] = 2; z["processes"] = z["processes"][:2]
+            events += [scan(10, prior, fs), scan(11, synthetic, fs)]
     if phase == "unknown": synthetic["thermal"] = {"status": "unavailable", "value": None, "observedAt": now}
     projection = episode_projection(events, policy)
     interpretation = operator_projection(synthetic, fs, policy, retained=projection, current=verb == "sentinel.host.current", known_state={"active": phase in {"updater-blocked", "updater-manual", "updater-recovering"}, "watch": {"phase": "checking" if phase == "updater-checking" else "idle"}, "repairNeedsOperator": phase in {"failed", "updater-manual"}})
@@ -172,5 +195,5 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
         # Foreground intentionally omits processes. The completed context must survive this read.
         foreground = {key: value for key, value in synthetic.items() if key not in {"processes", "projectRuntimes", "knownIncident"}}
         if phase in {"productive-load", "user-application-load"}: foreground = synthetic
-        result.update(metrics=foreground, measuredAt=now, interpretation=operator_projection(foreground, [f for f in fs if f["key"] == "thermal" or phase in {"productive-load", "user-application-load"}], policy, retained=projection, current=True, known_state={"active": phase in {"updater-blocked", "updater-manual", "updater-recovering"}, "watch": {"phase": "checking" if phase == "updater-checking" else "idle"}, "repairNeedsOperator": phase in {"failed", "updater-manual"}}))
+        result.update(metrics=foreground, measuredAt=now, interpretation=operator_projection(foreground, [f for f in fs if f["key"] in foreground], policy, retained=projection, current=True, known_state={"active": phase in {"updater-blocked", "updater-manual", "updater-recovering"}, "watch": {"phase": "checking" if phase == "updater-checking" else "idle"}, "repairNeedsOperator": phase in {"failed", "updater-manual"}}))
 print(json.dumps(result))
