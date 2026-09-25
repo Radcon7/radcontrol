@@ -584,6 +584,7 @@ export function SentinelTab() {
   const updaterVisible = updaterWorkflow && !["idle", "recovered"].includes(updaterWorkflow.phase)
     && diagnosis?.phase !== "diagnosing"
     && (!diagnosis || Date.parse(updaterWorkflow.checkedAt || "") > Date.parse(diagnosis.capturedAt || "1970-01-01"));
+  const currentConcernCount = fresh ? interpretation?.currentConcernCount ?? 0 : 0;
   const currentNowDetail = fresh ? interpretation?.message || "Current interpretation unavailable"
     : liveMeasurements ? "STALE · current health unavailable until refresh succeeds" : "Waiting for current measurements";
   return (
@@ -597,7 +598,7 @@ export function SentinelTab() {
         <div className="sentinelOperatorSummary" data-testid="sentinel-status-header">
           <div className={`sentinelOperatorState sentinelOperatorState-${cardState.toLowerCase()}`} data-testid="sentinel-current-now"><small>CURRENT NOW</small><strong>{cardState === "ATTENTION" || cardState === "PROBLEM" ? "NEEDS ATTENTION" : cardState}</strong>
             <span>{currentNowDetail}</span>
-            {(interpretation?.concerns.length || 0) > 0 ? <span data-testid="sentinel-finding-count">{interpretation?.concerns.length} concern{interpretation?.concerns.length === 1 ? "" : "s"} · {updaterWorkflow?.phase === "recovering" ? "recovery in progress" : updaterWorkflow?.phase === "blocked" ? "recovery blocked" : healthActions.repairableCount ? `${healthActions.repairableCount} safe governed action available` : "no automatic repair"}</span> : null}
+            <span data-testid="sentinel-finding-count">{currentConcernCount} current concern{currentConcernCount === 1 ? "" : "s"} · {updaterWorkflow?.phase === "recovering" ? "recovery in progress" : updaterWorkflow?.phase === "blocked" ? "recovery blocked" : healthActions.repairableCount ? `${healthActions.repairableCount} safe governed action available` : interpretation?.actionability === "no-automatic-action" ? "no automatic action needed" : "no automatic repair"}</span>
             {healthActions.findings.length > 1 && healthActions.repairableCount > 0 ? <span>Fix available: pop-upgrade.service</span> : null}
             <small>{fresh ? "Measured" : "Last measurement"}: {formatDateTime(liveMeasurements?.measuredAt)}</small>
             <div className="sentinelHealthActions">

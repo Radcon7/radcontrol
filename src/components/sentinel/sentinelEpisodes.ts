@@ -27,6 +27,7 @@ export type SentinelConcern = {
 export type SentinelInterpretation = {
   version: 1; state: 'healthy' | 'watching' | 'attention' | 'unknown'; critical: boolean;
   currentEvidenceState?: 'healthy' | 'attention' | 'unknown' | 'critical';
+  currentConcernCount?: number;
   message: string; concerns: SentinelConcern[]; missingCore: string[]; coverage: string;
   actionability: SentinelActionability; processContext: ProcessContext; persisted: false; policyAdapted: false;
 };
