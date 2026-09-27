@@ -9,6 +9,39 @@ Purpose: RadControl is the desktop command center for Rad Empire. It renders gov
 - Project repos own their product behavior, application UI, data model, and repo-specific deployment rules.
 - RadControl does not contain DQOTD, TBIS, Offroad, or other project business logic.
 
+## Presentation grammar
+
+This repository owns RadControl presentation. Where local authority is silent
+or explicitly defers, retrieve applicable O2 guidance; shared preferences do
+not replace current product rules. The concise precedence rule is linked by
+`docs/POLICY_POINTERS.md`.
+
+- Reuse one persistent shell/tab bar and logs surface. Keep shared headers,
+  actions, errors and controls in the existing primitives; avoid duplicate
+  decorative titles or selected-record summary cards.
+- Projects, Infrastructure and Agents use their shared navigator/detail grammar:
+  concise selectors, a wide brief with the canonical record note, and a narrower
+  purpose-specific supporting/action area. Notes are one selected-record
+  surface, not a miniature library. Infrastructure selectors are title-first;
+  show extra navigator metadata only when it changes record selection.
+- Reuse `SystemStateShell`, `ArtifactListPanel`, the existing `surface*` and
+  `workspace*` classes, and common button/input styles. Use document-library
+  helpers only for actual libraries; private Work and My Notes keep their own
+  existing domain APIs. Repeated layout belongs in shared components/classes.
+- Enable an action only when its governed capability and selected-record
+  preconditions permit it. Do not expose a Git commit control without an O2
+  review/confirmation contract. Missing required gates remain visible and
+  explained; unwired actions never masquerade as working controls.
+- Timeline retains month grouping, reverse chronology, one clear milestone
+  action, and the existing workspace error/action treatment.
+- Modal intake inherits shell control/focus behavior. Project creation keeps
+  its inspectable decisions below and O2-owned placement/intake identity.
+- Legal preserves its three-address distinction without exposing the private
+  owner's street address or inventing an unresolved registered-agent address.
+- Existing local typography and tokens apply, including Security's explicit
+  minimums below. The retired O2 UI doctrine does not impose older font sizes,
+  a hidden/minimal builder, tracked Project Notes, or simulated-only repair.
+
 ## Current surfaces
 
 - Overview: the first command-center workspace. Full-width Momentum rows show
