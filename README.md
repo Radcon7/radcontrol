@@ -39,7 +39,8 @@ RadControl owns UI layout, local presentation state, document viewing and editin
 - **Notes**: To-Do for queued work, Progress for started and blocked work,
   Timeline, My Notes (operator-authored scratchpad documents), the living Empire
   Blueprint, and a read-only O2 Knowledge workspace. Both task views share O2's
-  existing records; Progress shows lifecycle state without invented percentages.
+  existing records and explicit operator assessments; absent assessment stays
+  Unassessed. Builds and task counts do not invent percentages.
   O2 Knowledge projects canonical sources;
   it is not a second knowledge database.
 - **Legal**: an O2-backed executive workspace for Structure, Formation,

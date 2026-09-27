@@ -71,7 +71,7 @@ normal installed launcher when a task claims live product recovery.
 | Trigger | Required local first reads | Conditional shared route |
 | --- | --- | --- |
 | Always | `README.md`; `docs/REPO_STATE.md`; `docs/POLICY_POINTERS.md` | Query O2 before invasive work. |
-| UI/UX | Local architecture in `docs/REPO_STATE.md`; UI doctrine linked by `docs/POLICY_POINTERS.md` | Retrieve active UI/quality material; RadControl owns presentation only. |
+| UI/UX | Local architecture/presentation in `docs/REPO_STATE.md`; `docs/POLICY_POINTERS.md` | Where local authority is silent or explicitly defers, retrieve applicable O2 guidance; apply quality review only when impact qualifies. |
 | Database/schema/migration | Persistence boundary in `docs/REPO_STATE.md` and `docs/POLICY_POINTERS.md` | O2 owns governed durable state. Use its applicable contract; do not create a RadControl-side product database or policy store. |
 | Auth/security/Tauri bridge | `docs/POLICY_POINTERS.md`; bridge and execution boundaries in local code/docs | Retrieve `contracts/local-credentials/v1/README.md` plus task-matched security material; preserve the allowlisted bridge. |
 | Hosted delivery/Vercel | No repo-local hosted-service authority exists; RadControl is a local desktop command center | Any hosted surface is a scope expansion requiring O2 hosted-delivery retrieval and explicit design authority. |

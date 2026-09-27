@@ -4,19 +4,21 @@ RadControl is the control panel, not the source of empire operational truth.
 
 ## Authority order
 
-1. Empire law: `~/.codex/AGENTS.md`
-2. Explicitly scoped O2 empire contracts for O2-owned behavior
-3. RadControl local docs for RadControl implementation and presentation
-4. O2 global defaults when RadControl is silent or explicitly defers upward
-
-O2 documents override RadControl only when they declare `Authority class: Empire contract` and their scope includes RadControl and the topic. Historical documents, generated artifacts, notes, snapshots, and handoffs are not authority.
+Canonical resolution: `~/dev/o2/docs/O2_AGENT_RULES.md#authority-resolution`.
+Explicitly scoped O2 empire contracts constrain the permitted choices only
+within their declared scope. RadControl local docs own its implementation and
+presentation; where local authority is silent or explicitly defers, retrieve
+applicable O2 guidance. Do not copy shared preference prose here. Candidates,
+history and generated evidence never become authority through discovery.
 
 ## Canonical O2 contracts used by RadControl
 
 - Operating and authority model: `~/dev/o2/docs/O2_EMPIRE_OPERATING_RULES.md`
 - Agent execution defaults: `~/dev/o2/docs/O2_AGENT_RULES.md`
-- UI structure: `~/dev/o2/docs/radcontrol/empire_blueprint/radcontrol_ui_structure_doctrine_20260725.md`
-- Document persistence: `~/dev/o2/docs/radcontrol/empire_blueprint/radcontrol_document_persistence_doctrine_20260727.md`
+- Local presentation: `docs/REPO_STATE.md#presentation-grammar`
+- Shared UI defaults: `~/dev/o2/docs/reusable-patterns/shared-ui-preferences.md`
+- Persistence owner: `~/dev/o2/contracts/o2-radcontrol/v1/README.md`
+- Persistence reference map: `~/dev/o2/docs/radcontrol/empire_blueprint/radcontrol_document_persistence_doctrine_20260727.md`
 - Project formation: `~/dev/o2/docs/project-formation/PROJECT_CREATE_START.md`
 - Current project intent: `~/dev/o2/contracts/project-intent/v1/README.md`
 - Project archetypes: `~/dev/o2/contracts/project-archetypes/v1/README.md`

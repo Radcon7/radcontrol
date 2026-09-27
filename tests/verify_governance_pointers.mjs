@@ -78,7 +78,11 @@ assert.match(migrationManifest, /Agents > Repository Routers/);
 assert.equal(preservationManifest.goldenRadControlCommit, "b1431ac0ac5c4c0e83f794d7558d31ba0f133630");
 
 assert.match(policyPointers, /Explicitly scoped O2 empire contracts/);
-assert.match(policyPointers, /radcontrol_ui_structure_doctrine_20260725\.md/);
+assert.match(policyPointers, /shared-ui-preferences\.md/);
+assert.match(policyPointers, /docs\/REPO_STATE\.md#presentation-grammar/);
+assert.doesNotMatch(policyPointers, /radcontrol_ui_structure_doctrine_20260725\.md/);
+assert.match(repoState, /## Presentation grammar/);
+assert.match(repoState, /where local authority is silent/i);
 assert.match(policyPointers, /radcontrol_document_persistence_doctrine_20260727\.md/);
 assert.match(policyPointers, /Home-level legacy procedure notes/);
 assert.match(policyPointers, /are not tracked O2 authority/);
