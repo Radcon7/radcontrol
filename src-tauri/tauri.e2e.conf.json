@@ -3,7 +3,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "RadControl",
+        "title": "RadControl — isolated acceptance",
         "width": 1650,
         "height": 1000,
         "minWidth": 500,

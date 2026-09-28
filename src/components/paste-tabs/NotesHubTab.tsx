@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TimelineTab } from "./TimelineTab";
-import { EmpireTodoWorkspace } from "../notes/EmpireTodoWorkspace";
 import { O2KnowledgeWorkspace } from "../notes/O2KnowledgeWorkspace";
 import { MyNotesScratchpad } from "../notes/MyNotesScratchpad";
 import { BlueprintWorkspace } from "../notes/BlueprintWorkspace";
 
-type NotesMode = "notes" | "empire_todo" | "progress" | "timeline" | "empire_blueprint" | "o2_knowledge";
+type NotesMode = "notes" | "empire_blueprint" | "o2_knowledge";
 
 type Props = {
   busy?: boolean;
@@ -18,15 +16,6 @@ const MODE_CONFIGS: Array<
       label: string;
     }
 > = [
-  {
-    key: "empire_todo",
-    label: "To-Do",
-  },
-  { key: "progress", label: "Progress" },
-  {
-    key: "timeline",
-    label: "Timeline",
-  },
   { key: "notes", label: "My Notes" },
   { key: "empire_blueprint", label: "Empire Blueprint" },
   {
@@ -35,8 +24,8 @@ const MODE_CONFIGS: Array<
   },
 ];
 
-export function NotesHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
-  const [mode, setMode] = useState<NotesMode>("empire_todo");
+export function NotesHubTab({ registerBeforeTabChangeSaver }: Props) {
+  const [mode, setMode] = useState<NotesMode>("notes");
   const saverRef = useRef<(() => Promise<boolean>) | null>(null);
 
   const registerModeSaver = useCallback(
@@ -87,17 +76,8 @@ export function NotesHubTab({ busy, registerBeforeTabChangeSaver }: Props) {
       </div>
 
       <div className="workspaceHubBody">
-        {mode === "timeline" ? (
-          <TimelineTab />
-        ) : mode === "o2_knowledge" ? (
+        {mode === "o2_knowledge" ? (
           <O2KnowledgeWorkspace />
-        ) : mode === "empire_todo" || mode === "progress" ? (
-          <EmpireTodoWorkspace
-            key={mode}
-            mode={mode === "progress" ? "progress" : "queued"}
-            busy={busy}
-            registerBeforeTabChangeSaver={registerModeSaver}
-          />
         ) : mode === "notes" ? <MyNotesScratchpad registerBeforeTabChangeSaver={registerModeSaver} /> : <BlueprintWorkspace registerBeforeTabChangeSaver={registerModeSaver} />}
       </div>
     </section>

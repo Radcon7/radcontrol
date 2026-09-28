@@ -8,6 +8,10 @@ RadControl owns UI layout, local presentation state, document viewing and editin
 
 ## Current Surfaces
 
+- **Overview**: read-only O2 Work projection with blocked work, proposal review,
+  explicit next actions, movement, coverage and links to Work records.
+- **Work**: one Tasks collection with lifecycle views and progress, Initiatives
+  review/editing, and curated Timeline milestones. Relationships use O2 CAS.
 - **Projects**: governed project registry, runtime controls, repo snapshots/maps, original formation requests when available, and New Project.
 - **Infrastructure**: governed provider and platform assets and notes. The
   canonical workstation record is intentionally presented through Security's
@@ -36,13 +40,7 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   topology truth alongside Map, Snapshot, and Sweep. Security Guardian presents
   websites, apps, providers, and connected coverage while labeling unwired
   provider, auth, user, threat, and commerce signals as not connected.
-- **Notes**: To-Do for queued work, Progress for started and blocked work,
-  Timeline, My Notes (operator-authored scratchpad documents), the living Empire
-  Blueprint, and a read-only O2 Knowledge workspace. Both task views share O2's
-  existing records and explicit operator assessments; absent assessment stays
-  Unassessed. Builds and task counts do not invent percentages.
-  O2 Knowledge projects canonical sources;
-  it is not a second knowledge database.
+- **Notes**: My Notes, the living Empire Blueprint and read-only O2 Knowledge.
 - **Legal**: an O2-backed executive workspace for Structure, Formation,
   Addresses & Agent, Brands & Ventures, Business Accounts, and Documents &
   Compliance. Radcon Enterprises and RadWolfe remain parallel legal/business

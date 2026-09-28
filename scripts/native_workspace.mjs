@@ -16,8 +16,8 @@ const roots = {
   sentinel:'[data-testid="radcon-sentinel"]',
   empire_operations:'[data-testid="empire-operations-workspace"]',
   security_guardian:'[data-testid="security-guardian-workspace"]',
-  progress:'[data-testid="empire-todo-workspace"][data-task-workspace="progress"]',
-  todo:'[data-testid="empire-todo-workspace"][data-task-workspace="queued"]',
+  progress:'[data-testid="empire-todo-workspace"][data-task-workspace="tasks"]',
+  todo:'[data-testid="empire-todo-workspace"][data-task-workspace="tasks"]',
   notes:'[data-testid="my-notes-scratchpad"]', runtime:'.runtimeModalCard',
 };
 const anchors = {sentinel:'[data-testid="sentinel-current-now"]',empire_operations:'[data-testid="empire-operations-overview"]',
@@ -50,6 +50,8 @@ const probeScript = `
     const r=e.getBoundingClientRect();return r.width>0&&r.height>0;};
   const selected=()=>({top:[...document.querySelectorAll('.tabActive[data-testid]')].map(e=>e.dataset.testid),
     security:[...document.querySelectorAll('[data-testid="security-workspace"] [aria-selected="true"]')].map(e=>e.dataset.testid),
+    work:[...document.querySelectorAll('[data-testid^=work-mode-].workspaceModeButtonActive')].map(e=>e.dataset.testid),
+    taskViews:[...document.querySelectorAll('[data-testid^=task-view-][aria-pressed=true]')].map(e=>e.dataset.testid),
     notes:[...document.querySelectorAll('[data-testid^="notes-mode-"].workspaceModeButtonActive')].map(e=>e.dataset.testid)});
   if(!window.__nativeWorkspaceTrace){window.__nativeWorkspaceTrace={events:[],pointer:null};
     for(const type of ['pointerdown','pointerup','click'])document.addEventListener(type,e=>{
@@ -63,7 +65,7 @@ const probeScript = `
   const known=['CURRENT NOW','RECENT EVENTS','FAN INVESTIGATION','NO AUTOMATIC REPAIR AVAILABLE','FIX AVAILABLE','Outcome retained in Sentinel history.','OPERATIONAL TRUTH','VISIBILITY NOW','Runtime & Build'];
   return {destination,selected:selected(),retainedSecurityMode:sessionStorage.getItem('radcontrol.security.mode'),aria:[...document.querySelectorAll('[data-testid="security-workspace"] [role="tab"]')].map(e=>({id:e.dataset.testid,selected:e.getAttribute('aria-selected')})),
     containers:Object.fromEntries(Object.entries(roots).map(([name,selector])=>[name,{count:document.querySelectorAll(selector).length,visible:visible(document.querySelector(selector))}])),
-    workPresent:!!document.querySelector('[data-testid="empire-todo-workspace"]'),
+    workPresent:visible(document.querySelector('[data-testid="empire-todo-workspace"]')),
     targetVisible:visible(target),anchorPresent:visible(target?.querySelector(anchors[destination])),
     emptyWork: {visible:visible(target?.querySelector('.empireTodoList > .surfaceEmptyState')),
       count:target?.querySelector('.todoCount')?.innerText,
@@ -88,9 +90,9 @@ export function workspaceConditions(state,destination) {
   const isSecurity=security.includes(destination), isWork=['todo','progress','notes'].includes(destination);
   const selected=state.selected;
   return {
-    topSelected:destination==='runtime'||JSON.stringify(selected.top)===JSON.stringify([isSecurity?'tab-sentinel':'tab-notes']),
+    topSelected:destination==='runtime'||JSON.stringify(selected.top)===JSON.stringify([isSecurity?'tab-sentinel':['todo','progress'].includes(destination)?'tab-work':'tab-notes']),
     subSelected:destination==='runtime'||(isSecurity?JSON.stringify(selected.security)===JSON.stringify([`security-mode-${destination}`]):
-      JSON.stringify(selected.notes)===JSON.stringify([`notes-mode-${destination==='todo'?'empire_todo':destination}`])),
+      ['todo','progress'].includes(destination)?JSON.stringify(selected.work)===JSON.stringify(['work-mode-tasks'])&&JSON.stringify(selected.taskViews)===JSON.stringify([`task-view-${destination==='todo'?'all':'now'}`]):JSON.stringify(selected.notes)===JSON.stringify(['notes-mode-notes'])),
     consistentAria:!isSecurity||state.aria.length===3&&state.aria.every(row=>row.selected===(row.id===`security-mode-${destination}`?'true':'false')),
     uniqueContainer:state.containers[destination]?.count===1,
     targetVisible:state.targetVisible,anchorPresent:workAnchorPresent(state,destination),ready:state.ready,notBusy:!state.busy,
@@ -178,7 +180,8 @@ export async function assertFanResult(base,id,{fixtureText,timeoutMs=20_000}={})
 function destinationFor(selector,state) {
   for(const name of security)if(selector===`[data-testid="security-mode-${name}"]`)return name;
   if(selector==='[data-testid="tab-sentinel"]')return state.selected.security[0]?.replace('security-mode-','')||(security.includes(state.retainedSecurityMode)?state.retainedSecurityMode:'sentinel');
-  for(const [mode,name] of [['empire_todo','todo'],['progress','progress'],['notes','notes']])if(selector===`[data-testid="notes-mode-${mode}"]`)return name;
+  for(const [view,name] of [['all','todo'],['now','progress']])if(selector===`[data-testid="task-view-${view}"]`)return name;
+  if(selector==='[data-testid="notes-mode-notes"]')return 'notes';
   if(selector==='button[title^="Show the installed app build"]')return 'runtime';
   return null;
 }

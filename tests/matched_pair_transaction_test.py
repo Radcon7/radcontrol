@@ -1004,6 +1004,20 @@ class OperatorWorkRollbackTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, 'rollback source provenance missing or mismatched'):
                         self.tx.assert_operator_work_rollback(self.new, self.old)
 
+    def test_relationship_writer_requires_preserving_rollback_before_activation(self):
+        self.bridge()
+        caps=self.capabilities+['operator.work.relationships-preserve-v1','operator.work.relationships-v1']
+        (self.new/'scripts/o2_contract_info.sh').write_text(' '.join(caps))
+        (self.old/'scripts/o2_operator_work_store.py').write_text('# private reader')
+        (self.old/'scripts/o2_contract_info.sh').write_text(' '.join(self.capabilities))
+        with patch.object(transaction_module,'git_run',return_value=json.dumps({'requiredCapabilities':self.capabilities})):
+            with self.assertRaisesRegex(RuntimeError,'preserving accepted rollback provider'):
+                self.tx.assert_operator_work_rollback(self.new,self.old)
+            (self.old/'scripts/o2_contract_info.sh').write_text(' '.join(self.capabilities+['operator.work.relationships-preserve-v1']))
+            self.tx.assert_operator_work_rollback(self.new,self.old)
+            (self.root/'operator-work').mkdir()
+            self.tx.assert_operator_work_rollback(self.new,self.old)
+
     def test_schema_accepts_explicit_rollback_source_without_invalidating_history(self):
         path = self.root/'manifest.json'
         base = {'o2Commit':'a'*40, 'o2Tree':'b'*40, 'binarySha256':'c'*64}

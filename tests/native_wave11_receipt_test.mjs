@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 const width=()=>({...nativeWidthContract('production'),observations:[{requested:1650,observed:1650},{requested:1500,observed:1500}]});
-const complete=()=>({ok:true,realRepair:false,orderedNavigation:{ok:true,route:orderedWorkspaceRoute,regressions:workspaceRegressions,runs:[1,2,3,4,5].map(run=>({run,ok:true}))},scenarios:[...wave11Matrix.scenarios],simulatedApplyCount:2,wave2a:{ok:true,bridgeReadOnly:true,readiness:[...wave11Matrix.workReadinessScenarios],width:width(),taskProgress:{ok:true,checks:[...wave11Matrix.taskProgressScenarios],width:width()}}});
+const complete=()=>({ok:true,realRepair:false,orderedNavigation:{ok:true,route:orderedWorkspaceRoute,regressions:workspaceRegressions,runs:[1,2,3,4,5].map(run=>({run,ok:true}))},scenarios:[...wave11Matrix.scenarios],simulatedApplyCount:2,wave2a:{ok:true,bridgeReadOnly:true,round3:{ok:true,checks:[...wave11Matrix.round3WorkScenarios]},readiness:[...wave11Matrix.workReadinessScenarios],width:width(),taskProgress:{ok:true,checks:[...wave11Matrix.taskProgressScenarios],width:width()}}});
 for(const entrypoint of ['tauri_candidate_precheck.mjs','tauri_production_readonly.mjs']) {
   test(`${entrypoint}: missing or incomplete matrix cannot become release acceptance`,async()=>{
     const ids={o2Sha:'a'.repeat(40),radcontrolSha:'b'.repeat(40),artifactSha256:'c'.repeat(64)};
@@ -72,4 +72,9 @@ test('release receipt requires every task progress scenario and observed width',
  }
  const missing=complete();delete missing.wave2a.taskProgress;assert.throws(()=>assertWave2aReceipt(missing),/task progress native/);
  const wrong=complete();wrong.wave2a.taskProgress.width.observations[1].observed=800;assert.throws(()=>assertWave2aReceipt(wrong));
+});
+
+test('relationship writer acceptance requires every Round 3 native scenario',()=>{
+ for(const scenario of wave11Matrix.round3WorkScenarios){const result=complete();result.wave2a.round3.checks=result.wave2a.round3.checks.filter(s=>s!==scenario);assert.throws(()=>assertWave2aReceipt(result),/Round 3/);}
+ const result=complete();delete result.wave2a.round3;assert.throws(()=>assertWave2aReceipt(result),/Round 3/);
 });

@@ -5,6 +5,8 @@ import "./App.css";
 
 import { SecurityTab } from "./components/security/SecurityTab";
 
+import { WorkHub } from "./components/work/WorkHub";
+import type { WorkTarget } from "./components/overview/workModel";
 import { Overview } from "./components/overview/Overview";
 import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
 import { LegalHubTab } from "./components/paste-tabs/LegalHubTab";
@@ -51,6 +53,7 @@ type DocTabKey = LibraryTabKey;
 
 type TabKey =
   | "overview"
+  | "work"
   | "projects"
   | "infrastructure"
   | "agents"
@@ -70,6 +73,7 @@ const DOC_TABS: DocTabMeta[] = [
 
 const ALL_TABS: TabKey[] = [
   "overview",
+  "work",
   "projects",
   "infrastructure",
   "agents",
@@ -95,6 +99,7 @@ function tabLabel(t: TabKey): string {
 
   const m: Record<Exclude<TabKey, DocTabKey>, string> = {
     overview: "Overview",
+    work: "Work",
     projects: "Projects",
     infrastructure: "Infrastructure",
     agents: "Agents",
@@ -169,6 +174,8 @@ type ProjectBootstrapResult = {
 
 export default function App() {
   const [tab, setTab] = useState<TabKey>("overview");
+  const [workTarget,setWorkTarget]=useState<WorkTarget|null>(null);
+  const [workVisited,setWorkVisited]=useState(false);
   const [busy, setBusy] = useState(false);
   const [portsBusy, setPortsBusy] = useState(false);
 
@@ -766,9 +773,9 @@ export default function App() {
   }
 
 
-  function registerBeforeTabChangeSaver(fn: (() => Promise<boolean>) | null) {
+  const registerBeforeTabChangeSaver = useCallback((fn: (() => Promise<boolean>) | null) => {
     beforeTabChangeSaverRef.current = fn;
-  }
+  }, []);
 
   async function requestTabChange(nextTab: TabKey): Promise<void> {
     if (nextTab === tab) return;
@@ -783,6 +790,7 @@ export default function App() {
       }
     }
 
+    if(nextTab === "work") setWorkVisited(true);
     setTab(nextTab);
   }
 
@@ -839,7 +847,8 @@ export default function App() {
       </header>
 
       <main className="mainArea">
-        {tab === "overview" ? <Overview onSecurity={() => void requestTabChange("sentinel")} registerBeforeTabChangeSaver={registerBeforeTabChangeSaver} /> : tab === "projects" ? (
+        {workVisited ? <div hidden={tab!=="work"} className="workDestination"><WorkHub active={tab==="work"} target={workTarget} busy={busy} registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}/></div> : null}
+        {tab === "overview" ? <Overview onSecurity={() => void requestTabChange("sentinel")} onOpenWork={target=>{setWorkTarget({...target,nonce:Date.now()});setWorkVisited(true);void requestTabChange("work");}} /> : tab === "projects" ? (
           <>
             <ProjectsTab
               projects={projects}

@@ -378,6 +378,16 @@ class Transaction:
         if not (new_root / "scripts/o2_operator_work_store.py").exists() and not present:
             return
         self.assert_operator_work_pair(new_root, self.new_pair, "candidate")
+        # Relationship writers require a preserving rollback provider before any
+        # exposure, including an as-yet inactive store. Reuse this release gate.
+        writer = "operator.work.relationships-v1"
+        preserve = "operator.work.relationships-preserve-v1"
+        provider = existing_file(new_root / "scripts/o2_contract_info.sh", "candidate provider").read_text().split()
+        if writer in provider:
+            old_provider = existing_file(old_root / "scripts/o2_contract_info.sh", "rollback provider").read_text().split()
+            if preserve not in provider or preserve not in old_provider:
+                raise fail("relationship writer requires a preserving accepted rollback provider")
+            self.assert_operator_work_pair(old_root, self.old_pair, "relationship rollback")
         if not present:
             # Only explicit private-v1 code promises noncreating, read-only
             # legacy operation. Earlier auto-importing Wave 2A is not exempt.

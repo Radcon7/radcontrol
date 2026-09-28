@@ -302,63 +302,25 @@ export async function assertWave1Work(base, sessionId, click, until, expectedWor
   await click('[data-testid="logs-toggle"]');
   await until(async () => assert.equal(await execute('return !!document.getElementById("command-output");'), true));
   await click('[data-testid="logs-toggle"]');
-  await click('[data-testid="tab-notes"]');
-  await click('[data-testid="notes-mode-empire_todo"]');
-  const queuedCount = expectedWork ? expectedWork.tasks.filter(row=>taskLane(row.status)==='queued').length : null;
-  const progressCount = expectedWork ? expectedWork.tasks.filter(row=>taskLane(row.status)==='progress').length : null;
-  await until(async () => assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), queuedCount === 0 ? 0 : 1));
-  const compact = await execute(`return {
-    rows: document.querySelectorAll('.empireTodoRow').length,
-    rowEditors: document.querySelectorAll('.empireTodoRow textarea,.empireTodoRow input:not([type=checkbox])').length,
-    fields: [...document.querySelectorAll('.todoDetail textarea')].map(e=>e.getAttribute('aria-label')),
-    next: document.querySelectorAll('.todoRowNext').length,
-    progress: [...document.querySelectorAll('.todoProgress')].map(e=>({text:e.innerText,basis:e.dataset.progressBasis})),
-    selectors: [...document.querySelectorAll('.todoRowSelect')].slice(0,2).map(e=>e.dataset.testid)
-  };`);
-  if (queuedCount === null) assert.ok(compact.rows > 0); else assert.equal(compact.rows,queuedCount);
-  assert.equal(compact.rowEditors, 0);
-  assert.equal(compact.next, compact.rows);
-  for (const name of (queuedCount === 0 ? [] : ['Current state','Next Action','Dependencies / blockers','Acceptance / done condition','Summary','Context','Why it matters'])) assert.ok(compact.fields.includes(name), name);
-  assert.equal(compact.fields.length, queuedCount === 0 ? 0 : 8);
-  for (const state of compact.progress) {
-    assert.ok(['unassessed','operator','completion'].includes(state.basis));
-    if(state.basis==='unassessed')assert.ok(!state.text.includes('%'), 'No invented task percentage');
-    if(state.basis==='completion')assert.equal(state.text,'Done · 100%');
-    if(state.basis==='operator')assert.match(state.text,/\d+%/);
-  }
-  for (const selector of compact.selectors) {
+  await click('[data-testid="tab-work"]');
+  await click('[data-testid="work-mode-tasks"]');
+  await click('[data-testid="task-view-all"]');
+  await until(async()=>{const count=await execute('return document.querySelectorAll(".empireTodoRow").length;');if(expectedWork)assert.equal(count,expectedWork.tasks.length);else assert.ok(count>0);});
+  const selectors=await execute('return [...document.querySelectorAll(".todoRowSelect")].slice(0,2).map(e=>e.dataset.testid);');
+  for(const selector of selectors){
+    if(await execute('return !!document.querySelector(".todoDetail");'))await click('[aria-label="Close task detail"]');
     await click(`[data-testid="${selector}"]`);
-    await until(async () => assert.equal(await execute('return document.querySelector("[data-testid=empire-todo-detail] [role=status]")?.innerText;'), 'Saved'));
+    await until(async()=>assert.equal(await execute('return document.querySelectorAll(".todoDetail textarea").length;'),8));
+    const fields=await execute('return [...document.querySelectorAll(".todoDetail textarea")].map(e=>e.getAttribute("aria-label"));');
+    for(const name of ['Current state','Next Action','Dependencies / blockers','Acceptance / done condition','Summary','Context','Why it matters'])assert.ok(fields.includes(name));
+    await click('[aria-label="Close task detail"]');
   }
-  await click('[data-testid="notes-mode-progress"]');
-  await until(async () => { const count=await execute('return document.querySelectorAll(".taskProgressRail").length;');
-    if (progressCount === null) assert.ok(count > 0); else assert.equal(count,progressCount); });
-  const progress = await execute(`return [...document.querySelectorAll('.empireTodoRow')].map(row => ({
-    state: row.querySelector('.taskProgressStatus')?.innerText,
-    width: row.querySelector('.taskProgressRail')?.getBoundingClientRect().width,
-    available: row.querySelector('.taskProgressContent')?.getBoundingClientRect().width,
-    next: !!row.querySelector('.todoRowNext'), selector: row.querySelector('.todoRowSelect')?.dataset.testid
-  }));`);
-  if (progressCount === null) assert.ok(progress.length > 1, 'Synthetic Progress retains several active tasks');
-  else assert.equal(progress.length,progressCount);
-  for (const row of progress) {
-    assert.match(row.state.trim(), /^(In progress|Blocked)$/i);
-    assert.ok(row.width > row.available * 0.9, 'Task progress spans the active row');
-    assert.equal(row.next, true);
-  }
-  assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 0);
-  if (progress.length) {
-  await click(`[data-testid="${progress[0].selector}"]`);
-  await until(async () => assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 1));
-  assert.equal(await execute('return document.querySelectorAll(".empireTodoRow").length;'), progress.length);
-  await click('[aria-label="Close task detail"]');
-  await until(async () => assert.equal(await execute('return document.querySelectorAll("[data-testid=empire-todo-detail]").length;'), 0));
-  }
-  await click('[data-testid="notes-mode-timeline"]');
-  await until(async () => {
-    const body = await text(); assert.match(body, /Timeline/i); assert.doesNotMatch(body, /Loading timeline/i);
-    assert.equal(await execute('return !!document.querySelector(".workspaceShell [role=alert]");'), false);
-  });
+  await click('[data-testid="task-view-now"]');
+  await until(async()=>{const count=await execute('return document.querySelectorAll(".empireTodoRow").length;');if(expectedWork)assert.equal(count,expectedWork.tasks.filter(r=>taskLane(r.status)==='progress').length);else assert.ok(count>0);});
+  const rows=await execute(`return [...document.querySelectorAll('.empireTodoRow')].map(row=>({state:row.querySelector('.taskProgressStatus')?.innerText,width:row.querySelector('.taskProgressRail')?.getBoundingClientRect().width,available:row.querySelector('.taskProgressContent')?.getBoundingClientRect().width,next:!!row.querySelector('.todoRowNext')}));`);
+  for(const row of rows){assert.match(row.state,/In Progress|Blocked/i);assert.ok(row.width>row.available*.9);assert.ok(row.next);}
+  await click('[data-testid="work-mode-timeline"]');
+  await until(async()=>{assert.match(await text(),/Timeline/);assert.equal(await execute('return !!document.querySelector(".workspaceShell [role=alert]");'),false);});
   await click('[data-testid="tab-projects"]');
   await until(async () => assert.equal(await execute('return !!document.querySelector("[data-testid=project-notes]");'), true));
   const noteStatus = await until(async () => {

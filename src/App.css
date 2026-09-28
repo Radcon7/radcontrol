@@ -1483,7 +1483,6 @@ pre {
   }
 }
 
-
 .workspaceShell {
   display: flex;
   flex-direction: column;
@@ -1582,7 +1581,6 @@ pre {
     grid-template-columns: 1fr;
   }
 }
-
 
 .workspaceHubWrap {
   display: grid;
@@ -2020,8 +2018,6 @@ pre {
   gap: 8px;
 }
 
-
-
 .systemShell {
   display: flex;
   flex-direction: column;
@@ -2085,7 +2081,6 @@ pre {
   display: grid;
   gap: 6px;
 }
-
 
 .splitTextPanel {
   display: grid;
@@ -2764,8 +2759,6 @@ pre {
   }
 }
 
-
-
 .btnCompact {
   min-height: 34px;
   padding: 6px 12px;
@@ -2875,28 +2868,6 @@ pre {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-}
-
-.empireTodoGroup + .empireTodoGroup {
-  margin-top: 18px;
-}
-
-.empireTodoGroupHeading {
-  display: grid;
-  gap: 3px;
-  padding: 3px 7px 8px;
-}
-
-.empireTodoGroupHeading strong {
-  color: var(--accentA);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-}
-
-.empireTodoGroupHeading span {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
 }
 
 .empireTodoListItem {
@@ -4542,34 +4513,16 @@ pre {
 .logsStatus-error { color: #ffb1b8; font-weight: 700; }
 .logsStatus-warning { color: #ffdb96; }
 .logsStatus-running { color: #a9d5ff; }
-.empireTodoCompact { display: flex; flex-direction: column; min-height: 0; height: 100%; gap: 8px; overflow: hidden; }
-.empireTodoCompact .empireTodoToolbar { flex-shrink: 0; gap: 12px; }
-.empireTodoCompact .empireTodoToolbar > .todoFilterRow { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.empireTodoCompact .todoSearch { width: 230px; min-height: 34px; padding: 6px 10px; }
 .todoCount { color: var(--muted); font-size: 14px; }
-.todoMasterDetail { display: grid; grid-template-columns: minmax(440px, 1.55fr) minmax(310px, 1fr); gap: 14px; flex: 1; min-height: 0; }
-.empireTodoCompact .empireTodoList { padding: 0 10px 10px 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; border: 0; background: none; }
-.empireTodoCompact .empireTodoGroup + .empireTodoGroup { margin-top: 12px; }
-.empireTodoCompact .empireTodoGroupHeading { display: flex; justify-content: space-between; padding: 8px 10px; gap: 12px; }
-.empireTodoCompact .empireTodoGroupHeading strong { font-size: 14px; color: var(--muted); letter-spacing: .06em; }
-.empireTodoCompact .empireTodoRow { display: flex; gap: 9px; align-items: flex-start; padding: 6px 10px; margin: 0 0 2px; border: 1px solid transparent; border-bottom-color: var(--stroke); border-radius: 7px; background: rgba(255,255,255,.025); }
-.empireTodoCompact .empireTodoRow.isSelected { background: rgba(104,160,255,.12); border-color: rgba(104,160,255,.55); }
-.empireTodoCompact .empireTodoRow input[type=checkbox] { flex-shrink: 0; margin-top: 3px; width: 17px; height: 17px; }
+
 .todoRowSelect { display: grid; gap: 2px; width: 100%; min-width: 0; padding: 0; border: 0; background: none; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
 .todoRowSelect:focus-visible { outline: 2px solid var(--accentB); outline-offset: 3px; border-radius: 4px; }
-.todoRowTitle { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.todoRowTitle strong { min-width: 0; font-size: 16px; line-height: 1.35; }
 .todoProgress { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: #c0cddd; font-size: 13px; font-weight: 600; }
 .todoProgressPuck { width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; flex-shrink: 0; }
 .todoProgress-active { color: #a9d5ff; }.todoProgress-blocked { color: #ffcf82; }.todoProgress-done { color: #8ce6b5; }
 .todoProgress-active .todoProgressPuck,.todoProgress-done .todoProgressPuck { background: currentColor; }
 .todoProgressLabel { display: inline-flex; align-items: center; gap: 6px; }
-.progressTaskList { flex: 1; min-height: 0; display: flex; }
-.empireProgressWorkspace .empireTodoList { width: 100%; max-height: none; }
-.empireProgressWorkspace .empireTodoRow { padding: 12px 14px; margin-bottom: 7px; }
-.empireProgressWorkspace .todoRowSelect { gap: 7px; }
-.empireProgressWorkspace .todoRowTitle strong { font-size: 17px; }
-.empireProgressWorkspace .todoRowNext { font-size: 15px; }
+
 .taskProgressContent { width:100%; min-width:0; display:grid; gap:7px; }
 .todoRowContext { display:grid; gap:3px; min-width:0; }
 .taskProgressRail { display:grid; width:100%; min-width:0; gap:8px; --progress-color:#a9d5ff; }
@@ -4583,8 +4536,7 @@ pre {
 .taskProgressNumber .input { width:76px; min-width:0; padding:3px 6px; }
 .taskSetProgress { justify-self:start; }
 @media(max-width:850px) { .taskProgressHeading { gap:8px; align-items:flex-start; } .taskProgressValue { font-size:18px; } .taskProgressNumber { flex-wrap:wrap; } }
-.empireProgressWorkspace .todoDetail { margin: 0 12px 14px 40px; max-height: 420px; overflow-y: auto; }
-.empireProgressWorkspace .todoDetailHeading { position: sticky; top: 0; background: var(--panel); z-index: 1; }
+
 .sentinelHealthActions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
 .sentinelCurrentReview { grid-column: 1 / -1; padding: 16px; border: 1px solid var(--stroke); border-radius: 10px; background: rgba(255,255,255,.025); }
 .sentinelCurrentReview .sentinelSectionHeading { display: flex; justify-content: space-between; align-items: center; }
@@ -4605,10 +4557,8 @@ pre {
 .timelineEntryText { font-size: 17px; line-height: 1.4; }.timelineEntryBody { color: var(--muted); font-size: 15px; line-height: 1.5; margin-top: 5px; }
 .timelineModalCard .notesModalBody { display: grid; gap: 12px; }
 @media (max-width: 1000px) {
-  .todoMasterDetail { grid-template-columns: minmax(0,1fr); overflow-y: auto; }
-  .empireTodoCompact .empireTodoList { max-height: 45vh; flex-shrink: 0; }
+
   .todoDetail { overflow-y: visible; }
-  .todoRowTitle { flex-wrap: wrap; gap: 4px; }
 }
 
 /* Sentinel operator significance is distinct from raw measurement severity. */

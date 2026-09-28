@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { WORK_BRIDGE_NOTICE } from "../overview/workModel";
 import { MilestoneModal } from "./MilestoneModal";
 import { timelinePresentation, validEventDate } from "./timelineModel";
@@ -48,7 +48,8 @@ type Group = {
   items: TimelineMilestone[];
 };
 
-export function TimelineTab() {
+export function TimelineTab({ active = true, selectedEventId, selectedEventNonce, registerBeforeTabChangeSaver }: { active?: boolean; selectedEventId?: string; selectedEventNonce?: number; registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void }) {
+  const shownTarget = useRef<string>("");
   const [items, setItems] = useState<TimelineMilestone[]>([]);
   const [readOnly, setReadOnly] = useState(true);
   const [busy, setBusy] = useState(true);
@@ -70,8 +71,16 @@ export function TimelineTab() {
   }
 
   useEffect(() => {
-    void reload();
-  }, []);
+    if(active) void reload();
+  }, [active]);
+  useEffect(() => { registerBeforeTabChangeSaver?.(async () => !showCreate); return () => registerBeforeTabChangeSaver?.(null); }, [showCreate,registerBeforeTabChangeSaver]);
+  useEffect(() => {
+    const key=selectedEventId+":"+selectedEventNonce;
+    if(active && selectedEventId && !busy && shownTarget.current!==key){
+      const row=document.querySelector(`.timelineEntryRow[data-event-id="${CSS.escape(selectedEventId)}"]`);
+      if(row){shownTarget.current=key;requestAnimationFrame(()=>requestAnimationFrame(()=>row.scrollIntoView({block:"center"})));}
+    }
+  }, [active,selectedEventId,selectedEventNonce,busy]);
 
   async function handleCreate(input: NewMilestoneInput): Promise<void> {
     setBusy(true);
@@ -149,7 +158,7 @@ export function TimelineTab() {
                 const presentation = timelinePresentation(item);
 
                 return (
-                  <div key={item.path} className="timelineEntryRow">
+                  <div key={item.path} data-event-id={(item as TimelineMilestone & {id?:string}).id} className={`timelineEntryRow ${selectedEventId === (item as TimelineMilestone & {id?:string}).id ? "isSelected" : ""}`}>
                     <div className="timelineRail">
                       <div className="timelineDot" />
                       <div className={`timelineStem ${isLast ? "timelineStemFade" : ""}`} />

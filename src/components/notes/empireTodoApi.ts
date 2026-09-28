@@ -16,3 +16,7 @@ export function saveEmpireTodo(item: EmpireTodoItem, expectedRevision: number): 
 export function completeEmpireTodo(itemId: string, timeline: { title:string; notes:string } | null, expectedRevision: number): Promise<EmpireTodoSaveResponse> {
   return save(expectedRevision, "task.complete", {itemId,timeline});
 }
+
+export function saveTaskRelationships(id: string, projectKeys: string[], dependsOnTaskIds: string[], revision: number): Promise<EmpireTodoSaveResponse> {
+  return save(revision, "task.relationships", { id, projectKeys, dependsOnTaskIds });
+}
