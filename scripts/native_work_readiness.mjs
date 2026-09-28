@@ -1,6 +1,6 @@
 // Real modal/IPC/O2 checks; only the already isolated fixture is changed.
 import assert from 'node:assert/strict';
-import {readFile, readdir, realpath, rename, writeFile} from 'node:fs/promises';
+import {readFile, readdir, lstat, realpath, rename, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 
@@ -38,7 +38,9 @@ export async function readinessInventory(root) {
       else files[path.relative(path.dirname(root),file)]=createHash('sha256').update(await readFile(file)).digest('hex');
     }
   }
-  await visit(root);
+  const metadata=await lstat(root).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+  files['work-directory']=metadata?'present':'absent';
+  if(metadata){assert.ok(metadata.isDirectory()&&!metadata.isSymbolicLink());await visit(root);}
   const marker=path.join(path.dirname(root),'operator-work.activated');
   try {files['operator-work.activated']=createHash('sha256').update(await readFile(marker)).digest('hex');}
   catch(error){if(error.code!=='ENOENT')throw error;}

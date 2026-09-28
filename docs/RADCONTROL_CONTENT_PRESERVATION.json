@@ -41,9 +41,9 @@
   ],
   "notesModes": [
     { "key": "notes", "historical": "Notes", "final": "Notes", "action": "preserved" },
-    { "key": "timeline", "historical": "Timeline", "final": "Timeline", "action": "preserved" },
+    { "key": "timeline", "historical": "Timeline", "final": "Work > Timeline", "action": "moved intact in Round 3" },
     { "key": "empire_blueprint", "historical": "Empire Blueprint", "final": "Empire Blueprint", "action": "preserved" },
-    { "key": "empire_todo", "historical": "Empire To-Do List", "final": "Empire To-Do", "action": "preserved and positioned immediately after Empire Blueprint" }
+    { "key": "empire_todo", "historical": "Empire To-Do List", "final": "Work > Tasks", "action": "consolidated with Progress into one task collection in Round 3; editor and persistence preserved" }
   ],
   "legalModes": [
     { "key": "structure", "historical": "Portfolio Blueprint", "final": "Structure", "action": "renamed and redesigned as the first/default legal and portal relationship view" },
@@ -78,6 +78,12 @@
     "The Phase 1 closeout then treated the old primary destination removal as authority to remove the Empire Map, Snapshot, and Sweep bridge path and shared artifact producer, even though those useful global reports had no replacement.",
     "Project registry wiring, the ten non-workstation Infrastructure profiles, Notes modes, Legal, and their shared layout declarations were not removed; the regression was capability coupling and over-broad disposition, not project-data loss or global CSS hiding."
   ],
+  "round3Consolidation": {
+    "workModes": ["Tasks", "Initiatives", "Timeline"],
+    "notesModes": ["My Notes", "Empire Blueprint", "O2 Knowledge"],
+    "initiativeEditor": "moved from Overview to Work; Overview remains read-only",
+    "retiredDestinations": ["To-Do", "Progress"]
+  },
   "intentionalDeletions": [
     "standalone Empire Utility primary tab and component",
     "standalone System76 Infrastructure profile and workstation component stack",

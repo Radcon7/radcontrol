@@ -2,6 +2,7 @@ import { createBlankEmpireTodo, type EmpireTodoItem, type EmpireTodoSaveResponse
 
 export const TODO_TEXT_FIELDS = ["title", "summary", "detailedContext", "whyItMatters", "currentState", "nextActions", "dependencies", "acceptanceCriteria", "notes"] as const;
 export type TodoTextField = typeof TODO_TEXT_FIELDS[number];
+export type TodoEditField = TodoTextField | "status" | "priority" | "category";
 const sameContent = (a: EmpireTodoItem, b: EmpireTodoItem) =>
   TODO_TEXT_FIELDS.every((field) => a[field] === b[field]) && a.status === b.status && a.priority === b.priority && a.category === b.category
   && a.progress?.percent === b.progress?.percent && a.progress?.method === b.progress?.method && a.progress?.reviewedAt === b.progress?.reviewedAt;
@@ -10,6 +11,7 @@ const sameContent = (a: EmpireTodoItem, b: EmpireTodoItem) =>
 export function createTodoDrafts(api: {
   save: (item: EmpireTodoItem, expectedRevision: number) => Promise<EmpireTodoSaveResponse>;
   complete: (id: string, timeline: { title: string; notes: string } | null, expectedRevision: number) => Promise<EmpireTodoSaveResponse>;
+  relationships?: (id: string, projects: string[], dependencies: string[], revision: number) => Promise<EmpireTodoSaveResponse>;
 }, changed: () => void) {
   const saved = new Map<string, EmpireTodoItem>();
   const drafts = new Map<string, EmpireTodoItem>();
@@ -55,13 +57,13 @@ export function createTodoDrafts(api: {
   }
   return {
     rows,
-    state: () => ({ saving, error, completing }),
+    state: () => ({ saving, error, completing, revision }),
     dirty: (id: string) => drafts.has(id),
     isNew: (id: string) => added.has(id),
-    load(items: EmpireTodoItem[], loadedRevision = 0) { revision = loadedRevision; saved.clear(); drafts.clear(); added.clear(); for (const item of items) saved.set(item.id, item); notify(); },
-    update(id: string, field: TodoTextField, value: string) {
+    load(items: EmpireTodoItem[], loadedRevision = 0) { error = ""; revision = loadedRevision; saved.clear(); drafts.clear(); added.clear(); for (const item of items) saved.set(item.id, item); notify(); },
+    update(id: string, field: TodoEditField, value: string) {
       const baseline = saved.get(id); if (!baseline) return;
-      const draft = { ...(drafts.get(id) || baseline), [field]: value };
+      const draft = { ...(drafts.get(id) || baseline), [field]: value } as EmpireTodoItem;
       if (!added.has(id) && saving !== id && sameContent(draft, baseline)) drafts.delete(id);
       else drafts.set(id, draft);
       notify();
@@ -74,6 +76,14 @@ export function createTodoDrafts(api: {
       drafts.set(id, { ...current, progress: { percent, method: "operator", reviewedAt: "" } });
       notify();
     },
+    relationships: (id: string, projects: string[], dependencies: string[]) => enqueue(async () => {
+      for (const dirty of [...drafts.keys()]) if (!await drain(dirty)) return false;
+      if (!api.relationships) return false;
+      saving = id; error = ""; notify();
+      try { saved.set(id, accept(await api.relationships(id, projects, dependencies, revision))); return true; }
+      catch (reason) { error = reason instanceof Error ? reason.message : String(reason); return false; }
+      finally { saving = null; notify(); }
+    }),
     add() { const item = createBlankEmpireTodo(); saved.set(item.id, item); drafts.set(item.id, item); added.add(item.id); notify(); return item.id; },
     discard(id: string) { if (saving) return; drafts.delete(id); if (added.delete(id)) saved.delete(id); error = ""; notify(); },
     flush: () => enqueue(async () => { for (const id of [...drafts.keys()]) if (!await drain(id)) return false; return true; }),
@@ -84,7 +94,7 @@ export function createTodoDrafts(api: {
         for (const dirty of [...drafts.keys()]) if (!await drain(dirty)) return false;
         const item = saved.get(id); if (!item) return false;
         saving = id; error = ""; notify();
-        const result = accept(await api.complete(id, withTimeline ? { title: `${item.title} completed`, notes: "Completed from Empire To-Do." } : null, revision));
+        const result = accept(await api.complete(id, withTimeline ? { title: `${item.title} completed`, notes: "Completed from Work." } : null, revision));
         saved.set(id, result); return true;
       } catch (reason) { error = reason instanceof Error ? reason.message : String(reason); return false; }
       finally { saving = null; completing = false; notify(); }

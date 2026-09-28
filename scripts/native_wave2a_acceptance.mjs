@@ -30,10 +30,10 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
     assert.equal(state.data.initiatives.length,0);
     await tap('[data-testid="tab-overview"]');
     await eventually(async()=>assert.match(await exec('return document.body.innerText;'),/Work is temporarily read-only/),'bridge notice');
-    assert.equal(await exec('return document.querySelectorAll(".momentumRow").length;'),0);
-    await tap('[data-testid="tab-notes"]');
-    for (const mode of ['empire_todo','progress','timeline']) {
-      await tap(`[data-testid="notes-mode-${mode}"]`);
+    assert.equal(await exec('return document.querySelectorAll(".overview .momentumRow").length;'),0);
+    await tap('[data-testid="tab-work"]');
+    for (const mode of ['tasks','initiatives','timeline']) {
+      await tap(`[data-testid="work-mode-${mode}"]`);
       await eventually(async()=>assert.ok(await exec('return !!document.querySelector("[data-testid=work-bridge-notice]");')),'readable bridge work');
       assert.equal(await exec('return [...document.querySelectorAll(".empireTodoShell textarea,.empireTodoShell input[type=checkbox]")].filter(e=>!e.disabled&&!e.readOnly).length;'),0);
     }
@@ -66,16 +66,18 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
   const evidence=process.env.RADCONTROL_WAVE2A_EVIDENCE_DIR || path.join(fixture.tempRoot,'wave2a');
   await mkdir(evidence,{recursive:true,mode:0o700});
   async function shot(name) {
-    await request(base,`/session/${sessionId}/execute/async`,'POST',{script:'const done=arguments[arguments.length-1];requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(done,300)));',args:[]});
+    await new Promise(resolve=>setTimeout(resolve,350));
+    await exec('return document.documentElement.getBoundingClientRect().width;');
     await writeFile(path.join(evidence,name+'.png'),Buffer.from(await request(base,`/session/${sessionId}/screenshot`),'base64'),{mode:0o600});
   }
   async function set(selector,value) {
+    await eventually(async()=>assert.ok(await exec('const e=document.querySelector(arguments[0]);return !!e&&!e.disabled;',[selector])),`control ready: ${selector}`);
     await exec(`const e=document.querySelector(arguments[0]);if(!e)throw Error('control missing');const proto=e instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(e,arguments[1]);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));`,[selector,value]);
   }
   await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1100});
   await tap('[data-testid="tab-overview"]');
-  await eventually(async()=>assert.equal(await exec('return document.querySelectorAll(".momentumRow").length;'),6),'six native Momentum rows');
-  const view=await exec(`return {text:document.querySelector('.overview').innerText,rails:[...document.querySelectorAll('.momentumRail')].map(e=>({value:e.getAttribute('aria-valuenow'),width:e.getBoundingClientRect().width,available:e.closest('.momentumBody').getBoundingClientRect().width})),ongoing:document.querySelector('[data-testid=momentum-o2-automation]').innerText,unassessed:document.querySelector('[data-testid=momentum-dqotd-launch]').innerText};`);
+  await eventually(async()=>assert.equal(await exec('return document.querySelectorAll(".overview .momentumRow").length;'),6),'six native Momentum rows');
+  const view=await exec(`return {text:document.querySelector('.overview').innerText,rails:[...document.querySelectorAll('.overview .momentumRail')].map(e=>({value:e.getAttribute('aria-valuenow'),width:e.getBoundingClientRect().width,available:e.closest('.momentumBody').getBoundingClientRect().width})),ongoing:document.querySelector('[data-testid=momentum-o2-automation]').innerText,unassessed:document.querySelector('[data-testid=momentum-dqotd-launch]').innerText};`);
   assert.equal(view.rails.length,1);assert.equal(view.rails[0].value,'42');assert.ok(view.rails[0].width>view.rails[0].available*.7);
   assert.match(view.text,/What Needs You[\s\S]*Set a Next Move/);assert.match(view.text,/Next Moves[\s\S]*Recent Movement/);
   assert.match(view.text,/Wave 2A fixture accepted/);assert.match(view.text,/System health · Security/);
@@ -84,7 +86,7 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
   await shot('overview-normal');
   await exec("document.querySelector('.overviewLower').scrollIntoView({block:'end'});");await shot('overview-movement-and-next');
   await exec("document.querySelector('.overview').scrollTop=0;");
-  await tap('[aria-label="Review RadControl command center"]');
+  await tap('[aria-label="Open RadControl command center in Work"]');
   await set('[aria-label="Initiative title"]','Command center fixture reviewed');
   await set('[aria-label="Initiative Next Move"]','Review the governed candidate');
   await set('[aria-label="Assessed percent"]','47');
@@ -100,31 +102,37 @@ export async function runWave2aAcceptance({fixture,base,sessionId,request,click,
   await tap('.initiativeActions button[type=button].btnPrimary');
   await eventually(async()=>assert.equal(JSON.parse(await readFile(workFile,'utf8')).data.initiatives[4].status,'active'),'explicit proposal acceptance');
   await tap('[data-testid="momentum-radcontrol-evolution"] .momentumRefs button');
-  await eventually(async()=>assert.match(await exec('return document.querySelector("[role=dialog]").innerText;'),/Next Action/),'task reference opens actual task');
-  await tap('[role=dialog] .notesModalBody button');
-  await tap(`.overviewEvent[data-event-id="${event.id}"]`);await eventually(async()=>assert.match(await exec('return document.querySelector("[role=dialog]").innerText;'),/fixture accepted/),'Timeline reference opens event');await tap('[role=dialog] .notesModalBody button');
+  await eventually(async()=>assert.ok(await exec('return !!document.querySelector(".todoDetail");')),'task reference selects actual Work task');
+  await tap('[data-testid="tab-overview"]');
+  await tap(`.overviewEvent[data-event-id="${event.id}"]`);
+  await eventually(async()=>assert.ok(await exec('return !!document.querySelector(arguments[0]);',[`.timelineEntryRow[data-event-id="${event.id}"]`])),'Timeline reference selects event');
+  await tap('[data-testid="tab-overview"]');
   for(const requested of width.widths.slice(1)) {
     await request(base,`/session/${sessionId}/window/rect`,'POST',{width:requested,height:1000});
     await exec("document.querySelector('.overview').scrollTop=0;");
-    const geometry=await exec(`const e=document.querySelector('.overview');return {width:innerWidth,scroll:e.scrollWidth,client:e.clientWidth,rows:[...document.querySelectorAll('.momentumRow')].map(r=>({right:r.getBoundingClientRect().right,left:r.getBoundingClientRect().left}))};`);
+    const geometry=await exec(`const e=document.querySelector('.overview');return {width:innerWidth,scroll:e.scrollWidth,client:e.clientWidth,rows:[...document.querySelectorAll('.overview .momentumRow')].map(r=>({right:r.getBoundingClientRect().right,left:r.getBoundingClientRect().left}))};`);
     width.observations.push({requested,observed:geometry.width});assert.ok(geometry.scroll<=geometry.client+1,'Overview has no horizontal overflow');
     assert.ok(geometry.rows.every(r=>r.left>=0&&r.right<=geometry.width));await shot('overview-'+requested);
   }
   assertWidthReceipt(width,mode);
   await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1000});
-  await tap('[data-testid="tab-notes"]');
-  for(const [mode,name,selector] of [['empire_todo','todo-private','.empireTodoRow'],['progress','progress-private','.progressTaskList'],['timeline','timeline-private','.timelineFeed']]) {
-    await tap(`[data-testid="notes-mode-${mode}"]`);
+  await tap('[data-testid="tab-work"]');
+  for(const [mode,name,selector] of [['tasks','tasks-private','.empireTodoRow'],['initiatives','initiatives-private','.workInitiatives'],['timeline','timeline-private','.timelineFeed']]) {
+    await tap(`[data-testid="work-mode-${mode}"]`);
     await eventually(async()=>assert.ok(await exec('return !!document.querySelector(arguments[0]);',[selector])),name);
     await shot(name);
     await request(base,`/session/${sessionId}/window/rect`,'POST',{width:width.widths[1],height:1000});await shot(name+'-'+width.widths[1]);
     await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1000});
   }
   assert.deepEqual(await readFile(fixture.empireTodoPath),legacy,'native work edits must not touch tracked legacy records');
+  console.error("[native Work] projection, initiative review and responsive surfaces passed");
   const taskProgress = await runTaskProgressAcceptance({command,exec,tap,set,shot,request,base,sessionId,eventually,width,workFile});
   assert.deepEqual(await readFile(fixture.empireTodoPath),legacy,'task assessment never writes legacy records');
+  console.error("[native Work] task progress, native keyboard/drag and conflict recovery passed");
+  const round3 = await runRound3Acceptance({command,exec,tap,set,shot,request,base,sessionId,eventually,width,workFile});
+  console.error("[native Work] Round 3 relationships, deep links and context passed");
   readiness.push(...await assertNativeWorkRecovery(runtimeOptions));
-  const result={ok:true,width,bridgeReadOnly:expectBridge,readiness,taskProgress,checks:['overview','six-momentum-rows','assessed-unassessed-ongoing','blocked-missing-next','needs-you','explicit-pins','meaningful-events','native-review-save','explicit-proposal-acceptance','task-reference','timeline-reference',width.kind,'migrated-work-surfaces','legacy-unchanged'],evidence};
+  const result={ok:true,width,bridgeReadOnly:expectBridge,readiness,taskProgress,round3,checks:['overview','six-momentum-rows','assessed-unassessed-ongoing','blocked-missing-next','needs-you','explicit-pins','meaningful-events','native-review-save','explicit-proposal-acceptance','task-reference','timeline-reference',width.kind,'migrated-work-surfaces','legacy-unchanged'],evidence};
   await writeFile(path.join(evidence,'acceptance.json'),JSON.stringify(result)+'\n',{mode:0o600});return result;
 }
 
@@ -141,7 +149,7 @@ async function runTaskProgressAcceptance({command,exec,tap,set,shot,request,base
   const task=async id=>(await read()).data.tasks.find(r=>r.id===`wave2b-${id}`);
   const row=id=>`[data-testid="empire-todo-item-wave2b-${id}"]`;
   async function open() {
-    await tap('[data-testid="tab-projects"]');await tap('[data-testid="tab-notes"]');await tap('[data-testid="notes-mode-progress"]');
+    await tap('[data-testid="tab-projects"]');await tap('[data-testid="tab-work"]');await tap('[data-testid="work-mode-tasks"]');await tap('[data-testid="task-view-now"]');
     await eventually(async()=>assert.ok(await exec('return !!document.querySelector(arguments[0]);',[row('15')])),'task progress reload');
     await set('[aria-label="Find tasks"]','Wave 2B');
   }
@@ -164,10 +172,10 @@ async function runTaskProgressAcceptance({command,exec,tap,set,shot,request,base
   await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1100});
   await exec('document.querySelector(arguments[0]).scrollIntoView({block:"end"});',[row('blocked')]);
   await shot('wave2b-blocked-and-unassessed');
-  await tap('[data-testid="empire-todo-completed-view"]');
+  await tap('[data-testid="task-view-completed"]');
   await eventually(async()=>assert.match(await exec('return document.querySelector(arguments[0])?.innerText;',[row('done')]),/100%/),'Done is 100');
   assert.equal(await exec('return document.querySelector(arguments[0]).querySelectorAll("input[type=range]").length;',[row('done')]),0);
-  await shot('wave2b-done-100');await tap('[data-testid="empire-todo-active-view"]');
+  await shot('wave2b-done-100');await tap('[data-testid="task-view-now"]');
   await request(base,`/session/${sessionId}/window/rect`,'POST',{width:1650,height:1100});
   await tap('[aria-label="Set progress for Wave 2B unassessed"]');
   const number='[aria-label="Percent for Wave 2B unassessed"]', range='[aria-label="Progress for Wave 2B unassessed"]';
@@ -198,4 +206,78 @@ async function runTaskProgressAcceptance({command,exec,tap,set,shot,request,base
   await tap('.panelError button');await eventually(async()=>assert.equal(await exec('return Number(document.querySelector(arguments[0])?.value);',[range]),dragged),'explicit conflict reload');
   assert.deepEqual((await read()).data.initiatives,initiatives,'task assessments never change initiatives');
   return {ok:true,checks:['15-45-72','blocked-72','unassessed','done-100','full-width','native-keyboard','drag-commit-on-release','explicit-zero','save-reload','revision-conflict','separate-initiatives'],width:{...width,observations}};
+}
+
+async function runRound3Acceptance({command,exec,tap,set,shot,request,base,sessionId,eventually,width,workFile}) {
+  const read=async()=>JSON.parse(await readFile(workFile,'utf8'));
+  const task=async id=>(await read()).data.tasks.find(r=>r.id===id);
+  const a='wave2b-15', b='wave2b-45';
+  await tap('[data-testid="tab-overview"]');
+  await eventually(async()=>assert.match(await exec('return document.querySelector("[data-testid=attention-wave2b-blocked]")?.innerText;'),/Wave 2B blocked/),'blocked task always in Overview');
+  assert.doesNotMatch(await exec('return document.querySelector(".overview").innerText;'),/No recorded action needs attention|No blocked (?:Work|tasks) recorded/);
+  await tap('[data-testid="attention-wave2b-blocked"]');
+  await eventually(async()=>assert.equal(await exec('return document.querySelector("[aria-label=\\\"Task title\\\"]")?.value;'),'Wave 2B blocked'),'blocked deep link selects detail');
+  assert.equal(await exec('return document.querySelector("[data-testid=task-view-blocked]").getAttribute("aria-pressed");'),'true');
+  await tap('[data-testid="task-view-all"]');await set('[aria-label="Find tasks"]','Wave 2B');
+  await tap(`[data-testid="empire-todo-select-${a}"]`);
+  async function relationships(){await exec('const e=document.querySelector(".workPanel:not([hidden]) .workRelationships");e.open=true;');}
+  await relationships();
+  const projects=await exec('return [...document.querySelectorAll(".todoDetail .workRelationships input[aria-label^=\\\"Project \\\"]")].map(e=>e.getAttribute("aria-label"));');
+  assert.ok(projects.length>=2,'registered fixture projects available');
+  const saveSelector='.todoDetail .workRelationships .btnPrimary';
+  async function saveTask(count){await tap(saveSelector);await eventually(async()=>assert.equal((await task(a)).projectKeys?.length,count),'explicit project assignment');await relationships();}
+  await tap(`.workPanel:not([hidden]) [aria-label="${projects[0]}"]`);await saveTask(1);
+  await tap(`.workPanel:not([hidden]) [aria-label="${projects[1]}"]`);await saveTask(2);
+  await tap('[aria-label="Dependencies: Wave 2B 45"]');await tap(saveSelector);
+  await eventually(async()=>assert.deepEqual((await task(a)).dependsOnTaskIds,[b]),'explicit dependency');await relationships();
+  assert.equal(await exec('return document.querySelectorAll("[aria-label=\\\"Dependencies: Wave 2B 15\\\"]").length;'),0,'self dependency is not offered');
+  await tap(`.workPanel:not([hidden]) [aria-label="${projects[0]}"]`);await tap(`.workPanel:not([hidden]) [aria-label="${projects[1]}"]`);await saveTask(0);
+  assert.deepEqual((await task(a)).dependsOnTaskIds,[b]);
+  // A relationship draft survives normal navigation without an implicit write.
+  const beforeDraft=(await read()).revision;await tap(`.workPanel:not([hidden]) [aria-label="${projects[0]}"]`);
+  await tap('[data-testid="work-mode-timeline"]');await tap('[data-testid="work-mode-tasks"]');
+  await eventually(async()=>assert.equal(await exec('return document.querySelector("[aria-label=\\\"Task title\\\"]")?.value;'),'Wave 2B 15'),'selection retained');await relationships();
+  assert.equal(await exec('return document.querySelector(arguments[0]).checked;',[`[aria-label="${projects[0]}"]`]),true);assert.equal((await read()).revision,beforeDraft);
+  await tap('.todoDetail .workRelationships .btnGhost');
+  await tap(`[data-testid="empire-todo-select-${b}"]`);await relationships();
+  await tap('[aria-label="Dependencies: Wave 2B 15"]');const beforeCycle=await read();await tap(saveSelector);
+  await eventually(async()=>assert.match(await exec('return document.querySelector(".workTasks .panelError")?.innerText;'),/cycle/i),'cycle rejected visibly');assert.deepEqual(await read(),beforeCycle);
+  assert.equal(await exec('return document.querySelector("[aria-label=\\\"Dependencies: Wave 2B 15\\\"]").checked;'),true,'rejected draft retained');
+  await tap('.workTasks .panelError button');await eventually(async()=>assert.equal(await exec('return document.querySelectorAll(".workTasks .panelError").length;'),0),'explicit reload');
+  await tap('[data-testid="work-mode-initiatives"]');
+  const initial=(await read()).data.initiatives[0];
+  await tap(`[aria-label="Review ${initial.title}"]`);await relationships();
+  await tap(`.workPanel:not([hidden]) [aria-label="${projects[0]}"]`);
+  const relation='[aria-label="Related tasks: Wave 2B 15"]';
+  if(!await exec('return document.querySelector(arguments[0]).checked;',[relation]))await tap(relation);
+  await tap('.initiativeEditor .workRelationships .btnPrimary');
+  await eventually(async()=>assert.ok((await read()).data.initiatives[0].taskIds.includes(a)),'initiative owns membership');
+  await set('[aria-label="Initiative title"]','Round 3 explicit initiative review');await tap('.initiativeActions button[type=submit]');
+  await eventually(async()=>assert.equal((await read()).data.initiatives[0].title,'Round 3 explicit initiative review'),'ordinary initiative review');
+  const saved=(await read()).data.initiatives[0];assert.equal(saved.projectKeys.length,1);assert.deepEqual(saved.eventIds,initial.eventIds);
+  assert.ok((await read()).data.tasks.every(t=>!Object.hasOwn(t,'initiativeIds')));
+  await tap('[data-testid="work-mode-tasks"]');await tap('[data-testid="task-view-now"]');await set('[aria-label="Find tasks"]','Wave 2B 15');
+  await tap('[aria-label="Complete Wave 2B 15"]');await tap('[data-testid="empire-todo-complete-without-timeline"]');
+  await eventually(async()=>assert.match(await exec('return document.querySelector(".workConfirmation")?.innerText;'),/Just completed[\s\S]*100%/),'just completed stays visible');
+  await eventually(async()=>assert.equal(await exec('return document.querySelector("[data-testid=empire-todo-item-wave2b-15] [role=progressbar]")?.getAttribute("aria-valuenow");'),'100'),'completed rail remains 100');
+  await tap('[data-testid="task-view-all"]');await set('[aria-label="Find tasks"]','');
+  await request(base,`/session/${sessionId}/window/rect`,'POST',{width:width.widths[1],height:800});
+  const scrollBefore=await exec('const e=document.querySelector("[data-testid=tasks-scroller]");e.scrollTop=500;return e.scrollTop;');assert.ok(scrollBefore>0);
+  await tap('[data-testid="work-mode-timeline"]');await tap('[data-testid="work-mode-tasks"]');
+  await eventually(async()=>assert.ok(await exec('return document.querySelector("[data-testid=tasks-scroller]").scrollTop;')>=scrollBefore-2),'task scroll restored');
+  const geometry=await exec('const t=document.querySelector("[data-testid=work-mode-tasks]"),s=document.querySelector("[data-testid=tasks-scroller]"),f=document.querySelector(".todoFilterRow");return {tab:t.getBoundingClientRect().top,filter:f.getBoundingClientRect().top,scroller:s.getBoundingClientRect().top,activeBorder:getComputedStyle(t).borderBottomColor};');
+  assert.ok(geometry.tab>=0&&geometry.filter>=0&&geometry.scroller>geometry.filter);assert.equal(geometry.activeBorder,'rgba(0, 0, 0, 0)');
+  for(const requested of [...new Set([...width.widths,1500])]) {
+    await request(base,`/session/${sessionId}/window/rect`,'POST',{width:requested,height:1000});
+    for(const view of ['all','now','blocked','completed']) {await tap(`[data-testid="task-view-${view}"]`);await shot(`round3-tasks-${view}-${requested}`);assert.ok(await exec('const e=document.querySelector(".workTasks");return e.scrollWidth<=e.clientWidth+1;'));}
+    await tap('[data-testid="work-mode-initiatives"]');await shot(`round3-initiatives-${requested}`);await tap('[data-testid="work-mode-timeline"]');await shot(`round3-timeline-${requested}`);await tap('[data-testid="work-mode-tasks"]');
+  }
+  await exec('document.querySelector("[data-testid=work-mode-tasks]").focus();');
+  const button=await request(base,`/session/${sessionId}/element`,'POST',{using:'css selector',value:'[data-testid=work-mode-tasks]'});
+  await request(base,`/session/${sessionId}/element/${button['element-6066-11e4-a52e-4f735466cecf']}/value`,'POST',{text:'\uE014',value:['\uE014']});
+  await eventually(async()=>assert.equal(await exec('return document.activeElement?.getAttribute("data-testid");'),'work-mode-initiatives'),'native keyboard tab focus');
+  await tap('[data-testid="tab-notes"]');
+  assert.deepEqual(await exec('return [...document.querySelectorAll("[data-testid^=notes-mode-]")].map(e=>e.textContent.trim());'),['My Notes','Empire Blueprint','O2 Knowledge']);
+  for(const mode of ['notes','empire_blueprint','o2_knowledge']){await tap(`[data-testid="notes-mode-${mode}"]`);await shot(`round3-notes-${mode}`);}
+  return {ok:true,checks:['blocked-overview-deep-link','no-false-all-clear','one-many-clear-projects','dependency-cycle-rejected','relationship-draft-retained','initiative-membership-preserved','just-completed-100','scroll-context','joined-tabs','native-keyboard','notes-preserved'],widths:[...new Set([...width.widths,1500])]};
 }

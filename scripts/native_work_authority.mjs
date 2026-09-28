@@ -119,6 +119,19 @@ export function assertWorkRows(rows, expected, lane) {
 }
 
 export async function assertNativeWorkRows(base, session, expected, click, until) {
+  const unified=await request(base,`/session/${session}/execute/sync`,'POST',{script:'return !!document.querySelector("[data-testid=tab-work]");',args:[]});
+  if(unified){
+    await click('[data-testid="tab-work"]');await click('[data-testid="work-mode-tasks"]');
+    for(const view of ['all','now','planned','backlog','blocked','deferred','completed']){
+      await click(`[data-testid="task-view-${view}"]`);
+      await until(async()=>{
+        const actual=await request(base,`/session/${session}/execute/sync`,'POST',{script:'return [...document.querySelectorAll(".todoRowSelect")].map(e=>({id:e.dataset.testid.replace("empire-todo-select-",""),title:e.querySelector("strong")?.innerText}));',args:[]});
+        const rows=expected.tasks.filter(r=>view==='all'||view==='now'&&taskLane(r.status)==='progress'||view==='deferred'&&taskLane(r.status)==='other'||view==='completed'&&r.status==='Complete'||view===r.status.toLowerCase());
+        requireWork(actual.length===rows.length&&rows.every(r=>actual.some(a=>a.id===r.id&&normalize(a.title)===normalize(r.title))),'unified view differs from Work authority');
+      });
+    }
+    return ['authoritative-durable-count','authoritative-task-identities-titles','all-task-lanes'];
+  }
   await click('[data-testid="tab-notes"]');
   const routes = [['empire_todo','active','queued'],['empire_todo','completed','completed'],
     ...(expected.tasks.some(row=>taskLane(row.status)==='other') ? [['empire_todo','other','other']] : []),

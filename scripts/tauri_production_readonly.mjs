@@ -273,7 +273,7 @@ try {
   const wave1Checks = await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"), expectedWork);
 
   await click(base, sessionId, '[data-testid="tab-notes"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /To-Do[\s\S]*Progress[\s\S]*Timeline[\s\S]*My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);
+  assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);
   await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
   await eventually(async () => {
     const text = await bodyText(base, sessionId);

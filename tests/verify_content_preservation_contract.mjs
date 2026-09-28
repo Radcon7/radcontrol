@@ -32,7 +32,7 @@ const expectedPreservedInfrastructure = [
   "google-workspace", "dqotd-workspace", "docker", "agent-mcp-surfaces",
 ];
 
-for (const tab of ["projects", "infrastructure", "agents", "sentinel", "notes", "legal"]) {
+for (const tab of ["overview", "work", "projects", "infrastructure", "agents", "sentinel", "notes", "legal"]) {
   assert.match(app, new RegExp(`"${tab}"`), `primary destination ${tab} must remain registered`);
 }
 assert.match(app, /sentinel: "Security"/);
@@ -71,7 +71,7 @@ assert.match(agents, /<RouterHealthPanel/);
 assert.match(routers, /"router\.health"/);
 assert.match(bridge, /"router\.health"/);
 
-const notesOrder = ["Empire To-Do", "Timeline", "My Notes", "Empire Blueprint", "O2 Knowledge"];
+const notesOrder = ["My Notes", "Empire Blueprint", "O2 Knowledge"];
 for (let index = 1; index < notesOrder.length; index += 1) {
   assert.ok(notes.indexOf(`label: "${notesOrder[index - 1]}"`) < notes.indexOf(`label: "${notesOrder[index]}"`));
 }

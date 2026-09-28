@@ -20,6 +20,8 @@ export function assertWave2aReceipt(result) {
   assert.equal(result.wave2a.bridgeReadOnly, true, 'native bridge must be exercised before fixture activation');
   assert.deepEqual(result.wave2a.readiness, wave11Matrix.workReadinessScenarios, 'complete native Work readiness matrix required');
   assertWidthReceipt(result.wave2a.width, result.wave2a.width?.kind === 'test-owned-responsive-layout' ? 'e2e' : 'production');
+  assert.equal(result.wave2a.round3?.ok, true, 'Round 3 Work native receipt required');
+  assert.deepEqual(result.wave2a.round3.checks, wave11Matrix.round3WorkScenarios, 'complete Round 3 Work matrix required');
   assert.equal(result.wave2a.taskProgress?.ok, true, 'Wave 2B task progress native receipt required');
   assert.deepEqual(result.wave2a.taskProgress.checks, wave11Matrix.taskProgressScenarios, 'complete task progress matrix required');
   assertWidthReceipt(result.wave2a.taskProgress.width, result.wave2a.width.kind === 'test-owned-responsive-layout' ? 'e2e' : 'production');

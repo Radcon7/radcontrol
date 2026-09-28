@@ -1,5 +1,5 @@
 import { runO2ParsedJson, runO2StdinPayloadParsedJson } from "../common/o2Client";
-import { WORK_BRIDGE_NOTICE, type WorkResponse } from "./workModel";
+import { WORK_BRIDGE_NOTICE, checkedOverview, type OverviewResponse, type WorkResponse } from "./workModel";
 function checked(response: WorkResponse): WorkResponse {
   if (!["legacy-readonly", "private"].includes(response.authority) || (response.authority === "legacy-readonly" ? response.revision !== 0 : response.revision < 1) || !response.ok || !Number.isInteger(response.revision) || !response.data ||
     ![response.data.tasks, response.data.events, response.data.initiatives, response.data.projectNotes].every(Array.isArray))
@@ -17,4 +17,9 @@ export async function mutateWork(expectedRevision: number, operation: string, va
     if (String(error).includes("work_revision_conflict_reload")) throw new Error("Work changed in another editor. Your draft is retained. Reload current work before applying it again.");
     throw error;
   }
+}
+
+export async function loadOverview(): Promise<OverviewResponse> {
+  const value = await runO2ParsedJson<OverviewResponse>("operator.work.overview", "Overview unavailable", "Invalid Overview response");
+  return checkedOverview(value);
 }

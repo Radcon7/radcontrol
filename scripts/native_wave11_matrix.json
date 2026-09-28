@@ -107,5 +107,18 @@
       "progress-to-sentinel",
       "notes-to-sentinel"
     ]
-  }
+  },
+  "round3WorkScenarios": [
+    "blocked-overview-deep-link",
+    "no-false-all-clear",
+    "one-many-clear-projects",
+    "dependency-cycle-rejected",
+    "relationship-draft-retained",
+    "initiative-membership-preserved",
+    "just-completed-100",
+    "scroll-context",
+    "joined-tabs",
+    "native-keyboard",
+    "notes-preserved"
+  ]
 }

@@ -59,6 +59,10 @@
     "workstation.updates.check",
     "workstation.updates.history",
     "operator.work.private-v1",
-    "operator.work.task-progress-v1"
+    "operator.work.task-progress-v1",
+    "operator.work.relationships-preserve-v1",
+    "operator.work.relationships-v1",
+    "operator.work.overview",
+    "operator.work.overview-v1"
   ]
 }

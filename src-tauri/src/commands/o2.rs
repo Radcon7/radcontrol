@@ -557,6 +557,7 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
     match verb {
         "contract_info" => return Ok(read("contract.info", "o2-runtime")),
         "list_projects" => return Ok(read("project.list", "project-registry")),
+        "operator.work.overview" => return Ok(read("operator-work.overview", "operator-work")),
         "operator.work.list" => return Ok(read("operator-work.list", "operator-work")),
         "empire.todo.list" => return Ok(read("empire-todo.list", "empire-todo")),
         "radcontrol.scratchpad.read" => {
@@ -788,7 +789,11 @@ fn parse_verb(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
 fn payload_spec(verb: &str) -> Result<InvocationSpec, BridgeFailureKind> {
     let (dispatch, operation, target) = match verb {
         "files.write" => ("files.write.stdin", "files.write", "o2-documents"),
-        "operator.work.mutate" => ("operator.work.mutate.stdin", "operator-work.mutate", "operator-work"),
+        "operator.work.mutate" => (
+            "operator.work.mutate.stdin",
+            "operator-work.mutate",
+            "operator-work",
+        ),
         "empire.todo.save" => ("empire.todo.save.stdin", "empire-todo.save", "empire-todo"),
         "empire.todo.complete" => (
             "empire.todo.complete.stdin",

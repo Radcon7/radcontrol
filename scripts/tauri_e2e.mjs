@@ -22,6 +22,7 @@ import {
   tcpListeners,
 } from "./native_acceptance_lib.mjs";
 
+const workOnly = process.argv.includes("--work-only");
 const fixtureKey = "radcontrol-e2e-fixture";
 const createdProjectKey = "radcontrol-e2e-draft";
 const agentName = "RadControl E2E Agent";
@@ -182,6 +183,14 @@ async function prepareIsolatedO2Root() {
     }], null, 2)}\n`,
   );
 
+  if(workOnly){
+    const registryPath=path.join(o2Root,"registry/projects.json");
+    const projects=JSON.parse(await readFile(registryPath,"utf8"));
+    const secondPort=await unusedPort();
+    projects.push({...projects[0],key:"work-relationship-fixture",label:"Work Relationship Fixture",port:secondPort,url:`http://127.0.0.1:${secondPort}`});
+    await writeFile(registryPath,JSON.stringify(projects));
+  }
+
   return {
     tempRoot,
     o2Root,
@@ -263,7 +272,7 @@ async function activateCompletionCheckbox(base, sessionId, title) {
 }
 
 async function activateView(base, sessionId, view, expectedSelector) {
-  const selector = `[data-testid="empire-todo-${view}-view"]`;
+  const selector = `[data-testid="task-view-${view === "active" ? "now" : view}"]`;
   const control = await element(base, sessionId, selector);
   assert.equal(await request(base, `/session/${sessionId}/element/${control}/enabled`), true, `${view} view control is enabled`);
   const selected = () => request(base, `/session/${sessionId}/execute/sync`, "POST", { script: "return arguments[0].getAttribute('aria-pressed');", args: [{ "element-6066-11e4-a52e-4f735466cecf": control }] });
@@ -402,10 +411,11 @@ console.error("[e2e] checking release binary and O2 source");
 await Promise.all([access(app), access(path.join(sourceO2Root, "scripts", "run_o2.sh"))]);
 
 const fixture = await prepareIsolatedO2Root();
+console.error(`[e2e] isolated fixture ${fixture.tempRoot}`);
 await assertWritableFixtureIsolation(fixture);
-const activateFixture=spawnSync('python3',['-c','from o2_operator_work import store,import_legacy; store().activate(import_legacy)'],{
-  encoding:'utf8',env:{...process.env,O2_ROOT_OVERRIDE:fixture.o2Root,PYTHONPATH:path.join(fixture.o2Root,'scripts'),PYTHONDONTWRITEBYTECODE:'1'}});
-assert.equal(activateFixture.status,0,activateFixture.stdout+activateFixture.stderr);
+const activateFixture=!workOnly ? spawnSync('python3',['-c','from o2_operator_work import store,import_legacy; store().activate(import_legacy)'],{
+  encoding:'utf8',env:{...process.env,O2_ROOT_OVERRIDE:fixture.o2Root,PYTHONPATH:path.join(fixture.o2Root,'scripts'),PYTHONDONTWRITEBYTECODE:'1'}}) : null;
+if(activateFixture)assert.equal(activateFixture.status,0,activateFixture.stdout+activateFixture.stderr);
 const installedBefore = await snapshotInstalledO2();
 const workFile = path.join(fixture.o2Root, ".state/radcontrol-operator/work/work.json");
 const readWork = async () => JSON.parse(await readFile(workFile, "utf8"));
@@ -470,6 +480,7 @@ try {
   }, "attest isolated native runtime before writable interaction");
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
+  if(!workOnly){
   await click(base, sessionId, '[data-testid="tab-notes"]');
   await click(base, sessionId, '[data-testid="notes-mode-notes"]');
   const myNotesProbe = "E2E My Notes draft persists through governed O2 storage";
@@ -491,41 +502,17 @@ try {
     await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="my-notes-input"]'), "value"),
     new RegExp(myNotesProbe),
   ), "reload persisted My Note before the native restart");
-  const [empireBlueprintMode, empireTodoMode] = await Promise.all([
-    eventually(
-      () => element(base, sessionId, '[data-testid="notes-mode-empire_blueprint"]'),
-      "render Empire Blueprint mode",
-    ),
-    eventually(
-      () => element(base, sessionId, '[data-testid="notes-mode-empire_todo"]'),
-      "render Empire To-Do mode",
-    ),
-  ]);
-  const [blueprintRect, todoRect] = await Promise.all([
-    elementRect(base, sessionId, empireBlueprintMode),
-    elementRect(base, sessionId, empireTodoMode),
-  ]);
-  assert.ok(
-    todoRect.x < blueprintRect.x,
-    "Empire To-Do must render to the left of Empire Blueprint",
-  );
-  await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
-  await eventually(
-    async () => assert.match(
-      await bodyText(base, sessionId),
-      /To-Do[\s\S]*Progress[\s\S]*Queued[\s\S]*BUSINESS FOUNDATION[\s\S]*DQOTD LAUNCH \/ PREMIUM/,
-    ),
-    "render Empire To-Do operating sequence",
-  );
-  await click(base, sessionId, '[data-testid="notes-mode-progress"]');
-  await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
+  assert.ok(await element(base,sessionId,'[data-testid="notes-mode-empire_blueprint"]'));
+  await click(base,sessionId,'[data-testid="tab-work"]');
+  await click(base,sessionId,'[data-testid="work-mode-tasks"]');
+  await click(base,sessionId,'[data-testid="task-view-all"]');
+  await eventually(async()=>assert.match(await bodyText(base,sessionId),/Tasks[\s\S]*Initiatives[\s\S]*Timeline/),'unified Work navigation');
   const todoBeforeSelection = await readFile(fixture.empireTodoPath, "utf8");
   await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
   assert.equal(await readFile(fixture.empireTodoPath, "utf8"), todoBeforeSelection, "read-only selection/navigation must not save tasks");
-  await click(base, sessionId, '[data-testid="tab-notes"]');
-  await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
-  await click(base, sessionId, '[data-testid="notes-mode-progress"]');
-  await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
+  await click(base, sessionId, '[data-testid="tab-work"]');
+  await click(base, sessionId, '[data-testid="work-mode-tasks"]');
+  await click(base, sessionId, '[data-testid="task-view-now"]');
   await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Find tasks"]'), 'Dinosaur');
   await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
   await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Task title"]'), 'Edited matching task');
@@ -588,8 +575,9 @@ try {
     await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="my-notes-input"]'), "value"),
     new RegExp(myNotesProbe),
   ), "reload My Note after native restart");
-  await click(base, sessionId, '[data-testid="notes-mode-empire_todo"]');
-  await click(base, sessionId, '[data-testid="empire-todo-completed-view"]');
+  await click(base, sessionId, '[data-testid="tab-work"]');
+  await click(base, sessionId, '[data-testid="work-mode-tasks"]');
+  await click(base, sessionId, '[data-testid="task-view-completed"]');
   await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'), "reload completed Empire To-Do item after native restart");
   await eventually(async () => {
     const todoPayload = await readTasks();
@@ -845,6 +833,16 @@ try {
     );
   }, "persist Infrastructure autosave into the isolated O2 root");
 
+  // This isolated fixture starts with no Guardian history. Seed one explicit
+  // test observation so history geometry never depends on workstation state.
+  const seedObservation=spawnSync('python3',['-c',`
+from o2_sentinel import append_event
+from datetime import datetime, timezone
+stamp=datetime.now(timezone.utc).isoformat()
+for index in range(2):
+    append_event({'id':'native-history-fixture-'+str(index),'timestamp':stamp,'guardian':'host','type':'host.health-check','source':'fixture','severity':'attention','observedValues':{'scanKind':'full','findings':[{'findingKey':'metric:thermal','kind':'thermal','key':'thermal','title':'Test thermal observation','status':'attention','reason':'Isolated native history fixture '+str(index)}],'snapshot':{'metrics':{'thermal':{'status':'attention','observedAt':stamp,'value':[{'temperatureC':102+index,'label':'Fixture CPU'}]}}}}})
+`],{encoding:'utf8',env:{...process.env,O2_ROOT_OVERRIDE:fixture.o2Root,PYTHONPATH:path.join(fixture.o2Root,'scripts'),PYTHONDONTWRITEBYTECODE:'1'}});
+  assert.equal(seedObservation.status,0,seedObservation.stderr);
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
   await eventually(async () => assert.match(await bodyText(base, sessionId), /CURRENT NOW/), "load current Sentinel presentation");
   assertGuardianActivityGeometry(await guardianActivityGeometry(base, sessionId), 'debug native episode rows', {desktop:true});
@@ -1008,8 +1006,8 @@ try {
     const status = await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:'return document.querySelector("[data-testid=project-notes]").parentElement.innerText;', args:[]});
     assert.match(status, /Saved/); assert.doesNotMatch(status, /1970|date unknown/);
   }, "Project Notes displays a valid Saved date after actual fixture autosave");
-  await click(base, sessionId, '[data-testid="tab-notes"]');
-  await click(base, sessionId, '[data-testid="notes-mode-timeline"]');
+  await click(base, sessionId, '[data-testid="tab-work"]');
+  await click(base, sessionId, '[data-testid="work-mode-timeline"]');
   await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl Operator Cockpit completed/), "task-specific Timeline title");
   const timelineBackup = `${workFile}.test-backup`;
   await rename(workFile, timelineBackup);
@@ -1039,9 +1037,10 @@ try {
     assert.match(await bodyText(base,sessionId), /Aug 22, 2026[\s\S]*Backdated fixture milestone/);
   }, "existing event date supports backdating without changing creation metadata");
 
-  await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode:'e2e'});
-  await runWave11Acceptance({fixture,base,sessionId,request,click,eventually});
-  console.error("[e2e] passed: My Notes create/edit/restart/delete, O2 Knowledge read-only projection, Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
+  }
+  await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode:'e2e',expectBridge:workOnly});
+  if(!workOnly) await runWave11Acceptance({fixture,base,sessionId,request,click,eventually});
+  console.error(workOnly ? "[e2e] passed: focused Work native acceptance" : "[e2e] passed: My Notes create/edit/restart/delete, O2 Knowledge read-only projection, Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
 } catch (error) {
   if (sessionId) {
     const renderedText = await bodyText(base, sessionId).catch(() => "<body unavailable>");

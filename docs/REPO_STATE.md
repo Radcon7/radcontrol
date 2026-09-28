@@ -44,15 +44,25 @@ not replace current product rules. The concise precedence rule is linked by
 
 ## Current surfaces
 
-- Overview: the first command-center workspace. Full-width Momentum rows show
-  finite operator-assessed progress (with basis), honest unassessed outcomes,
-  and nonnumeric ongoing responsibilities. Six initial proposals require review;
-  an initiative is not automatically a repository. A contextual editor accepts,
-  renames, pauses, classifies, pins and reviews one Next Move, blocker, phase and
-  progress. What Needs You is bounded to five recorded attention items; Next
-  Moves use at most five explicit pins. Recent Movement uses Timeline evidence,
-  never Git/autosave timestamps. Task and Timeline references open their current
-  records. A compact Security link avoids claiming unmeasured system health.
+- Overview is a read-only executive projection from `operator.work.overview`.
+  O2 owns counts, blocked-task attention, proposal/blocker review, explicit task
+  Next Actions, pinned initiative Next Moves, Timeline movement and coverage.
+  All blocked tasks remain visible; partial or failed coverage cannot become an
+  all-clear. References select the corresponding record in Work. The compact
+  Security link does not claim unmeasured system health.
+- Work follows Overview, before Projects, Infrastructure, Agents, Security,
+  Notes and Legal. Its joined inner tabs are Tasks, Initiatives and Timeline.
+  Tasks owns one collection with All, Now (In Progress + Blocked), Planned,
+  Backlog, Blocked, Deferred (including unclassified) and Completed views.
+  Progress remains a task property in every view; a just-completed selection
+  stays visible with 100% and a route to Completed. Search, selection, scroll
+  and drafts survive ordinary Work navigation. Headers and filters remain
+  outside the task/initiative record scroller.
+  Initiatives owns review/editing: proposals, finite/ongoing kind, status,
+  phase, Next Move, blocker, assessment/basis/date, target date, pins, task/event
+  references and movement/review dates. Initial proposals require deliberate
+  acceptance. Neither task counts nor task percentages measure an initiative.
+  Timeline retains curated milestones, month grouping and reverse chronology.
 
 - Projects: governed registry, runtime controls, project evidence, notes, and a
   capability-driven formation/bootstrap entry backed by O2 Modern Web
@@ -141,13 +151,10 @@ not replace current product rules. The concise precedence rule is linked by
   unknown result may still invoke the read-only diagnostic advisor. Host records
   remain O2-owned.
 - Notes and Legal: Notes distinguishes My Notes (one private persistent O2
-  runtime scratchpad, explicitly not Empire authority), Timeline, one living
-  Empire Blueprint owner manual, read-only O2 Knowledge, and the O2-backed
-  structured Empire To-Do workspace. My Notes use
+  runtime scratchpad, explicitly not Empire authority), one living
+  Empire Blueprint owner manual and read-only O2 Knowledge. My Notes use
   `.state/radcontrol-operator/my-notes.md`; Blueprint uses its single canonical
-  `docs/radcontrol/empire_blueprint/empire_blueprint_20260822.md`; To-Do records
-  use the O2-owned private operator-work store after explicit activation; their tracked JSON is
-  retained import evidence. O2 Knowledge
+  `docs/radcontrol/empire_blueprint/empire_blueprint_20260822.md`. O2 Knowledge
   reads a deterministic O2 projection at request time and owns no RadControl
   knowledge cache, registry, or database. Legal is a six-view executive
   workspace over the single O2 portfolio blueprint: Structure is first and
@@ -164,9 +171,9 @@ not replace current product rules. The concise precedence rule is linked by
   as governed archive subviews inside Documents & Compliance rather than as
   competing top-level truth surfaces.
 
-## Work clarity — Wave 1
+## Work clarity
 
-- Empire To-Do shows compact selectable rows with current state, Next Action,
+- Tasks shows compact selectable rows with current state, Next Action,
   relevant blockers and acceptance. One selected editor preserves every existing
   field and the explicit Timeline/no-Timeline completion choice. Task selection
   and unchanged navigation do not save; local draft writes are serialized and
@@ -192,17 +199,19 @@ Sentinel renders O2 workload attribution without inventing useful-progress proof
 
 ## Work and Sentinel actions — Wave 1.1
 
-- To-Do is queued work: Backlog and Planned. Progress is the adjacent full-width
-  workspace for In Progress and Blocked tasks. Deferred/unrecognized states stay
-  reachable under Deferred / unclassified, without guessing whether they started.
-  Completed remains an explicit existing filter. Views never rewrite records.
-- Active-task rails show the saved operator percentage prominently above a
-  full-width 0–100 rail. Click/drag, keyboard and a secondary number input commit
-  only when interaction completes through the existing revision/conflict path.
-  Unassessed tasks show Set progress without a fabricated zero or rail fill.
-  Task and Initiative Momentum reuse one visual rail while keeping separate data.
-  Selecting a Progress row expands its existing full detail inline; other rows
-  and their Next Action, relevant blocker and acceptance remain available.
+- Task rails show the saved operator percentage prominently above a full-width
+  0–100 rail. Click/drag, keyboard and number input commit only when interaction
+  completes through the existing revision/conflict path. Unassessed tasks offer
+  Set progress without fabricated zero or fill. Complete retains its full rail.
+  Selecting a row expands its mature detail editor inline; other rows remain
+  available. Activity, tests, builds and provider readiness do not set progress.
+  This round adds neither execution telemetry nor a readiness system.
+- Relationship selectors explicitly save registry project keys (including empty
+  Unassigned), task dependencies and initiative task membership via dedicated
+  `task.relationships` / `initiative.relationships` operations. O2 owns CAS,
+  reference validation and cycle rejection. Initiative `taskIds` is the sole
+  membership owner; task-side membership is derived. Ordinary older saves
+  preserve extensions. No inference, automatic defaults or live backfill occurs.
 - The Sentinel health card offers Fix it only for the exact updater finding and
   active, matching, installed capability/boundary evidence. It enters the same
   Safe Cleanup preview; confirmation and OS authentication remain required. A
@@ -233,7 +242,7 @@ Sentinel renders O2 workload attribution without inventing useful-progress proof
   owns migration, bounds and release preservation. Source work and native
   fixtures do not imply installation. The `operator.work.private-v1` capability
   means the binary understands explicit activation, not that private state exists.
-  Before activation, legacy To-Do, Progress, Timeline and Project Notes remain
+  Before activation, legacy Tasks, Timeline and Project Notes remain
   readable and temporarily read-only. No editor queues changes, writes tracked
   source or creates storage; Overview makes no initiative-authority claim.
   “Work is temporarily read-only while private storage is prepared.” is sufficient
@@ -378,10 +387,10 @@ are enforced by the content-preservation tests.
 
 ## Wave 2A acceptance
 
-`npm run test:wave2a` verifies truthful assessment, bounded attention/pins,
+`npm run test:wave2a` and `npm run test:work-round3` verify truthful assessment, pins,
 meaningful movement and editor conflicts. O2 tests the actual process lock,
 CAS, crash boundaries, migration and release comparisons. The existing native
-harness repeats six-row Overview, review/acceptance, record references,
+harness repeats read-only Overview, Work review/acceptance, record references,
 production-supported layout and migrated Work surfaces using test-owned private
  data. Production retains its 1500px minimum and proves 1650/1500 widths. The
  debug/E2E-only 500px minimum permits separate 800/600 responsive proof. Native
@@ -389,7 +398,9 @@ production-supported layout and migrated Work surfaces using test-owned private
  production window cannot count as responsive acceptance. Each release fixture
  proves read-only bridge mode before explicitly activating its isolated store.
 `RADCONTROL_WAVE2A_EVIDENCE_DIR` selects retained screenshots;
-`RADCONTROL_KEEP_FIXTURE=1` retains the full debug fixture. Candidate/installed
+`RADCONTROL_KEEP_FIXTURE=1` retains the full debug fixture. The debug harness
+accepts `--work-only` for the same isolated Work matrix without repeating
+unrelated smoke flows. Candidate/installed
 entrypoints run the same coverage under their existing exact-identity and
 namespace boundaries. Native launches still require task-specific authorization.
 

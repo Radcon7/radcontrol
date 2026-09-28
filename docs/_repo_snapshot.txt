@@ -34,6 +34,7 @@ test:wave1
 test:wave11
 test:wave11-native
 test:wave2a
+test:work-round3
 verify:agents-architecture
 verify:change-guardian-policy
 verify:ci-contract
@@ -262,6 +263,11 @@ src/components/sentinel/sentinelApi.ts
 src/components/sentinel/sentinelEpisodes.ts
 src/components/sentinel/sentinelHealthActions.ts
 src/components/sentinel/sentinelModel.ts
+src/components/work/InitiativesWorkspace.tsx
+src/components/work/Relationships.tsx
+src/components/work/WorkHub.tsx
+src/components/work/taskViews.ts
+src/components/work/work.css
 src/main.tsx
 src/vite-env.d.ts
 tests/content_preservation_behavior.mjs
@@ -307,6 +313,7 @@ tests/wave11_behavior.mjs
 tests/wave1_behavior.mjs
 tests/wave2a_behavior.mjs
 tests/work_readiness_test.mjs
+tests/work_round3_behavior.mjs
 tsconfig.json
 tsconfig.node.json
 vite.config.ts

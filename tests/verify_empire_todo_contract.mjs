@@ -18,26 +18,14 @@ const bridge = await readFile(
   "utf8",
 );
 
-assert.match(notes, /label: "To-Do"/);
-assert.match(notes, /useState<NotesMode>\("empire_todo"\)/);
-assert.match(notes, /data-testid=\{`notes-mode-\$\{item\.key\}`\}/);
-const todoIndex = notes.indexOf('key: "empire_todo"');
-const progressIndex = notes.indexOf('key: "progress"');
-const timelineIndex = notes.indexOf('key: "timeline"');
-const notesIndex = notes.indexOf('key: "notes"');
-const blueprintIndex = notes.indexOf('key: "empire_blueprint"');
-const knowledgeIndex = notes.indexOf('key: "o2_knowledge"');
-assert.ok(
-  todoIndex >= 0 &&
-    progressIndex > todoIndex && timelineIndex > progressIndex &&
-    notesIndex > timelineIndex &&
-    blueprintIndex > notesIndex &&
-    knowledgeIndex > blueprintIndex,
-);
-assert.match(notes, /<EmpireTodoWorkspace/);
-assert.match(component, /data-testid="empire-todo-workspace"/);
-assert.match(component, /data-testid="empire-todo-active-view"/);
-assert.match(component, /data-testid="empire-todo-completed-view"/);
+assert.doesNotMatch(notes, /key: "(?:empire_todo|progress|timeline)"/);
+assert.match(notes, /useState<NotesMode>\("notes"\)/);
+const hub=await readFile(new URL("../src/components/work/WorkHub.tsx",import.meta.url),"utf8");
+assert.match(hub, /"tasks","initiatives","timeline"/);
+assert.match(hub, /<EmpireTodoWorkspace/);
+assert.match(component, /TASK_VIEWS/);
+assert.match(component, /Just completed/);
+assert.match(component, /View Completed/);
 assert.match(component, /data-testid="empire-todo-detail"/);
 assert.match(component, /Next Action/);
 assert.match(component, /Acceptance \/ done condition/);

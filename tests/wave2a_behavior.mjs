@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {momentum,needsYou,nextMoves,recentMovement,unassessed} from '../src/components/overview/workModel.ts';
+import {momentum,unassessed} from '../src/components/overview/workModel.ts';
 import {createTodoDrafts} from '../src/components/notes/empireTodoDrafts.ts';
 import {createBlankEmpireTodo,empireTodoProgress,empireTodoLane} from '../src/components/notes/empireTodoModel.ts';
 const row={id:'one',title:'Outcome',area:'RCE',kind:'finite',status:'active',phase:'Prepare',nextMove:'Review result',blocker:'',progress:unassessed(),reviewedAt:'2026-09-20T00:00:00Z',lastMovementAt:'',pinned:false};
@@ -9,21 +9,6 @@ test('assessed progress requires operator basis and date, never task counts',()=
  for(const patch of [{},{progress:{method:'operator-assessed',percent:42,basis:'',assessedAt:'2026-09-20'}},{percent:78,taskIds:['a','b']}]) assert.equal(momentum({...row,...patch}).percent,null);
 });
 test('ongoing responsibility never displays numeric percentage',()=>{assert.deepEqual(momentum({...row,kind:'ongoing',progress:{method:'operator-assessed',percent:90,basis:'old',assessedAt:'then'}}),{percent:null,label:'Ongoing'});});
-test('attention is bounded and excludes proposals, paused and complete',()=>{
- const rows=Array.from({length:8},(_,i)=>({...row,id:String(i),blocker:'Dependency'}));assert.equal(needsYou(rows).length,5);
- for(const status of ['proposal','paused','complete']) assert.deepEqual(needsYou([{...row,status,blocker:'Dependency'}]),[]);
- assert.equal(needsYou([{...row,nextMove:''}],Date.parse('2026-09-20'))[0].reason,'Set a Next Move');
- assert.equal(needsYou([{...row,reviewedAt:'2026-01-01'}],Date.parse('2026-09-20'))[0].reason,'Review current assessment');
-});
-test('Next Moves use only bounded explicit pins and accepted activity',()=>{
- assert.deepEqual(nextMoves([row]),[]);assert.equal(nextMoves([{...row,pinned:true}]).length,1);
- assert.deepEqual(nextMoves([{...row,pinned:true,status:'proposal'}]),[]);
- assert.equal(nextMoves(Array.from({length:9},(_,i)=>({...row,id:String(i),pinned:true}))).length,5);
-});
-test('Recent Movement comes from events, not autosave or review timestamps',()=>{
- const events=[{id:'a',title:'Accepted',date:'2026-01-01',createdAt:'2026-09-20'}, {id:'b',title:'Released',date:'2026-09-10',createdAt:'2026-09-10'}];
- assert.equal(recentMovement(events)[0].id,'b');assert.deepEqual(recentMovement([]),[]);
-});
 test('task editors carry their own loaded revision, retain conflicts, advance only after accepted saves',async()=>{
  const item={...createBlankEmpireTodo(),title:'Task'},calls=[];let conflict=true;
  const store=createTodoDrafts({save:async(value,revision)=>{calls.push(revision);if(conflict)throw Error('work_revision_conflict_reload');return {ok:true,item:value,revision:9};},complete:async()=>{throw Error('unexpected');}},()=>{});
