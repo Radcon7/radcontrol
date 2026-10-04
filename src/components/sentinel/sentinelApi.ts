@@ -153,8 +153,15 @@ export function previewPopUpgradeCleanup(): Promise<PopUpgradeCleanupPreviewResp
   );
 }
 
-export function applyPopUpgradeCleanup(): Promise<{ ok: boolean; actions?: Array<{ ok?: boolean; summary?: string; actionOccurred?: boolean; outcome?: string }>; error?: string }> {
-  return runO2ParsedJson<{ ok: boolean; actions?: Array<{ ok?: boolean; summary?: string; actionOccurred?: boolean; outcome?: string }>; error?: string }>(
+export type PopUpgradeCleanupResult = {
+  ok: boolean;
+  actions?: Array<{ ok?: boolean; summary?: string; actionOccurred?: boolean; actionUncertain?: boolean; outcome?: string;
+    postRepairVerification?: { verificationBlockers?: string[] } }>;
+  error?: string;
+};
+
+export function applyPopUpgradeCleanup(): Promise<PopUpgradeCleanupResult> {
+  return runO2ParsedJson<PopUpgradeCleanupResult>(
     "workstation.cleanup.pop_upgrade.apply",
     "Safe Cleanup did not complete",
     "Safe Cleanup returned invalid data",

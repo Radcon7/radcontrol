@@ -37,7 +37,7 @@ import {
   type SentinelStatus,
 } from "./sentinelModel";
 
-import { sentinelHealthActions, validUpdaterPreview } from "./sentinelHealthActions";
+import { sentinelHealthActions, validUpdaterPreview, updaterRepairDiagnosis, updaterWorkflowVisible } from "./sentinelHealthActions";
 
 const HOST_CONFIGURATION_PATH = "docs/infrastructure/assets/system76-workstation/CONFIGURATION.md";
 const HOST_NOTES_PATH = "docs/infrastructure/assets/system76-workstation/NOTES.md";
@@ -58,7 +58,7 @@ type InvestigationKind = "slow" | "network" | "suspicious" | "codex" | "other";
 type DiagnosisOutcome = "WATCHING" | "UNKNOWN" | "NO ISSUE FOUND" | "FIX AVAILABLE" | "NEEDS YOUR HELP" | "FIXED" | "STILL PRESENT";
 type DiagnosisResult = {
   phase: "diagnosing" | "complete";
-  origin?: "fans" | "diagnostic";
+  origin?: "fans" | "diagnostic" | "repair";
   outcome?: DiagnosisOutcome;
   observationId?: string;
   scanKind?: string;
@@ -241,7 +241,7 @@ function hostSignals(host: SentinelHostState): HostSignal[] {
     { key: "gpu", label: "GPU temperature", status: observationStatus(metrics.gpu), value: Number.isFinite(gpuTemperature) ? `${gpuTemperature}°C` : "Sensor unavailable", classification: measurementClassification(observationStatus(metrics.gpu), "gpu.temperatureC"), baseline: baselineClassification(host, "gpu.temperatureC"), reason: metrics.gpu?.reason || gpuRows[0]?.name || "GPU telemetry.", measuredAt: metrics.gpu?.observedAt },
     { key: "fans", label: "Fan", status: observationStatus(metrics.fans), value: typeof fans[0]?.rpm === "number" ? `${fans[0].rpm.toLocaleString()} RPM` : "Sensor unavailable", classification: measurementClassification(observationStatus(metrics.fans)), reason: metrics.fans?.reason || "Kernel fan evidence.", measuredAt: metrics.fans?.observedAt },
     { key: "cpu", label: "CPU", status: observationStatus(metrics.cpu), value: typeof cpu.utilizationPercent === "number" ? `${cpu.utilizationPercent}%` : "Unavailable", classification: measurementClassification(observationStatus(metrics.cpu), "cpu.utilizationPercent"), baseline: baselineClassification(host, "cpu.utilizationPercent"), reason: metrics.cpu?.reason || "Current Linux CPU sample.", measuredAt: metrics.cpu?.observedAt },
-    { key: "load", label: "Load", status: observationStatus(metrics.load), value: typeof load.oneMinute === "number" ? `${load.oneMinute} / ${load.fiveMinute}` : "Unavailable", classification: measurementClassification(observationStatus(metrics.load), "load.oneMinute"), baseline: baselineClassification(host, "load.oneMinute"), reason: metrics.load?.reason || "Linux load averages.", measuredAt: metrics.load?.observedAt },
+    { key: "load", label: "Load", status: observationStatus(metrics.load), value: typeof load.oneMinute === "number" ? `${load.oneMinute} / ${typeof load.fiveMinute === "number" ? load.fiveMinute : "unknown"}` : "Unavailable", classification: measurementClassification(observationStatus(metrics.load), "load.oneMinute"), baseline: baselineClassification(host, "load.oneMinute"), reason: metrics.load?.reason || "Linux load averages.", measuredAt: metrics.load?.observedAt },
     { key: "memory", label: "Memory", status: observationStatus(metrics.memory), value: typeof memory.availableGiB === "number" ? `${memory.availableGiB} GiB free` : "Unavailable", classification: measurementClassification(observationStatus(metrics.memory), "memory.usedGiB"), baseline: baselineClassification(host, "memory.usedGiB"), reason: metrics.memory?.reason || "Current Linux memory counters.", measuredAt: metrics.memory?.observedAt },
     { key: "storage", label: "Disk", status: observationStatus(metrics.filesystem), value: typeof filesystem.freeGiB === "number" ? `${filesystem.freeGiB} GiB free` : "Unavailable", classification: measurementClassification(observationStatus(metrics.filesystem), "filesystem.freePercent"), baseline: baselineClassification(host, "filesystem.freePercent"), reason: metrics.filesystem?.reason || "Home filesystem capacity.", measuredAt: metrics.filesystem?.observedAt },
     { key: "services", label: "Services", status: observationStatus(metrics.services), value: `${services.length} failed`, classification: measurementClassification(observationStatus(metrics.services)), reason: metrics.services?.reason || "systemd failed-unit state.", measuredAt: metrics.services?.observedAt },
@@ -519,28 +519,27 @@ export function SentinelTab() {
     try {
       const result = await applyPopUpgradeCleanup();
       setRepairFailed(!result.ok);
-      await runHostHealthCheck();
-      const [, nextMeasurements] = await Promise.all([refresh(true), refreshCurrent(true)]);
       setRepairRequested(false);
-      const outcome: DiagnosisOutcome = result.ok ? "FIXED" : "STILL PRESENT";
-      const evidence = compactHostEvidence(nextMeasurements.metrics);
-      const diagnosis = result.ok
-        ? "The exact governed pop-upgrade.service repair completed and post-repair verification passed."
-        : "The exact governed repair did not verify recovery. No broader process or service action was attempted.";
-      setDiagnosis({
-        phase: "complete",
-        outcome,
-        observationId: status?.recentHostObservations[0]?.id,
-        scanKind: "full",
-        finding: diagnosis,
-        evidence: [evidence],
-        repairRan: result.actions?.some((action) => action.actionOccurred === true) || false,
-        nextStep: result.ok ? "Updater recovery passed. Heat and other host concerns remain separate; review current measurements." : "The finding is still present. No broader repair was attempted; review the retained evidence.",
-      });
-      setNotice(result.ok ? "Safe Cleanup completed and post-repair evidence was refreshed." : "Safe Cleanup did not verify recovery; review current evidence.");
+      // Publish the actual attempt before optional refreshes can fail or advance status timestamps.
+      setDiagnosis(updaterRepairDiagnosis(result, new Date().toISOString()));
+      setNotice(result.ok ? "Safe Cleanup verified updater recovery." : "Safe Cleanup did not verify recovery; review the attempt result.");
+      try {
+        await runHostHealthCheck();
+        const [, nextMeasurements] = await Promise.all([refresh(true), refreshCurrent(true)]);
+        setDiagnosis(previous => previous?.origin === "repair"
+          ? { ...previous, evidence: [...previous.evidence, compactHostEvidence(nextMeasurements.metrics)] }
+          : previous);
+      } catch (reason) {
+        setError(`Attempt result retained; refreshing host evidence failed: ${reason instanceof Error ? reason.message : String(reason)}`);
+      }
     } catch (reason) {
       setRepairFailed(true);
-      setError(reason instanceof Error ? reason.message : String(reason));
+      setRepairRequested(false);
+      const message = reason instanceof Error ? reason.message : String(reason);
+      setError(message);
+      setDiagnosis({ ...updaterRepairDiagnosis({ ok: false, error: message }, new Date().toISOString()),
+        outcome: "UNKNOWN", finding: "The repair request did not return a verified result.",
+        nextStep: "Authorization may have been cancelled or the request interrupted. Action status is unconfirmed; inspect retained evidence before requesting any further action." });
       await Promise.allSettled([refresh(true), refreshCurrent(true)]);
     }
     finally {
@@ -578,12 +577,12 @@ export function SentinelTab() {
   const automationRequested = Boolean(automation?.enabled);
   const automaticStatus = automationActive ? `ON · ${automation?.frequency === "twice-daily" ? "Twice daily" : "Daily"}` : automationRequested ? "Timer unavailable" : "OFF";
   const automaticSelfHealActive = !statusError && automaticUpdaterReady(status);
+  const readiness = status?.automaticRepairReadiness;
+  const updaterPresence = fresh ? liveMeasurements?.updater : undefined;
   const operatorRequired = Boolean(status?.knownIncidentState?.repairNeedsOperator || status?.knownIncidentState?.midScanNeedsOperator || status?.updaterWorkflow?.phase === "manual-action-needed");
   const scheduleStatus = automation?.scheduleStatus || "off";
   const updaterWorkflow = status?.updaterWorkflow;
-  const updaterVisible = updaterWorkflow && !["idle", "recovered"].includes(updaterWorkflow.phase)
-    && diagnosis?.phase !== "diagnosing"
-    && (!diagnosis || Date.parse(updaterWorkflow.checkedAt || "") > Date.parse(diagnosis.capturedAt || "1970-01-01"));
+  const updaterVisible = updaterWorkflowVisible(updaterWorkflow, diagnosis);
   const currentConcernCount = fresh ? interpretation?.currentConcernCount ?? 0 : 0;
   const currentNowDetail = fresh ? interpretation?.message || "Current interpretation unavailable"
     : liveMeasurements ? "STALE · current health unavailable until refresh succeeds" : "Waiting for current measurements";
@@ -598,7 +597,7 @@ export function SentinelTab() {
         <div className="sentinelOperatorSummary" data-testid="sentinel-status-header">
           <div className={`sentinelOperatorState sentinelOperatorState-${cardState.toLowerCase()}`} data-testid="sentinel-current-now"><small>CURRENT NOW</small><strong>{cardState === "ATTENTION" || cardState === "PROBLEM" ? "NEEDS ATTENTION" : cardState}</strong>
             <span>{currentNowDetail}</span>
-            <span data-testid="sentinel-finding-count">{currentConcernCount} current concern{currentConcernCount === 1 ? "" : "s"} · {updaterWorkflow?.phase === "recovering" ? "recovery in progress" : updaterWorkflow?.phase === "blocked" ? "recovery blocked" : healthActions.repairableCount ? `${healthActions.repairableCount} safe governed action available` : interpretation?.actionability === "no-automatic-action" ? "no automatic action needed" : "no automatic repair"}</span>
+            <span data-testid="sentinel-finding-count">{!fresh ? "Current concern count unknown · refresh required" : <>{currentConcernCount} current concern{currentConcernCount === 1 ? "" : "s"} · {updaterWorkflow?.phase === "recovering" ? "recovery in progress" : updaterWorkflow?.phase === "blocked" ? "recovery blocked" : healthActions.repairableCount ? `${healthActions.repairableCount} safe governed action available` : interpretation?.actionability === "no-automatic-action" ? "no automatic action needed" : "no automatic repair"}</>}</span>
             {healthActions.findings.length > 1 && healthActions.repairableCount > 0 ? <span>Fix available: pop-upgrade.service</span> : null}
             <small>{fresh ? "Measured" : "Last measurement"}: {formatDateTime(liveMeasurements?.measuredAt)}</small>
             <div className="sentinelHealthActions">
@@ -611,16 +610,30 @@ export function SentinelTab() {
         <div className="sentinelPrimaryActions" aria-label="Host Guardian actions">
           <button className="btn btnGhost sentinelFanAction" type="button" disabled={Boolean(busyAction)} onClick={() => void investigateFans()} data-testid="sentinel-fans-loud">{busyAction === "diagnose-fix" ? "Checking…" : "Fans are loud"}</button>
         </div>
-        <p className="sentinelSubtle">Automatic scans {automaticStatus} · Automatic updater repair {updaterWorkflow?.phase === "blocked" ? "waiting for safety checks" : updaterWorkflow?.phase === "recovering" ? "in progress" : automaticSelfHealActive ? "ready" : "not ready"}</p>
+        <p className="sentinelSubtle">Automatic scans {automaticStatus} · Automatic updater repair {updaterWorkflow?.phase === "blocked" ? "waiting for safety checks" : updaterWorkflow?.phase === "recovering" ? "in progress" : automaticSelfHealActive ? "armed · final guards pending" : "not ready"}</p>
 
+
+        <div className="sentinelSubtle" data-testid="sentinel-updater-current">
+          Current updater: {updaterPresence?.state || "unknown"}. {updaterPresence?.activity || "Fresh updater evidence is unavailable."}
+          {updaterPresence ? ` Observed ${formatDateTime(updaterPresence.observedAt)}.` : ""}
+        </div>
+        <div className="sentinelSubtle" data-testid="sentinel-repair-readiness">
+          Repair readiness: {statusError ? "unknown · status refresh failed" : readiness?.state || "unknown"}.
+          {readiness?.blockers.length ? ` ${readiness.blockers.join(" ")}` : ""}
+          {readiness ? ` ${readiness.detail} ${readiness.statusTimeout}` : " Root recovery eligibility has not been proven."}
+        </div>
+        <p className="sentinelSubtle" data-testid="sentinel-notification-suppression">
+          Release-notification suppression: {statusError ? "unknown · status refresh failed" : status?.notificationSuppression?.state || "unknown"}.
+          {status?.notificationSuppression?.scope || "User notification mask evidence unavailable."}
+        </p>
 
         {updaterWorkflow?.phase === "recovered" ? <p className="sentinelSubtle" data-testid="sentinel-updater-workflow">
           Previous updater recovery · {formatDateTime(updaterWorkflow.resolvedAt)}. Historical result; current heat and other concerns are separate.
         </p> : null}
 
-        {updaterVisible ? <section className="sentinelDiagnosisResult" data-testid="sentinel-updater-workflow" aria-live="polite">
-          <strong>{updaterWorkflow.phase === "recovering" ? "RECOVERING UPDATER" : updaterWorkflow.phase === "checking" ? "CHECKING UPDATER" : updaterWorkflow.phase === "manual-action-needed" ? "YOUR ACTION NEEDED" : updaterWorkflow.phase === "blocked" ? "RECOVERY BLOCKED" : updaterWorkflow.phase === "unknown" ? "UPDATER EVIDENCE UNAVAILABLE" : "UPDATER INCIDENT"}</strong>
-          <p>{updaterWorkflow.phase === "checking" ? "Sentinel is measuring sustained updater activity. No repair has run." : updaterWorkflow.reason}</p>
+        {updaterVisible && updaterWorkflow ? <section className="sentinelDiagnosisResult" data-testid="sentinel-updater-workflow" aria-live="polite">
+          <strong>{updaterWorkflow.phase === "recovering" ? "RECOVERING UPDATER" : updaterWorkflow.phase === "checking" ? "CHECKING UPDATER" : updaterWorkflow.phase === "manual-action-needed" ? (updaterWorkflow.historical ? "HISTORICAL RECOVERY · READINESS BLOCKED" : "YOUR ACTION NEEDED") : updaterWorkflow.phase === "blocked" ? "RECOVERY BLOCKED" : updaterWorkflow.phase === "unknown" ? "UPDATER EVIDENCE UNAVAILABLE" : "UPDATER INCIDENT"}</strong>
+          <p>{updaterWorkflow.historical ? "Retained incident; it does not establish a current updater runaway. " : ""}{updaterWorkflow.phase === "checking" ? "Sentinel is measuring sustained updater activity. No repair has run." : updaterWorkflow.reason}</p>
           {updaterWorkflow.blockers.length ? <p>{updaterWorkflow.blockers.join(" ")}</p> : null}
           <small>{updaterWorkflow.phase === "recovering" ? "Wait for the guarded result; no user action or second attempt is needed." : updaterWorkflow.phase === "manual-action-needed" ? "Review recovery to inspect the exact guarded verification path. Automatic retries are blocked." : updaterWorkflow.phase === "blocked" ? "Sentinel keeps this incident visible and rechecks eligibility. No broader action is authorized." : updaterWorkflow.phase === "checking" ? "No action is needed while this check runs." : "Review current measurements and any remaining concerns."}</small>
         </section> : null}
@@ -628,7 +641,7 @@ export function SentinelTab() {
         {diagnosis && !updaterVisible ? <section className={`sentinelDiagnosisResult sentinelDiagnosisResult-${diagnosis.phase}`} data-testid="sentinel-diagnosis-result" aria-live="polite">
           <div className="sentinelDiagnosisContent" data-testid={diagnosis.origin === "fans" ? "sentinel-fan-investigation-result" : undefined}>
           <div className="sentinelDiagnosisResultHeading"><span>{diagnosis.phase === "diagnosing" ? "DIAGNOSING" : "DIAGNOSIS COMPLETE"}</span><strong>{diagnosis.phase === "diagnosing" ? "IN PROGRESS" : diagnosis.outcome}</strong></div>
-          <div className="sentinelDiagnosisResultMeta"><span>Scan: {diagnosis.scanKind ? `${diagnosis.scanKind} deterministic check` : "deep deterministic check"}</span><span>Duration: {typeof diagnosis.durationMs === "number" ? `${(diagnosis.durationMs / 1000).toFixed(1)}s` : diagnosis.phase === "diagnosing" ? "measuring…" : "not retained"}</span><span>Captured {formatDateTime(diagnosis.capturedAt)}</span><span>Repair ran: {diagnosis.repairRan ? "YES" : "NO"}</span></div>
+          <div className="sentinelDiagnosisResultMeta"><span>Scan: {diagnosis.scanKind ? `${diagnosis.scanKind} deterministic check` : "deep deterministic check"}</span><span>Duration: {typeof diagnosis.durationMs === "number" ? `${(diagnosis.durationMs / 1000).toFixed(1)}s` : diagnosis.phase === "diagnosing" ? "measuring…" : "not retained"}</span><span>Captured {formatDateTime(diagnosis.capturedAt)}</span><span>Repair ran: {diagnosis.origin === "repair" && diagnosis.outcome === "UNKNOWN" ? "UNCONFIRMED" : diagnosis.repairRan ? "YES" : "NO"}</span></div>
           <strong>{diagnosis.finding}</strong>
           {diagnosis.presence ? <small>{diagnosis.presence === "observed-clear" ? "Observed clear during this diagnostic" : diagnosis.presence === "present" ? "Present at diagnostic endpoint" : "Current presence unknown"}</small> : null}
           <SentinelProcessContext context={diagnosis.processContext} now={now} />

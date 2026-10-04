@@ -1,3 +1,4 @@
+import { seedSentinelReadiness, assertSentinelReadiness } from "./native_sentinel_readiness.mjs";
 import { configureWorkspace } from './native_workspace.mjs';
 import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, assertSentinelRawEvidence } from "./native_sentinel_assertions.mjs";
 import { runWave2aAcceptance } from "./native_wave2a_acceptance.mjs";
@@ -22,6 +23,7 @@ import {
   tcpListeners,
 } from "./native_acceptance_lib.mjs";
 
+const sentinelOnly = process.argv.includes("--sentinel-readiness-only");
 const workOnly = process.argv.includes("--work-only");
 const fixtureKey = "radcontrol-e2e-fixture";
 const createdProjectKey = "radcontrol-e2e-draft";
@@ -411,6 +413,7 @@ console.error("[e2e] checking release binary and O2 source");
 await Promise.all([access(app), access(path.join(sourceO2Root, "scripts", "run_o2.sh"))]);
 
 const fixture = await prepareIsolatedO2Root();
+if (sentinelOnly) await seedSentinelReadiness(fixture);
 console.error(`[e2e] isolated fixture ${fixture.tempRoot}`);
 await assertWritableFixtureIsolation(fixture);
 const activateFixture=!workOnly ? spawnSync('python3',['-c','from o2_operator_work import store,import_legacy; store().activate(import_legacy)'],{
@@ -480,6 +483,9 @@ try {
   }, "attest isolated native runtime before writable interaction");
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
+  if (sentinelOnly) {
+    await assertSentinelReadiness({fixture,base,sessionId,request,click,eventually});
+  } else {
   if(!workOnly){
   await click(base, sessionId, '[data-testid="tab-notes"]');
   await click(base, sessionId, '[data-testid="notes-mode-notes"]');
@@ -1041,6 +1047,7 @@ for index in range(2):
   await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode:'e2e',expectBridge:workOnly});
   if(!workOnly) await runWave11Acceptance({fixture,base,sessionId,request,click,eventually});
   console.error(workOnly ? "[e2e] passed: focused Work native acceptance" : "[e2e] passed: My Notes create/edit/restart/delete, O2 Knowledge read-only projection, Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
+  }
 } catch (error) {
   if (sessionId) {
     const renderedText = await bodyText(base, sessionId).catch(() => "<body unavailable>");

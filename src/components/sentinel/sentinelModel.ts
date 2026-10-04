@@ -181,6 +181,7 @@ export type SentinelHostObservation = SentinelEvent & {
 };
 
 export type SentinelCurrentMeasurements = {
+  updater?: { state: "inactive" | "active" | "unknown"; pid: number | null; activity: string; observedAt: string; nonactivating: boolean };
   interpretation?: SentinelInterpretation;
   ok: boolean;
   guardian: "host";
@@ -286,6 +287,8 @@ export type SentinelStatus = {
   executionMode: string;
   privilegedHelper: string;
   privilegedBoundary?: { ready: boolean };
+  automaticRepairReadiness?: { state: string; ready: boolean; configurationReady: boolean; blockers: string[]; detail: string; statusTimeout: string };
+  notificationSuppression?: { state: string; scope: string };
   providerMutation: string;
   scheduler: string;
   automation: SentinelAutomation;

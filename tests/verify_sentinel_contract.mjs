@@ -245,3 +245,10 @@ assert.match(repoState, /Concerns.*episodes|concerns.*episodes/);
 assert.match(repoState, /standalone Diagnostics and Quick Answers are intentionally/);
 
 console.log("Sentinel contract: readable three-workspace control room, consolidated fan workflow, wide inset lists, durable truth, and unchanged capability boundaries verified");
+
+const repairCallback = component.slice(component.indexOf("async function applyPopUpgradeRepair"), component.indexOf("const displayHost"));
+assert.match(repairCallback, /setDiagnosis\(updaterRepairDiagnosis\(result, new Date\(\)\.toISOString\(\)\)\)/);
+assert.ok(repairCallback.indexOf("setDiagnosis(updaterRepairDiagnosis") < repairCallback.indexOf("await runHostHealthCheck()"),
+  "publish attempt before fallible refreshes");
+assert.match(component, /updaterWorkflowVisible\(updaterWorkflow, diagnosis\)/);
+assert.match(repairCallback, /Attempt result retained/);

@@ -1,5 +1,5 @@
 import type { SentinelCurrentMeasurements, SentinelHostFinding, SentinelStatus } from "./sentinelModel.ts";
-import type { PopUpgradeCleanupPreviewResponse } from "./sentinelApi";
+import type { PopUpgradeCleanupPreviewResponse, PopUpgradeCleanupResult } from "./sentinelApi";
 
 const PREVIEW = "workstation.cleanup.pop_upgrade.preview";
 
@@ -32,7 +32,7 @@ export function sentinelHealthActions(status: SentinelStatus | null, current: Se
       repairCapability: workflow.phase === "detected" ? PREVIEW : null });
   }
   const operatorRequired = Boolean(status?.knownIncidentState?.repairNeedsOperator || status?.knownIncidentState?.midScanNeedsOperator);
-  if (operatorRequired || repairFailed) {
+  if ((operatorRequired && workflow?.active) || repairFailed) {
     const existing = [...findings.entries()].find(([, row]) => row.key === "knownIncident");
     findings.set(existing?.[0] || "updater-recovery", {
       ...existing?.[1], key: existing ? "knownIncident" : "updater-recovery", status: "attention",
@@ -51,4 +51,30 @@ export function sentinelHealthActions(status: SentinelStatus | null, current: Se
       && finding.key === "knownIncident" && finding.repairCapability === PREVIEW),
   }));
   return { findings: rows, repairableCount: rows.filter(row => row.repairable).length, needsAttention: rows.length > 0 };
+}
+
+/** Keep the completed operator attempt visible until the next explicit investigation. */
+export function updaterWorkflowVisible(workflow: SentinelStatus["updaterWorkflow"],
+  diagnosis: { phase: string; origin?: string; capturedAt?: string } | null): boolean {
+  return Boolean(workflow && !["idle", "recovered"].includes(workflow.phase)
+    && diagnosis?.phase !== "diagnosing" && diagnosis?.origin !== "repair"
+    && (!diagnosis || Date.parse(workflow.checkedAt || "") > Date.parse(diagnosis.capturedAt || "1970-01-01")));
+}
+
+export function updaterRepairDiagnosis(result: PopUpgradeCleanupResult, capturedAt: string) {
+  const evidence = (result.actions || []).flatMap(action => [
+    [action.outcome, action.summary].filter(Boolean).join(": "),
+    ...(action.postRepairVerification?.verificationBlockers || []),
+  ]).filter(Boolean);
+  if (result.error) evidence.push(result.error);
+  return {
+    phase: "complete" as const, origin: "repair" as const, capturedAt,
+    outcome: result.actions?.some(action => action.actionUncertain) ? "UNKNOWN" as const : result.ok ? "FIXED" as const : "NEEDS YOUR HELP" as const,
+    scanKind: "targeted", evidence,
+    finding: evidence[0] || (result.ok ? "Updater recovery verified." : "Updater recovery was not verified."),
+    repairRan: result.actions?.some(action => action.actionOccurred === true) || false,
+    nextStep: result.ok
+      ? "Updater recovery passed. Heat and other host concerns remain separate; review current measurements."
+      : "Review the attempt outcome and blocker above. An unresolved prior attempt permits verification only; automatic retries remain blocked.",
+  };
 }
