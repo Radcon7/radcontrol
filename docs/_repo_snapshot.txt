@@ -100,6 +100,7 @@ scripts/native_wave2a_acceptance.mjs
 scripts/native_width_contract.mjs
 scripts/native_work_authority.mjs
 scripts/native_work_readiness.mjs
+scripts/native_work_tabs.mjs
 scripts/native_workspace.mjs
 scripts/native_workspace_sequence.mjs
 scripts/o2_index_repo.sh
@@ -283,6 +284,7 @@ tests/native_wave11_fixture_test.py
 tests/native_wave11_receipt_test.mjs
 tests/native_width_contract_test.mjs
 tests/native_work_authority_test.mjs
+tests/native_work_tabs_test.mjs
 tests/native_workspace_test.mjs
 tests/o2_runtime_boundary_behavior.mjs
 tests/project_intent_preview_behavior.mjs
