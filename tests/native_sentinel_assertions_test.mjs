@@ -80,9 +80,36 @@ const episodeLayout = {
   rowCrossings:[],headerDisplay:'grid',headerColumnCount:4,headerColumnRects:episodeRow.columnRects,
 };
 const rawEvidence = {retained:true,visible:true,exposed:true,hit:true,rows:[94,102].map(temperature=>({
+  observationId:`scan-${temperature}`, eventType:'host.health-check', scanKind:'full',
   findings:[`CPU ${temperature}°C`, 'Supporting fan measurement'],evidenceControl:'View evidence',
   snapshot:JSON.stringify({metrics:{thermal:{value:[{temperatureC:temperature}]}}}),
 }))};
+// Sanitized shape of a retained targeted-stage event, not a full host scan.
+const targetedRow = {observationId:'targeted-stage-fixture',
+  eventType:'host.updater-mid-scan.needs-operator', scanKind:'targeted',
+  findings:[], evidenceControl:'View evidence',
+  snapshot:JSON.stringify({updaterMidScan:{initialObservation:{status:'unavailable'}}})};
+test('targeted updater-stage evidence remains inspectable without invented scan metrics',()=>{
+  const state={...rawEvidence,rows:[...rawEvidence.rows,targetedRow]};
+  assertSentinelRawEvidenceState(state,true);
+  assertSentinelRawEvidenceState({...state,visible:false,exposed:false,hit:false},false);
+});
+test('targeted exception cannot hide damaged or misclassified normalized evidence',()=>{
+  for (const patch of [
+    {eventType:'host.health-check'}, {scanKind:'full'},
+    {snapshot:''}, {snapshot:'{}'}, {snapshot:'{"updaterMidScan":null}'},
+    {snapshot:'{"updaterMidScan":[]}'},
+    {snapshot:'{"updaterMidScan":{},"version":1}'},
+    {snapshot:'{"metrics":{}}'},
+  ]) assert.throws(()=>assertSentinelRawEvidenceState({...rawEvidence,rows:[...rawEvidence.rows,{...targetedRow,...patch}]},true));
+  for (const snapshot of ['', '{}', '{"version":1}', '{"metrics":null}', '{"metrics":[]}', 'null', '[]', 'broken'])
+    assert.throws(()=>assertSentinelRawEvidenceState({...rawEvidence,rows:rawEvidence.rows.map(row=>({...row,snapshot}))},true));
+  assert.deepEqual(rawEvidence.rows.map(row=>JSON.parse(row.snapshot).metrics.thermal.value[0].temperatureC),[94,102]);
+});
+test('legacy records without snapshots stay retained without relabeling unknown shapes',()=>{
+  assertSentinelRawEvidenceState({...rawEvidence,rows:[...rawEvidence.rows,
+    {observationId:'legacy',eventType:'host.health-check',scanKind:'',findings:[],snapshot:'',evidenceControl:'View evidence'}]},true);
+});
 test('new episode contract passes without legacy multi-finding lists and preserves them in Details',()=>{
   assert.equal(episodeLayout.rows.some(row=>row.findingCount>=2),false,'old multi-finding requirement would fail');
   assertGuardianActivityGeometry(episodeLayout,'thermal',{desktop:true});

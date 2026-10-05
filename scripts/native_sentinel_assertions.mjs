@@ -239,6 +239,9 @@ export async function assertSentinelRawEvidence(base, sessionId, click, expected
         exposed: document.body.innerText.includes('RAW SCAN EVIDENCE'),
         hit: Boolean(hit && summary?.contains(hit)),
         rows: [...(raw?.querySelectorAll('[data-testid="guardian-raw-row"]') || [])].map(row => ({
+          observationId: row.dataset.observationId,
+          eventType: row.dataset.eventType,
+          scanKind: row.dataset.scanKind,
           findings: [...row.querySelectorAll('.guardianFindingList > div > strong')].map(n => n.textContent),
           snapshot: row.querySelector('.guardianScanEvidence pre')?.textContent || '',
           evidenceControl: row.querySelector('.guardianScanEvidence > summary')?.textContent || '',
@@ -254,13 +257,18 @@ export async function assertSentinelRawEvidence(base, sessionId, click, expected
   const opened = await probe();
   assertSentinelRawEvidenceState(opened, true, expected);
   const visibleRows = Math.min(opened.rows.length, expected.inspectRows ?? 2);
-  for (let index = 0; index < visibleRows; index++) {
+  // Also disclose a real targeted-stage snapshot when present, even when older
+  // than the initial scan rows. Content validation stays in the shared assertion.
+  const inspectIndexes = new Set(Array.from({length:visibleRows}, (_, index) => index));
+  const targetedIndex = opened.rows.findIndex(row => row.snapshot && row.eventType?.startsWith('host.updater-mid-scan.'));
+  if (targetedIndex >= 0) inspectIndexes.add(targetedIndex);
+  for (const index of inspectIndexes) {
     const row = `${selector} [data-testid="guardian-raw-row"]:nth-child(${index + 1})`;
     await click(`${row} .guardianScanEvidence > summary`);
     assert.equal(await execute(`const pre=document.querySelector(arguments[0]+' pre');
       pre?.scrollIntoView({block:'center'}); const r=pre?.getBoundingClientRect();
       const hit=r && document.elementFromPoint(r.left+10,r.top+10);
-      return Boolean(pre && document.querySelector(arguments[0]).open && pre.innerText.includes('"metrics"') && pre.contains(hit));`, [`${row} .guardianScanEvidence`]), true, 'raw snapshot must be visible and hit-testable when disclosed');
+      return Boolean(pre && document.querySelector(arguments[0]).open && pre.innerText === arguments[1] && pre.contains(hit));`, [`${row} .guardianScanEvidence`, opened.rows[index].snapshot]), true, 'validated raw snapshot must be unchanged, visible and hit-testable when disclosed');
     await click(`${row} .guardianScanEvidence > summary`);
   }
   await click('.sentinelAdvancedWorkspace > summary');
@@ -285,9 +293,24 @@ export function assertSentinelRawEvidenceState(state, open, {minRows = 2, minFin
   assert.ok(state.rows.some(row => row.findings.length >= minFindings), 'underlying multi-finding evidence must be complete');
   for (const row of state.rows) {
     assert.equal(row.evidenceControl, 'View evidence');
-    // Legacy records can truthfully lack a normalized snapshot; available ones
-    // must remain parseable. Synthetic fixtures additionally bind exact values.
-    if (row.snapshot) assert.ok(JSON.parse(row.snapshot).metrics, 'raw metrics must remain intact');
+    const label = row.observationId || 'unidentified observation';
+    const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+    if (row.snapshot) {
+      const snapshot = JSON.parse(row.snapshot);
+      assert.ok(object(snapshot), `${label}: raw snapshot must be an object`);
+      // O2 mid_scan_stage emits updater-only evidence, not a normalized scan.
+      // Require BOTH event provenance and the exact known shape; full scans and
+      // unknown nonempty shapes must still retain their normalized metrics.
+      if (row.scanKind === 'targeted' && /^host\.updater-mid-scan\.[a-z-]+$/.test(row.eventType || '')) {
+        assert.deepEqual(Object.keys(snapshot), ['updaterMidScan'], `${label}: targeted stage snapshot shape`);
+        assert.ok(object(snapshot.updaterMidScan), `${label}: targeted stage evidence must remain intact`);
+      } else {
+        assert.ok(object(snapshot.metrics), `${label}: raw metrics must remain intact`);
+      }
+    } else {
+      assert.notEqual(row.scanKind, 'full', `${label}: normalized full-scan snapshot must remain intact`);
+      assert.ok(!row.eventType?.startsWith('host.updater-mid-scan.'), `${label}: targeted stage snapshot must remain intact`);
+    }
   }
 }
 
