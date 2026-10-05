@@ -700,7 +700,7 @@ export function SentinelTab() {
                   ? "Show Resolution Steps"
                   : "Review Finding";
             return (
-              <article className={`guardianActivityRow guardianActivityRow-${rowStatus}`} key={observation.id} data-testid="guardian-raw-row">
+              <article className={`guardianActivityRow guardianActivityRow-${rowStatus}`} key={observation.id} data-testid="guardian-raw-row" data-observation-id={observation.id} data-event-type={observation.type} data-scan-kind={observation.observedValues?.scanKind || ""}>
                 <div className="guardianActivityCell" data-activity-label="Time"><strong>{formatDateTime(observation.timestamp)}</strong></div>
                 <div className="guardianActivityCell" data-activity-label="State"><StatusPill status={rowStatus} /></div>
                 <div className="guardianActivityCell" data-activity-label="Source"><span>{observation.source.startsWith("systemd-user-timer") || observation.source === "root-owned-pop-upgrade-helper" ? "Automatic" : "Operator"}</span></div>
