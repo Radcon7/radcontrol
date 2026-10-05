@@ -180,3 +180,27 @@ console.log("Sentinel convergence: freshness, readiness, repair outcomes and gro
 const helperEvent = { ...repaired, evidence: ["sentinel-host:probe"] };
 const stageEvent = { id: "stage", type: "host.updater-mid-scan.verified", evidence: ["sentinel-host:probe"], observedValues: { stage: "verified" } };
 assert.deepEqual(operatorRecentEvents([stageEvent, helperEvent]).map((row) => row.id), ["repair"]);
+
+const { updaterRepairDiagnosis, updaterWorkflowVisible } = await import("../src/components/sentinel/sentinelHealthActions.ts");
+const repairResult = updaterRepairDiagnosis({ ok: false, actions: [{ outcome: "needs-operator", actionOccurred: false,
+  summary: "No restart performed: prior attempt permits verification only.",
+  postRepairVerification: { verificationBlockers: ["Updater CPU must be at most 5% in two consecutive observations"] } }] }, "2026-10-02T00:00:00Z");
+assert.equal(repairResult.capturedAt, "2026-10-02T00:00:00Z");
+assert.equal(repairResult.repairRan, false);
+assert.match(repairResult.finding, /needs-operator/);
+assert.ok(repairResult.evidence.some(row => row.includes("Updater CPU")));
+for (const checkedAt of ["2026-10-01T23:59:00Z", "2026-10-02T00:01:00Z"]) {
+  assert.equal(updaterWorkflowVisible({ phase: "manual-action-needed", checkedAt }, repairResult), false,
+    "foreground or automatic refresh must not replace the completed attempt with generic attention");
+}
+assert.equal(updaterWorkflowVisible({ phase: "manual-action-needed", checkedAt: "2026-10-02T00:01:00Z" }, null), true);
+assert.equal(updaterRepairDiagnosis({ ok: true, actions: [{ actionOccurred: false, outcome: "verified" }] }, "now").repairRan, false);
+const cancelledResult = updaterRepairDiagnosis({ ok: false, error: "Authorization cancelled" }, "now");
+assert.match(cancelledResult.finding, /Authorization cancelled/);
+assert.notEqual(cancelledResult.outcome, "FIXED");
+assert.equal(updaterWorkflowVisible({ phase: "blocked", checkedAt: "2026-10-02T00:01:00Z" }, cancelledResult), false);
+console.log("Sentinel repair result: timestamp, exact blocker, cancellation and refresh visibility verified");
+
+const uncertain = updaterRepairDiagnosis({ok:false, actions:[{actionOccurred:false, actionUncertain:true, outcome:"failed", summary:"One submission timed out; no retry."}]}, "now");
+assert.equal(uncertain.outcome,"UNKNOWN");
+assert.match(uncertain.finding,/timed out/);
