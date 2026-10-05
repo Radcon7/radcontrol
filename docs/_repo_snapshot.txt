@@ -90,6 +90,7 @@ scripts/install_production.sh
 scripts/matched_pair_transaction.py
 scripts/native_acceptance_lib.mjs
 scripts/native_sentinel_assertions.mjs
+scripts/native_sentinel_readiness.mjs
 scripts/native_transaction_receipt.mjs
 scripts/native_wave11_acceptance.mjs
 scripts/native_wave11_matrix.json
