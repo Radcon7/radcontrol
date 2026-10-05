@@ -41,7 +41,7 @@ if verb == "sentinel.host.deep_check" and not (root / "wave11-current.json").is_
 with (root / "wave11-calls.jsonl").open("a") as handle:
     handle.write(json.dumps({"verb": verb, "phase": phase}) + "\n")
 now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-updater = phase == "context-updater" or phase in {"actionable", "multiple", "failure", "invalid-preview"}
+updater = phase == "context-updater" or phase in {"actionable", "multiple", "failure", "failed", "invalid-preview"}
 hot = phase in {"nonactionable", "multiple", "remaining", "updater-recovered", "productive-load"}
 zombie = phase in {"multiple", "remaining"}
 if verb == "sentinel.host.explain_fans":
@@ -66,6 +66,9 @@ elif verb == "workstation.cleanup.pop_upgrade.preview":
 elif verb == "workstation.cleanup.pop_upgrade.apply":
     failed = phase == "failure"
     state["phase"] = "failed" if failed else "remaining" if phase == "multiple" else "healthy"
+    if failed:
+        state["deniedAttempt"] = {"lastOutcome": "failed", "lastActionOccurred": False,
+                                  "repairReason": "Fixture authorization declined", "repairCheckedAt": now}
     state_path.write_text(json.dumps(state))
     result = {"ok": not failed, "actions": [{"actionOccurred": not failed}], "error": "Fixture authorization declined" if failed else None}
 elif verb == "sentinel.host.check":
@@ -136,6 +139,15 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
         for entry in values.values(): entry["observedAt"] = stamp
         return {"id": "fixture-episode-" + str(index), "guardian": "host", "timestamp": stamp, "type": "host.health-check", "source": "fixture", "severity": "attention" if findings else "informational", "observedValues": {"scanKind": "full", "findings": findings, "snapshot": {"metrics": values}}}
     events = [scan(0, synthetic, fs)] if fs else []
+    if phase in {"failure", "failed"}:
+        # Denied authorization neither clears the condition nor observes it anew.
+        # Keep the original full observation byte-for-byte across refreshes.
+        if "updaterObservation" not in state:
+            assert phase == "failure", "Denied fixture requires its prior updater observation"
+            state["updaterObservation"] = events[0]
+            state_path.write_text(json.dumps(state))
+        events = [copy.deepcopy(state["updaterObservation"])]
+        synthetic["knownIncident"] = copy.deepcopy(events[0]["observedValues"]["snapshot"]["metrics"]["knownIncident"])
     if phase in {"watching", "recurrent", "diagnosis"}:
         warm = copy.deepcopy(synthetic);warm["thermal"]["value"][0]["temperatureC"] = 102;warm["thermal"]["status"] = "attention"
         thermal_finding = {"kind": "thermal", "key": "thermal", "findingKey": "metric:thermal", "title": "Thermal activity", "status": "attention", "reason": "Synthetic CPU 102°C"}
@@ -167,13 +179,15 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
             events += [scan(10, prior, fs), scan(11, synthetic, fs)]
     if phase == "unknown": synthetic["thermal"] = {"status": "unavailable", "value": None, "observedAt": now}
     projection = episode_projection(events, policy)
-    interpretation = operator_projection(synthetic, fs, policy, retained=projection, current=verb == "sentinel.host.current", known_state={"active": phase in {"updater-blocked", "updater-manual", "updater-recovering"}, "watch": {"phase": "checking" if phase == "updater-checking" else "idle"}, "repairNeedsOperator": phase in {"failed", "updater-manual"}})
+    known_state = {"active": phase in {"failure", "failed", "updater-blocked", "updater-manual", "updater-recovering"}, "watch": {"phase": "checking" if phase == "updater-checking" else "idle"}, "repairNeedsOperator": phase in {"failed", "updater-manual"}}
+    interpretation = operator_projection(synthetic, fs, policy, retained=projection, current=verb == "sentinel.host.current", known_state=known_state)
     if verb == "sentinel.status":
         result["episodeProjection"] = projection
         result["recentHostObservations"] = list(reversed(events))
         result["host"].update(metrics=synthetic, interpretation=interpretation)
         from o2_sentinel_updater_watch import incident_projection
         workflow_states = {
+            "failed": known_state | state.get("deniedAttempt", {}),
             "updater-recovering": {"active": True, "repairNeedsOperator": True, "lastOutcome": "attempted", "repairCheckedAt": now},
             "updater-checking": {"watch": {"phase": "checking", "observedSeconds": 30}},
             "updater-blocked": {"active": True, "lastOutcome": "blocked", "repairReason": "A live package transaction owns the package lock.", "repairBlockers": ["Owned package lock"]},
@@ -195,5 +209,5 @@ if verb in {"sentinel.status", "sentinel.host.current", "sentinel.host.deep_chec
         # Foreground intentionally omits processes. The completed context must survive this read.
         foreground = {key: value for key, value in synthetic.items() if key not in {"processes", "projectRuntimes", "knownIncident"}}
         if phase in {"productive-load", "user-application-load"}: foreground = synthetic
-        result.update(metrics=foreground, measuredAt=now, interpretation=operator_projection(foreground, [f for f in fs if f["key"] in foreground], policy, retained=projection, current=True, known_state={"active": phase in {"updater-blocked", "updater-manual", "updater-recovering"}, "watch": {"phase": "checking" if phase == "updater-checking" else "idle"}, "repairNeedsOperator": phase in {"failed", "updater-manual"}}))
+        result.update(metrics=foreground, measuredAt=now, interpretation=operator_projection(foreground, [f for f in fs if f["key"] in foreground], policy, retained=projection, current=True, known_state=known_state))
 print(json.dumps(result))
