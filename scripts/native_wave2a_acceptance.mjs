@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import path from 'node:path';
+import { WORK_TAB_STATE_SCRIPT, assertWorkTabs } from './native_work_tabs.mjs';
 import { nativeWidthContract, assertWidthReceipt } from './native_width_contract.mjs';
 import { assertNativeWorkReadiness, assertNativeWorkRecovery, readinessInventory } from './native_work_readiness.mjs';
 export async function runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode,expectBridge=false}) {
@@ -263,10 +264,13 @@ async function runRound3Acceptance({command,exec,tap,set,shot,request,base,sessi
   await tap('[data-testid="task-view-all"]');await set('[aria-label="Find tasks"]','');
   await request(base,`/session/${sessionId}/window/rect`,'POST',{width:width.widths[1],height:800});
   const scrollBefore=await exec('const e=document.querySelector("[data-testid=tasks-scroller]");e.scrollTop=500;return e.scrollTop;');assert.ok(scrollBefore>0);
-  await tap('[data-testid="work-mode-timeline"]');await tap('[data-testid="work-mode-tasks"]');
+  await tap('[data-testid="work-mode-timeline"]');
+  await eventually(async()=>assertWorkTabs(await exec(WORK_TAB_STATE_SCRIPT),'timeline'),'settled Timeline tab styling');
+  await tap('[data-testid="work-mode-tasks"]');
+  await eventually(async()=>assertWorkTabs(await exec(WORK_TAB_STATE_SCRIPT),'tasks'),'settled Tasks tab styling');
   await eventually(async()=>assert.ok(await exec('return document.querySelector("[data-testid=tasks-scroller]").scrollTop;')>=scrollBefore-2),'task scroll restored');
-  const geometry=await exec('const t=document.querySelector("[data-testid=work-mode-tasks]"),s=document.querySelector("[data-testid=tasks-scroller]"),f=document.querySelector(".todoFilterRow");return {tab:t.getBoundingClientRect().top,filter:f.getBoundingClientRect().top,scroller:s.getBoundingClientRect().top,activeBorder:getComputedStyle(t).borderBottomColor};');
-  assert.ok(geometry.tab>=0&&geometry.filter>=0&&geometry.scroller>geometry.filter);assert.equal(geometry.activeBorder,'rgba(0, 0, 0, 0)');
+  const geometry=await exec('const t=document.querySelector("[data-testid=work-mode-tasks]"),s=document.querySelector("[data-testid=tasks-scroller]"),f=document.querySelector(".todoFilterRow");return {tab:t.getBoundingClientRect().top,filter:f.getBoundingClientRect().top,scroller:s.getBoundingClientRect().top};');
+  assert.ok(geometry.tab>=0&&geometry.filter>=0&&geometry.scroller>geometry.filter);
   for(const requested of [...new Set([...width.widths,1500])]) {
     await request(base,`/session/${sessionId}/window/rect`,'POST',{width:requested,height:1000});
     for(const view of ['all','now','blocked','completed']) {await tap(`[data-testid="task-view-${view}"]`);await shot(`round3-tasks-${view}-${requested}`);assert.ok(await exec('const e=document.querySelector(".workTasks");return e.scrollWidth<=e.clientWidth+1;'));}
