@@ -35,6 +35,23 @@ test('failed/unresolved repairs offer no restart',()=>{
  const failed=sentinelHealthActions(status([]),projected([]),true,'',true);assert.equal(failed.needsAttention,true);assert.equal(failed.repairableCount,0);
  for(const latch of ['repairNeedsOperator','midScanNeedsOperator']){const s=status();s.knownIncidentState[latch]=true;const v=sentinelHealthActions(s,projected([updater]),true);assert.equal(v.needsAttention,true);assert.equal(v.repairableCount,0);assert.equal(v.findings.length,1,'one updater incident retains its recovery blocker');}
 });
+test('denied recovery reviews the retained updater once without claiming a repair',()=>{
+ const s=status();s.knownIncidentState.repairNeedsOperator=true;
+ s.updaterWorkflow={active:true,phase:'manual',reason:'Authorization declined'};
+ const view=sentinelHealthActions(s,projected([updater]),true,'',true);
+ assert.equal(view.repairableCount,0);assert.equal(view.findings.length,1);
+ assert.equal(view.findings[0].key,'knownIncident','review belongs to the unresolved updater');
+ assert.equal(view.findings[0].repairCapability,null);
+ const mixed=sentinelHealthActions(s,projected([updater,thermal]),true,'',true);
+ assert.deepEqual(mixed.findings.map(f=>f.key),['knownIncident','thermal']);
+});
+test('historical denial alone does not create a current host concern',()=>{
+ const s=status([]);s.knownIncidentState.repairNeedsOperator=true;
+ s.updaterWorkflow={active:false,phase:'recovered',reason:'Independent observation cleared the condition'};
+ s.recentActions=[{executionResult:'failed',reason:'Historical authorization declined'}];
+ assert.equal(sentinelHealthActions(s,projected([]),true).findings.length,0);
+ assert.equal(s.recentActions.length,1,'history stays available');
+});
 test('one verified repair leaves unrelated concerns visible',()=>{
  const before=sentinelHealthActions(status([updater,thermal,zombie]),projected([updater,thermal,zombie]),true);assert.equal(before.findings.length,3);assert.equal(before.repairableCount,1);
  const after=sentinelHealthActions(status([thermal,zombie]),projected([thermal,zombie]),true);assert.equal(after.findings.length,2);assert.equal(after.repairableCount,0);
