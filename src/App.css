@@ -1711,135 +1711,6 @@ pre {
   overflow: hidden;
 }
 
-.timelineFeed {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 8px 10px 18px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.timelineStatus {
-  opacity: 0.8;
-  padding: 8px 4px;
-}
-
-.timelineEmptyState {
-  padding: 18px 14px;
-  border: 1px dashed rgba(255, 255, 255, 0.16);
-  border-radius: 12px;
-  opacity: 0.85;
-}
-
-.timelineEmptyTitle {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.timelineEmptyBody {
-  font-size: 13px;
-}
-
-.timelineGroup {
-  margin-bottom: 22px;
-}
-
-.timelineGroupLabel {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 6px 0 10px 0;
-  background: linear-gradient(to bottom, rgba(17, 17, 17, 0.96), rgba(17, 17, 17, 0.75), rgba(17, 17, 17, 0));
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  opacity: 0.82;
-}
-
-.timelineEntries {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.timelineEntryRow {
-  display: grid;
-  grid-template-columns: 34px 1fr;
-  gap: 12px;
-}
-
-.timelineRail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 110px;
-}
-
-.timelineDot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #7aa2ff;
-  margin-top: 8px;
-  box-shadow: 0 0 0 4px rgba(58, 122, 254, 0.16);
-  flex: 0 0 auto;
-}
-
-.timelineStem {
-  width: 2px;
-  flex: 1;
-  margin-top: 6px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-}
-
-.timelineStemFade {
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02));
-}
-
-.timelineCard {
-  text-align: left;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(58, 122, 254, 0.09);
-  color: inherit;
-  border-radius: 14px;
-  padding: 14px 16px;
-}
-
-.timelineEntryDate {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  opacity: 0.86;
-}
-
-.timelineEntryText {
-  margin-top: 8px;
-  font-size: 18px;
-  line-height: 1.55;
-  font-weight: 600;
-  white-space: pre-wrap;
-}
-
-.timelineModalCard {
-  width: min(620px, calc(100vw - 40px));
-}
-
-.timelineModalError {
-  margin: 0;
-}
-
-.timelineModalActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 8px;
-}
-
 .panelActionsRowTight {
   gap: 8px;
 }
@@ -2593,237 +2464,8 @@ pre {
 }
 
 /* Empire To-Do List */
-.empireTodoShell {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  height: 100%;
-  min-height: 0;
-}
 
-.empireTodoToolbar,
-.empireTodoEditorHeading,
-.empireTodoTimestamps {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.empireTodoToolbar > div:first-child {
-  display: grid;
-  gap: 3px;
-}
-
-.empireTodoToolbar strong,
-.empireTodoEditorHeading > span {
-  font-size: 13px;
-  letter-spacing: 0.14em;
-}
-
-.empireTodoToolbar span,
-.empireTodoEditorHeading small,
-.empireTodoTimestamps {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.empireTodoToolbar > div:last-child {
-  display: flex;
-  gap: 8px;
-}
-
-.empireTodoOverview {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 12px 14px;
-  border: 1px solid rgba(104, 160, 255, 0.22);
-  border-radius: 14px;
-  background: linear-gradient(90deg, rgba(104, 160, 255, 0.11), rgba(97, 242, 169, 0.06));
-}
-
-.empireTodoOverview > div:first-child {
-  display: grid;
-  gap: 3px;
-}
-
-.empireTodoOverview strong {
-  font-size: 15px;
-}
-
-.empireTodoOverview span {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.empireTodoViewButtons {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.empireTodoGrid {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.38fr) minmax(0, 1fr);
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
-}
-
-.empireTodoList,
-.empireTodoEditor {
-  min-height: 0;
-  overflow: auto;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  background: rgba(2, 7, 17, 0.34);
-}
-
-.empireTodoList {
-  padding: 10px;
-}
-
-.empireTodoListHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px 7px 11px;
-  color: var(--muted);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.empireTodoListItem {
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
-  margin-bottom: 7px;
-  padding: 12px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.025);
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-}
-
-.empireTodoListItem:hover,
-.empireTodoListItem.isSelected {
-  border-color: rgba(104, 160, 255, 0.34);
-  background: rgba(104, 160, 255, 0.1);
-}
-
-.empireTodoListItem span {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.empireTodoListItem strong {
-  font-size: 14px;
-  line-height: 1.35;
-}
-
-.empireTodoListItem small {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.empireTodoListItem em {
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 12px;
-  font-style: normal;
-  line-height: 1.35;
-}
-
-.empireTodoDot {
-  width: 11px;
-  height: 11px;
-  margin-top: 4px;
-  border: 2px solid var(--muted2);
-  border-radius: 50%;
-}
-
-.empireTodoDot-in-progress,
-.empireTodoDot-planned {
-  border-color: var(--accentB);
-  box-shadow: 0 0 10px rgba(104, 160, 255, 0.45);
-}
-
-.empireTodoDot-blocked {
-  border-color: #ff7474;
-}
-
-.empireTodoDot-complete {
-  border-color: var(--accentA);
-  background: var(--accentA);
-}
-
-.empireTodoEditor {
-  padding: 16px;
-}
-
-.empireTodoEditorHeading {
-  margin-bottom: 14px;
-}
-
-.empireTodoField {
-  display: grid;
-  gap: 6px;
-}
-
-.empireTodoField > span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.empireTodoTitleField .input {
-  font-size: 21px;
-  font-weight: 800;
-}
-
-.empireTodoMetaGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.empireTodoTextFields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.empireTodoTextFields .pasteArea {
-  min-height: 126px;
-  font-family: inherit;
-  font-size: 14px;
-}
-
-.empireTodoTimestamps {
-  justify-content: flex-start;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.empireTodoTimestamps strong {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.scratchpadShell,.blueprintShell{display:grid;gap:14px;min-height:520px}.scratchpadHeading{display:flex;align-items:center;justify-content:space-between;gap:16px}.scratchpadHeading>div:first-child{display:grid;gap:4px}.scratchpadHeading span{color:var(--muted);font-size:.85rem}.scratchpadHeading>div:last-child{display:flex;align-items:center;gap:10px}.scratchpadArea{width:100%;min-height:480px;resize:vertical;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);padding:20px;font:500 1rem/1.6 var(--font-sans)}.blueprintArticle{max-width:980px;max-height:68vh;overflow:auto;padding:22px;border:1px solid var(--line);border-radius:12px;background:var(--panel);line-height:1.65}.blueprintArticle h1{font-size:1.65rem}.blueprintArticle h2{margin-top:1.8rem;font-size:1.15rem}.blueprintArticle li{margin:8px 0 8px 22px}.empireTodoRows{display:grid;gap:14px}.empireTodoRow{display:grid;grid-template-columns:auto minmax(190px,1fr) minmax(330px,2fr) auto;gap:12px;align-items:start;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}.empireTodoRow input[type=checkbox]{margin-top:12px;width:18px;height:18px}.empireTodoRowMain{display:grid;gap:7px}.empireTodoRowMain span,.empireTodoRow small{color:var(--muted);font-size:.78rem}.empireTodoInlineNotes{min-height:88px;resize:vertical}
+.scratchpadShell,.blueprintShell{display:grid;gap:14px;min-height:520px}.scratchpadHeading{display:flex;align-items:center;justify-content:space-between;gap:16px}.scratchpadHeading>div:first-child{display:grid;gap:4px}.scratchpadHeading span{color:var(--muted);font-size:.85rem}.scratchpadHeading>div:last-child{display:flex;align-items:center;gap:10px}.scratchpadArea{width:100%;min-height:480px;resize:vertical;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);padding:20px;font:500 1rem/1.6 var(--font-sans)}.blueprintArticle{max-width:980px;max-height:68vh;overflow:auto;padding:22px;border:1px solid var(--line);border-radius:12px;background:var(--panel);line-height:1.65}.blueprintArticle h1{font-size:1.65rem}.blueprintArticle h2{margin-top:1.8rem;font-size:1.15rem}.blueprintArticle li{margin:8px 0 8px 22px}
 
 /* Radcon Sentinel / Security */
 .sentinelShell {
@@ -3632,9 +3274,6 @@ pre {
 }
 
 @media (max-width: 720px) {
-  .empireTodoGrid,
-  .empireTodoMetaGrid,
-  .empireTodoTextFields,
   .sentinelCommandSummary,
   .sentinelSignalGrid,
   .sentinelActions,
@@ -3645,8 +3284,6 @@ pre {
     grid-template-columns: 1fr;
   }
 
-  .empireTodoToolbar,
-  .empireTodoOverview,
   .sentinelVisibilityBoundary,
   .sentinelGuardianHeading,
   .sentinelSubCardHeading,
@@ -3655,18 +3292,6 @@ pre {
   .sentinelInlineAction {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .empireTodoGrid {
-    overflow-y: auto;
-  }
-
-  .empireTodoList {
-    max-height: 260px;
-  }
-
-  .empireTodoEditor {
-    overflow: visible;
   }
 
   .sentinelFilterRow,
@@ -4339,29 +3964,6 @@ pre {
 .logsStatus-error { color: #ffb1b8; font-weight: 700; }
 .logsStatus-warning { color: #ffdb96; }
 .logsStatus-running { color: #a9d5ff; }
-.todoCount { color: var(--muted); font-size: 14px; }
-
-.todoRowSelect { display: grid; gap: 2px; width: 100%; min-width: 0; padding: 0; border: 0; background: none; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
-.todoRowSelect:focus-visible { outline: 2px solid var(--accentB); outline-offset: 3px; border-radius: 4px; }
-.todoProgress { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: #c0cddd; font-size: 13px; font-weight: 600; }
-.todoProgressPuck { width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; flex-shrink: 0; }
-.todoProgress-active { color: #a9d5ff; }.todoProgress-blocked { color: #ffcf82; }.todoProgress-done { color: #8ce6b5; }
-.todoProgress-active .todoProgressPuck,.todoProgress-done .todoProgressPuck { background: currentColor; }
-.todoProgressLabel { display: inline-flex; align-items: center; gap: 6px; }
-
-.taskProgressContent { width:100%; min-width:0; display:grid; gap:7px; }
-.todoRowContext { display:grid; gap:3px; min-width:0; }
-.taskProgressRail { display:grid; width:100%; min-width:0; gap:8px; --progress-color:#a9d5ff; }
-.taskProgressRail.todoProgress-blocked { --progress-color:#ffcf82; }
-.taskProgressRail.todoProgress-done { --progress-color:#8ce6b5; }
-.taskProgressHeading { display:flex; gap:16px; justify-content:space-between; align-items:center; min-width:0; }
-.taskProgressHeading .todoRowSelect { flex:1; }
-.taskProgressValue { font-size:22px; line-height:1.2; white-space:nowrap; color:var(--progress-color); }
-.taskProgressStatus { text-transform:uppercase; letter-spacing:.04em; font-size:12px; font-weight:600; }
-.taskProgressNumber { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); }
-.taskProgressNumber .input { width:76px; min-width:0; padding:3px 6px; }
-.taskSetProgress { justify-self:start; }
-@media(max-width:850px) { .taskProgressHeading { gap:8px; align-items:flex-start; } .taskProgressValue { font-size:18px; } .taskProgressNumber { flex-wrap:wrap; } }
 
 .sentinelHealthActions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
 .sentinelCurrentReview { grid-column: 1 / -1; padding: 16px; border: 1px solid var(--stroke); border-radius: 10px; background: rgba(255,255,255,.025); }
@@ -4370,22 +3972,6 @@ pre {
 .sentinelReviewFinding span { color: var(--muted); }
 .sentinelOperatorSummary .sentinelOperatorState > strong { font-size: 22px; }
 .sentinelOperatorHero > .guardianRepair { grid-column: 1 / -1; }
-.todoRowState,.todoRowNext,.todoRowBlocker,.todoRowAcceptance { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.35; font-size: 14px; color: var(--muted); }
-.todoRowNext { color: var(--text); }.todoRowNext b { color: #aed1ff; }.todoRowBlocker { color: #ffcf82; }
-.todoRowAcceptance { color: #bac5d3; }.todoRowNext b,.todoRowBlocker b,.todoRowAcceptance b { margin-right: 5px; font-weight: 600; }
-.todoDetail { min-width: 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 12px 14px; border: 1px solid var(--stroke); border-radius: 9px; background: rgba(255,255,255,.045); }
-.todoDetailHeading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; font-size: 13px; color: var(--muted); }
-.todoDetail .empireTodoField { display: grid; margin: 10px 0; gap: 5px; }
-.todoDetail .empireTodoField > span { font-size: 14px; letter-spacing: normal; text-transform: none; color: #cfdae8; }
-.todoDetail .input { font-size: 16px; min-height: 38px; padding: 8px; }
-.todoDetailText { width: 100%; min-height: 62px; max-height: 300px; padding: 8px; font-size: 15px; line-height: 1.4; resize: vertical; }
-.todoDetailMeta { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; color: var(--muted); }
-.timelineEntryText { font-size: 17px; line-height: 1.4; }.timelineEntryBody { color: var(--muted); font-size: 15px; line-height: 1.5; margin-top: 5px; }
-.timelineModalCard .notesModalBody { display: grid; gap: 12px; }
-@media (max-width: 1000px) {
-
-  .todoDetail { overflow-y: visible; }
-}
 
 /* Sentinel operator significance is distinct from raw measurement severity. */
 .sentinelThreat-watching { border-color: rgba(114, 186, 255, .45); }

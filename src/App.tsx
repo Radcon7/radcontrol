@@ -5,9 +5,6 @@ import "./App.css";
 
 import { SecurityTab } from "./components/security/SecurityTab";
 
-import { WorkHub } from "./components/work/WorkHub";
-import type { WorkTarget } from "./components/overview/workModel";
-import { Overview } from "./components/overview/Overview";
 import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
 import { AddProjectModal } from "./components/projects/AddProjectModal";
@@ -51,8 +48,6 @@ type LibraryTabKey = "notes";
 type DocTabKey = LibraryTabKey;
 
 type TabKey =
-  | "overview"
-  | "work"
   | "projects"
   | "infrastructure"
   | "agents"
@@ -70,8 +65,6 @@ const DOC_TABS: DocTabMeta[] = [
 ];
 
 const ALL_TABS: TabKey[] = [
-  "overview",
-  "work",
   "projects",
   "infrastructure",
   "agents",
@@ -96,8 +89,6 @@ function tabLabel(t: TabKey): string {
   if (isDocTab(t)) return docTabMeta(t).label;
 
   const m: Record<Exclude<TabKey, DocTabKey>, string> = {
-    overview: "Overview",
-    work: "Work",
     projects: "Projects",
     infrastructure: "Infrastructure",
     agents: "Agents",
@@ -171,9 +162,7 @@ type ProjectBootstrapResult = {
 };
 
 export default function App() {
-  const [tab, setTab] = useState<TabKey>("overview");
-  const [workTarget,setWorkTarget]=useState<WorkTarget|null>(null);
-  const [workVisited,setWorkVisited]=useState(false);
+  const [tab, setTab] = useState<TabKey>("projects");
   const [busy, setBusy] = useState(false);
   const [portsBusy, setPortsBusy] = useState(false);
 
@@ -788,7 +777,6 @@ export default function App() {
       }
     }
 
-    if(nextTab === "work") setWorkVisited(true);
     setTab(nextTab);
   }
 
@@ -836,8 +824,7 @@ export default function App() {
       </header>
 
       <main className="mainArea">
-        {workVisited ? <div hidden={tab!=="work"} className="workDestination"><WorkHub active={tab==="work"} target={workTarget} busy={busy} registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}/></div> : null}
-        {tab === "overview" ? <Overview onSecurity={() => void requestTabChange("sentinel")} onOpenWork={target=>{setWorkTarget({...target,nonce:Date.now()});setWorkVisited(true);void requestTabChange("work");}} /> : tab === "projects" ? (
+        {tab === "projects" ? (
           <>
             <ProjectsTab
               projects={projects}

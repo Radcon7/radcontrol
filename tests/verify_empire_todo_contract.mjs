@@ -1,47 +1,12 @@
-import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-
-const component = await readFile(
-  new URL("../src/components/notes/EmpireTodoWorkspace.tsx", import.meta.url),
-  "utf8",
-);
-const api = await readFile(
-  new URL("../src/components/notes/empireTodoApi.ts", import.meta.url),
-  "utf8",
-);
-const notes = await readFile(
-  new URL("../src/components/paste-tabs/NotesHubTab.tsx", import.meta.url),
-  "utf8",
-);
-const bridge = await readFile(
-  new URL("../src-tauri/src/commands/o2.rs", import.meta.url),
-  "utf8",
-);
-
-assert.doesNotMatch(notes, /key: "(?:empire_todo|progress|timeline)"/);
-assert.match(notes, /useState<NotesMode>\("notes"\)/);
-const hub=await readFile(new URL("../src/components/work/WorkHub.tsx",import.meta.url),"utf8");
-assert.match(hub, /"tasks","initiatives","timeline"/);
-assert.match(hub, /<EmpireTodoWorkspace/);
-assert.match(component, /TASK_VIEWS/);
-assert.match(component, /Just completed/);
-assert.match(component, /View Completed/);
-assert.match(component, /data-testid="empire-todo-detail"/);
-assert.match(component, /Next Action/);
-assert.match(component, /Acceptance \/ done condition/);
-assert.doesNotMatch(component, /Large notes field/);
-assert.match(component, /Blocked by/);
-assert.match(component, /createTodoDrafts/);
-assert.match(await readFile(new URL("../src/components/notes/TaskProgress.tsx", import.meta.url), "utf8"), /"completion" : item.progress \? "operator" : "unassessed"/);
-assert.match(component, /Add to Timeline/);
-assert.match(component, /Complete without Timeline/);
-assert.match(component, /Cancel/);
-assert.match(component, /completeEmpireTodo/);
-assert.match(api, /listWork\(\)/);
-assert.match(api, /"task.save"/);
-assert.match(api, /"task.complete"/);
-assert.match(bridge, /"empire.todo.save" =>/);
-assert.match(bridge, /"empire.todo.complete.stdin"/);
-assert.doesNotMatch(component, /localStorage/);
-
-console.log("Empire To-Do contract: wide-row O2 persistence and intentional completion verified");
+import assert from 'node:assert/strict';
+import {readFileSync,existsSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const app=read('src/App.tsx');
+assert.doesNotMatch(app,/WorkHub|<Overview|"overview"|"work"/);
+for(const key of ['projects','infrastructure','agents','sentinel','notes'])assert(app.includes('"'+key+'"'));
+for(const file of ['src/components/work/WorkHub.tsx','src/components/work/InitiativesWorkspace.tsx','src/components/overview/Overview.tsx','src/components/notes/EmpireTodoWorkspace.tsx','src/components/notes/empireTodoApi.ts','src/components/paste-tabs/TimelineTab.tsx','src/components/paste-tabs/timelineLoader.ts'])assert(!existsSync(new URL('../'+file,import.meta.url)),file+' must be retired');
+assert.match(read('src/components/common/useGovernedRecordNote.ts'),/project-note.save/);
+assert.match(read('src/components/overview/workApi.ts'),/operator.work.mutate/);
+assert.match(read('src/components/runtime/RuntimeDiagnosticsModal.tsx'),/listWork/);
+assert.doesNotMatch(read('src/components/paste-tabs/NotesHubTab.tsx'),/key: "(?:empire_todo|progress|timeline)"/);
+console.log('Work and Overview UI retired; shared Project Notes and runtime authority retained.');

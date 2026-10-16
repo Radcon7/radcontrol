@@ -31,7 +31,7 @@ const expectedPreservedInfrastructure = [
   "google-workspace", "dqotd-workspace", "docker", "agent-mcp-surfaces",
 ];
 
-for (const tab of ["overview", "work", "projects", "infrastructure", "agents", "sentinel", "notes"]) {
+for (const tab of ["projects", "infrastructure", "agents", "sentinel", "notes"]) {
   assert.match(app, new RegExp(`"${tab}"`), `primary destination ${tab} must remain registered`);
 }
 assert.match(app, /sentinel: "Security"/);

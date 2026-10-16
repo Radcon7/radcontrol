@@ -8,42 +8,207 @@
   "currentO2RegistryCommit": "80699123d0bef8d98f8290d1d358bfa6054453fb",
   "selectionReason": "b1431ac is the merge of RadControl PR 11: it already contains Sentinel and Empire To-Do and is the immediate parent of the Phase 1 consolidation branch merged by PR 12.",
   "primaryDestinations": [
-    { "historical": "Projects", "final": "Projects", "action": "preserved" },
-    { "historical": "Infrastructure", "final": "Infrastructure", "action": "preserved" },
-    { "historical": "Agents", "final": "Agents", "action": "preserved; repository router health restored as an internal workspace" },
-    { "historical": "Sentinel", "final": "Security > Radcon Sentinel", "action": "intentional replacement label preserved" },
-    { "historical": "Notes", "final": "Notes", "action": "preserved" },
-    { "historical": "Legal", "final": "RCE > RadCloud > Legal", "action": "all seven views migrated; O2 originals and governed local editing retained; old Legal tab removed" },
-    { "historical": "Empire Utility", "final": "Security > Empire Operations", "action": "intentional primary-destination replacement; useful report workspace restored" }
+    {
+      "historical": "Projects",
+      "final": "Projects",
+      "action": "preserved"
+    },
+    {
+      "historical": "Infrastructure",
+      "final": "Infrastructure",
+      "action": "preserved"
+    },
+    {
+      "historical": "Agents",
+      "final": "Agents",
+      "action": "preserved; repository router health restored as an internal workspace"
+    },
+    {
+      "historical": "Sentinel",
+      "final": "Security > Radcon Sentinel",
+      "action": "intentional replacement label preserved"
+    },
+    {
+      "historical": "Notes",
+      "final": "Notes",
+      "action": "preserved"
+    },
+    {
+      "historical": "Legal",
+      "final": "RCE > RadCloud > Legal",
+      "action": "all seven views migrated; O2 originals and governed local editing retained; old Legal tab removed"
+    },
+    {
+      "historical": "Empire Utility",
+      "final": "Security > Empire Operations",
+      "action": "intentional primary-destination replacement; useful report workspace restored"
+    },
+    {
+      "historical": "Overview",
+      "final": "RCE > RadCloud > Work > Overview",
+      "action": "migrated through existing O2 authority; old UI removed after integrated acceptance"
+    },
+    {
+      "historical": "Work",
+      "final": "RCE > RadCloud > Work",
+      "action": "Tasks, Initiatives and Timeline replaced; sole O2 authority preserved"
+    }
   ],
   "projects": {
-    "historicalRegisteredKeys": ["o2", "dqotd", "tbis", "offroad", "radstock", "radcrm", "radcontrol", "radconenterprises", "radfamily", "radwolfe", "radcalendar"],
-    "finalRegisteredKeys": ["o2", "dqotd", "tbis", "offroad", "radstock", "radcrm", "radcontrol", "radconenterprises", "radfamily", "radwolfe", "radcalendar"],
-    "historicalVisibleKeys": ["dqotd", "tbis", "offroad", "radstock", "radcrm", "radconenterprises", "radfamily", "radwolfe", "radcalendar"],
-    "finalVisibleKeys": ["dqotd", "tbis", "offroad", "radstock", "radcrm", "radconenterprises", "radfamily", "radwolfe", "radcalendar"],
-    "preexistingOperatorExclusions": ["o2", "radcontrol"],
+    "historicalRegisteredKeys": [
+      "o2",
+      "dqotd",
+      "tbis",
+      "offroad",
+      "radstock",
+      "radcrm",
+      "radcontrol",
+      "radconenterprises",
+      "radfamily",
+      "radwolfe",
+      "radcalendar"
+    ],
+    "finalRegisteredKeys": [
+      "o2",
+      "dqotd",
+      "tbis",
+      "offroad",
+      "radstock",
+      "radcrm",
+      "radcontrol",
+      "radconenterprises",
+      "radfamily",
+      "radwolfe",
+      "radcalendar"
+    ],
+    "historicalVisibleKeys": [
+      "dqotd",
+      "tbis",
+      "offroad",
+      "radstock",
+      "radcrm",
+      "radconenterprises",
+      "radfamily",
+      "radwolfe",
+      "radcalendar"
+    ],
+    "finalVisibleKeys": [
+      "dqotd",
+      "tbis",
+      "offroad",
+      "radstock",
+      "radcrm",
+      "radconenterprises",
+      "radfamily",
+      "radwolfe",
+      "radcalendar"
+    ],
+    "preexistingOperatorExclusions": [
+      "o2",
+      "radcontrol"
+    ],
     "dataFlow": "O2 list_projects -> registryToProjects -> filterOperatorProjects -> ProjectRoster",
     "action": "preserved exactly; no project data was seeded or recreated"
   },
   "infrastructure": [
-    { "key": "openai-codex", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
-    { "key": "cloudflare", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
-    { "key": "github", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
-    { "key": "vercel", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
-    { "key": "supabase", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
-    { "key": "resend", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
-    { "key": "google-workspace", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
-    { "key": "dqotd-workspace", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
-    { "key": "docker", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
-    { "key": "system76-workstation", "historicalState": "visible Infrastructure workspace", "finalState": "canonical O2 identity plus Security > Host Guardian; not visible in Infrastructure", "action": "migrated to Host Guardian / not visible in Infrastructure" },
-    { "key": "agent-mcp-surfaces", "historicalState": "visible", "finalState": "visible", "action": "preserved" },
-    { "key": "unregistered-future-assets", "historicalState": "not applicable", "finalState": "visible through generic governed-record projection except the exact system76-workstation key", "action": "preservation invariant" }
+    {
+      "key": "openai-codex",
+      "historicalState": "visible",
+      "finalState": "visible",
+      "action": "preserved"
+    },
+    {
+      "key": "cloudflare",
+      "historicalState": "visible",
+      "finalState": "visible",
+      "action": "preserved"
+    },
+    {
+      "key": "github",
+      "historicalState": "visible",
+      "finalState": "visible",
+      "action": "preserved"
+    },
+    {
+      "key": "vercel",
+      "historicalState": "visible",
+      "finalState": "visible",
+      "action": "preserved"
+    },
+    {
+      "key": "supabase",
+      "historicalState": "visible",
+      "finalState": "visible",
+      "action": "preserved"
+    },
+    {
+      "key": "resend",
+      "historicalState": "visible",
+      "finalState": "visible",
+      "action": "preserved"
+    },
+    {
+      "key": "google-workspace",
+      "historicalState": "visible",
+      "finalState": "visible",
+      "action": "preserved"
+    },
+    {
+      "key": "dqotd-workspace",
+      "historicalState": "visible",
+      "finalState": "visible",
+      "action": "preserved"
+    },
+    {
+      "key": "docker",
+      "historicalState": "visible",
+      "finalState": "visible",
+      "action": "preserved"
+    },
+    {
+      "key": "system76-workstation",
+      "historicalState": "visible Infrastructure workspace",
+      "finalState": "canonical O2 identity plus Security > Host Guardian; not visible in Infrastructure",
+      "action": "migrated to Host Guardian / not visible in Infrastructure"
+    },
+    {
+      "key": "agent-mcp-surfaces",
+      "historicalState": "visible",
+      "finalState": "visible",
+      "action": "preserved"
+    },
+    {
+      "key": "unregistered-future-assets",
+      "historicalState": "not applicable",
+      "finalState": "visible through generic governed-record projection except the exact system76-workstation key",
+      "action": "preservation invariant"
+    }
   ],
   "notesModes": [
-    { "key": "notes", "historical": "Notes", "final": "Notes", "action": "preserved" },
-    { "key": "timeline", "historical": "Timeline", "final": "Work > Timeline", "action": "moved intact in Round 3" },
-    { "key": "empire_blueprint", "historical": "Empire Blueprint", "final": "Empire Blueprint", "action": "preserved" },
-    { "key": "empire_todo", "historical": "Empire To-Do List", "final": "Work > Tasks", "action": "consolidated with Progress into one task collection in Round 3; editor and persistence preserved" }
+    {
+      "key": "notes",
+      "historical": "Notes",
+      "final": "Notes",
+      "action": "preserved"
+    },
+    {
+      "key": "timeline",
+      "historical": "Timeline",
+      "final": "RCE > RadCloud > Work > Timeline",
+      "action": "Wave 3 functional replacement verified against synthetic O2 records; real records unchanged"
+    },
+    {
+      "key": "empire_blueprint",
+      "historical": "Empire Blueprint",
+      "final": "Empire Blueprint",
+      "action": "preserved"
+    },
+    {
+      "key": "empire_todo",
+      "historical": "Empire To-Do List",
+      "final": "RCE > RadCloud > Work > Tasks",
+      "action": "Wave 3 functional replacement verified against synthetic O2 records; real records unchanged"
+    }
   ],
   "legalModes": [],
   "migratedLegalModes": [
@@ -84,24 +249,80 @@
     }
   ],
   "empireOperations": [
-    { "historicalFeature": "Empire Map producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Empire Map", "action": "restored from Git history" },
-    { "historicalFeature": "RadControl Snapshot producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Snapshot", "action": "restored from Git history" },
-    { "historicalFeature": "Empire Sweep producer, run history, viewer, copy", "finalDestination": "Security > Empire Operations > Empire Sweep", "action": "restored from Git history" }
+    {
+      "historicalFeature": "Empire Map producer, run history, viewer, copy",
+      "finalDestination": "Security > Empire Operations > Empire Map",
+      "action": "restored from Git history"
+    },
+    {
+      "historicalFeature": "RadControl Snapshot producer, run history, viewer, copy",
+      "finalDestination": "Security > Empire Operations > Snapshot",
+      "action": "restored from Git history"
+    },
+    {
+      "historicalFeature": "Empire Sweep producer, run history, viewer, copy",
+      "finalDestination": "Security > Empire Operations > Empire Sweep",
+      "action": "restored from Git history"
+    }
   ],
   "securityControlRoom": [
-    { "historicalFeature": "Host Guardian summary, telemetry, incidents, activity, automation, records, and safe cleanup", "finalDestination": "Security > Radcon Sentinel", "action": "preserved and consolidated into health, Current Measurements, Recent Guardian Activity, and five advanced areas; duplicate Diagnostics, fan, schedule, and Quick Answers presentations removed" },
-    { "historicalFeature": "Security Guardian provider and website inventory", "finalDestination": "Security > Security Guardian", "action": "promoted from a buried advanced card to a first-class subtab" },
-    { "historicalFeature": "Empire Map, Snapshot, and Sweep artifacts", "finalDestination": "Security > Empire Operations", "action": "preserved with an added truthful operational overview" }
+    {
+      "historicalFeature": "Host Guardian summary, telemetry, incidents, activity, automation, records, and safe cleanup",
+      "finalDestination": "Security > Radcon Sentinel",
+      "action": "preserved and consolidated into health, Current Measurements, Recent Guardian Activity, and five advanced areas; duplicate Diagnostics, fan, schedule, and Quick Answers presentations removed"
+    },
+    {
+      "historicalFeature": "Security Guardian provider and website inventory",
+      "finalDestination": "Security > Security Guardian",
+      "action": "promoted from a buried advanced card to a first-class subtab"
+    },
+    {
+      "historicalFeature": "Empire Map, Snapshot, and Sweep artifacts",
+      "finalDestination": "Security > Empire Operations",
+      "action": "preserved with an added truthful operational overview"
+    }
   ],
   "system76Migration": [
-    { "historicalFeature": "machine identity, configuration, notes", "finalDestination": "Security > Host Guardian > Workstation Identity + Record", "action": "migrated" },
-    { "historicalFeature": "thermal, fans, CPU, load, memory, swap, storage, disk I/O", "finalDestination": "Security > Host Guardian signals and collapsed evidence", "action": "migrated" },
-    { "historicalFeature": "processes, services, network, Docker, Supabase, startup and login evidence", "finalDestination": "Security > Host Guardian signals and collapsed evidence", "action": "migrated" },
-    { "historicalFeature": "update check and history", "finalDestination": "Security > Host Guardian > Maintenance Inventory", "action": "migrated read-only" },
-    { "historicalFeature": "repository router durability", "finalDestination": "Agents > Repository Routers", "action": "restored outside Host Guardian" },
-    { "historicalFeature": "safe cleanup preview/apply", "finalDestination": "Security > Radcon Sentinel > top fan investigation plus Maintenance & Updates and Safety & Permissions boundaries", "action": "preserved only for the exact pop-upgrade.service signature with fresh preview, explicit confirmation, OS authorization, and post-repair verification" },
-    { "historicalFeature": "catalog refresh and official updater launch", "finalDestination": "Host Guardian maintenance migration boundary", "action": "accounted for; operator-owned and not exposed under Sentinel v1" },
-    { "historicalFeature": "Terra workstation review", "finalDestination": "Security > Radcon Sentinel > Investigate another problem", "action": "superseded by bounded deterministic guidance without a standalone Quick Answers section, live LLM, or execution channel" }
+    {
+      "historicalFeature": "machine identity, configuration, notes",
+      "finalDestination": "Security > Host Guardian > Workstation Identity + Record",
+      "action": "migrated"
+    },
+    {
+      "historicalFeature": "thermal, fans, CPU, load, memory, swap, storage, disk I/O",
+      "finalDestination": "Security > Host Guardian signals and collapsed evidence",
+      "action": "migrated"
+    },
+    {
+      "historicalFeature": "processes, services, network, Docker, Supabase, startup and login evidence",
+      "finalDestination": "Security > Host Guardian signals and collapsed evidence",
+      "action": "migrated"
+    },
+    {
+      "historicalFeature": "update check and history",
+      "finalDestination": "Security > Host Guardian > Maintenance Inventory",
+      "action": "migrated read-only"
+    },
+    {
+      "historicalFeature": "repository router durability",
+      "finalDestination": "Agents > Repository Routers",
+      "action": "restored outside Host Guardian"
+    },
+    {
+      "historicalFeature": "safe cleanup preview/apply",
+      "finalDestination": "Security > Radcon Sentinel > top fan investigation plus Maintenance & Updates and Safety & Permissions boundaries",
+      "action": "preserved only for the exact pop-upgrade.service signature with fresh preview, explicit confirmation, OS authorization, and post-repair verification"
+    },
+    {
+      "historicalFeature": "catalog refresh and official updater launch",
+      "finalDestination": "Host Guardian maintenance migration boundary",
+      "action": "accounted for; operator-owned and not exposed under Sentinel v1"
+    },
+    {
+      "historicalFeature": "Terra workstation review",
+      "finalDestination": "Security > Radcon Sentinel > Investigate another problem",
+      "action": "superseded by bounded deterministic guidance without a standalone Quick Answers section, live LLM, or execution channel"
+    }
   ],
   "rootCause": [
     "PR 12 removed WorkstationOperationsPanel as part of the intentional System76 migration; RouterHealthPanel was nested inside that component, so unrelated repository-governance health disappeared with it.",
@@ -109,10 +330,21 @@
     "Project registry wiring, the ten non-workstation Infrastructure profiles, Notes modes, Legal, and their shared layout declarations were not removed; the regression was capability coupling and over-broad disposition, not project-data loss or global CSS hiding."
   ],
   "round3Consolidation": {
-    "workModes": ["Tasks", "Initiatives", "Timeline"],
-    "notesModes": ["My Notes", "Empire Blueprint", "O2 Knowledge"],
+    "workModes": [
+      "Tasks",
+      "Initiatives",
+      "Timeline"
+    ],
+    "notesModes": [
+      "My Notes",
+      "Empire Blueprint",
+      "O2 Knowledge"
+    ],
     "initiativeEditor": "moved from Overview to Work; Overview remains read-only",
-    "retiredDestinations": ["To-Do", "Progress"]
+    "retiredDestinations": [
+      "To-Do",
+      "Progress"
+    ]
   },
   "intentionalDeletions": [
     "standalone Empire Utility primary tab and component",

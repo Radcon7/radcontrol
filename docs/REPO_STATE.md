@@ -43,25 +43,17 @@ not replace current product rules. The concise precedence rule is linked by
 
 ## Current surfaces
 
-- Overview is a read-only executive projection from `operator.work.overview`.
-  O2 owns counts, blocked-task attention, proposal/blocker review, explicit task
-  Next Actions, pinned initiative Next Moves, Timeline movement and coverage.
-  All blocked tasks remain visible; partial or failed coverage cannot become an
-  all-clear. References select the corresponding record in Work. The compact
-  Security link does not claim unmeasured system health.
-- Work follows Overview, before Projects, Infrastructure, Agents, Security,
-  Notes and Legal. Its joined inner tabs are Tasks, Initiatives and Timeline.
-  Tasks owns one collection with All, Now (In Progress + Blocked), Planned,
-  Backlog, Blocked, Deferred (including unclassified) and Completed views.
-  Progress remains a task property in every view; a just-completed selection
-  stays visible with 100% and a route to Completed. Search, selection, scroll
-  and drafts survive ordinary Work navigation. Headers and filters remain
-  outside the task/initiative record scroller.
-  Initiatives owns review/editing: proposals, finite/ongoing kind, status,
-  phase, Next Move, blocker, assessment/basis/date, target date, pins, task/event
-  references and movement/review dates. Initial proposals require deliberate
-  acceptance. Neither task counts nor task percentages measure an initiative.
-  Timeline retains curated milestones, month grouping and reverse chronology.
+- Overview and Work now live in RCE > RadCloud > Work. Their old top-level
+  navigation, editors, renderers and exclusive styles were removed after
+  Wave 3 integrated acceptance. O2 remains the sole mutable authority. RadCloud
+  delegates only the existing seven supported Work operations with revision
+  checks; no records were migrated into a second store. All 35 tasks, 6 proposed
+  initiatives and 7 milestones remain at revision 2. The 12 Project Notes,
+  Security, Agents, Notes, Projects and Infrastructure remain unchanged.
+- Projects is the default destination. Infrastructure remains pending a later
+  migration. Runtime Diagnostics and Project Notes retain their shared O2 Work
+  models and API. Historical native Work acceptance below applies to the prior
+  build; current Work browser acceptance belongs to RCE and RadCloud.
 
 - Projects: governed registry, runtime controls, project evidence, notes, and a
   capability-driven formation/bootstrap entry backed by O2 Modern Web
@@ -160,7 +152,7 @@ not replace current product rules. The concise precedence rule is linked by
   through its existing governed local CLI. No Notes or Projects change is needed.
 
 
-## Work clarity
+## Historical Work clarity and retained shared behavior
 
 - Tasks shows compact selectable rows with current state, Next Action,
   relevant blockers and acceptance. One selected editor preserves every existing
@@ -437,6 +429,6 @@ in each of the three archive namespaces, without changing the real documents.
 Exact payload examples and the operator workflow live in RadCloud's
 `docs/REPO_STATE.md`. RadCloud has no editor, write integration or synchronization.
 
-Overview, Work and mixed Infrastructure await separate reconciliation. None is
+Overview and Work were replaced in Wave 3. Mixed Infrastructure still awaits separate reconciliation and is
 migrated in this wave. No native installation is part of this local checkpoint;
 an installed RadControl continues to show its installed UI.
