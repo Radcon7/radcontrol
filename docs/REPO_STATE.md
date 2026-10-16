@@ -36,8 +36,7 @@ not replace current product rules. The concise precedence rule is linked by
   action, and the existing workspace error/action treatment.
 - Modal intake inherits shell control/focus behavior. Project creation keeps
   its inspectable decisions below and O2-owned placement/intake identity.
-- Legal preserves its three-address distinction without exposing the private
-  owner's street address or inventing an unresolved registered-agent address.
+- Legal has migrated to RadCloud; its dated snapshots preserve the three-address distinction and private-address boundary. O2 remains the source owner.
 - Existing local typography and tokens apply, including Security's explicit
   minimums below. The retired O2 UI doctrine does not impose older font sizes,
   a hidden/minimal builder, tracked Project Notes, or simulated-only repair.
@@ -150,26 +149,16 @@ not replace current product rules. The concise precedence rule is linked by
   2-5 remain visibly not activated. An explicit investigation of a genuinely
   unknown result may still invoke the read-only diagnostic advisor. Host records
   remain O2-owned.
-- Notes and Legal: Notes distinguishes My Notes (one private persistent O2
+- Notes: Notes distinguishes My Notes (one private persistent O2
   runtime scratchpad, explicitly not Empire authority), one living
   Empire Blueprint owner manual and read-only O2 Knowledge. My Notes use
   `.state/radcontrol-operator/my-notes.md`; Blueprint uses its single canonical
   `docs/radcontrol/empire_blueprint/empire_blueprint_20260822.md`. O2 Knowledge
   reads a deterministic O2 projection at request time and owns no RadControl
-  knowledge cache, registry, or database. Legal retains three views over the O2 portfolio blueprint: Structure is first and
-  default, followed by Addresses & Agent and Documents & Compliance. Formation,
-  Brands & Ventures and Business Accounts have moved to RadCloud in the local
-  migration wave below. Its legal diagram keeps
-  Radcon Enterprises and the separate RadWolfe partnership parallel, while a
-  visually distinct portal panel explains least-privilege operating access as
-  not ownership. Structure opens directly into a first-screen connected graph:
-  Radcon Enterprises and RadWolfe are equal, parallel top-level lanes; solid
-  wires denote ownership/containment, dashed wires denote Radcon support,
-  service, and address relationships, and no ownership wire may cross between
-  the two lanes. The smaller RCE access diagram remains below that graph and
-  must never be mistaken for ownership. The three existing legal document libraries remain available
-  as governed archive subviews inside Documents & Compliance rather than as
-  competing top-level truth surfaces.
+  knowledge cache, registry, or database. Legal is removed after Wave 2 replacement acceptance. Its read-only
+  planning and archive views now live in RCE > RadCloud; O2 retains document edits
+  through its existing governed local CLI. No Notes or Projects change is needed.
+
 
 ## Work clarity
 
@@ -229,9 +218,7 @@ Sentinel renders O2 workload attribution without inventing useful-progress proof
   My Notes use a dedicated private O2 runtime producer and must survive source
   checkout plus matched-pair promotion, rollback, and reinstall without a commit.
   Blueprint is one intentionally edited O2 document, not a library; O2 Knowledge is
-  read-only through `knowledge.operator_workspace`. Legal reads the validated
-  O2 `docs/portfolio/PORTFOLIO_BLUEPRINT.json` projection. It owns no browser
-  legal registry and preserves existing archive writes through O2 file verbs.
+  read-only through `knowledge.operator_workspace`. Legal has no remaining RadControl renderer or archive write caller. O2 sources and governed local file operations remain intact; RadCloud serves reconciled read-only snapshots.
 - Tasks, Timeline, Project Notes and initiatives use `operator.work.list` and
   revision-checked stdin `operator.work.mutate`. Each editor retains its loaded
   revision; conflicts preserve drafts and offer explicit discard/reload. The
@@ -410,7 +397,7 @@ real Runtime modal, Rust bridge and O2 owner. These use isolated fixture files,
 prove diagnostics performs no writes, and restore each failure fixture exactly.
 The candidate precheck must pass this same matrix before live promotion.
 
-## RadCloud migration wave 1 — 2026-10-16
+## RadCloud migration waves 1–2 — 2026-10-16
 
 The intended final RadControl areas are Security, Agents, Notes and Projects;
 none of those functional areas changes in this wave. Original top-level screens
@@ -418,7 +405,7 @@ were Overview, Work, Projects, Infrastructure, Agents, Security, Notes and Legal
 Overview and Work belong in RadCloud after reconciliation of real private Work
 records. Infrastructure's cloud/provider directory belongs in RadCloud; its
 workstation controls must remain local and later fold into Security or Projects.
-Legal belongs in RadCloud, with unreconciled archives preserved. No top-level
+Legal now lives in RadCloud, with all six original O2 archive documents preserved. No top-level
 screen is declared wholly obsolete merely because its destination changes.
 
 This first wave replaces only Legal's Formation, Brands & Ventures and Business
@@ -429,11 +416,27 @@ formation steps, nine brand/venture records and eight account planning items are
 reconciled to O2 source commit eeb51fad2ba9b4f0adb9ae10bc6746f5daf83bc1, reviewed
 2026-08-24. These are planning states, not current external verification.
 
-The selected old screens had no source-owned write handlers or persistence.
-O2's original blueprint remains intact for Structure and remaining consumers;
-its schema parser is retained for those views. All three governed Legal archives
-remain editable through their existing owner. No data deletion, duplicate mutable
-authority, runtime synchronization or workstation-to-cloud control move occurs.
-Later waves must reconcile real records before removing Overview/Work, mixed
-Infrastructure or remaining Legal views. No native installation is part of this
-local checkpoint; an installed RadControl continues to show its installed UI.
+Wave 2 completes Structure, the consolidated Addresses & Agent context,
+Documents & Compliance and all three archive groups. Twelve entity/project
+records, three address profiles, thirteen document pointers and six complete
+archive documents were reconciled with per-source identities and dates. Historical
+and unsigned documents never become current legal/provider facts.
+
+After replacement browser acceptance, LegalHubTab, PortfolioBlueprint, its parser,
+and the now-exclusive DocumentLibraryPanel were removed, along with Legal
+navigation/rendering, exclusive CSS, dead rename/delete UI helpers and obsolete
+renderer tests. The `verify:portfolio-blueprint` gate name remains for registered
+quality compatibility and now verifies the Legal migration/preservation boundary.
+Shared notes/artifact read/write components, Rust bridge and the four retained
+functional areas remain unchanged.
+
+O2 retains its original blueprint and six documents. Its existing
+`scripts/o2_governed_files.py write|rename|delete --stdin` supports authorized local
+create/edit/rename/delete. All four operations were verified with disposable files
+in each of the three archive namespaces, without changing the real documents.
+Exact payload examples and the operator workflow live in RadCloud's
+`docs/REPO_STATE.md`. RadCloud has no editor, write integration or synchronization.
+
+Overview, Work and mixed Infrastructure await separate reconciliation. None is
+migrated in this wave. No native installation is part of this local checkpoint;
+an installed RadControl continues to show its installed UI.

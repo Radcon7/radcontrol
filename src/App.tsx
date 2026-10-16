@@ -9,7 +9,6 @@ import { WorkHub } from "./components/work/WorkHub";
 import type { WorkTarget } from "./components/overview/workModel";
 import { Overview } from "./components/overview/Overview";
 import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
-import { LegalHubTab } from "./components/paste-tabs/LegalHubTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
 import { AddProjectModal } from "./components/projects/AddProjectModal";
 
@@ -48,7 +47,7 @@ import {
 } from "./components/common/o2Client";
 import { readO2File } from "./components/common/o2Files";
 
-type LibraryTabKey = "notes" | "legal";
+type LibraryTabKey = "notes";
 type DocTabKey = LibraryTabKey;
 
 type TabKey =
@@ -68,7 +67,6 @@ type DocTabMeta = {
 
 const DOC_TABS: DocTabMeta[] = [
   { key: "notes", label: "Notes", mode: "library" },
-  { key: "legal", label: "Legal", mode: "library" },
 ];
 
 const ALL_TABS: TabKey[] = [
@@ -798,15 +796,6 @@ export default function App() {
     if (activeTab === "notes") {
       return (
         <NotesHubTab
-          busy={busy}
-          registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
-        />
-      );
-    }
-
-    if (activeTab === "legal") {
-      return (
-        <LegalHubTab
           busy={busy}
           registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
         />

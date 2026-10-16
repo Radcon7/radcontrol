@@ -3,7 +3,6 @@ import {
   O2_STDIN_PAYLOAD_MAX_BYTES,
   b64urlEncodeUtf8,
   runO2ParsedJson,
-  runO2PayloadParsedJson,
   runO2StdinPayloadParsedJson,
 } from "./o2Client";
 
@@ -41,33 +40,9 @@ export type FilesWriteJson = {
   error?: string;
 };
 
-export type FilesRenameJson = {
-  ok?: boolean;
-  fromPath?: string;
-  toPath?: string;
-  mtime?: number;
-  bytes?: number;
-  error?: string;
-};
-
 export type O2WritePayload = {
   path: string;
   content: string;
-};
-
-export type O2RenamePayload = {
-  fromPath: string;
-  toPath: string;
-};
-
-export type O2DeleteJson = {
-  ok?: boolean;
-  path?: string;
-  error?: string;
-};
-
-export type O2DeletePayload = {
-  path: string;
 };
 
 function assertInlineDocumentSize(content: string): void {
@@ -144,36 +119,6 @@ export async function writeO2File(
   );
   if (!parsed.ok) {
     throw new Error(parsed.error || "files.write returned error");
-  }
-  return parsed;
-}
-
-export async function renameO2File(
-  payload: O2RenamePayload,
-): Promise<FilesRenameJson> {
-  const parsed = await runO2PayloadParsedJson<FilesRenameJson>(
-    "files.rename",
-    payload,
-    "files.rename failed",
-    "files.rename returned invalid JSON",
-  );
-  if (!parsed.ok) {
-    throw new Error(parsed.error || "files.rename returned error");
-  }
-  return parsed;
-}
-
-export async function deleteO2File(
-  payload: O2DeletePayload,
-): Promise<O2DeleteJson> {
-  const parsed = await runO2PayloadParsedJson<O2DeleteJson>(
-    "files.delete",
-    payload,
-    "files.delete failed",
-    "files.delete returned invalid JSON",
-  );
-  if (!parsed.ok) {
-    throw new Error(parsed.error || "files.delete returned error");
   }
   return parsed;
 }

@@ -13,7 +13,7 @@
     { "historical": "Agents", "final": "Agents", "action": "preserved; repository router health restored as an internal workspace" },
     { "historical": "Sentinel", "final": "Security > Radcon Sentinel", "action": "intentional replacement label preserved" },
     { "historical": "Notes", "final": "Notes", "action": "preserved" },
-    { "historical": "Legal", "final": "Legal", "action": "preserved" },
+    { "historical": "Legal", "final": "RCE > RadCloud > Legal", "action": "all seven views migrated; O2 originals and governed local editing retained; old Legal tab removed" },
     { "historical": "Empire Utility", "final": "Security > Empire Operations", "action": "intentional primary-destination replacement; useful report workspace restored" }
   ],
   "projects": {
@@ -45,11 +45,7 @@
     { "key": "empire_blueprint", "historical": "Empire Blueprint", "final": "Empire Blueprint", "action": "preserved" },
     { "key": "empire_todo", "historical": "Empire To-Do List", "final": "Work > Tasks", "action": "consolidated with Progress into one task collection in Round 3; editor and persistence preserved" }
   ],
-  "legalModes": [
-    { "key": "structure", "historical": "Portfolio Blueprint", "final": "Structure", "action": "renamed and redesigned as the first/default legal and portal relationship view" },
-    { "key": "addresses", "historical": "not a first-class view", "final": "Addresses & Agent", "action": "added as the explicit three-address model over the existing O2 planning record" },
-    { "key": "documents", "historical": "Legal Notes, Legal Documents, Legal Entity Structure Drawing", "final": "Documents & Compliance", "action": "three governed archives preserved as embedded subviews" }
-  ],
+  "legalModes": [],
   "migratedLegalModes": [
     {
       "key": "formation",
@@ -65,6 +61,26 @@
       "key": "accounts",
       "final": "RCE > RadCloud > Legal > Business Accounts",
       "action": "read-only planning snapshot reconciled; old view removed; O2 source preserved"
+    },
+    {
+      "key": "structure",
+      "final": "RCE > RadCloud > Legal > Structure",
+      "action": "dated read-only snapshot reconciled; O2 sources preserved; archive editing remains through the local O2 governed-files CLI"
+    },
+    {
+      "key": "addresses",
+      "final": "RCE > RadCloud > Legal > Addresses & Agent",
+      "action": "dated read-only snapshot reconciled; O2 sources preserved; archive editing remains through the local O2 governed-files CLI"
+    },
+    {
+      "key": "documents",
+      "final": "RCE > RadCloud > Legal > Documents & Compliance",
+      "action": "dated read-only snapshot reconciled; O2 sources preserved; archive editing remains through the local O2 governed-files CLI"
+    },
+    {
+      "key": "archives",
+      "final": "RCE > RadCloud > Legal > Archives",
+      "action": "dated read-only snapshot reconciled; O2 sources preserved; archive editing remains through the local O2 governed-files CLI"
     }
   ],
   "empireOperations": [
