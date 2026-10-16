@@ -27,11 +27,10 @@ const expectedVisibleProjects = [
   "radfamily", "radwolfe", "radcalendar",
 ];
 const expectedPreservedInfrastructure = [
-  "openai-codex", "cloudflare", "github", "vercel", "supabase", "resend",
-  "google-workspace", "dqotd-workspace", "docker", "agent-mcp-surfaces",
+  "docker", "agent-mcp-surfaces",
 ];
 
-for (const tab of ["projects", "infrastructure", "agents", "sentinel", "notes"]) {
+for (const tab of ["projects", "agents", "sentinel", "notes"]) {
   assert.match(app, new RegExp(`"${tab}"`), `primary destination ${tab} must remain registered`);
 }
 assert.match(app, /sentinel: "Security"/);
@@ -99,7 +98,7 @@ assert.deepEqual(manifest.projects.historicalRegisteredKeys, manifest.projects.f
 assert.deepEqual(manifest.projects.historicalVisibleKeys, manifest.projects.finalVisibleKeys);
 assert.deepEqual(
   manifest.infrastructure
-    .filter((entry) => entry.action === "preserved")
+    .filter((entry) => entry.action === "KEEP_PROJECTS")
     .map((entry) => entry.key),
   expectedPreservedInfrastructure,
 );

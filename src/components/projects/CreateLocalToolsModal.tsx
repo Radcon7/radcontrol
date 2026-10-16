@@ -1,24 +1,24 @@
-import type { ProjectRow } from "../projects/types";
+import type { ProjectRow } from "./types";
 import {
   ASSET_TYPE_OPTIONS,
   ENVIRONMENT_SCOPE_OPTIONS,
-  type InfrastructureDraft,
-  type InfrastructureProfile,
-} from "./infrastructureModel";
+  type LocalToolsDraft,
+  type LocalToolsProfile,
+} from "./localToolsModel";
 
 type Props = {
-  draft: InfrastructureDraft;
-  profiles: InfrastructureProfile[];
+  draft: LocalToolsDraft;
+  profiles: LocalToolsProfile[];
   projects: ProjectRow[];
   creating: boolean;
   loading: boolean;
   onClose: () => void;
   onApplyTemplate: (templateId: string) => void;
-  onDraftChange: (patch: Partial<InfrastructureDraft>) => void;
+  onDraftChange: (patch: Partial<LocalToolsDraft>) => void;
   onCreate: () => Promise<void> | void;
 };
 
-export function CreateInfrastructureModal({
+export function CreateLocalToolsModal({
   draft,
   profiles,
   projects,
@@ -31,9 +31,9 @@ export function CreateInfrastructureModal({
 }: Props) {
   return (
     <div className="modalOverlay" onClick={onClose}>
-      <div className="modalCard infrastructureModalCard" onClick={(event) => event.stopPropagation()}>
+      <div className="modalCard localToolsModalCard" onClick={(event) => event.stopPropagation()}>
         <div className="modalHeader">
-          <div className="modalTitle">New Infrastructure</div>
+          <div className="modalTitle">New Local Tool</div>
           <button className="btn btnGhost" onClick={onClose} disabled={creating}>Close</button>
         </div>
         <div className="modalBody modalBodySingle">
@@ -57,7 +57,7 @@ export function CreateInfrastructureModal({
             </label>
             <div className="surfaceFormRow2">
               <label className="surfaceFormField">
-                <span className="surfaceFormLabel">Infrastructure Kind</span>
+                <span className="surfaceFormLabel">Local Tool Kind</span>
                 <div className="surfaceSelectWrap">
                   <select className="input" value={draft.assetType} onChange={(event) => onDraftChange({ assetType: event.target.value })}>
                     {ASSET_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
@@ -112,7 +112,7 @@ export function CreateInfrastructureModal({
                 onClick={() => void onCreate()}
                 disabled={creating || loading}
               >
-                {creating ? "Creating..." : "Create Infrastructure"}
+                {creating ? "Creating..." : "Create Local Tool"}
               </button>
             </div>
           </div>

@@ -6,7 +6,7 @@ for(const name of ['LegalHubTab.tsx','PortfolioBlueprint.tsx','portfolioBlueprin
 assert.doesNotMatch(app,/LegalHubTab|"legal"/);assert.doesNotMatch(css,/\.legalHub|\.legalOperator|\.legalStructure|\.portalAccess|\.legalArchive/);
 assert.doesNotMatch(files,/export async function (renameO2File|deleteO2File)/);
 assert.match(files,/export async function writeO2File/);assert.match(files,/export async function readO2File/);
-for(const key of ['sentinel','agents','notes','projects','work','overview','infrastructure'])assert.ok(app.includes(`"${key}"`));
+for(const key of ['sentinel','agents','notes','projects'])assert.ok(app.includes(`"${key}"`));
 const manifest=JSON.parse(read('docs/RADCONTROL_CONTENT_PRESERVATION.json'));
 assert.deepEqual(manifest.legalModes,[]);
 assert.deepEqual(new Set(manifest.migratedLegalModes.map(r=>r.key)),new Set(['formation','brands','accounts','structure','addresses','documents','archives']));

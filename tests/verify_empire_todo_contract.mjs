@@ -3,7 +3,7 @@ import {readFileSync,existsSync} from 'node:fs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const app=read('src/App.tsx');
 assert.doesNotMatch(app,/WorkHub|<Overview|"overview"|"work"/);
-for(const key of ['projects','infrastructure','agents','sentinel','notes'])assert(app.includes('"'+key+'"'));
+for(const key of ['projects','agents','sentinel','notes'])assert(app.includes('"'+key+'"'));
 for(const file of ['src/components/work/WorkHub.tsx','src/components/work/InitiativesWorkspace.tsx','src/components/overview/Overview.tsx','src/components/notes/EmpireTodoWorkspace.tsx','src/components/notes/empireTodoApi.ts','src/components/paste-tabs/TimelineTab.tsx','src/components/paste-tabs/timelineLoader.ts'])assert(!existsSync(new URL('../'+file,import.meta.url)),file+' must be retired');
 assert.match(read('src/components/common/useGovernedRecordNote.ts'),/project-note.save/);
 assert.match(read('src/components/overview/workApi.ts'),/operator.work.mutate/);

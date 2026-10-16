@@ -10,7 +10,7 @@ const hook = await readFile(
 const consumers = await Promise.all(
   [
     "projects/ProjectsTab.tsx",
-    "agents/InfrastructureTab.tsx",
+    "projects/LocalToolsTab.tsx",
     "agents/AgentsTab.tsx",
   ].map(async (path) => ({
     path,

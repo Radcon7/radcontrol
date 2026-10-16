@@ -15,8 +15,8 @@
     },
     {
       "historical": "Infrastructure",
-      "final": "Infrastructure",
-      "action": "preserved"
+      "final": "RCE > RadCloud > Infrastructure; Projects > Local Tools",
+      "action": "Wave 4 split; old top-level destination removed"
     },
     {
       "historical": "Agents",
@@ -114,56 +114,56 @@
     {
       "key": "openai-codex",
       "historicalState": "visible",
-      "finalState": "visible",
-      "action": "preserved"
+      "finalState": "RCE > RadCloud > Infrastructure",
+      "action": "MOVE_RADCLOUD"
     },
     {
       "key": "cloudflare",
       "historicalState": "visible",
-      "finalState": "visible",
-      "action": "preserved"
+      "finalState": "RCE > RadCloud > Infrastructure",
+      "action": "MOVE_RADCLOUD"
     },
     {
       "key": "github",
       "historicalState": "visible",
-      "finalState": "visible",
-      "action": "preserved"
+      "finalState": "RCE > RadCloud > Infrastructure",
+      "action": "MOVE_RADCLOUD"
     },
     {
       "key": "vercel",
       "historicalState": "visible",
-      "finalState": "visible",
-      "action": "preserved"
+      "finalState": "RCE > RadCloud > Infrastructure",
+      "action": "MOVE_RADCLOUD"
     },
     {
       "key": "supabase",
       "historicalState": "visible",
-      "finalState": "visible",
-      "action": "preserved"
+      "finalState": "RCE > RadCloud > Infrastructure",
+      "action": "MOVE_RADCLOUD"
     },
     {
       "key": "resend",
       "historicalState": "visible",
-      "finalState": "visible",
-      "action": "preserved"
+      "finalState": "RCE > RadCloud > Infrastructure",
+      "action": "MOVE_RADCLOUD"
     },
     {
       "key": "google-workspace",
       "historicalState": "visible",
-      "finalState": "visible",
-      "action": "preserved"
+      "finalState": "RCE > RadCloud > Infrastructure",
+      "action": "MOVE_RADCLOUD"
     },
     {
       "key": "dqotd-workspace",
       "historicalState": "visible",
-      "finalState": "visible",
-      "action": "preserved"
+      "finalState": "RCE > RadCloud > Infrastructure",
+      "action": "MOVE_RADCLOUD"
     },
     {
       "key": "docker",
       "historicalState": "visible",
-      "finalState": "visible",
-      "action": "preserved"
+      "finalState": "Projects > Local Tools",
+      "action": "KEEP_PROJECTS"
     },
     {
       "key": "system76-workstation",
@@ -174,14 +174,14 @@
     {
       "key": "agent-mcp-surfaces",
       "historicalState": "visible",
-      "finalState": "visible",
-      "action": "preserved"
+      "finalState": "Projects > Local Tools",
+      "action": "KEEP_PROJECTS"
     },
     {
       "key": "unregistered-future-assets",
       "historicalState": "not applicable",
-      "finalState": "visible through generic governed-record projection except the exact system76-workstation key",
-      "action": "preservation invariant"
+      "finalState": "RCE > RadCloud > Infrastructure",
+      "action": "MOVE_RADCLOUD"
     }
   ],
   "notesModes": [

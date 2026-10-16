@@ -4,33 +4,33 @@ import { listO2Files, readO2File } from "../common/o2Files";
 import { SystemStateShell } from "../common/SystemStateShell";
 import { useGovernedRecordNote } from "../common/useGovernedRecordNote";
 import { openGovernedUrl } from "../common/governedOpener";
-import { CreateInfrastructureModal } from "./CreateInfrastructureModal";
-import { InfrastructureDetail } from "./InfrastructureDetail";
-import { InfrastructureRoster } from "./InfrastructureRoster";
-import { InfrastructureRunControls } from "./InfrastructureRunControls";
-import type { ProjectRow } from "../projects/types";
+import { CreateLocalToolsModal } from "./CreateLocalToolsModal";
+import { LocalToolsDetail } from "./LocalToolsDetail";
+import { LocalToolsRoster } from "./LocalToolsRoster";
+import { LocalToolsRunControls } from "./LocalToolsRunControls";
+import type { ProjectRow } from "./types";
 import {
   DEFAULT_OPEN_QUESTIONS,
   RECORDS_DIR,
-  buildInfrastructureEntries,
-  buildInfrastructureProfiles,
+  buildLocalToolsEntries,
+  buildLocalToolsProfiles,
   draftFromProfile,
   notePathForKey,
   normalizeKey,
-  parseInfrastructureAsset,
+  parseLocalToolsAsset,
   sortAssets,
   starterSelectionKey,
-  type InfrastructureAsset,
-  type InfrastructureDraft,
-  type InfrastructureEntry,
-} from "./infrastructureModel";
+  type LocalToolsAsset,
+  type LocalToolsDraft,
+  type LocalToolsEntry,
+} from "./localToolsModel";
 import {
   buildGovernedEvidenceLog,
-  buildInfrastructureAuditLog,
-  buildInfrastructureSnapshotLog,
-} from "./infrastructureReports";
+  buildLocalToolsAuditLog,
+  buildLocalToolsSnapshotLog,
+} from "./localToolsReports";
 
-type CreateInfrastructureJson = {
+type CreateLocalToolsJson = {
   ok?: boolean;
   assetKey?: string;
   originArtifactPath?: string;
@@ -44,21 +44,21 @@ type Props = {
   registerBeforeTabChangeSaver?: (fn: (() => Promise<boolean>) | null) => void;
 };
 
-export function InfrastructureTab({
+export function LocalToolsTab({
   projects,
   onAppendLog,
   registerBeforeTabChangeSaver,
 }: Props) {
-  const profiles = useMemo(() => buildInfrastructureProfiles(projects), [projects]);
+  const profiles = useMemo(() => buildLocalToolsProfiles(projects), [projects]);
   const defaultProfile = profiles[0];
 
-  const [entries, setEntries] = useState<InfrastructureEntry[]>([]);
+  const [entries, setEntries] = useState<LocalToolsEntry[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [err, setErr] = useState("");
-  const [draft, setDraft] = useState<InfrastructureDraft>(() =>
+  const [draft, setDraft] = useState<LocalToolsDraft>(() =>
     draftFromProfile(defaultProfile),
   );
   const selectedEntry = useMemo(
@@ -105,7 +105,7 @@ export function InfrastructureTab({
         inventoryItems.map(async (item) => {
           const inventoryPath = item.path || "";
           const read = await readO2File(inventoryPath);
-          return parseInfrastructureAsset(
+          return parseLocalToolsAsset(
             read.content || "",
             inventoryPath,
             typeof item.mtime === "number" ? item.mtime : 0,
@@ -113,8 +113,8 @@ export function InfrastructureTab({
         }),
       );
 
-      const nextAssets = sortAssets(parsedAssets.filter(Boolean) as InfrastructureAsset[]);
-      const nextEntries = buildInfrastructureEntries(nextAssets, profiles);
+      const nextAssets = sortAssets(parsedAssets.filter(Boolean) as LocalToolsAsset[]);
+      const nextEntries = buildLocalToolsEntries(nextAssets, profiles);
 
       setEntries(nextEntries);
       setSelectedKey((current) => {
@@ -156,6 +156,8 @@ export function InfrastructureTab({
 
   async function createAsset(): Promise<void> {
     if (
+      draft.environmentScope !== "local" ||
+      !["local_toolchain", "mcp_surface"].includes(draft.assetType) ||
       !draft.label.trim() ||
       !draft.assetType.trim() ||
       !draft.provider.trim() ||
@@ -193,7 +195,7 @@ export function InfrastructureTab({
         openQuestions: DEFAULT_OPEN_QUESTIONS,
       };
 
-      const parsed = await runO2PayloadParsedJson<CreateInfrastructureJson>(
+      const parsed = await runO2PayloadParsedJson<CreateLocalToolsJson>(
         "infrastructure_asset.create",
         payload,
         "infrastructure_asset.create failed",
@@ -223,19 +225,19 @@ export function InfrastructureTab({
     }
   }
 
-  function logInfrastructureSnapshot(entry: InfrastructureEntry): void {
-    onAppendLog(buildInfrastructureSnapshotLog(entry, projects));
+  function logLocalToolsSnapshot(entry: LocalToolsEntry): void {
+    onAppendLog(buildLocalToolsSnapshotLog(entry, projects));
   }
 
-  function logInfrastructureAudit(entry: InfrastructureEntry): void {
-    onAppendLog(buildInfrastructureAuditLog(entry, projects));
+  function logLocalToolsAudit(entry: LocalToolsEntry): void {
+    onAppendLog(buildLocalToolsAuditLog(entry, projects));
   }
 
-  function logGovernedEvidence(entry: InfrastructureEntry): void {
+  function logGovernedEvidence(entry: LocalToolsEntry): void {
     onAppendLog(buildGovernedEvidenceLog(entry));
   }
 
-  async function openConsole(entry: InfrastructureEntry): Promise<void> {
+  async function openConsole(entry: LocalToolsEntry): Promise<void> {
     if (!entry.primaryConsoleUrl) {
       onAppendLog(
         `[infrastructure] Open Console unavailable for ${entry.label}: no console URL is recorded.`,
@@ -258,17 +260,17 @@ export function InfrastructureTab({
       data-testid="new-infrastructure"
       onClick={openCreateModal}
       disabled={creating || loading}
-      title="Create a governed infrastructure item under O2 authority"
+      title="Create a governed local tool under O2 authority"
     >
-      New Infrastructure
+      New Local Tool
     </button>
   );
 
   return (
-    <SystemStateShell title="Infrastructure" actions={actions} error={err ? <>{err}</> : null}>
+    <SystemStateShell title="Local Tools" actions={actions} error={err ? <>{err}</> : null}>
       <div className="surfaceLayout">
         <div className="surfaceSidebarStack">
-          <InfrastructureRoster
+          <LocalToolsRoster
             entries={entries}
             loading={loading}
             loadError={err}
@@ -281,16 +283,16 @@ export function InfrastructureTab({
           {!selectedEntry ? (
             <div className="surfaceCard surfaceEmptyState surfaceEmptyStateLarge">
               {loading
-                ? "Loading governed infrastructure data…"
+                ? "Loading governed local tool data…"
                 : err
-                  ? "Infrastructure data is unavailable. No empty-state claim is being made."
+                  ? "Local tool data is unavailable. No empty-state claim is being made."
                   : entries.length === 0
-                    ? "No infrastructure items are configured."
-                    : "Select an infrastructure item to inspect platform status, notes, and governed coverage."}
+                    ? "No local tools are configured."
+                    : "Select an local tool to inspect platform status, notes, and governed coverage."}
             </div>
           ) : (
             <div className="surfaceGridProjectTop">
-              <InfrastructureDetail
+              <LocalToolsDetail
                 entry={selectedEntry}
                 projects={projects}
                 notePath={governedNote.path}
@@ -304,11 +306,11 @@ export function InfrastructureTab({
                 onNoteChange={governedNote.onTextChange}
                 onConfigurationChange={configurationNote.onTextChange}
               />
-              <InfrastructureRunControls
+              <LocalToolsRunControls
                 entry={selectedEntry}
                 disabled={loading || creating}
-                onSnapshot={() => logInfrastructureSnapshot(selectedEntry)}
-                onAudit={() => logInfrastructureAudit(selectedEntry)}
+                onSnapshot={() => logLocalToolsSnapshot(selectedEntry)}
+                onAudit={() => logLocalToolsAudit(selectedEntry)}
                 onOpenConsole={() => openConsole(selectedEntry)}
                 onOpenEvidence={() => logGovernedEvidence(selectedEntry)}
               />
@@ -318,7 +320,7 @@ export function InfrastructureTab({
       </div>
 
       {showCreateModal ? (
-        <CreateInfrastructureModal
+        <CreateLocalToolsModal
           draft={draft}
           profiles={profiles}
           projects={projects}

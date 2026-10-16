@@ -6,7 +6,7 @@ type Props = {
   onChange: (value: string) => void;
 };
 
-export function InfrastructureConfigurationNote({
+export function LocalToolsConfigurationNote({
   status,
   value,
   readOnly,

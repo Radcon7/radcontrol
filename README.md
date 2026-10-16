@@ -8,14 +8,11 @@ RadControl owns UI layout, local presentation state, document viewing and editin
 
 ## Current Surfaces
 
-- **Overview**: read-only O2 Work projection with blocked work, proposal review,
-  explicit next actions, movement, coverage and links to Work records.
-- **Work**: one Tasks collection with lifecycle views and progress, Initiatives
-  review/editing, and curated Timeline milestones. Relationships use O2 CAS.
-- **Projects**: governed project registry, runtime controls, repo snapshots/maps, original formation requests when available, and New Project.
-- **Infrastructure**: governed provider and platform assets and notes. The
-  canonical workstation record is intentionally presented through Security's
-  Host Guardian rather than as a duplicate Infrastructure destination.
+- **Projects**: governed project registry, runtime controls, snapshots/maps,
+  formation and New Project. Local Tools retains Docker/MCP records and notes.
+- Cloud infrastructure, Work and Legal now live in RCE > RadCloud. O2 remains
+  their existing record authority. RadControl has exactly four top-level areas:
+  Security, Agents, Notes, Projects.
 - **Agents**: governed agent roster, attributes, scopes, and notes, plus the
   restored repository-router durability workspace backed by O2 `router.health`.
 - **Security**: one coherent three-workspace control room with large title-only

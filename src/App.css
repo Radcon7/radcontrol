@@ -2354,7 +2354,7 @@ pre {
   padding-right: 4px;
 }
 
-.infrastructureModalCard {
+.localToolsModalCard {
   width: min(920px, calc(100vw - 40px));
 }
 

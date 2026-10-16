@@ -1,7 +1,7 @@
-import type { InfrastructureEntry } from "./infrastructureModel";
+import type { LocalToolsEntry } from "./localToolsModel";
 
 type Props = {
-  entry: InfrastructureEntry;
+  entry: LocalToolsEntry;
   disabled: boolean;
   onSnapshot: () => void;
   onAudit: () => void;
@@ -9,7 +9,7 @@ type Props = {
   onOpenEvidence: () => void;
 };
 
-export function InfrastructureRunControls({
+export function LocalToolsRunControls({
   entry,
   disabled,
   onSnapshot,
@@ -25,7 +25,7 @@ export function InfrastructureRunControls({
           className="btn btnPrimary"
           onClick={onSnapshot}
           disabled={disabled}
-          title="Send a concise infrastructure snapshot to the logs surface"
+          title="Send a concise local tool snapshot to the logs surface"
         >
           Run Snapshot
         </button>

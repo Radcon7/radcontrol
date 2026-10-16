@@ -19,10 +19,10 @@ not replace current product rules. The concise precedence rule is linked by
 - Reuse one persistent shell/tab bar and logs surface. Keep shared headers,
   actions, errors and controls in the existing primitives; avoid duplicate
   decorative titles or selected-record summary cards.
-- Projects, Infrastructure and Agents use their shared navigator/detail grammar:
+- Projects, Local Tools and Agents use their shared navigator/detail grammar:
   concise selectors, a wide brief with the canonical record note, and a narrower
   purpose-specific supporting/action area. Notes are one selected-record
-  surface, not a miniature library. Infrastructure selectors are title-first;
+  surface, not a miniature library. Local Tools selectors are title-first;
   show extra navigator metadata only when it changes record selection.
 - Reuse `SystemStateShell`, `ArtifactListPanel`, the existing `surface*` and
   `workspace*` classes, and common button/input styles. Use document-library
@@ -49,9 +49,9 @@ not replace current product rules. The concise precedence rule is linked by
   delegates only the existing seven supported Work operations with revision
   checks; no records were migrated into a second store. All 35 tasks, 6 proposed
   initiatives and 7 milestones remain at revision 2. The 12 Project Notes,
-  Security, Agents, Notes, Projects and Infrastructure remain unchanged.
-- Projects is the default destination. Infrastructure remains pending a later
-  migration. Runtime Diagnostics and Project Notes retain their shared O2 Work
+  Security, Agents, Notes and Projects remain local.
+- Projects is the default destination. The four top-level areas, in order, are
+  Security, Agents, Notes, Projects. Infrastructure has migrated in Wave 4. Runtime Diagnostics and Project Notes retain their shared O2 Work
   models and API. Historical native Work acceptance below applies to the prior
   build; current Work browser acceptance belongs to RCE and RadCloud.
 
@@ -70,12 +70,15 @@ not replace current product rules. The concise precedence rule is linked by
   Do not reduce this surface to an opaque AI-only prompt or minimal hidden
   wizard without a later explicit product decision. This is RadControl product
   behavior, not an Empire-wide form-design standard.
-- Infrastructure: governed provider/platform assets, editable non-secret
-  configuration notes, actions, and operational notes. The canonical
-  `system76-workstation` record is deliberately excluded from this roster;
-  computer identity, health, monitoring, maintenance inventory, and operator
-  notes belong to Security's Host Guardian. Other infrastructure assets retain
-  the existing roster/detail workflow.
+- Local Tools under Projects retains local Docker and Agent/MCP records, their
+  existing configuration/notes saves, creation, snapshot/checklist/evidence and
+  console controls. Only local toolchain/MCP records enter this roster.
+  `system76-workstation` remains excluded from this roster; its health,
+  maintenance and recovery belong to Security. Cloud provider configuration,
+  inventory, notes and evidence now render in RCE > RadCloud > Infrastructure
+  through a bounded read-only O2 adapter. Cloud record creation and autosave
+  are retired from RadControl; O2 retains the originals and governed editing.
+  Security, Agents, Notes and core Projects behavior are unchanged.
 - Agents: governed profiles, focus/scope/limits, and notes. Repository Routers
   is an adjacent O2-backed workspace that restores the cross-repository
   durability report without coupling it to the System76 host presentation.

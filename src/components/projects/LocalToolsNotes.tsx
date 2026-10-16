@@ -6,7 +6,7 @@ type Props = {
   onChange: (value: string) => void;
 };
 
-export function InfrastructureNotes({
+export function LocalToolsNotes({
   status,
   value,
   readOnly,
@@ -16,7 +16,7 @@ export function InfrastructureNotes({
   return (
     <div className="surfaceSummaryRow surfaceSummaryRowTall">
       <div className="surfaceSummaryHeader">
-        <div className="surfaceLabel">Infrastructure Notes</div>
+        <div className="surfaceLabel">Local Tool Notes</div>
         <div className="surfaceMutedSmall">{status}</div>
       </div>
       <textarea

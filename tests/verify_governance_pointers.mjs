@@ -44,7 +44,7 @@ assert.match(repoState, /many visible yes\/no decisions/);
 assert.match(repoState, /recommendations assist[\s\S]*explicit decisions/);
 assert.match(repoState, /not an Empire-wide form-design standard/);
 assert.doesNotMatch(repoState, /New Project intentionally uses an AI-only prompt/);
-assert.match(repoState, /Infrastructure: governed provider\/platform assets/);
+assert.match(repoState, /Local Tools under Projects retains local Docker/);
 assert.match(repoState, /Agents: governed profiles/);
 assert.match(repoState, /Security: three first-class workspaces over O2-owned truth/);
 assert.match(repoState, /Current Now[\s\S]*Recent Events/);

@@ -1,12 +1,12 @@
-import type { ProjectRow } from "../projects/types";
+import type { ProjectRow } from "./types";
 import {
   formatIsoDateTime,
   projectLabelsForKeys,
-  type InfrastructureEntry,
-} from "./infrastructureModel";
+  type LocalToolsEntry,
+} from "./localToolsModel";
 
 type Props = {
-  entry: InfrastructureEntry;
+  entry: LocalToolsEntry;
   projects: ProjectRow[];
 };
 
@@ -19,7 +19,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function InfrastructureBrief({ entry, projects }: Props) {
+export function LocalToolsBrief({ entry, projects }: Props) {
   const coverage =
     entry.linkedAssets.length === 0
       ? "Starter profile only"
