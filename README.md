@@ -41,12 +41,6 @@ RadControl owns UI layout, local presentation state, document viewing and editin
   websites, apps, providers, and connected coverage while labeling unwired
   provider, auth, user, threat, and commerce signals as not connected.
 - **Notes**: My Notes, the living Empire Blueprint and read-only O2 Knowledge.
-- **Legal**: an O2-backed executive workspace for Structure, Formation,
-  Addresses & Agent, Brands & Ventures, Business Accounts, and Documents &
-  Compliance. Radcon Enterprises and RadWolfe remain parallel legal/business
-  boundaries; RCE portal access is shown separately as operating access, not
-  ownership. Existing legal notes, imported documents, and historical
-  structure drawings remain governed archives inside Documents & Compliance.
 
 ## Runtime Model
 
