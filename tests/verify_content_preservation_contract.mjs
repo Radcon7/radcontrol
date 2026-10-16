@@ -76,7 +76,7 @@ for (let index = 1; index < notesOrder.length; index += 1) {
   assert.ok(notes.indexOf(`label: "${notesOrder[index - 1]}"`) < notes.indexOf(`label: "${notesOrder[index]}"`));
 }
 
-const legalOrder = ["Structure", "Formation", "Addresses & Agent", "Brands & Ventures", "Business Accounts", "Documents & Compliance"];
+const legalOrder = ["Structure", "Addresses & Agent", "Documents & Compliance"];
 for (let index = 1; index < legalOrder.length; index += 1) {
   assert.ok(legal.indexOf(`label: "${legalOrder[index - 1]}"`) < legal.indexOf(`label: "${legalOrder[index]}"`));
 }

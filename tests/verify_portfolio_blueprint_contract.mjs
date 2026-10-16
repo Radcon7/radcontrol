@@ -105,9 +105,11 @@ assert.match(view, /portalBoundaryLabel/);
 assert.match(view, /portal\.relationshipLabel/);
 assert.match(view, /legal-three-address-model/);
 assert.match(view, /Actual street address intentionally absent/);
-assert.match(view, /No account numbers, routing details, credentials, or private KYC information/);
+for (const migrated of ["FormationView", "FormationColumn", "BrandsView", "BrandCard", "AccountsView", "AccountColumn", "StepBadge"]) assert.ok(!view.includes(migrated), `${migrated} moved to RadCloud`);
+for (const migrated of ["formation", "brands", "accounts"]) assert.ok(!hub.includes(`key: "${migrated}"`), `${migrated} navigation moved to RadCloud`);
+assert.doesNotMatch(view, /writeO2File|formationWorkstreams|businessAccounts/);
 
-const modeOrder = ["Structure", "Formation", "Addresses & Agent", "Brands & Ventures", "Business Accounts", "Documents & Compliance"];
+const modeOrder = ["Structure", "Addresses & Agent", "Documents & Compliance"];
 let cursor = -1;
 for (const label of modeOrder) {
   const next = hub.indexOf(`label: "${label}"`);
@@ -127,4 +129,4 @@ assert.match(css, /@media \(max-width: 620px\)/);
 assert.match(css, /font-size: 14px/);
 assert.equal(PORTFOLIO_BLUEPRINT_PATH, "docs/portfolio/PORTFOLIO_BLUEPRINT.json");
 
-console.log("legal foundation contract: six operator tabs, parallel ownership diagram, portal boundary, privacy, and governed archives verified");
+console.log("legal foundation contract: three retained Legal views and three migrated views removed, parallel ownership diagram, portal boundary, privacy, and governed archives verified");

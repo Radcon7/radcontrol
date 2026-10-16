@@ -1717,10 +1717,10 @@ pre {
 .legalHubBody { gap: 16px; overflow-y: auto; padding-right: 3px; }
 .legalOperatorWorkspace { display: grid; gap: 14px; color: var(--text); font-size: 14px; line-height: 1.55; }
 .legalOperatorWorkspace h2,.legalOperatorWorkspace h3,.legalOperatorWorkspace h4,.legalOperatorWorkspace p { margin: 0; }
-.legalWorkspaceHeader,.legalBoundaryBanner,.legalStructureLane,.portalAccessPanel,.legalWorkstream,.legalAddressCard,.legalSectionHeading,.legalBrandCard,.legalParallelVenturePanel,.legalAccountGroup,.legalDocumentGroup,.legalArchiveWorkspace,.portfolioError,.portfolioLoading { border: 1px solid var(--stroke); border-radius: var(--radius-md); background: rgba(255,255,255,.04); }
+.legalWorkspaceHeader,.legalBoundaryBanner,.legalStructureLane,.portalAccessPanel,.legalAddressCard,.legalDocumentGroup,.legalArchiveWorkspace,.portfolioError,.portfolioLoading { border: 1px solid var(--stroke); border-radius: var(--radius-md); background: rgba(255,255,255,.04); }
 .legalWorkspaceHeader { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 18px; background: radial-gradient(circle at 92% 0,rgba(104,160,255,.14),transparent 44%),rgba(255,255,255,.04); }
 .legalWorkspaceHeader>div { display: grid; gap: 3px; }
-.legalWorkspaceHeader>div>span,.legalBoundaryBanner span,.legalSectionHeading>span,.legalWorkstream header>span,.legalAccountGroup header>span,.legalDocumentGroup header>span,.legalArchiveWorkspace header span,.portalWorkspaceColumn>span { color: var(--accentA); font-size: 13px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.legalWorkspaceHeader>div>span,.legalBoundaryBanner span,.legalDocumentGroup header>span,.legalArchiveWorkspace header span,.portalWorkspaceColumn>span { color: var(--accentA); font-size: 13px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .legalWorkspaceHeader>div>strong { font-size: 19px; }
 .legalWorkspaceHeader small { color: var(--muted); font-size: 13px; }
 .legalViewStack { display: grid; gap: 14px; }
@@ -1732,14 +1732,14 @@ pre {
 .legalStatusActive,.legalStatusFiled { color: #95f7ca; background: rgba(97,242,169,.15); }
 .legalStatusPlanned { color: #a5c5ff; background: rgba(104,160,255,.18); }
 .legalStatusNotFormed,.legalStatusNotFiled { color: #c8d0df; background: rgba(200,208,223,.11); }
-.legalStatusSelected,.legalStatusReady { color: #b6e9ff; background: rgba(84,197,255,.15); }
+.legalStatusSelected { color: #b6e9ff; background: rgba(84,197,255,.15); }
 .legalStatusNeedsVerification { color: #ffd38a; background: rgba(255,193,106,.16); }
 .legalStructureDiagram { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; padding: 20px; border: 1px solid rgba(255,255,255,.1); border-radius: var(--radius-md); background: radial-gradient(circle at 50% 0,rgba(104,160,255,.11),transparent 46%),rgba(5,13,27,.62); }
 .legalGraphLane { position: relative; display: grid; align-content: start; gap: 10px; min-width: 0; padding: 14px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(5,14,28,.55); }
 .legalGraphLaneRadcon { border-color: rgba(104,160,255,.42); }
 .legalGraphLaneVenture { border-color: rgba(195,146,255,.42); }
 .legalGraphLaneLabel { color: var(--muted2); font-size: 13px; font-weight: 900; letter-spacing: .09em; text-align: center; text-transform: uppercase; }
-.portalAccessPanel>header,.legalCardTopline,.legalBrandCard>.legalCardTopline,.legalAddressCard>.legalCardTopline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.portalAccessPanel>header,.legalCardTopline,.legalAddressCard>.legalCardTopline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .legalCardTopline>span { color: var(--muted2); font-size: 13px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
 .legalGraphNode { position: relative; display: grid; align-content: start; gap: 5px; min-width: 0; padding: 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: rgba(6,14,27,.84); box-shadow: 0 10px 22px rgba(0,0,0,.14); }
 .legalGraphEntityNode { min-height: 92px; padding: 12px; text-align: center; }
@@ -1802,17 +1802,9 @@ pre {
 .portalAccessPanel footer { display: grid; gap: 4px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.09); }
 .portalAccessPanel footer span { color: var(--muted); font-size: 14px; }
 .legalTwoColumnView { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; align-items: start; }
-.legalWorkstream,.legalAccountGroup,.legalDocumentGroup { display: grid; gap: 14px; padding: 18px; }
-.legalWorkstreamRadcon { border-color: rgba(104,160,255,.3); }
-.legalWorkstreamRadwolfe { border-color: rgba(195,146,255,.3); }
-.legalWorkstream header,.legalAccountGroup header,.legalDocumentGroup header { display: grid; gap: 4px; }
-.legalWorkstream header h3,.legalAccountGroup header h2,.legalDocumentGroup header h2 { font-size: 21px; }
-.legalWorkstream header p { color: var(--muted); font-size: 14px; }
-.legalWorkstream ol { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
-.legalWorkstream li { position: relative; display: grid; grid-template-columns: 32px minmax(0,1fr) auto; gap: 11px; align-items: start; padding: 11px 0; border-top: 1px solid rgba(255,255,255,.08); }
-.legalWorkstream li>i { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid rgba(104,160,255,.3); border-radius: 50%; color: #b6cdfa; font-style: normal; font-weight: 800; }
-.legalWorkstream li>div { display: grid; gap: 3px; }
-.legalWorkstream li p { color: var(--muted); font-size: 14px; }
+.legalDocumentGroup { display: grid; gap: 14px; padding: 18px; }
+.legalDocumentGroup header { display: grid; gap: 4px; }
+.legalDocumentGroup header h2 { font-size: 21px; }
 .legalAddressGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
 .legalAddressCard { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 18px; }
 .legalAddressCard-private-owner-address { border-color: rgba(195,146,255,.3); }
@@ -1826,25 +1818,7 @@ pre {
 .legalOutstanding { display: grid; gap: 7px; margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.09); }
 .legalOutstanding>span { color: var(--muted2); font-size: 13px; font-weight: 850; letter-spacing: .07em; }
 .legalOutstanding ul { display: grid; gap: 4px; margin: 0; padding-left: 20px; color: var(--muted); font-size: 14px; }
-.legalSectionHeading { display: grid; gap: 5px; padding: 18px; }
-.legalSectionHeading h2 { font-size: 24px; }
-.legalSectionHeading p { color: var(--muted); font-size: 14px; }
-.legalBrandGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 11px; }
-.legalBrandCard { display: grid; align-content: start; gap: 10px; padding: 16px; }
-.legalBrandCard h3 { font-size: 19px; }
-.legalBrandCard dl,.legalParallelVenturePanel dl { display: grid; gap: 7px; margin: 0; }
-.legalBrandCard dl>div,.legalParallelVenturePanel dl>div { display: grid; grid-template-columns: minmax(100px,.42fr) minmax(0,.58fr); gap: 10px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.07); }
-.legalBrandCard dt,.legalParallelVenturePanel dt { color: var(--muted2); font-size: 13px; font-weight: 800; }
-.legalBrandCard dd,.legalParallelVenturePanel dd { margin: 0; font-size: 14px; }
-.legalBrandCard>p,.legalParallelVenturePanel>small { color: var(--muted); font-size: 14px; }
-.legalParallelVenturePanel { display: grid; grid-template-columns: minmax(220px,.65fr) auto minmax(320px,1.35fr); gap: 14px; align-items: start; padding: 18px; border-color: rgba(195,146,255,.32); }
-.legalParallelVenturePanel>div:first-child { display: grid; gap: 4px; }
-.legalParallelVenturePanel>div:first-child>span { color: #d9b7ff; font-size: 13px; font-weight: 900; letter-spacing: .09em; }
-.legalParallelVenturePanel>small { grid-column: 1 / -1; }
-.legalAccountGroup>div,.legalDocumentGroup>div { display: grid; gap: 8px; }
-.legalAccountGroup article { display: grid; gap: 6px; padding: 12px; border: 1px solid rgba(255,255,255,.09); border-radius: 10px; }
-.legalAccountGroup article>div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.legalAccountGroup article p { color: var(--muted); font-size: 14px; }
+.legalDocumentGroup>div { display: grid; gap: 8px; }
 .legalDocumentGroup article { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.08); }
 .legalDocumentGroup article small { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
 .legalArchiveWorkspace { display: grid; gap: 12px; padding: 17px; font-size: 14px; }
@@ -1868,8 +1842,7 @@ pre {
 
 @media (max-width: 820px) {
   .legalWorkspaceHeader,.legalBoundaryBanner,.portalAccessPanel>header,.legalArchiveWorkspace>header { align-items: flex-start; flex-direction: column; }
-  .legalTwoColumnView,.portalAccessGrid,.legalParallelVenturePanel { grid-template-columns: 1fr; }
-  .legalParallelVenturePanel>small { grid-column: auto; }
+  .legalTwoColumnView,.portalAccessGrid { grid-template-columns: 1fr; }
   .legalArchiveChoices { grid-template-columns: 1fr; }
 }
 
@@ -1880,9 +1853,7 @@ pre {
   .legalGraphBusinessChildren>.legalGraphNode::before { top: 50%; left: -14px; width: 14px; height: 2px; background: rgba(136,187,255,.78); transform: none; }
   .legalSupportRail { grid-template-columns: 1fr; overflow: visible; }
   .portalWorkspaceColumn ul { grid-template-columns: 1fr; }
-  .legalWorkstream li { grid-template-columns: 28px minmax(0,1fr); }
-  .legalWorkstream li>.legalStatus { grid-column: 2; }
-  .legalWorkspaceHeader,.legalBoundaryBanner,.legalStructureLane,.portalAccessPanel,.legalWorkstream,.legalAddressCard,.legalSectionHeading,.legalBrandCard,.legalParallelVenturePanel,.legalAccountGroup,.legalDocumentGroup,.legalArchiveWorkspace { padding: 14px; }
+  .legalWorkspaceHeader,.legalBoundaryBanner,.legalStructureLane,.portalAccessPanel,.legalAddressCard,.legalDocumentGroup,.legalArchiveWorkspace { padding: 14px; }
 }
 
 .timelineFeed {

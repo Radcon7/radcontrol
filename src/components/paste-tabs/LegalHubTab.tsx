@@ -24,10 +24,7 @@ type ArchiveConfig = {
 
 const MODE_CONFIGS: LegalModeConfig[] = [
   { key: "structure", label: "Structure" },
-  { key: "formation", label: "Formation" },
   { key: "addresses", label: "Addresses & Agent" },
-  { key: "brands", label: "Brands & Ventures" },
-  { key: "accounts", label: "Business Accounts" },
   { key: "documents", label: "Documents & Compliance" },
 ];
 
