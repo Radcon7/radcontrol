@@ -13,6 +13,7 @@ export async function request(base, route, method = 'GET', body) {
 }
 
 const roots = {
+  repositories:'.systemShell:has([data-testid="new-project"])', tools:'.systemShell:has([data-testid="new-infrastructure"])',
   sentinel:'[data-testid="radcon-sentinel"]',
   empire_operations:'[data-testid="empire-operations-workspace"]',
   security_guardian:'[data-testid="security-guardian-workspace"]',
@@ -20,7 +21,7 @@ const roots = {
   todo:'[data-testid="empire-todo-workspace"][data-task-workspace="tasks"]',
   notes:'[data-testid="my-notes-scratchpad"]', runtime:'.runtimeModalCard',
 };
-const anchors = {sentinel:'[data-testid="sentinel-current-now"]',empire_operations:'[data-testid="empire-operations-overview"]',
+const anchors = {repositories:'[data-testid^="project-row-"]',tools:'[data-testid="infrastructure-row-docker"]',sentinel:'[data-testid="sentinel-current-now"]',empire_operations:'[data-testid="empire-operations-overview"]',
   security_guardian:'[data-testid="security-guardian-sources"]',progress:'.taskProgressRail',todo:'.empireTodoRow',
   notes:'textarea',runtime:'.btnGhost'};
 const security = ['sentinel','empire_operations','security_guardian'];
@@ -52,6 +53,7 @@ const probeScript = `
     security:[...document.querySelectorAll('[data-testid="security-workspace"] [aria-selected="true"]')].map(e=>e.dataset.testid),
     work:[...document.querySelectorAll('[data-testid^=work-mode-].workspaceModeButtonActive')].map(e=>e.dataset.testid),
     taskViews:[...document.querySelectorAll('[data-testid^=task-view-][aria-pressed=true]')].map(e=>e.dataset.testid),
+    projects:[...document.querySelectorAll('[aria-label="Projects workspaces"] [aria-selected="true"]')].map(e=>e.textContent.trim()),
     notes:[...document.querySelectorAll('[data-testid^="notes-mode-"].workspaceModeButtonActive')].map(e=>e.dataset.testid)});
   if(!window.__nativeWorkspaceTrace){window.__nativeWorkspaceTrace={events:[],pointer:null};
     for(const type of ['pointerdown','pointerup','click'])document.addEventListener(type,e=>{
@@ -87,11 +89,11 @@ export function workAnchorPresent(state,destination) {
     empty.count === '0 tasks' && empty.loading === false && empty.error === false;
 }
 export function workspaceConditions(state,destination) {
-  const isSecurity=security.includes(destination), isWork=['todo','progress','notes'].includes(destination);
+  const isSecurity=security.includes(destination), isProject=['repositories','tools'].includes(destination), isWork=['todo','progress','notes','repositories','tools'].includes(destination);
   const selected=state.selected;
   return {
-    topSelected:destination==='runtime'||JSON.stringify(selected.top)===JSON.stringify([isSecurity?'tab-sentinel':['todo','progress'].includes(destination)?'tab-work':'tab-notes']),
-    subSelected:destination==='runtime'||(isSecurity?JSON.stringify(selected.security)===JSON.stringify([`security-mode-${destination}`]):
+    topSelected:destination==='runtime'||JSON.stringify(selected.top)===JSON.stringify([isSecurity?'tab-sentinel':isProject?'tab-projects':['todo','progress'].includes(destination)?'tab-work':'tab-notes']),
+    subSelected:destination==='runtime'||(isProject?JSON.stringify(selected.projects)===JSON.stringify([destination==='repositories'?'Repositories':'Local Tools']):isSecurity?JSON.stringify(selected.security)===JSON.stringify([`security-mode-${destination}`]):
       ['todo','progress'].includes(destination)?JSON.stringify(selected.work)===JSON.stringify(['work-mode-tasks'])&&JSON.stringify(selected.taskViews)===JSON.stringify([`task-view-${destination==='todo'?'all':'now'}`]):JSON.stringify(selected.notes)===JSON.stringify(['notes-mode-notes'])),
     consistentAria:!isSecurity||state.aria.length===3&&state.aria.every(row=>row.selected===(row.id===`security-mode-${destination}`?'true':'false')),
     uniqueContainer:state.containers[destination]?.count===1,
@@ -178,6 +180,8 @@ export async function assertFanResult(base,id,{fixtureText,timeoutMs=20_000}={})
   throw new Error('scoped Sentinel fan result missing or does not match its fixture');
 }
 function destinationFor(selector,state) {
+  if(selector==='[aria-label="Projects workspaces"] button:nth-child(1)')return 'repositories';
+  if(selector==='[aria-label="Projects workspaces"] button:nth-child(2)')return 'tools';
   for(const name of security)if(selector===`[data-testid="security-mode-${name}"]`)return name;
   if(selector==='[data-testid="tab-sentinel"]')return state.selected.security[0]?.replace('security-mode-','')||(security.includes(state.retainedSecurityMode)?state.retainedSecurityMode:'sentinel');
   for(const [view,name] of [['all','todo'],['now','progress']])if(selector===`[data-testid="task-view-${view}"]`)return name;

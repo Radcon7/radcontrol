@@ -367,30 +367,23 @@ replacement does not authorize collateral content loss. The recovery baseline
 and acceptance matrix live in `docs/RADCONTROL_CONTENT_PRESERVATION.json` and
 are enforced by the content-preservation tests.
 
-## Wave 2A acceptance
+## Native acceptance after the four-tab migration
 
-`npm run test:wave2a` and `npm run test:work-round3` verify truthful assessment, pins,
-meaningful movement and editor conflicts. O2 tests the actual process lock,
-CAS, crash boundaries, migration and release comparisons. The existing native
-harness repeats read-only Overview, Work review/acceptance, record references,
-production-supported layout and migrated Work surfaces using test-owned private
- data. Production retains its 1500px minimum and proves 1650/1500 widths. The
- debug/E2E-only 500px minimum permits separate 800/600 responsive proof. Native
- receipts identify the width class and requested/observed dimensions; a clamped
- production window cannot count as responsive acceptance. Each release fixture
- proves read-only bridge mode before explicitly activating its isolated store.
-`RADCONTROL_WAVE2A_EVIDENCE_DIR` selects retained screenshots;
-`RADCONTROL_KEEP_FIXTURE=1` retains the full debug fixture. The debug harness
-accepts `--work-only` for the same isolated Work matrix without repeating
-unrelated smoke flows. Candidate/installed
-entrypoints run the same coverage under their existing exact-identity and
-namespace boundaries. Native launches still require task-specific authorization.
+`npm run test:tauri-e2e` verifies the actual Tauri four-tab shell and retained
+controls, Notes/Agent/Local Tools/Project Notes saves, fixture-only formation,
+private Work bridge and missing/corrupt-store recovery, Sentinel scenarios, and
+five ordered workspace passes. It then restarts in a read-only current-registry
+session to verify RadCloud exactly once with its O2-derived path. It never
+writes the real registry, installed O2, installed binary or private Work.
+See README for the isolated review procedure and fixture adapter classification.
 
-Production-native Wave 2A receipts also require bridge-ready, private-ready,
-active missing/corrupt store, and store-without-activation scenarios through the
-real Runtime modal, Rust bridge and O2 owner. These use isolated fixture files,
-prove diagnostics performs no writes, and restore each failure fixture exactly.
-The candidate precheck must pass this same matrix before live promotion.
+Production retains its 1500px minimum and proves 1650/1500 widths. Debug E2E's
+500px minimum permits separate 800/600 responsive proof. Receipts bind requested
+and observed widths. Candidate and installed tests share the current four-tab
+matrix; older rollback generations retain their Work/Overview checks.
+`--work-only` is retired because those editors now belong to RadCloud.
+Native launches still require explicit current-task authorization. Local debug
+acceptance does not satisfy admitted-artifact or installed-pair acceptance.
 
 ## RadCloud migration waves 1–2 — 2026-10-16
 

@@ -251,7 +251,7 @@ class MatchedPairTransactionTests(unittest.TestCase):
                               harnessDigests={name: digest(repository / name) for name in
                                   [*matrix["harnessFiles"], "scripts/tauri_production_readonly.mjs"]},
                               **{key: value[key] for key in ["o2Sha", "radcontrolSha", "artifactSha256"]})
-        value['wave11']['wave2a']['taskProgress'] = dict(ok=True, checks=matrix['taskProgressScenarios'], width=value['wave11']['wave2a']['width'])
+        value['wave11']['wave2a']['fourTab'] = dict(ok=True, checks=matrix['fourTabChecks'])
         value['wave11']['orderedNavigation'] = dict(ok=True, route=matrix['orderedNavigation']['route'],
             regressions=matrix['orderedNavigation']['regressions'],
             runs=[dict(run=i,ok=True) for i in range(1,matrix['orderedNavigation']['runs']+1)])
@@ -469,24 +469,24 @@ class MatchedPairTransactionTests(unittest.TestCase):
         self.receipt("first")
         self.action("accept-first")
 
-    def test_acceptance_requires_complete_task_progress_evidence(self):
+    def test_acceptance_requires_complete_four_tab_evidence(self):
         self.action("promote")
-        for defect in ("missing", "partial", "width"):
+        for defect in ("missing", "partial", "false"):
             with self.subTest(defect=defect):
                 self.receipt("first")
                 target = self.stage / "evidence/native-first.json"
                 receipt = json.loads(target.read_text())
-                task = receipt["wave11"]["wave2a"]["taskProgress"]
+                task = receipt["wave11"]["wave2a"]["fourTab"]
                 if defect == "missing":
-                    del receipt["wave11"]["wave2a"]["taskProgress"]
+                    del receipt["wave11"]["wave2a"]["fourTab"]
                 elif defect == "partial":
                     task["checks"].pop()
                 else:
-                    task["width"]["observations"][1]["observed"] = 800
+                    task["ok"] = False
                 target.write_text(json.dumps(receipt))
                 result = self.action_result("accept-first")
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn("complete task progress native receipt required", result.stdout + result.stderr)
+                self.assertIn("complete four-tab native receipt required", result.stdout + result.stderr)
         self.receipt("first")
         self.action("accept-first")
 

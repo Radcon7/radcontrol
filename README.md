@@ -132,7 +132,7 @@ Native acceptance is intentionally split into two classes:
 - `npm run test:tauri-production-readonly -- --expected-o2-sha <sha> --expected-radcontrol-sha <sha> --expected-artifact-sha <sha>` runs the exact production artifact. It mounts installed O2 read-only, replaces `.state` with a test-owned overlay, records installed Git/To-Do/listener evidence, exercises only read paths, and proves installed state is unchanged afterward.
 - `npm run test:tauri-e2e` builds a debug/test-capable native artifact with an acceptance-only resizable-window override, then exercises persistence and responsive presentation only after canonical fixture, home/state, seed, installed-cleanliness, and in-app runtime-identity checks succeed. The production window minimum remains unchanged.
 
-The writable desktop test exercises tab switching, submits `BUILD PROJECT` into a temporary governed root, verifies the resulting starter and formation dossier, and autosaves deterministic fixture records. It is opt-in because it launches a native desktop session. Project runtime lifecycle is a separate product/runtime concern and is not part of this isolation-focused acceptance class.
+The writable desktop test verifies Security, Agents, Notes, Projects in that exact order, retains Docker/MCP Local Tools under Projects, submits `BUILD PROJECT` into a temporary governed root, verifies the resulting starter and formation dossier, and autosaves deterministic fixture records. It is opt-in because it launches a native desktop session. Project runtime lifecycle is a separate product/runtime concern and is not part of this isolation-focused acceptance class.
 
 Do not run this E2E, `npm run dev`, `npm run preview`, `npm run tauri:dev`, or
 another RadControl/localhost listener unless the current task explicitly
@@ -153,7 +153,20 @@ Then run:
 npm run test:tauri-e2e
 ```
 
-The writable E2E harness copies only O2 scripts and deterministic seeds into a temporary root, creates a temporary static fixture and a temporary submitted project starter, then removes all fixture/runtime/root data in `finally`. Installed and development O2 are read-only in its mount namespace. It aborts before launch for missing, overlapping, or symlinked fixture paths, and aborts before the first edit when the app does not attest the exact fixture root.
+The writable E2E harness copies O2 scripts and fixture inputs into a temporary root,
+remaps registry repository paths into that root, and creates a temporary static
+fixture and submitted project starter. The starter uses O2's existing data-only
+browser fixture adapter; its receipt is labeled `fixture-adapter`, not real
+browser or hosted acceptance. All native RadControl interactions use real Tauri
+and the constrained Rust bridge.
+
+After writable/Sentinel checks, a separate read-only native session mounts the
+current source O2 `registry/projects.json` read-only over the fixture registry.
+It verifies the exact visible roster and registry-derived RadCloud, RadCalendar,
+DQOTD and RadStock paths, without copying a project constant into RadControl.
+Writable fixtures remain isolated. The harness closes both sessions, removes
+owned fixture data in `finally`, and verifies installed binary/O2/private Work
+integrity and no added listeners. It leaves any pre-existing preview alone. Installed and development O2 are read-only in its mount namespace. It aborts before launch for missing, overlapping, or symlinked fixture paths, and aborts before the first edit when the app does not attest the exact fixture root.
 The `O2_ROOT` override and duplicate-instance bypass are accepted only while
 `RADCONTROL_E2E=1`; normal desktop launches use the production O2 worktree at
 `~/.local/share/radcontrol/o2-runtime`.

@@ -159,6 +159,18 @@ function shellQuote(value) {
   return `'${String(value).replaceAll("'", `'"'"'`)}'`;
 }
 
+export async function readOnlyFileBindings(tempRoot, readOnlyFiles) {
+  const canonicalTemp = await privateDirectory(tempRoot, "read-only overlay temp root");
+  const args = [];
+  for (const overlay of readOnlyFiles) {
+    const source = await canonicalRegularFile(overlay.source, "read-only registry source");
+    const destination = await canonicalRegularFile(overlay.destination, "read-only registry destination");
+    assert.ok(pathInside(destination, canonicalTemp), "read-only file destination must be test-owned");
+    args.push("--ro-bind", source, destination);
+  }
+  return args;
+}
+
 export async function createBubblewrapApplication({
   app,
   tempRoot,
@@ -168,6 +180,7 @@ export async function createBubblewrapApplication({
   xdgDataHome,
   writablePaths = [],
   overlays = [],
+  readOnlyFiles = [],
   environment = {},
   operatorWorkSource = null,
 }) {
@@ -194,6 +207,10 @@ export async function createBubblewrapApplication({
     "--unshare-all",
     "--share-net",
     "--die-with-parent",
+    // Descendants with a sanitized environment may fall back to /tmp. Give
+    // them namespace-private scratch space, never the workstation's /tmp.
+    "--tmpfs", "/tmp",
+    "--ro-bind-try", "/tmp/.X11-unix", "/tmp/.X11-unix",
   ];
   if (operatorWorkSource) {
     const source = await privateDirectory(operatorWorkSource, "test-owned operator work");
@@ -210,6 +227,7 @@ export async function createBubblewrapApplication({
   }
   for (const candidate of writable) args.push("--bind", candidate, candidate);
   for (const overlay of canonicalOverlays) args.push("--bind", overlay.source, overlay.destination);
+  args.push(...await readOnlyFileBindings(canonicalTemp, readOnlyFiles));
   for (const [key, value] of Object.entries({
     HOME: home,
     XDG_CACHE_HOME: xdgCacheHome,

@@ -1,8 +1,9 @@
+import { assertFourTabApplication } from './native_four_tab_assertions.mjs';
 import { copyWorkSnapshot, snapshotWork, assertWorkUnchanged, workReceipt, assertNativeWorkDiagnostics, assertNativeWorkRows } from './native_work_authority.mjs';
 import { configureWorkspace, nativeClick, assertWorkspace, workspaceText, assertFanResult, captureWorkspaceFailure } from './native_workspace.mjs';
 import { runReleaseWave11 } from "./native_wave11_release.mjs";
 import { transactionReceiptContext, writeTransactionReceipt } from "./native_transaction_receipt.mjs";
-import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, assertSentinelRawEvidence, request } from "./native_sentinel_assertions.mjs";
+import { assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, assertSentinelRawEvidence, request } from "./native_sentinel_assertions.mjs";
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
@@ -147,11 +148,8 @@ assert.ok(
   "client contract must declare required operator project keys",
 );
 const installedProjects = installedOperatorRoster();
-assert.deepEqual(
-  installedProjects.map((project) => project.key).sort(),
-  [...requiredProjectKeys].sort(),
-  "installed O2 operator project roster does not match the independent RadControl client contract",
-);
+for (const key of requiredProjectKeys) assert.ok(installedProjects.some(project=>project.key===key), `required operator repository ${key} missing`);
+if (!rollbackSmoke) assert.equal(installedProjects.filter(p=>p.key==='radcloud').length,1,'current installed pair must include RadCloud');
 const listenersBefore = tcpListeners();
 assertPortAbsent(listenersBefore, 1420);
 
@@ -241,15 +239,18 @@ try {
       assert.ok(text.includes(project.label), `production diagnostics omitted ${project.label}`);
     }
     await assertNativeWorkDiagnostics(base, sessionId, expectedWork);
-    assert.match(text, /Infrastructure · 10 governed profiles/);
+    if (rollbackSmoke) assert.match(text, /(?:Infrastructure · 10|Local Tools · 2) governed profiles/);
+    else assert.match(text, /Local Tools · 2 governed profiles/);
     assert.match(text, /Security \/ Radcon Sentinel/);
     return text;
   }, "render exact production runtime diagnostics");
   await click(base, sessionId, ".runtimeModalCard .btnGhost");
 
+  const fourTabShell = await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return document.querySelectorAll(".header .tabs [data-testid]").length === 4;',args:[]});
+  if (rollbackSmoke && !fourTabShell) {
   // Legacy rollback generations predate Overview; active-private generations
   // must prove current records with their own presentation, not Wave 2B rails.
-  if (!rollbackSmoke || activatedWork) {
+  if (activatedWork) {
   await click(base,sessionId,'[data-testid="tab-overview"]');
   await eventually(async()=>{
     const view = await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return {text:document.querySelector(".overview")?.innerText, rows:[...document.querySelectorAll(".momentumRow")].map(e=>e.dataset.testid)};',args:[]});
@@ -261,17 +262,17 @@ try {
     }
   },'actual Work authority drives Overview');
   }
-  const workAuthorityChecks = workReceipt(expectedWork);
   await assertNativeWorkRows(base,sessionId,expectedWork,selector=>click(base,sessionId,selector),fn=>eventually(fn,'authoritative Work task sets'));
 
+  }
+  const workAuthorityChecks = workReceipt(expectedWork);
+  if (!rollbackSmoke || fourTabShell) await assertFourTabApplication({base,sessionId,eventually,projects:installedProjects});
   if (rollbackSmoke) {
     acceptanceResult = {ok:true, acceptance:'rollback-native-smoke',
       o2Sha:installedBefore.head, radcontrolSha:expectedRadcontrolSha,
       artifactSha256:expectedArtifactSha, diagnosticsVerified:true,
       privateWorkVerified:activatedWork, workAuthorityChecks};
   } else {
-  const wave1Checks = await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"), expectedWork);
-
   await click(base, sessionId, '[data-testid="tab-notes"]');
   assert.match(await eventually(() => bodyText(base, sessionId), "render Notes"), /My Notes[\s\S]*Empire Blueprint[\s\S]*O2 Knowledge/);
   await click(base, sessionId, '[data-testid="notes-mode-o2_knowledge"]');
@@ -281,107 +282,6 @@ try {
     assert.match(text, /Canonical source/);
   }, "render O2 Knowledge without mutating installed O2");
   await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
-  await click(base, sessionId, '[data-testid="tab-legal"]');
-  await eventually(async () => {
-    const text = await bodyText(base, sessionId);
-    assert.match(text, /StructureFormationAddresses & AgentBrands & VenturesBusiness AccountsDocuments & Compliance/);
-    assert.match(text, /OWNERSHIP \/ BUSINESS LANE[\s\S]*Radcon Enterprises LLC[\s\S]*Offroad Croquet/);
-    assert.match(text, /PARALLEL REAL-ESTATE LANE[\s\S]*RadWolfe[\s\S]*Jointly owned rental townhouse/);
-    assert.match(text, /THRIVE Holly Springs[\s\S]*Northwest Registered Agent[\s\S]*Private owner address/);
-    assert.match(text, /RCE OPERATING ACCESS — NOT OWNERSHIP[\s\S]*OPERATING ACCESS — NOT OWNERSHIP/);
-    assert.match(text, /Actual address intentionally hidden/);
-  }, "render installed Legal Structure and support relationships");
-  const legalStructurePresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-    script: `
-      const diagram = document.querySelector('[data-testid="legal-ownership-diagram"]');
-      const radcon = document.querySelector('[data-testid="legal-radcon-entity"]');
-      const radwolfe = document.querySelector('[data-testid="legal-radwolfe-venture"]');
-      const children = ['dqotd', 'tbis', 'offroad'].map((key) => document.querySelector('[data-testid="legal-' + key + '-node"]'));
-      const townhouse = document.querySelector('[data-testid="legal-townhouse-node"]');
-      const ownership = document.querySelector('[data-testid="legal-ownership-connector-radcon"] .legalGraphConnectorBranch');
-      const townhouseConnector = document.querySelector('[data-testid="legal-ownership-connector-radwolfe"] .legalGraphConnectorTrunk');
-      const support = document.querySelector('[data-testid="legal-support-connector-radcon"] .legalGraphConnectorBranch');
-      const supportCards = [...document.querySelectorAll('.legalSupportRail article')];
-      const portal = document.querySelector('[data-testid="legal-portal-access-diagram"]');
-      const portalConnector = document.querySelector('[data-testid="legal-portal-access-connector"] span');
-      const shell = document.querySelector('.legalOperatorWorkspace');
-      const supporting = document.querySelector('.legalOperatorWorkspace small');
-      const structureMode = document.querySelector('[data-testid="legal-mode-structure"]');
-      const rect = (element) => element ? element.getBoundingClientRect() : null;
-      const diagramRect = rect(diagram);
-      const ownershipRect = rect(ownership);
-      const townhouseConnectorRect = rect(townhouseConnector);
-      const supportRect = rect(support);
-      const portalRect = rect(portal);
-      const privateCard = supportCards.find((card) => card.textContent?.includes('Private owner address'));
-      return {
-        laneCount: diagram ? diagram.querySelectorAll(':scope > [data-testid$="-lane"]').length : 0,
-        graphIsFirstWorkspaceContent: Boolean(shell && diagram && diagram.parentElement?.firstElementChild === diagram),
-        graphVisibleImmediately: Boolean(diagramRect && diagramRect.top < window.innerHeight && diagramRect.height > 0),
-        parallelTopDelta: radcon && radwolfe ? Math.abs(radcon.getBoundingClientRect().top - radwolfe.getBoundingClientRect().top) : null,
-        topNodesSideBySide: Boolean(radcon && radwolfe && radcon.getBoundingClientRect().right < radwolfe.getBoundingClientRect().left),
-        radconChildrenBelow: Boolean(radcon && children.every(Boolean) && children.every((node) => node.getBoundingClientRect().top > radcon.getBoundingClientRect().bottom)),
-        townhouseBelowRadwolfe: Boolean(radwolfe && townhouse && townhouse.getBoundingClientRect().top > radwolfe.getBoundingClientRect().bottom),
-        ownershipConnectorGeometry: Boolean(ownershipRect && ownershipRect.width > 80 && ownershipRect.height >= 2 && getComputedStyle(ownership).backgroundColor !== 'rgba(0, 0, 0, 0)'),
-        townhouseConnectorGeometry: Boolean(townhouseConnectorRect && townhouseConnectorRect.height > 20 && getComputedStyle(townhouseConnector).backgroundColor !== 'rgba(0, 0, 0, 0)'),
-        supportConnectorGeometry: Boolean(supportRect && supportRect.width > 80 && getComputedStyle(support).borderTopStyle === 'dashed'),
-        supportLabels: supportCards.map((card) => card.querySelector('strong')?.textContent || ''),
-        privateAddressHidden: Boolean(privateCard && privateCard.textContent?.includes('Actual address intentionally hidden')),
-        crossOwnershipConnectors: document.querySelectorAll('[data-connector="radcon-radwolfe"]').length,
-        portalIsSeparateAndBelow: Boolean(diagramRect && portalRect && portalRect.top >= diagramRect.bottom && portalConnector && portalConnector.getBoundingClientRect().width > 0),
-        normalFontSize: shell ? Number.parseFloat(getComputedStyle(shell).fontSize) : null,
-        supportingFontSize: supporting ? Number.parseFloat(getComputedStyle(supporting).fontSize) : null,
-        structureSelected: structureMode ? structureMode.classList.contains('workspaceModeButtonActive') : false,
-      };
-    `,
-    args: [],
-  });
-  assert.equal(legalStructurePresentation.laneCount, 2, "installed Legal ownership diagram must render two parallel lanes");
-  assert.equal(legalStructurePresentation.graphIsFirstWorkspaceContent, true, "installed Legal graph must be first beneath the tab controls");
-  assert.equal(legalStructurePresentation.graphVisibleImmediately, true, "installed Legal graph must be visible above the fold");
-  assert.ok(legalStructurePresentation.parallelTopDelta !== null && legalStructurePresentation.parallelTopDelta < 80, "installed Radcon and RadWolfe structures must begin in parallel");
-  assert.equal(legalStructurePresentation.topNodesSideBySide, true, "installed Radcon and RadWolfe top nodes must be side-by-side");
-  assert.equal(legalStructurePresentation.radconChildrenBelow, true, "installed DQOTD, TBIS, and Offroad nodes must be below Radcon");
-  assert.equal(legalStructurePresentation.townhouseBelowRadwolfe, true, "installed townhouse must be below RadWolfe");
-  assert.equal(legalStructurePresentation.ownershipConnectorGeometry, true, "installed Radcon ownership connector must have visible geometry");
-  assert.equal(legalStructurePresentation.townhouseConnectorGeometry, true, "installed townhouse ownership connector must have visible geometry");
-  assert.equal(legalStructurePresentation.supportConnectorGeometry, true, "installed support relationships must use visible dashed geometry");
-  assert.deepEqual(legalStructurePresentation.supportLabels, ["THRIVE Holly Springs", "Northwest Registered Agent", "Private owner address"]);
-  assert.equal(legalStructurePresentation.privateAddressHidden, true, "installed Legal structure must not reveal the private residence");
-  assert.equal(legalStructurePresentation.crossOwnershipConnectors, 0, "installed Legal structure must not connect Radcon ownership to RadWolfe");
-  assert.equal(legalStructurePresentation.portalIsSeparateAndBelow, true, "installed RCE access diagram must be separate and secondary");
-  assert.ok(legalStructurePresentation.normalFontSize >= 14, "installed Legal normal text must remain readable");
-  assert.ok(legalStructurePresentation.supportingFontSize >= 13, "installed Legal supporting text must remain readable");
-  assert.equal(legalStructurePresentation.structureSelected, true, "installed Legal view must default to Structure");
-  if (process.env.RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH) {
-    const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`);
-    await writeFile(process.env.RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH, Buffer.from(encodedScreenshot, "base64"));
-  }
-  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 600, height: 900 });
-  const mobileLayout = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-    script: `const diagram = document.querySelector('[data-testid="legal-ownership-diagram"]'); return { columns: diagram ? getComputedStyle(diagram).gridTemplateColumns : null, width: window.innerWidth };`,
-    args: [],
-  });
-  if (mobileLayout.width <= 1100) {
-    assert.ok(mobileLayout.columns && !mobileLayout.columns.includes(" "), "installed Legal diagram must preserve hierarchy in one responsive column");
-  } else {
-    assert.ok(mobileLayout.width >= 1500, "installed native window may skip responsive rendering only when its governed minimum width clamps the request");
-  }
-  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
-  for (const [selector, expected] of [
-    ['[data-testid="legal-mode-formation"]', /Radcon Enterprises formation[\s\S]*RadWolfe formalization/],
-    ['[data-testid="legal-mode-addresses"]', /Actual street address intentionally absent[\s\S]*Northwest Registered Agent/],
-    ['[data-testid="legal-mode-brands"]', /RADCON-OWNED BRANDS \/ BUSINESSES \/ PROJECTS[\s\S]*PARALLEL VENTURE/],
-    ['[data-testid="legal-mode-accounts"]', /Radcon Enterprises[\s\S]*EIN[\s\S]*RadWolfe/],
-    ['[data-testid="legal-mode-documents"]', /DOCUMENTS & COMPLIANCE[\s\S]*Articles of Organization/],
-  ]) {
-    await click(base, sessionId, selector);
-    assert.match(await eventually(() => bodyText(base, sessionId), `render installed ${selector}`), expected);
-  }
-  assert.match(await eventually(() => bodyText(base, sessionId), "preserve installed Legal archives"), /Legal working notes[\s\S]*Imported documents[\s\S]*Historical structures/);
-
-  await click(base, sessionId, '[data-testid="tab-infrastructure"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render Infrastructure"), /INFRASTRUCTURE ASSETS/);
   await click(base, sessionId, '[data-testid="tab-sentinel"]');
   const sentinelText = await eventually(async () => {
     const text = await workspaceText(base, sessionId, 'sentinel');
@@ -710,7 +610,7 @@ try {
     radcontrolSha: expectedRadcontrolSha,
     artifactSha256: expectedArtifactSha,
     todoSha256: installedBefore.todoSha256,
-    wave1Checks,
+    fourTabVerified: true,
     workAuthorityChecks,
     diagnosticsVerified: diagnostics.includes("Listener-free production mode"),
     sentinelCurrentHealth: currentHealthPresentation.current,
@@ -729,6 +629,6 @@ if (acceptanceError) throw acceptanceError;
 
 if (!rollbackSmoke) acceptanceResult.wave11 = await runReleaseWave11({app,o2Source:INSTALLED_O2_ROOT,
   identities:{o2Sha:expectedO2Sha,radcontrolSha:expectedRadcontrolSha,artifactSha256:expectedArtifactSha},
-  entrypoint:'tauri_production_readonly.mjs'});
+  entrypoint:'tauri_production_readonly.mjs',failureEvidenceDir:receiptContext ? path.join(path.dirname(receiptContext.output),'synthetic-navigation') : `${tempRoot}-navigation`});
 await writeTransactionReceipt(receiptContext, acceptanceResult);
 console.log(JSON.stringify(acceptanceResult));

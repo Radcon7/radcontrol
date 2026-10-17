@@ -23,6 +23,7 @@ test:empire-todo
 test:formation-payload
 test:matched-pair-transaction
 test:native-acceptance-isolation
+test:native-four-tabs
 test:native-sentinel-assertions
 test:o2-runtime-boundary
 test:project-intent-preview
@@ -71,6 +72,7 @@ contracts/change-guardian/v1/policy.json
 contracts/o2-radcontrol/v1/README.md
 contracts/o2-radcontrol/v1/client.json
 docs/CODEX_EXECUTION_NOTES.md
+docs/FOUR_TAB_RELEASE_READINESS.md
 docs/POLICY_POINTERS.md
 docs/RADCONTROL_CONTENT_PRESERVATION.json
 docs/REPO_STATE.md
@@ -89,6 +91,7 @@ scripts/dev_sanity_check.mjs
 scripts/install_production.sh
 scripts/matched_pair_transaction.py
 scripts/native_acceptance_lib.mjs
+scripts/native_four_tab_assertions.mjs
 scripts/native_sentinel_assertions.mjs
 scripts/native_sentinel_readiness.mjs
 scripts/native_transaction_receipt.mjs
@@ -260,6 +263,7 @@ tests/formation_learning_contract.mjs
 tests/formation_payload_behavior.mjs
 tests/matched_pair_transaction_test.py
 tests/native_acceptance_isolation_behavior.mjs
+tests/native_four_tab_test.mjs
 tests/native_sentinel_assertions_test.mjs
 tests/native_wave11_fixture.py
 tests/native_wave11_fixture_test.py

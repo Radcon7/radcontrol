@@ -2,7 +2,7 @@ import { configureWorkspace, nativeClick, captureWorkspaceFailure } from './nati
 // Synthetic scenarios run in a separate, test-owned native session. The real
 // candidate/installed identity and read-only probes remain in their entrypoints.
 import assert from 'node:assert/strict';
-import { cp, chmod, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { cp, chmod, mkdir, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
@@ -32,8 +32,9 @@ async function eventually(fn, label, timeout=30000) {
   throw new Error(`${label}: ${error?.message}`, {cause:error});
 }
 
-export async function runReleaseWave11({app, o2Source, identities, entrypoint, mode='production'}) {
+export async function runReleaseWave11({app, o2Source, identities, entrypoint, failureEvidenceDir, mode='production'}) {
   assert.ok(['production','e2e'].includes(mode));
+  assert.ok(path.isAbsolute(failureEvidenceDir),'private release-local failure evidence directory required');
   assertProcessNotRunning('radcontrol-app');
   assert.equal(await sha256File(app), identities.artifactSha256);
   assert.equal(command(['git','-C',o2Source,'rev-parse','HEAD']),identities.o2Sha);
@@ -80,18 +81,21 @@ export async function runReleaseWave11({app, o2Source, identities, entrypoint, m
     try { process.kill(-driver.pid,'SIGTERM'); } catch(e) { if(e.code!=='ESRCH') throw e; }
     await delay(1000);
     try { process.kill(-driver.pid,'SIGKILL'); } catch(e) { if(e.code!=='ESRCH') throw e; }
+    await rm(tempRoot,{recursive:true,force:true});
     await assertInstalledO2Unchanged(before); assertNoNewTcpListeners(listeners,tcpListeners());
   });
   let matrix;
+  let receipt;
   try {
     await eventually(()=>request(base,'/status'),'native driver');
     const session=await request(base,'/session','POST',{capabilities:{alwaysMatch:{browserName:'wry','tauri:options':{application:sandboxed}}}});
     sessionId=session.sessionId;
-    configureWorkspace(base,sessionId,{evidenceDir:path.join(tempRoot,'navigation'),fixture:{kind:'synthetic',entrypoint}});
+    configureWorkspace(base,sessionId,{evidenceDir:failureEvidenceDir,fixture:{kind:'synthetic',entrypoint}});
     await eventually(async()=>assert.match(await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return document.body.innerText;',args:[]}),/Projects/),'fixture launch');
     const click=nativeClick;
     const wave2a = await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode,expectBridge:true});
     matrix={...await runWave11Acceptance({fixture,base,sessionId,request,click,eventually}),wave2a};
+    receipt=await bindWave11Receipt(matrix,identities,entrypoint);
   } catch(error) {
     if(sessionId) {
       await captureWorkspaceFailure(base,sessionId,null,'synthetic-native-assertion').catch(()=>{});
@@ -99,7 +103,5 @@ export async function runReleaseWave11({app, o2Source, identities, entrypoint, m
     throw error;
   } finally { await cleanup(); }
   assert.equal(await sha256File(app),identities.artifactSha256);
-  const receipt=await bindWave11Receipt(matrix,identities,entrypoint);
-  await writeFile(path.join(tempRoot,'wave11-receipt.json'),JSON.stringify(receipt)+'\n',{mode:0o600});
   return receipt;
 }

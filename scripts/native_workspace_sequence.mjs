@@ -33,12 +33,11 @@ export async function runOrderedWorkspaceSequence({fixture,base,sessionId,reques
     const started=new Date().toISOString(), token=`ordered-${run}`;
     workspaceFixture(base,sessionId,{phase:'ordered',fanFixture:token});
     await writeFile(state,JSON.stringify({phase:'healthy',fanFixture:token}));
-    await click('[data-testid="tab-work"]');
-    await click('[data-testid="work-mode-tasks"]');
-    await click('[data-testid="task-view-all"]');
-    await assertWorkspace(base,sessionId,'todo');
-    await click('[data-testid="task-view-now"]');
-    await assertWorkspace(base,sessionId,'progress');
+    await click('[data-testid="tab-projects"]');
+    await click('[aria-label="Projects workspaces"] button:nth-child(1)');
+    await assertWorkspace(base,sessionId,'repositories');
+    await click('[aria-label="Projects workspaces"] button:nth-child(2)');
+    await assertWorkspace(base,sessionId,'tools');
     if(run===1) {
       await decoy();
       try {await assert.rejects(()=>assertFanResult(base,sessionId),/wrong or unsettled workspace sentinel/);}

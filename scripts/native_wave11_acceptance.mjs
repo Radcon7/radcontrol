@@ -53,65 +53,10 @@ export async function runWave11Acceptance({ fixture, base, sessionId, request, c
   await writeFile(dispatcher, `#!/bin/bash\nset -euo pipefail\nexec python3 ${quoted} "$@"\n`, {mode:0o755});
   const calls = async()=> (await readFile(path.join(fixture.o2Root,'wave11-calls.jsonl'),'utf8')).trim().split('\n').map(JSON.parse);
   const applyCount = async()=> (await calls()).filter(c=>c.verb.endsWith('pop_upgrade.apply')).length;
-  const tasksPath = path.join(fixture.o2Root, 'wave11-tasks.json');
-  const tasks = JSON.parse(await readFile(tasksPath, 'utf8'));
-  assert.ok(tasks.items.length > 0);
-  const {progress:priorAssessment,...unassessedTemplate}=tasks.items[0];
-  tasks.items = ['Backlog', 'Planned', 'In Progress', 'Blocked', 'Deferred', 'Legacy'].map((status, index) => ({
-    ...unassessedTemplate, id: `wave11-${index}`, title: `Wave 1.1 ${status}`, status,
-    currentState: `Synthetic ${status}`, nextActions: 'Verify next action',
-    dependencies: status === 'Blocked' ? 'Wait for fixture dependency' : '',
-  }));
-  await writeFile(tasksPath, JSON.stringify(tasks));
   const passed = new Set();
   const pass = (...names) => names.forEach(name => passed.add(name));
   const todoBefore = await readFile(fixture.empireTodoPath);
   await request(base, `/session/${sessionId}/window/rect`, 'POST', {width:1650,height:1000});
-  await tap('[data-testid="tab-projects"]');
-  await tap('[data-testid="tab-work"]');
-  await tap('[data-testid="work-mode-tasks"]');
-  await tap('[data-testid="task-view-all"]');
-  await eventually(async()=>assert.equal(await count('.empireTodoRow'),6),'all lifecycle tasks');
-  await tap('[data-testid="task-view-backlog"]');
-  await eventually(async()=>assert.equal(await count('.empireTodoRow'),1),'backlog task');
-  assert.match(await text('.empireTodoList'),/Wave 1.1 Backlog/);
-  await tap('[data-testid="task-view-planned"]');
-  await eventually(async()=>assert.equal(await count('.empireTodoRow'),1),'planned task');
-  assert.match(await text('.empireTodoList'),/Wave 1.1 Planned/);
-  pass('queued-planned-backlog');
-  assert.equal(await count('[data-testid="notes-mode-progress"]'),0,'obsolete Progress destination retired');
-  pass('progress-navigation');
-  await tap('[data-testid="task-view-deferred"]');
-  await eventually(async()=>assert.equal(await count('.empireTodoRow'),2),'Deferred and legacy remain accessible');
-  assert.match(await text('.empireTodoList'), /Wave 1.1 Deferred/);
-  assert.match(await text('.empireTodoList'), /Wave 1.1 Legacy/);
-  pass('deferred-legacy');
-  await screenshot('todo-queued');
-  await tap('[data-testid="task-view-now"]');
-  await eventually(async()=> assert.ok(await count('.taskProgressRail') > 1), 'several active tasks');
-  assert.ok(await count('.todoRowBlocker') > 0);
-  assert.equal(await execute('return [...document.querySelectorAll(".taskProgressRail")].every(e=>!e.innerText.includes("%"));'), true);
-  assert.equal(await count('.empireTodoRow'), 2);
-  assert.match(await text('.empireTodoList'), /Wave 1.1 In Progress/);
-  assert.match(await text('.empireTodoList'), /Wave 1.1 Blocked/);
-  const rows = await execute(`return [...document.querySelectorAll('.empireTodoRow')].map(row=>({
-    width: row.querySelector('.taskProgressRail').getBoundingClientRect().width,
-    available: row.querySelector('.taskProgressContent').getBoundingClientRect().width,
-    next: row.querySelector('.todoRowNext')?.innerText
-  }));`);
-  for (const row of rows) { assert.ok(row.width > row.available * .9); assert.match(row.next,/Verify next action/); }
-  pass('active-blocked','full-width-rails-next-action-blocker','no-invented-percentage');
-  await screenshot('progress-state-only-blocked');
-  await tap('.todoRowSelect');
-  await eventually(async()=>assert.equal(await count('[data-testid="empire-todo-detail"]'),1),'inline task detail');
-  assert.equal(await count('.todoDetail textarea'),8);
-  assert.equal(await count('.empireTodoRow'), 2);
-  pass('detail-preserves-rows');
-  await screenshot('progress-inline-detail');
-  await tap('[aria-label="Close task detail"]');
-  await request(base, `/session/${sessionId}/window/rect`, 'POST', {width:1500,height:820});
-  await screenshot('progress-minimum-window');
-  assert.deepEqual(await readFile(fixture.empireTodoPath),todoBefore,'read-only work navigation must not rewrite records');
 
   async function scenario(phase) {
     activeWorkspace=null;

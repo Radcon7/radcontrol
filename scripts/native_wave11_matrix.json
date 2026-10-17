@@ -1,13 +1,6 @@
 {
-  "schema": "radcontrol-wave11-native/v1",
+  "schema": "radcontrol-four-tab-native/v2",
   "scenarios": [
-    "queued-planned-backlog",
-    "active-blocked",
-    "deferred-legacy",
-    "progress-navigation",
-    "full-width-rails-next-action-blocker",
-    "detail-preserves-rows",
-    "no-invented-percentage",
     "healthy-no-fix",
     "actionable-preview-cancel",
     "confirmation-simulated-repair",
@@ -59,20 +52,8 @@
     "scripts/native_workspace.mjs",
     "scripts/native_workspace_sequence.mjs",
     "scripts/native_work_authority.mjs",
-    "src/components/notes/empireTodoModel.ts"
-  ],
-  "taskProgressScenarios": [
-    "15-45-72",
-    "blocked-72",
-    "unassessed",
-    "done-100",
-    "full-width",
-    "native-keyboard",
-    "drag-commit-on-release",
-    "explicit-zero",
-    "save-reload",
-    "revision-conflict",
-    "separate-initiatives"
+    "src/components/notes/empireTodoModel.ts",
+    "scripts/native_four_tab_assertions.mjs"
   ],
   "workReadinessScenarios": [
     "bridge-ready",
@@ -84,8 +65,8 @@
   "orderedNavigation": {
     "runs": 5,
     "route": [
-      "todo",
-      "progress",
+      "repositories",
+      "tools",
       "sentinel",
       "fan",
       "details",
@@ -96,7 +77,7 @@
       "sentinel"
     ],
     "regressions": [
-      "progress-decoy",
+      "tools-decoy",
       "notes-wrong-workspace",
       "delayed-container",
       "unsettled-timeout",
@@ -104,21 +85,19 @@
       "outside-result",
       "inconsistent-selection",
       "correct-fixture",
-      "progress-to-sentinel",
+      "tools-to-sentinel",
       "notes-to-sentinel"
     ]
   },
-  "round3WorkScenarios": [
-    "blocked-overview-deep-link",
-    "no-false-all-clear",
-    "one-many-clear-projects",
-    "dependency-cycle-rejected",
-    "relationship-draft-retained",
-    "initiative-membership-preserved",
-    "just-completed-100",
-    "scroll-context",
-    "joined-tabs",
-    "native-keyboard",
-    "notes-preserved"
+  "fourTabChecks": [
+    "exact-tab-order",
+    "repositories",
+    "local-tools",
+    "agents",
+    "notes",
+    "security",
+    "runtime",
+    "no-retired-tabs",
+    "no-runtime-errors"
   ]
 }

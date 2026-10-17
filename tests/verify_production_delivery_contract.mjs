@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const [launcher, desktop, installer, transaction, productionProbe, snapshotScript, gitignore, bridge, app, projects, infrastructure, todo, config, agentRules, repoState, supplyChain] = await Promise.all([
+const [launcher, desktop, installer, transaction, productionProbe, snapshotScript, gitignore, bridge, app, projects, localTools, projectNotes, config, agentRules, repoState, supplyChain] = await Promise.all([
   readFile(new URL("../packaging/radcontrol-launch.sh", import.meta.url), "utf8"),
   readFile(new URL("../packaging/radcontrol.desktop", import.meta.url), "utf8"),
   readFile(new URL("../scripts/install_production.sh", import.meta.url), "utf8"),
@@ -14,8 +14,8 @@ const [launcher, desktop, installer, transaction, productionProbe, snapshotScrip
   readFile(new URL("../src-tauri/src/commands/o2.rs", import.meta.url), "utf8"),
   readFile(new URL("../src/App.tsx", import.meta.url), "utf8"),
   readFile(new URL("../src/components/projects/ProjectsTab.tsx", import.meta.url), "utf8"),
-  readFile(new URL("../src/components/agents/InfrastructureTab.tsx", import.meta.url), "utf8"),
-  readFile(new URL("../src/components/notes/EmpireTodoWorkspace.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../src/components/projects/LocalToolsTab.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../src/components/projects/ProjectNotes.tsx", import.meta.url), "utf8"),
   readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
   readFile(new URL("../AGENTS.md", import.meta.url), "utf8"),
   readFile(new URL("../docs/REPO_STATE.md", import.meta.url), "utf8"),
@@ -61,12 +61,9 @@ assert.doesNotMatch(productionProbe, /Empire To-Do · \d+ durable items/);
 assert.match(productionProbe, /render O2 Knowledge without mutating installed O2/);
 assert.match(productionProbe, /notes-mode-o2_knowledge/);
 assert.match(productionProbe, /assertNativeWorkRows/);
-assert.match(productionProbe, /render installed Legal Structure and support relationships/);
-assert.match(productionProbe, /installed Legal graph must be visible above the fold/);
-assert.match(productionProbe, /installed Legal structure must not connect Radcon ownership to RadWolfe/);
-assert.match(productionProbe, /installed support relationships must use visible dashed geometry/);
-assert.match(productionProbe, /installed RCE access diagram must be separate and secondary/);
-assert.match(productionProbe, /governed minimum width clamps the request/);
+assert.match(productionProbe, /assertFourTabApplication/);
+assert.match(productionProbe, /rollbackSmoke && !fourTabShell/);
+assert.match(productionProbe, /current installed pair must include RadCloud/);
 assert.match(productionProbe, /RADCONTROL_ACCEPTANCE_SCREENSHOT_PATH/);
 assert.doesNotMatch(productionProbe, /new RegExp\(expected/);
 assert.doesNotMatch(productionProbe, /empire\.todo\.save|files\.write|files\.rename|project_create\.(?:start|bootstrap)/);
@@ -83,10 +80,10 @@ assert.match(bridge, /fn redact_sensitive_text/);
 assert.match(bridge, /ensure_private_directory/);
 assert.doesNotMatch(app, /Restart RadControl/);
 assert.match(projects, /Project data is unavailable\. No empty-state claim is being made\./);
-assert.match(infrastructure, /Infrastructure data is unavailable\. No empty-state claim is being made\./);
-assert.match(todo, /role="alert"/);
-assert.match(todo, /loading && !items\.length \?[^\n]*: !loadError \?/);
-assert.match(todo, /await listWork\(\)/);
+assert.match(localTools, /Local tool data is unavailable\. No empty-state claim is being made\./);
+assert.match(projectNotes, /readOnly=\{readOnly \|\| !path \|\| loading\}/);
+assert.match(projectNotes, /data-testid="project-notes"/);
+assert.match(app, /aria-label="Projects workspaces"/);
 const parsedConfig = JSON.parse(config);
 assert.equal(parsedConfig.identifier, "com.radcontrol.app");
 assert.notEqual(parsedConfig.identifier, "com.radcontrol.app.dev");

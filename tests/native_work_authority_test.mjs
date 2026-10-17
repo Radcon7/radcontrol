@@ -80,7 +80,7 @@ test('both release entrypoints bind the shared authority before rendering and pr
   for (const name of ['tauri_candidate_precheck.mjs','tauri_production_readonly.mjs']) {
     const source=await readFile(new URL(`../scripts/${name}`,import.meta.url),'utf8');
     assert.match(source,/copyWorkSnapshot/);assert.match(source,/assertNativeWorkDiagnostics/);
-    assert.match(source,/assertNativeWorkRows/);assert.match(source,/assertWorkUnchanged/);
+    assert.match(source,/assertFourTabApplication/);assert.match(source,/assertWorkUnchanged/);
     assert.doesNotMatch(source,/Empire To-Do · (34|35) durable items/);
   }
   const modal=await readFile(new URL('../src/components/runtime/RuntimeDiagnosticsModal.tsx',import.meta.url),'utf8');
