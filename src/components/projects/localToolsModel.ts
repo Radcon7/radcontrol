@@ -1,7 +1,7 @@
-import type { ProjectRow } from "../projects/types";
-import { isOperatorVisibleProject } from "../projects/projectModel.ts";
+import type { ProjectRow } from "./types";
+import { isOperatorVisibleProject } from "./projectModel.ts";
 
-export type InfrastructureAsset = {
+export type LocalToolsAsset = {
   assetKey: string;
   label: string;
   assetType: string;
@@ -19,7 +19,7 @@ export type InfrastructureAsset = {
   mtime: number;
 };
 
-export type InfrastructureProfile = {
+export type LocalToolsProfile = {
   key: string;
   label: string;
   provider: string;
@@ -37,7 +37,7 @@ export type InfrastructureProfile = {
   relatedProjectKeys: string[];
 };
 
-export type InfrastructureEntry = {
+export type LocalToolsEntry = {
   key: string;
   label: string;
   provider: string;
@@ -55,12 +55,12 @@ export type InfrastructureEntry = {
   statusAuditFocus: string;
   mcpApiPosture: string;
   billingFocus: string;
-  linkedAssets: InfrastructureAsset[];
+  linkedAssets: LocalToolsAsset[];
   configurationPath: string;
-  profile?: InfrastructureProfile;
+  profile?: LocalToolsProfile;
 };
 
-export type InfrastructureDraft = {
+export type LocalToolsDraft = {
   templateId: string;
   label: string;
   assetType: string;
@@ -80,26 +80,9 @@ export const HOST_GUARDIAN_ASSET_KEY = "system76-workstation";
 export const DEFAULT_OPEN_QUESTIONS =
   "- Which provider-side health, API, or billing checks should be automated first?";
 
-export const ASSET_TYPE_OPTIONS = [
-  "platform_account",
-  "source_control",
-  "hosting_platform",
-  "data_platform",
-  "workspace_tenant",
-  "local_toolchain",
-  "domain_edge",
-  "mcp_surface",
-  "api_surface",
-  "other",
-] as const;
+export const ASSET_TYPE_OPTIONS = ["local_toolchain", "mcp_surface"] as const;
 
-export const ENVIRONMENT_SCOPE_OPTIONS = [
-  "local",
-  "preview",
-  "production",
-  "mixed",
-  "other",
-] as const;
+export const ENVIRONMENT_SCOPE_OPTIONS = ["local"] as const;
 
 export function asString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -144,18 +127,18 @@ export function projectLabelsForKeys(keys: string[], projects: ProjectRow[]): st
     .join(", ");
 }
 
-export function sortAssets(items: InfrastructureAsset[]): InfrastructureAsset[] {
+export function sortAssets(items: LocalToolsAsset[]): LocalToolsAsset[] {
   return [...items].sort((a, b) => {
     if (a.mtime !== b.mtime) return b.mtime - a.mtime;
     return a.label.localeCompare(b.label);
   });
 }
 
-export function parseInfrastructureAsset(
+export function parseLocalToolsAsset(
   raw: string,
   inventoryPath: string,
   mtime: number,
-): InfrastructureAsset | null {
+): LocalToolsAsset | null {
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const assetKey = asString(parsed.assetKey);
@@ -193,149 +176,11 @@ export function derivePreferredProjectKeys(projects: ProjectRow[]): string[] {
     .map((project) => project.key);
 }
 
-export function buildInfrastructureProfiles(projects: ProjectRow[]): InfrastructureProfile[] {
+export function buildLocalToolsProfiles(projects: ProjectRow[]): LocalToolsProfile[] {
   const activeProjectKeys = derivePreferredProjectKeys(projects);
-  const dqotdProjectKey =
-    projects.find((project) => project.key === "dqotd")?.key || activeProjectKeys[0] || "dqotd";
-  const defaultProjectKeys = activeProjectKeys.length ? activeProjectKeys : [dqotdProjectKey];
+  const defaultProjectKeys = activeProjectKeys;
 
   return [
-    {
-      key: "openai-codex",
-      label: "OpenAI Codex / ChatGPT",
-      provider: "openai",
-      assetType: "workspace_tenant",
-      category: "AI & Agent Workspace",
-      owningOrg: "radcon",
-      environmentScope: "mixed",
-      primaryConsoleUrl: "https://chatgpt.com",
-      focusSummary: "Track Codex and ChatGPT plan access, usage visibility, model access, credits, and the boundary between OpenAI-hosted usage data and RadControl.",
-      statusAuditFocus: "Review the ChatGPT plan, Codex access, Usage Dashboard visibility, credits posture, and whether any supported workspace analytics are available.",
-      mcpApiPosture: "Personal ChatGPT/Codex usage is not exposed to RadControl through a documented public API. Workspace administrators may have separate analytics and usage-reporting capabilities.",
-      billingFocus: "Record the active ChatGPT plan, optional credits or auto-top-up settings, and who controls the billing account; never store tokens or session credentials here.",
-      role: "Primary OpenAI-hosted coding and agent workspace for Radcon operations.",
-      statusSummary: "Usage status is verified in ChatGPT under Codex Settings → Usage Dashboard; RadControl Phase 1 provides a safe link and manual-status panel.",
-      relatedProjectKeys: ["radcontrol", ...defaultProjectKeys],
-    },
-    {
-      key: "cloudflare",
-      label: "Cloudflare",
-      provider: "cloudflare",
-      assetType: "domain_edge",
-      category: "DNS & Edge",
-      owningOrg: "radcon",
-      environmentScope: "production",
-      primaryConsoleUrl: "https://dash.cloudflare.com",
-      focusSummary: "Track DNS, domain routing, SSL/TLS posture, redirects, origin mapping, and edge security under one governed platform view.",
-      statusAuditFocus: "Review ownership, DNS health, SSL mode, redirect rules, and any domain renewal or edge-service drift.",
-      mcpApiPosture: "Cloudflare API automation is possible. RadControl MCP/API checks are not wired yet and should report zone, DNS, and edge status later.",
-      billingFocus: "Capture domain renewal responsibility, payment method confidence, and any paid edge or security services.",
-      role: "Primary DNS, domain, and edge-control surface for empire web properties.",
-      statusSummary: "Use this for domains, edge routing, SSL posture, and account-level ownership checks.",
-      relatedProjectKeys: defaultProjectKeys,
-    },
-    {
-      key: "github",
-      label: "GitHub",
-      provider: "github",
-      assetType: "source_control",
-      category: "Source Control",
-      owningOrg: "radcon",
-      environmentScope: "mixed",
-      primaryConsoleUrl: "https://github.com",
-      focusSummary: "Track repo health, branch hygiene, remote ownership, and push readiness across governed codebases.",
-      statusAuditFocus: "Review account access, org/repo ownership, branch protection, secret posture, and which repos are actively backing projects.",
-      mcpApiPosture: "GitHub API and connector usage should eventually report repository status, push drift, and action/secret posture inside RadControl.",
-      billingFocus: "Record plan tier, seat count, private repo exposure, and whether any paid automation or CI costs are in play.",
-      role: "Primary governed source-control surface for projects and internal tools.",
-      statusSummary: "Use this for repo inventory, push status, access control, and branch-governance review.",
-      relatedProjectKeys: defaultProjectKeys,
-    },
-    {
-      key: "vercel",
-      label: "Vercel",
-      provider: "vercel",
-      assetType: "hosting_platform",
-      category: "Hosting & Deployments",
-      owningOrg: "radcon",
-      environmentScope: "preview",
-      primaryConsoleUrl: "https://vercel.com/dashboard",
-      focusSummary: "Track hosted apps, preview and production environments, domain attachments, deploy health, and environment variables.",
-      statusAuditFocus: "Review plan limits, domain binding, environment variables, production readiness, and which projects are actively deployed.",
-      mcpApiPosture: "Vercel API status should later surface deploy health, project ownership, environment drift, and domain attachments.",
-      billingFocus: "Record plan, usage exposure, team ownership, and any bandwidth or seat-related cost drift.",
-      role: "Primary hosting and preview deployment surface for empire websites.",
-      statusSummary: "Use this for deployment status, domain binding, and environment readiness.",
-      relatedProjectKeys: defaultProjectKeys,
-    },
-    {
-      key: "supabase",
-      label: "Supabase",
-      provider: "supabase",
-      assetType: "data_platform",
-      category: "Data & Auth",
-      owningOrg: "radcon",
-      environmentScope: "mixed",
-      primaryConsoleUrl: "https://supabase.com/dashboard/projects",
-      focusSummary: "Track database, auth, storage, backups, environment separation, and migration posture for governed apps.",
-      statusAuditFocus: "Review project ownership, auth settings, storage use, environment separation, and migration or secret drift.",
-      mcpApiPosture: "Supabase API status should later surface project health, auth posture, storage usage, and backup confidence.",
-      billingFocus: "Record plan, database/storage usage, and any cost or retention risk on project backends.",
-      role: "Primary governed backend platform for data, auth, and storage surfaces.",
-      statusSummary: "Use this for data-platform ownership, auth readiness, and backend risk review.",
-      relatedProjectKeys: defaultProjectKeys,
-    },
-    {
-      key: "resend",
-      label: "Resend",
-      provider: "resend",
-      assetType: "api_surface",
-      category: "Email Delivery",
-      owningOrg: "radcon",
-      environmentScope: "mixed",
-      primaryConsoleUrl: "https://resend.com",
-      focusSummary: "Track DQOTD transactional sender-domain verification, API-key scope, delivery health, and the separation between provider configuration and mailbox ownership.",
-      statusAuditFocus: "Review sender-domain verification, Cloudflare DNS posture, Preview versus Production environment wiring, delivery logs, and the absence of secrets from governed records.",
-      mcpApiPosture: "Resend API status can later surface sender-domain and delivery health. RadControl does not yet maintain those checks.",
-      billingFocus: "Record plan tier, sending volume, domain ownership, and any deliverability or usage-cost drift.",
-      role: "Transactional email delivery provider for DQOTD verification, password reset, and public contact/report delivery.",
-      statusSummary: "Use this for DQOTD sender-domain setup, delivery proof, and email-provider ownership.",
-      relatedProjectKeys: [dqotdProjectKey],
-    },
-    {
-      key: "google-workspace",
-      label: "Radcon Workspace",
-      provider: "google",
-      assetType: "workspace_tenant",
-      category: "Identity & Mail",
-      owningOrg: "radcon",
-      environmentScope: "production",
-      primaryConsoleUrl: "https://admin.google.com",
-      focusSummary: "Track workspace identity, inbox ownership, admin roles, billing, and domain verification for empire operations.",
-      statusAuditFocus: "Review domain verification, super-admin coverage, mailbox readiness, billing, and which projects need a tenant behind them.",
-      mcpApiPosture: "Workspace APIs may later report tenant health and service readiness. RadControl does not yet maintain those checks.",
-      billingFocus: "Capture plan, seat count, renewal posture, and who owns critical admin and inbox accounts.",
-      role: "Primary identity, collaboration, and mail layer for business and website operations.",
-      statusSummary: "Use this for admin/billing posture, mailbox readiness, and domain/workspace linkage.",
-      relatedProjectKeys: defaultProjectKeys,
-    },
-    {
-      key: "dqotd-workspace",
-      label: "DQOTD Workspace",
-      provider: "google",
-      assetType: "workspace_tenant",
-      category: "Identity & Mail",
-      owningOrg: "radcon",
-      environmentScope: "production",
-      primaryConsoleUrl: "https://admin.google.com",
-      focusSummary: "Track DQOTD domain identity, administrator coverage, recovery, billing, and the hello mailbox separately from the Radcon tenant.",
-      statusAuditFocus: "Review domain verification, super-admin and recovery coverage, mailbox readiness, mail authentication, billing, and application-email boundaries.",
-      mcpApiPosture: "Workspace APIs may later report tenant health and service readiness. RadControl does not yet maintain those checks.",
-      billingFocus: "Capture the DQOTD Workspace plan, seat count, renewal posture, and ownership of critical administrator and mailbox accounts.",
-      role: "Dedicated identity and human email tenant for Dinosaur Question of the Day.",
-      statusSummary: "Use this for DQOTD Workspace administration, mailbox readiness, and domain email posture.",
-      relatedProjectKeys: [dqotdProjectKey],
-    },
     {
       key: "docker",
       label: "Docker",
@@ -373,7 +218,7 @@ export function buildInfrastructureProfiles(projects: ProjectRow[]): Infrastruct
   ];
 }
 
-export function draftFromProfile(profile: InfrastructureProfile): InfrastructureDraft {
+export function draftFromProfile(profile: LocalToolsProfile): LocalToolsDraft {
   return {
     templateId: profile.key,
     label: profile.label,
@@ -390,8 +235,8 @@ export function draftFromProfile(profile: InfrastructureProfile): Infrastructure
 }
 
 export function deriveEnvironmentScope(
-  profile: InfrastructureProfile | undefined,
-  assets: InfrastructureAsset[],
+  profile: LocalToolsProfile | undefined,
+  assets: LocalToolsAsset[],
 ): string {
   const scopes = uniqueStrings(assets.map((asset) => asset.environmentScope));
   if (scopes.length === 0) return profile?.environmentScope || "other";
@@ -399,22 +244,22 @@ export function deriveEnvironmentScope(
   return "mixed";
 }
 
-export function deriveGovernedState(assets: InfrastructureAsset[]): string {
+export function deriveGovernedState(assets: LocalToolsAsset[]): string {
   const states = uniqueStrings(assets.map((asset) => asset.governedState));
   if (states.length === 0) return "starter profile";
   if (states.length === 1) return states[0];
   return "mixed";
 }
 
-export function buildInfrastructureEntries(
-  assets: InfrastructureAsset[],
-  profiles: InfrastructureProfile[],
-): InfrastructureEntry[] {
+export function buildLocalToolsEntries(
+  assets: LocalToolsAsset[],
+  profiles: LocalToolsProfile[],
+): LocalToolsEntry[] {
   const visibleAssets = assets.filter(
-    (asset) => normalizeKey(asset.assetKey) !== HOST_GUARDIAN_ASSET_KEY,
+    (asset) => normalizeKey(asset.assetKey) !== HOST_GUARDIAN_ASSET_KEY && asset.assetType !== "workstation" && (asset.environmentScope === "local" || ["local_toolchain", "mcp_surface"].includes(asset.assetType)),
   );
   const usedAssetKeys = new Set<string>();
-  const entries: InfrastructureEntry[] = [];
+  const entries: LocalToolsEntry[] = [];
   const providerProfileCounts = profiles.reduce((counts, profile) => {
     const providerKey = normalizeKey(profile.provider);
     counts.set(providerKey, (counts.get(providerKey) || 0) + 1);
@@ -482,7 +327,7 @@ export function buildInfrastructureEntries(
         label: asset.label,
         provider: asset.provider,
         assetType: asset.assetType,
-        category: "Custom Infrastructure Record",
+        category: "Custom LocalTools Record",
         owningOrg: asset.owningOrg,
         environmentScope: asset.environmentScope,
         governedState: asset.governedState,
@@ -503,7 +348,7 @@ export function buildInfrastructureEntries(
   return entries;
 }
 
-export function starterSelectionKey(profile: InfrastructureProfile | undefined, assetKey?: string): string | null {
+export function starterSelectionKey(profile: LocalToolsProfile | undefined, assetKey?: string): string | null {
   if (profile) return profile.key;
   if (assetKey) return assetKey;
   return null;

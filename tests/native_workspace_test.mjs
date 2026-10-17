@@ -37,3 +37,13 @@ test('empty mutable Work lanes require explicit loaded zero state, never a missi
     {...valid.emptyWork,loading:true},{...valid.emptyWork,error:true}])
     assert.equal(Boolean(workAnchorPresent({...valid,emptyWork},'todo')),false);
 });
+
+test('Projects proof distinguishes Repositories and Local Tools and rejects stale selection',()=>{
+ for(const name of ['repositories','tools']) {
+  const state={...selected(),selected:{top:['tab-projects'],security:[],projects:[name==='repositories'?'Repositories':'Local Tools']},containers:{repositories:{count:name==='repositories'?1:0},tools:{count:name==='tools'?1:0},sentinel:{count:0},empire_operations:{count:0},security_guardian:{count:0},runtime:{count:0}}};
+  assertWorkspaceState(state,name);
+  assert.throws(()=>assertWorkspaceState({...state,selected:{...state.selected,projects:[]}},name));
+  assert.throws(()=>assertWorkspaceState({...state,targetVisible:false},name));
+  assert.throws(()=>assertWorkspaceState({...state,containers:{...state.containers,[name]:{count:2}}},name));
+ }
+});

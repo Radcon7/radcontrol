@@ -1,14 +1,14 @@
-import type { InfrastructureEntry } from "./infrastructureModel";
+import type { LocalToolsEntry } from "./localToolsModel";
 
 type Props = {
-  entries: InfrastructureEntry[];
+  entries: LocalToolsEntry[];
   loading: boolean;
   loadError: string;
   selectedEntryKey: string | null;
   onSelect: (entryKey: string) => void;
 };
 
-export function InfrastructureRoster({
+export function LocalToolsRoster({
   entries,
   loading,
   loadError,
@@ -18,17 +18,17 @@ export function InfrastructureRoster({
   return (
     <div className="surfaceCard surfaceSidebarCard">
       <div className="surfaceCardTitleRow surfaceSidebarHeaderRow">
-        <div className="surfaceCardTitle">INFRASTRUCTURE ASSETS</div>
+        <div className="surfaceCardTitle">LOCAL TOOLS</div>
       </div>
 
       <div className="surfaceList">
         {entries.length === 0 ? (
           <div className="surfaceEmptyState">
             {loading
-              ? "Loading governed infrastructure data…"
+              ? "Loading governed local tool data…"
               : loadError
-                ? "Infrastructure data unavailable. See the error above."
-                : "No infrastructure items are configured."}
+                ? "Local tool data unavailable. See the error above."
+                : "No local tools are configured."}
           </div>
         ) : (
           entries.map((entry) => {

@@ -61,7 +61,7 @@ Bubblewrap mount namespace with `/` read-only, installed O2 `.state` replaced
 by a private test-owned overlay, and only test-owned browser state writable.
 The probe invokes no save/write/rename/create/configure/lifecycle action. It
 proves exact embedded identities, the governed project and To-Do inventory,
-Infrastructure and Sentinel availability, primary navigation,
+Docker/MCP Local Tools and Sentinel availability, exact four-tab navigation,
 installed O2 cleanliness, To-Do digest integrity, and listener cleanup.
 
 Writable persistence acceptance is not performed with a production artifact.
@@ -88,8 +88,9 @@ Mutable Work acceptance uses `native_work_authority.mjs` in candidate,
 first installed, rollback and final reinstall checks. It reads a validated O2
 Work snapshot independently of the renderer. Runtime Diagnostics counts every
 validated task, including completed and deferred tasks; events, initiatives and
-history do not contribute. Acceptance checks the exact displayed count, titles,
-and task identities across all lifecycle lanes. No live count or task content
+history do not contribute. Acceptance checks the exact diagnostic count and titles. Retired Work and
+Overview row assertions run only for older rollback generations; current
+acceptance verifies the retained Project Notes and four-tab controls. No live count or task content
 is a fixed release fixture. Fixed synthetic scenarios retain their exact checks.
 
 Candidate acceptance exercises the same private authority before promotion.
@@ -123,8 +124,8 @@ use a separate Bubblewrap session with an exact source archive and test-owned
 O2 state mounted at the runtime path; the installed executable is unchanged.
 This synthetic UI/contract phase is distinct from real installed identity,
 normal read-only surfaces, private-state preservation and rollback acceptance.
-It covers queued/active/blocked/Deferred/legacy tasks, lifecycle rails and
-selection, healthy/actionable/non-actionable/multiple Sentinel findings,
+It covers the four retained tabs and controls, private Project Notes bridge and
+recovery, healthy/actionable/non-actionable/multiple Sentinel findings,
 preview/cancel/confirmation, surviving findings, failed repair, Watching and recurrent thermal episodes, stable zombie and unavailable evidence, dated diagnosis process context, Details,
 all three Security workspaces and Runtime Diagnostics.
 
@@ -142,7 +143,7 @@ rejects missing, mismatched or incomplete installed matrix receipts. A generic
 passing precheck cannot stand in for these scenarios.
 
 Candidate and installed acceptance also execute the same ordered native path
-five consecutive times: To-Do / Progress, Security / Sentinel, the test-owned
+five consecutive times: Projects / Repositories / Local Tools, Security / Sentinel, the test-owned
 fan result, Details closed/open/reclosed, Empire Operations, Security Guardian,
 Runtime Diagnostics, and My Notes back to Sentinel. One shared workspace helper
 proves selected top navigation, consistent subtab state, unique visible content,
@@ -159,6 +160,15 @@ text, input values and full DOM bodies are not diagnostic output. Installed
 failures write beneath the existing transaction evidence directory; candidate
 and synthetic failures use their existing private acceptance evidence. A pass
 requires the complete ordered-run receipt and exact shared harness digests.
+
+The current synthetic receipt schema is `radcontrol-four-tab-native/v2`.
+The receiver requires every retained four-tab check, every Sentinel scenario,
+real bridge/private-store failure tests, supported width observations, five
+ordered navigation runs, and exact harness digests. Work progress/relationship
+editors and Legal/cloud Infrastructure assertions migrated with those surfaces;
+current RadControl gates do not navigate to them. This does not remove candidate,
+first-installed, rollback, identical-reinstall, or final-installed stages.
+Historical finalized receipts and recovery authority are not rewritten.
 
 Newly prepared `oldPair` evidence includes `radcontrolSourceSha`, resolved from
 the clean installed O2 compatibility pin and verified installed binary, never
@@ -183,8 +193,8 @@ In production it also invokes the existing read-only native harness in a
 rollback-only mode: the actual restored executable must populate its window and
 render exact runtime identities before a bound `native-rollback.json` receipt
 permits `old-live-verified`. With private Work active, that receipt also requires
-private readiness, exact current task IDs/titles and Overview initiatives from
-the preserved store; diagnostics alone cannot prove current Work visibility.
+private readiness and, for older builds that still render Work, exact current
+task IDs/titles and Overview initiatives from the preserved store; diagnostics alone cannot prove current Work visibility.
 This mode cannot replace first/final acceptance or
 their complete Wave 1.1 receipts. Fixture transactions use non-native binaries
 and test this boundary with a controlled subprocess double.

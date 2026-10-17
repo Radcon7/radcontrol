@@ -1,12 +1,12 @@
-import type { ProjectRow } from "../projects/types";
+import type { ProjectRow } from "./types";
 import {
   formatIsoDateTime,
   projectLabelsForKeys,
-  type InfrastructureEntry,
-} from "./infrastructureModel";
+  type LocalToolsEntry,
+} from "./localToolsModel";
 
-export function buildInfrastructureSnapshotLog(
-  entry: InfrastructureEntry,
+export function buildLocalToolsSnapshotLog(
+  entry: LocalToolsEntry,
   projects: ProjectRow[],
 ): string {
   return (
@@ -23,8 +23,8 @@ export function buildInfrastructureSnapshotLog(
   );
 }
 
-export function buildInfrastructureAuditLog(
-  entry: InfrastructureEntry,
+export function buildLocalToolsAuditLog(
+  entry: LocalToolsEntry,
   projects: ProjectRow[],
 ): string {
   const linkedRecordLines = entry.linkedAssets.length
@@ -47,7 +47,7 @@ export function buildInfrastructureAuditLog(
   );
 }
 
-export function buildGovernedEvidenceLog(entry: InfrastructureEntry): string {
+export function buildGovernedEvidenceLog(entry: LocalToolsEntry): string {
   const body = entry.linkedAssets.length
     ? entry.linkedAssets
         .map(

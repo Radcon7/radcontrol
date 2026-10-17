@@ -8,9 +8,9 @@ import {
 import { filterOperatorProjects } from "../src/components/projects/projectModel.ts";
 import {
   HOST_GUARDIAN_ASSET_KEY,
-  buildInfrastructureEntries,
-  buildInfrastructureProfiles,
-} from "../src/components/agents/infrastructureModel.ts";
+  buildLocalToolsEntries,
+  buildLocalToolsProfiles,
+} from "../src/components/projects/localToolsModel.ts";
 
 const manifest = JSON.parse(
   await readFile(new URL("../docs/RADCONTROL_CONTENT_PRESERVATION.json", import.meta.url)),
@@ -118,12 +118,12 @@ assert.throws(
   /row 0 is invalid/,
 );
 
-const profiles = buildInfrastructureProfiles(normalizedHistorical);
+const profiles = buildLocalToolsProfiles(normalizedHistorical);
 const expectedProfileKeys = manifest.infrastructure
-  .filter((entry) => entry.historicalState === "visible" && entry.key !== HOST_GUARDIAN_ASSET_KEY)
+  .filter((entry) => entry.action === "KEEP_PROJECTS")
   .map((entry) => entry.key);
 assert.deepEqual(profiles.map((profile) => profile.key), expectedProfileKeys);
-const futureProfiles = buildInfrastructureProfiles([...normalizedHistorical, futureProject]);
+const futureProfiles = buildLocalToolsProfiles([...normalizedHistorical, futureProject]);
 assert.ok(
   futureProfiles
     .filter((profile) => !["resend", "dqotd-workspace"].includes(profile.key))
@@ -146,7 +146,7 @@ const baseAsset = {
   updatedAt: "2026-08-15T00:00:00Z",
   mtime: 1,
 };
-const entries = buildInfrastructureEntries([
+const entries = buildLocalToolsEntries([
   { ...baseAsset, assetKey: HOST_GUARDIAN_ASSET_KEY, label: "System76 Workstation", provider: "system76", assetType: "workstation" },
   { ...baseAsset, assetKey: "future-provider", label: "Future Provider" },
 ], profiles);

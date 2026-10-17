@@ -1,4 +1,5 @@
-import { copyWorkSnapshot, snapshotWork, assertWorkUnchanged, workReceipt, assertNativeWorkDiagnostics, assertNativeWorkRows } from './native_work_authority.mjs';
+import { assertFourTabApplication } from './native_four_tab_assertions.mjs';
+import { copyWorkSnapshot, snapshotWork, assertWorkUnchanged, workReceipt, assertNativeWorkDiagnostics } from './native_work_authority.mjs';
 import os from 'node:os';
 import { configureWorkspace, nativeClick, assertWorkspace, workspaceText, captureWorkspaceFailure } from './native_workspace.mjs';
 import { runReleaseWave11 } from './native_wave11_release.mjs';
@@ -12,7 +13,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createBubblewrapApplication, snapshotInstalledO2, assertInstalledO2Unchanged,
   tcpListeners, assertNoNewTcpListeners, assertProcessNotRunning, assertPortAbsent,
   sha256File, installNativeAcceptanceSignalCleanup } from './native_acceptance_lib.mjs';
-import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, assertSentinelRawEvidence } from './native_sentinel_assertions.mjs';
+import { assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, assertSentinelRawEvidence } from './native_sentinel_assertions.mjs';
 
 function arg(name) {
   const i=process.argv.indexOf(name), value=i < 0 ? null : process.argv[i+1];
@@ -92,8 +93,9 @@ try {
  await click('button[title^="Show the installed app build"]');
  await until(()=>assertNativeWorkDiagnostics(base,session,expectedWork));
  await click('.runtimeModalCard .btnGhost');
- await assertNativeWorkRows(base,session,expectedWork,click,until);
- await assertWave1Work(base,session,click,until,expectedWork);
+ const projects=JSON.parse(command(['bash',path.join(root,'o2/scripts/run_o2.sh'),'list_projects'],{env:{...process.env,O2_ROOT_OVERRIDE:path.join(root,'o2')}})).projects.filter(p=>!['governance','local-control-plane'].includes(p.archetype));
+ assert.equal(projects.filter(p=>p.key==='radcloud').length,1,'current O2 registry must contain RadCloud');
+ await assertFourTabApplication({base,sessionId:session,eventually:until,projects});
  await click('[data-testid="tab-sentinel"]');
  await until(async()=>assert.match(await exec('return document.body.innerText;'),/RECENT EVENTS/));
  const text=await workspaceText(base,session,'sentinel');
@@ -132,11 +134,11 @@ try {
 }finally{ await signals(); }
 assert.equal(await sha256File(artifact),hash,'candidate changed during native precheck');
 assert.equal(await sha256File(releasePath),manifestHash,'admission changed during native precheck');
-const wave11 = await runReleaseWave11({app:artifact,o2Source:o2,identities:{o2Sha,radcontrolSha:radSha,artifactSha256:hash},entrypoint:'tauri_candidate_precheck.mjs'});
+const wave11 = await runReleaseWave11({app:artifact,o2Source:o2,identities:{o2Sha,radcontrolSha:radSha,artifactSha256:hash},entrypoint:'tauri_candidate_precheck.mjs',failureEvidenceDir:path.join(evidence,'synthetic-navigation')});
 const result={wave11,workAuthorityChecks:workReceipt(expectedWork),ok:true,acceptance:'candidate-native-precheck',o2Sha,radcontrolSha:radSha,
  artifactSha256:hash,releaseManifestSha256:manifestHash,
  harnessSha256:await sha256File(fileURLToPath(import.meta.url)),
  assertionsSha256:await sha256File(new URL('./native_sentinel_assertions.mjs',import.meta.url)),
- checks:['authoritative-private-work','wave1-work-surfaces','native-launch','current-now','grouped-activity','details-closed-open-reclosed','rendered-text','hit-testing','five-leakage-fixtures','hidden-open-panel','missing-panel','installed-preserved','listeners-preserved']};
+ checks:['authoritative-private-work','four-tab-retained-surfaces','native-launch','current-now','grouped-activity','details-closed-open-reclosed','rendered-text','hit-testing','five-leakage-fixtures','hidden-open-panel','missing-panel','installed-preserved','listeners-preserved']};
 await writeFile(path.join(evidence,'candidate-native.json'),JSON.stringify(result)+'\n',{flag:'wx',mode:0o600});
 console.log(JSON.stringify(result));

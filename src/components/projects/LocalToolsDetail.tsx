@@ -1,12 +1,11 @@
-import type { ProjectRow } from "../projects/types";
-import { InfrastructureBrief } from "./InfrastructureBrief";
-import { InfrastructureConfigurationNote } from "./InfrastructureConfigurationNote";
-import { CodexUsagePanel } from "./CodexUsagePanel";
-import type { InfrastructureEntry } from "./infrastructureModel";
-import { InfrastructureNotes } from "./InfrastructureNotes";
+import type { ProjectRow } from "./types";
+import { LocalToolsBrief } from "./LocalToolsBrief";
+import { LocalToolsConfigurationNote } from "./LocalToolsConfigurationNote";
+import type { LocalToolsEntry } from "./localToolsModel";
+import { LocalToolsNotes } from "./LocalToolsNotes";
 
 type Props = {
-  entry: InfrastructureEntry;
+  entry: LocalToolsEntry;
   projects: ProjectRow[];
   notePath: string | null;
   noteText: string;
@@ -20,7 +19,7 @@ type Props = {
   onConfigurationChange: (value: string) => void;
 };
 
-export function InfrastructureDetail({
+export function LocalToolsDetail({
   entry,
   projects,
   notePath,
@@ -36,11 +35,10 @@ export function InfrastructureDetail({
 }: Props) {
   return (
     <div className="surfaceCard surfaceDetailBriefCard">
-      <div className="surfaceCardTitle">Infrastructure Brief</div>
+      <div className="surfaceCardTitle">Local Tool Brief</div>
       <div className="surfaceSummaryList">
-        {entry.key === "openai-codex" ? <CodexUsagePanel /> : null}
-        <InfrastructureBrief entry={entry} projects={projects} />
-        <InfrastructureConfigurationNote
+        <LocalToolsBrief entry={entry} projects={projects} />
+        <LocalToolsConfigurationNote
           status={configurationStatus}
           value={configurationText}
           readOnly={!configurationPath || configurationLoading}
@@ -51,13 +49,13 @@ export function InfrastructureDetail({
           }
           onChange={onConfigurationChange}
         />
-        <InfrastructureNotes
+        <LocalToolsNotes
           status={noteStatus}
           value={noteText}
           readOnly={!notePath || noteLoading}
           placeholder={
             notePath
-              ? "Infrastructure note"
+              ? "Local tool note"
               : "No governed note path available."
           }
           onChange={onNoteChange}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { buildInfrastructureProfiles } from "../agents/infrastructureModel";
+import { buildLocalToolsProfiles } from "../projects/localToolsModel";
 import { REQUIRED_OPERATOR_PROJECT_KEYS } from "../common/o2Contract";
 import { listWork } from "../overview/workApi";
 import type { WorkResponse } from "../overview/workModel";
@@ -139,8 +139,8 @@ export function RuntimeDiagnosticsModal({
 
   const operatorProjects = useMemo(() => filterOperatorProjects(projects), [projects]);
   const projectKeys = operatorProjects.map((project) => project.key);
-  const infrastructureLabels = useMemo(
-    () => buildInfrastructureProfiles(projects).map((profile) => profile.label),
+  const localToolsLabels = useMemo(
+    () => buildLocalToolsProfiles(projects).map((profile) => profile.label),
     [projects],
   );
   const runtimeFilesReady = Boolean(
@@ -158,7 +158,7 @@ export function RuntimeDiagnosticsModal({
     registryState === "ready" &&
     sameSet(projectKeys, REQUIRED_OPERATOR_PROJECT_KEYS) &&
     smoke.todoAvailable &&
-    infrastructureLabels.length === 10 &&
+    localToolsLabels.length === 2 &&
     smoke.sentinelAvailable;
 
   if (!open) return null;
@@ -223,9 +223,9 @@ export function RuntimeDiagnosticsModal({
               detail={smoke.todoError || smoke.todoTitles.join(" · ") || "To-Do data unavailable"}
             />
             <Check
-              ok={infrastructureLabels.length === 10}
-              label={`Infrastructure · ${infrastructureLabels.length} governed profiles`}
-              detail={infrastructureLabels.join(" · ")}
+              ok={localToolsLabels.length === 2}
+              label={`Local Tools · ${localToolsLabels.length} governed profiles`}
+              detail={localToolsLabels.join(" · ")}
             />
             <Check
               ok={NOTES_VIEWS.length === 4}

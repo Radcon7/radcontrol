@@ -1,6 +1,8 @@
+import { snapshotWork, assertWorkUnchanged } from './native_work_authority.mjs';
+import { assertFourTabApplication } from './native_four_tab_assertions.mjs';
 import { seedSentinelReadiness, assertSentinelReadiness } from "./native_sentinel_readiness.mjs";
 import { configureWorkspace } from './native_workspace.mjs';
-import { assertWave1Work, assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, assertSentinelRawEvidence } from "./native_sentinel_assertions.mjs";
+import { assertSentinelHealth, assertSentinelDetails, guardianActivityGeometry, assertGuardianActivityGeometry, assertSentinelRawEvidence } from "./native_sentinel_assertions.mjs";
 import { runWave2aAcceptance } from "./native_wave2a_acceptance.mjs";
 import { runWave11Acceptance } from "./native_wave11_acceptance.mjs";
 import assert from "node:assert/strict";
@@ -20,18 +22,19 @@ import {
   createBubblewrapApplication,
   installNativeAcceptanceSignalCleanup,
   snapshotInstalledO2,
+  sha256File,
   tcpListeners,
 } from "./native_acceptance_lib.mjs";
 
 const sentinelOnly = process.argv.includes("--sentinel-readiness-only");
-const workOnly = process.argv.includes("--work-only");
+assert.ok(!process.argv.includes("--work-only"), "Work UI migrated to RadCloud; use current four-tab acceptance");
 const fixtureKey = "radcontrol-e2e-fixture";
 const createdProjectKey = "radcontrol-e2e-draft";
 const agentName = "RadControl E2E Agent";
 const agentKey = "radcontrol-e2e-agent";
-const infrastructureLabel = "RadControl E2E Infrastructure";
-const infrastructureKey = "radcontrol-e2e-infrastructure-domain-edge";
-const infrastructureProfileKey = "cloudflare";
+const infrastructureLabel = "RadControl E2E Local Tool";
+const infrastructureKey = "radcontrol-e2e-local-tool-local-toolchain";
+const infrastructureProfileKey = "docker";
 const app = new URL("../src-tauri/target/debug/radcontrol-app", import.meta.url).pathname;
 const sourceO2Root = process.env.O2_E2E_SOURCE_ROOT || "/home/chris/dev/o2";
 
@@ -141,6 +144,10 @@ async function prepareIsolatedO2Root() {
     cp(path.join(sourceO2Root, "docs", "O2_OPERATIONAL_PLAYBOOK.md"), path.join(o2Root, "docs", "O2_OPERATIONAL_PLAYBOOK.md")),
     cp(path.join(sourceO2Root, "docs", "CURRENT_DOCTRINE.md"), path.join(o2Root, "docs", "CURRENT_DOCTRINE.md")),
   ]);
+  const seedAgent=path.join(o2Root,'docs/agent-profiles/native-fixture');
+  await mkdir(seedAgent,{recursive:true});
+  await writeFile(path.join(seedAgent,'01_profile.json'),JSON.stringify({recordType:'agent_profile',profileKey:'native-fixture',name:'Native Fixture Agent',handle:'native-fixture',agentType:'codex',governedState:'active',mission:'Isolated native acceptance',defaultMode:'read-only',assignedProjects:[fixtureKey],canonicalNotesPath:'docs/agent-profiles/native-fixture/NOTES.md'}));
+  await writeFile(path.join(seedAgent,'NOTES.md'),'Deterministic native fixture agent.\n');
   await mkdir(hostRecordDir, { recursive: true });
   await Promise.all([
     mkdir(e2eHome, { recursive: true }),
@@ -185,13 +192,32 @@ async function prepareIsolatedO2Root() {
     }], null, 2)}\n`,
   );
 
-  if(workOnly){
-    const registryPath=path.join(o2Root,"registry/projects.json");
-    const projects=JSON.parse(await readFile(registryPath,"utf8"));
-    const secondPort=await unusedPort();
-    projects.push({...projects[0],key:"work-relationship-fixture",label:"Work Relationship Fixture",port:secondPort,url:`http://127.0.0.1:${secondPort}`});
-    await writeFile(registryPath,JSON.stringify(projects));
+  // The synthetic registry has no source Git history for catalog checksums.
+  // Match O2's own formation fixture: an empty private catalog gains only the
+  // newly accepted starter entry. Real source knowledge remains untouched.
+  for(const name of ['knowledge-catalog.json','knowledge-catalog.lock.json'])
+    await writeFile(path.join(o2Root,'registry',name),JSON.stringify({catalogVersion:1,entries:[]}));
+  await mkdir(path.join(o2Root,'governance/codex'),{recursive:true});
+  await cp(path.join(sourceO2Root,'governance/codex/AGENTS.md'),path.join(o2Root,'governance/codex/AGENTS.md'));
+
+  // Preserve current topology metadata while every writable repository root
+  // remains disposable. The later read-only review uses the real paths.
+  const registryPath=path.join(o2Root,'registry/projects.json');
+  const fixtureProjects=JSON.parse(await readFile(registryPath,'utf8'));
+  const sourceProjects=JSON.parse(await readFile(path.join(sourceO2Root,'registry/projects.json'),'utf8'));
+  for(const row of sourceProjects) {
+    const repoPath=path.join(tempRoot,`repository-${row.key}`);
+    await mkdir(repoPath,{recursive:true});
+    fixtureProjects.push({...row,repoPath,repoHint:repoPath});
   }
+  await writeFile(registryPath,JSON.stringify(fixtureProjects));
+  // O2's existing data-only E2E adapter supplies browser evidence for the
+  // disposable New Project starter. This is not hosted/browser acceptance.
+  const browserResult=path.join(tempRoot,'browser-result.json');
+  await cp(path.join(sourceO2Root,'tests/fixtures/bootstrap-browser-success.json'),browserResult);
+  const dispatcher=path.join(o2Root,'scripts/run_o2.sh');
+  const dispatcherText=await readFile(dispatcher,'utf8');
+  await writeFile(dispatcher,dispatcherText.replace('set -euo pipefail',`set -euo pipefail\nexport RADCONTROL_E2E=1\nexport O2_ROOT_OVERRIDE='${o2Root}'\nexport O2_E2E_HOME='${e2eHome}'\nexport O2_E2E_BROWSER_RESULT='${browserResult}'`));
 
   return {
     tempRoot,
@@ -252,43 +278,6 @@ async function click(base, sessionId, selector) {
     await request(base, `/session/${sessionId}/element/${id}/click`, "POST", {});
     return id;
   }, `click ${selector}`);
-}
-
-async function activateCompletionCheckbox(base, sessionId, title) {
-  const selector = `[aria-label="Complete ${title}"]`;
-  const checkbox = await element(base, sessionId, selector);
-  assert.equal(await request(base, `/session/${sessionId}/element/${checkbox}/enabled`), true, `completion checkbox for ${title} is enabled`);
-  await click(base, sessionId, selector);
-  try {
-    await eventually(() => element(base, sessionId, '[data-testid="empire-todo-complete-without-timeline"]'), `open ${title} completion dialog by native WebDriver click`, 1_500);
-    return "webdriver";
-  } catch {
-    const result = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-      script: "if (!arguments[0].matches(':enabled')) throw new Error('checkbox disabled'); arguments[0].click(); return { checked: arguments[0].checked, type: arguments[0].type };",
-      args: [{ "element-6066-11e4-a52e-4f735466cecf": checkbox }],
-    });
-    assert.equal(result.type, "checkbox");
-    await eventually(() => element(base, sessionId, '[data-testid="empire-todo-complete-without-timeline"]'), `open ${title} completion dialog by DOM click on the real checkbox`);
-    return "dom-click";
-  }
-}
-
-async function activateView(base, sessionId, view, expectedSelector) {
-  const selector = `[data-testid="task-view-${view === "active" ? "now" : view}"]`;
-  const control = await element(base, sessionId, selector);
-  assert.equal(await request(base, `/session/${sessionId}/element/${control}/enabled`), true, `${view} view control is enabled`);
-  const selected = () => request(base, `/session/${sessionId}/execute/sync`, "POST", { script: "return arguments[0].getAttribute('aria-pressed');", args: [{ "element-6066-11e4-a52e-4f735466cecf": control }] });
-  await click(base, sessionId, selector);
-  try {
-    await eventually(async () => assert.equal(await selected(), "true"), `open ${view} view by native WebDriver click`, 1_500);
-  } catch {
-    await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-      script: "if (!arguments[0].matches(':enabled')) throw new Error('view control disabled'); arguments[0].click(); return arguments[0].textContent;",
-      args: [{ "element-6066-11e4-a52e-4f735466cecf": control }],
-    });
-    await eventually(async () => assert.equal(await selected(), "true"), `open ${view} view by DOM click on the real button`);
-  }
-  await eventually(() => element(base, sessionId, expectedSelector), `render ${view} view contents`);
 }
 
 async function domClick(base, sessionId, selector) {
@@ -416,13 +405,12 @@ const fixture = await prepareIsolatedO2Root();
 if (sentinelOnly) await seedSentinelReadiness(fixture);
 console.error(`[e2e] isolated fixture ${fixture.tempRoot}`);
 await assertWritableFixtureIsolation(fixture);
-const activateFixture=!workOnly ? spawnSync('python3',['-c','from o2_operator_work import store,import_legacy; store().activate(import_legacy)'],{
-  encoding:'utf8',env:{...process.env,O2_ROOT_OVERRIDE:fixture.o2Root,PYTHONPATH:path.join(fixture.o2Root,'scripts'),PYTHONDONTWRITEBYTECODE:'1'}}) : null;
-if(activateFixture)assert.equal(activateFixture.status,0,activateFixture.stdout+activateFixture.stderr);
 const installedBefore = await snapshotInstalledO2();
+const installedBinaryBefore=await sha256File('/home/chris/.local/bin/radcontrol-app');
+const liveWorkRoot=path.join(path.dirname(INSTALLED_O2_ROOT),'operator-work');
+const liveWorkBefore=await snapshotWork(INSTALLED_O2_ROOT,liveWorkRoot);
 const workFile = path.join(fixture.o2Root, ".state/radcontrol-operator/work/work.json");
 const readWork = async () => JSON.parse(await readFile(workFile, "utf8"));
-const readTasks = async () => ({ items: (await readWork()).data.tasks });
 const listenersBefore = tcpListeners();
 assertPortAbsent(listenersBefore, 1420);
 const sandboxedApp = await createBubblewrapApplication({
@@ -462,6 +450,8 @@ const cleanup = installNativeAcceptanceSignalCleanup(async () => {
   if (process.env.RADCONTROL_KEEP_FIXTURE !== "1") await rm(fixture.tempRoot, { recursive: true, force: true });
   else console.error(`[e2e] retained fixture ${fixture.tempRoot}`);
   await assertInstalledO2Unchanged(installedBefore);
+  assert.equal(await sha256File('/home/chris/.local/bin/radcontrol-app'),installedBinaryBefore,'installed binary changed');
+  assertWorkUnchanged(liveWorkBefore,await snapshotWork(INSTALLED_O2_ROOT,liveWorkRoot));
   const listenersAfter = tcpListeners();
   assertPortAbsent(listenersAfter, 1420);
   assertNoNewTcpListeners(listenersBefore, listenersAfter);
@@ -486,7 +476,7 @@ try {
   if (sentinelOnly) {
     await assertSentinelReadiness({fixture,base,sessionId,request,click,eventually});
   } else {
-  if(!workOnly){
+  await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode:'e2e',expectBridge:true});
   await click(base, sessionId, '[data-testid="tab-notes"]');
   await click(base, sessionId, '[data-testid="notes-mode-notes"]');
   const myNotesProbe = "E2E My Notes draft persists through governed O2 storage";
@@ -509,183 +499,13 @@ try {
     new RegExp(myNotesProbe),
   ), "reload persisted My Note before the native restart");
   assert.ok(await element(base,sessionId,'[data-testid="notes-mode-empire_blueprint"]'));
-  await click(base,sessionId,'[data-testid="tab-work"]');
-  await click(base,sessionId,'[data-testid="work-mode-tasks"]');
-  await click(base,sessionId,'[data-testid="task-view-all"]');
-  await eventually(async()=>assert.match(await bodyText(base,sessionId),/Tasks[\s\S]*Initiatives[\s\S]*Timeline/),'unified Work navigation');
-  const todoBeforeSelection = await readFile(fixture.empireTodoPath, "utf8");
-  await assertWave1Work(base, sessionId, (selector) => click(base, sessionId, selector), (fn) => eventually(fn, "Wave 1 work surfaces"));
-  assert.equal(await readFile(fixture.empireTodoPath, "utf8"), todoBeforeSelection, "read-only selection/navigation must not save tasks");
-  await click(base, sessionId, '[data-testid="tab-work"]');
-  await click(base, sessionId, '[data-testid="work-mode-tasks"]');
-  await click(base, sessionId, '[data-testid="task-view-now"]');
-  await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Find tasks"]'), 'Dinosaur');
-  await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
-  await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Task title"]'), 'Edited matching task');
-  await eventually(async () => assert.equal(await elementProperty(base, sessionId, await element(base, sessionId, '[aria-label="Task title"]'), "value"), 'Edited matching task'), "editing a filtered title retains its selected draft");
-  await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Task title"]'), 'DQOTD Dinosaur Content');
-  await replaceValue(base, sessionId, await element(base, sessionId, '[aria-label="Find tasks"]'), '');
-  await click(base, sessionId, '[data-testid="empire-todo-select-dqotd-dinosaur-content"]');
-  const empireTodoNotes = await element(base, sessionId, '[aria-label="Notes for DQOTD Dinosaur Content"]');
-  const todoProbe = "E2E roadmap draft survives governed persistence";
-  await replaceValue(base, sessionId, empireTodoNotes, todoProbe);
-  await eventually(async () => {
-    const todoPayload = await readTasks();
-    const dinosaurItem = todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content");
-    assert.match(dinosaurItem?.notes || "", new RegExp(todoProbe));
-    assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
-  }, "persist Empire To-Do fields before switching items");
-  const completionModes = [];
-  completionModes.push(await activateCompletionCheckbox(base, sessionId, "DQOTD Dinosaur Content"));
-  await eventually(async () => assert.match(await bodyText(base, sessionId), /Complete “DQOTD Dinosaur Content”[\s\S]*Cancel[\s\S]*Complete without Timeline[\s\S]*Add to Timeline/), "render completion dialog for Cancel");
-  await click(base, sessionId, '.notesModalCard .btnGhost');
-  await eventually(async () => {
-    const todoPayload = await readTasks();
-    assert.equal(todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content")?.status, "In Progress");
-    assert.equal((await readWork()).data.events.length, 0);
-  }, "Cancel keeps deterministic task active without a Timeline event");
-  completionModes.push(await activateCompletionCheckbox(base, sessionId, "DQOTD Dinosaur Content"));
-  await click(base, sessionId, '[data-testid="empire-todo-complete-without-timeline"]');
-  await eventually(async () => {
-    const todoPayload = await readTasks();
-    assert.equal(todoPayload.items.find((item) => item.id === "dqotd-dinosaur-content")?.status, "Complete");
-    assert.equal((await readWork()).data.events.length, 0);
-  }, "Complete without Timeline persists only the task completion");
-  await activateView(base, sessionId, "completed", '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
-  await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'), "show completed Empire To-Do history");
-  await activateView(base, sessionId, "active", '[data-testid="empire-todo-item-dqotd-7d-acceptance"]');
-  await assert.rejects(
-    () => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'),
-    /POST \/session\//,
-  );
-  const timelineTask = "RadControl Operator Cockpit";
-  completionModes.push(await activateCompletionCheckbox(base, sessionId, timelineTask));
-  await click(base, sessionId, '[data-testid="empire-todo-complete-with-timeline"]');
-  const timelineFile = await eventually(async () => {
-    const events = (await readWork()).data.events;
-    assert.equal(events.length, 1, "exactly one Timeline milestone is created");
-    assert.equal(events[0].title, "RadControl Operator Cockpit completed");
-    assert.match(events[0].date, /^\d{4}-\d{2}-\d{2}$/);
-    assert.doesNotMatch(events[0].notes, new RegExp(todoProbe));
-    return workFile;
-  }, "Add to Timeline creates one bounded milestone without copying task scratch notes");
-  await activateView(base, sessionId, "completed", '[data-testid="empire-todo-item-dqotd-dinosaur-content"]');
-  await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-radcontrol-operator-cockpit"]'), "show Timeline-completed task in completed history");
   await request(base, `/session/${sessionId}`, "DELETE");
   sessionId = await startDesktopSession(base, sandboxedApp);
   configureWorkspace(base,sessionId,{evidenceDir:path.join(fixture.tempRoot,'navigation'),fixture:{kind:'e2e'}});
-  await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl[\s\S]*Projects/), "restart isolated RadControl");
+  await eventually(async () => assert.match(await bodyText(base, sessionId), /Projects/), "restart isolated RadControl");
   await click(base, sessionId, '[data-testid="tab-notes"]');
   await click(base, sessionId, '[data-testid="notes-mode-notes"]');
-  await eventually(async () => assert.match(
-    await elementProperty(base, sessionId, await element(base, sessionId, '[data-testid="my-notes-input"]'), "value"),
-    new RegExp(myNotesProbe),
-  ), "reload My Note after native restart");
-  await click(base, sessionId, '[data-testid="tab-work"]');
-  await click(base, sessionId, '[data-testid="work-mode-tasks"]');
-  await click(base, sessionId, '[data-testid="task-view-completed"]');
-  await eventually(() => element(base, sessionId, '[data-testid="empire-todo-item-dqotd-dinosaur-content"]'), "reload completed Empire To-Do item after native restart");
-  await eventually(async () => {
-    const todoPayload = await readTasks();
-    assert.equal(todoPayload.items.filter((item) => item.id === "dqotd-dinosaur-content").length, 1);
-    assert.equal(todoPayload.items.find((item) => item.id === "radcontrol-operator-cockpit")?.status, "Complete");
-    assert.equal((await readWork()).data.events.length, 1);
-    await access(timelineFile);
-  }, "preserve one Empire To-Do item after native restart");
-  assert.ok(completionModes.length === 3 && completionModes.every((mode) => mode === "webdriver" || mode === "dom-click"), "completion dialogs used a real enabled checkbox control");
-  await click(base, sessionId, '[data-testid="tab-legal"]');
-  await eventually(async () => {
-    const text = await bodyText(base, sessionId);
-    assert.match(text, /StructureFormationAddresses & AgentBrands & VenturesBusiness AccountsDocuments & Compliance/);
-    assert.match(text, /OWNERSHIP \/ BUSINESS LANE[\s\S]*Radcon Enterprises LLC[\s\S]*Offroad Croquet/);
-    assert.match(text, /PARALLEL REAL-ESTATE LANE[\s\S]*RadWolfe[\s\S]*Jointly owned rental townhouse/);
-    assert.match(text, /RCE OPERATING ACCESS — NOT OWNERSHIP[\s\S]*OPERATING ACCESS — NOT OWNERSHIP/);
-  }, "render corrected Legal Structure and portal-access diagrams");
-  const legalStructurePresentation = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-    script: `
-      const diagram = document.querySelector('[data-testid="legal-ownership-diagram"]');
-      const radcon = document.querySelector('[data-testid="legal-radcon-entity"]');
-      const radwolfe = document.querySelector('[data-testid="legal-radwolfe-venture"]');
-      const dqotd = document.querySelector('[data-testid="legal-dqotd-node"]');
-      const tbis = document.querySelector('[data-testid="legal-tbis-node"]');
-      const offroad = document.querySelector('[data-testid="legal-offroad-node"]');
-      const townhouse = document.querySelector('[data-testid="legal-townhouse-node"]');
-      const ownership = document.querySelector('[data-testid="legal-ownership-connector-radcon"] .legalGraphConnectorBranch');
-      const support = document.querySelector('[data-testid="legal-support-connector-radcon"] .legalGraphConnectorBranch');
-      const portal = document.querySelector('[data-testid="legal-portal-access-diagram"]');
-      const portalConnector = document.querySelector('[data-testid="legal-portal-access-connector"] span');
-      const shell = document.querySelector('.legalOperatorWorkspace');
-      const supporting = document.querySelector('.legalOperatorWorkspace small');
-      const structureMode = document.querySelector('[data-testid="legal-mode-structure"]');
-      const rect = (element) => element ? element.getBoundingClientRect() : null;
-      const ownershipRect = rect(ownership);
-      const supportRect = rect(support);
-      const portalRect = rect(portal);
-      const diagramRect = rect(diagram);
-      return {
-        laneCount: diagram ? diagram.querySelectorAll(':scope > [data-testid$="-lane"]').length : 0,
-        graphIsFirstWorkspaceContent: Boolean(shell && diagram && diagram.parentElement?.firstElementChild === diagram),
-        graphVisibleImmediately: Boolean(diagramRect && diagramRect.top < window.innerHeight && diagramRect.height > 0),
-        parallelTopDelta: radcon && radwolfe ? Math.abs(radcon.getBoundingClientRect().top - radwolfe.getBoundingClientRect().top) : null,
-        topNodesSideBySide: Boolean(radcon && radwolfe && radcon.getBoundingClientRect().right < radwolfe.getBoundingClientRect().left),
-        radconChildrenBelow: Boolean(radcon && dqotd && tbis && offroad && [dqotd, tbis, offroad].every((node) => node.getBoundingClientRect().top > radcon.getBoundingClientRect().bottom)),
-        townhouseBelowRadwolfe: Boolean(radwolfe && townhouse && townhouse.getBoundingClientRect().top > radwolfe.getBoundingClientRect().bottom),
-        ownershipConnectorGeometry: Boolean(ownershipRect && ownershipRect.width > 80 && ownershipRect.height >= 2 && getComputedStyle(ownership).backgroundColor !== 'rgba(0, 0, 0, 0)'),
-        supportConnectorGeometry: Boolean(supportRect && supportRect.width > 80 && getComputedStyle(support).borderTopStyle === 'dashed'),
-        crossOwnershipConnectors: document.querySelectorAll('[data-connector="radcon-radwolfe"]').length,
-        portalIsSeparateAndBelow: Boolean(diagramRect && portalRect && portalRect.top >= diagramRect.bottom && portalConnector && portalConnector.getBoundingClientRect().width > 0),
-        normalFontSize: shell ? Number.parseFloat(getComputedStyle(shell).fontSize) : null,
-        supportingFontSize: supporting ? Number.parseFloat(getComputedStyle(supporting).fontSize) : null,
-        structureSelected: structureMode ? structureMode.classList.contains('workspaceModeButtonActive') : false,
-      };
-    `,
-    args: [],
-  });
-  assert.equal(legalStructurePresentation.laneCount, 2, "Legal ownership diagram must render exactly two parallel lanes");
-  assert.equal(legalStructurePresentation.graphIsFirstWorkspaceContent, true, "Legal graph must be the first Structure content beneath the tab controls");
-  assert.equal(legalStructurePresentation.graphVisibleImmediately, true, "Legal graph must be visible in the initial Structure viewport");
-  assert.ok(legalStructurePresentation.parallelTopDelta !== null && legalStructurePresentation.parallelTopDelta < 80, "Radcon and RadWolfe must begin as parallel visual structures");
-  assert.equal(legalStructurePresentation.topNodesSideBySide, true, "Radcon and RadWolfe top-level nodes must render side-by-side");
-  assert.equal(legalStructurePresentation.radconChildrenBelow, true, "DQOTD, TBIS, and Offroad Croquet must render below Radcon Enterprises");
-  assert.equal(legalStructurePresentation.townhouseBelowRadwolfe, true, "The jointly owned townhouse must render below RadWolfe");
-  assert.equal(legalStructurePresentation.ownershipConnectorGeometry, true, "Ownership connector geometry must render between Radcon and its businesses");
-  assert.equal(legalStructurePresentation.supportConnectorGeometry, true, "Support/service connector geometry must render as dashed lines");
-  assert.equal(legalStructurePresentation.crossOwnershipConnectors, 0, "No ownership connector may link Radcon to RadWolfe");
-  assert.equal(legalStructurePresentation.portalIsSeparateAndBelow, true, "RCE access must be a smaller separate diagram below the legal structure");
-  assert.ok(legalStructurePresentation.normalFontSize >= 14, "Legal normal text must remain readable");
-  assert.ok(legalStructurePresentation.supportingFontSize >= 13, "Legal supporting text must remain readable");
-  assert.equal(legalStructurePresentation.structureSelected, true, "Structure must be the default Legal view");
-  if (process.env.RADCONTROL_E2E_SCREENSHOT_PATH) {
-    const encodedScreenshot = await request(base, `/session/${sessionId}/screenshot`);
-    await writeFile(process.env.RADCONTROL_E2E_SCREENSHOT_PATH, Buffer.from(encodedScreenshot, "base64"));
-  }
-  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 600, height: 900 });
-  const mobileColumns = await eventually(async () => {
-    const value = await request(base, `/session/${sessionId}/execute/sync`, "POST", {
-      script: `
-        const diagram = document.querySelector('[data-testid="legal-ownership-diagram"]');
-        const addresses = document.querySelector('[data-testid="legal-three-address-model"]');
-        return { diagram: diagram ? getComputedStyle(diagram).gridTemplateColumns : null, addresses: addresses ? getComputedStyle(addresses).gridTemplateColumns : null };
-      `,
-      args: [],
-    });
-    assert.ok(value.diagram && !value.diagram.includes(" "), "mobile ownership diagram must collapse to one column");
-    return value;
-  }, "render the legal ownership diagram responsively");
-  assert.ok(mobileColumns.diagram);
-  await request(base, `/session/${sessionId}/window/rect`, "POST", { width: 1650, height: 1000 });
-  await click(base, sessionId, '[data-testid="legal-mode-formation"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render separate formation workstreams"), /Radcon Enterprises formation[\s\S]*RadWolfe formalization[\s\S]*Form RadWolfe LLC if chosen/);
-  await click(base, sessionId, '[data-testid="legal-mode-addresses"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render the three-address model"), /Private owner address[\s\S]*Actual street address intentionally absent[\s\S]*300 S Main St, Suite 212[\s\S]*Northwest Registered Agent/);
-  await click(base, sessionId, '[data-testid="legal-mode-brands"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "separate brands from the parallel venture"), /RADCON-OWNED BRANDS \/ BUSINESSES \/ PROJECTS[\s\S]*Offroad Croquet[\s\S]*PARALLEL VENTURE[\s\S]*RadWolfe/);
-  await click(base, sessionId, '[data-testid="legal-mode-accounts"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "keep account status entity-specific"), /Radcon Enterprises[\s\S]*EIN[\s\S]*RadWolfe[\s\S]*No RadWolfe account is asserted/);
-  await click(base, sessionId, '[data-testid="legal-mode-documents"]');
-  assert.match(await eventually(() => bodyText(base, sessionId), "render truthful document pointers"), /DOCUMENTS & COMPLIANCE[\s\S]*Articles of Organization[\s\S]*not created[\s\S]*Partnership-related records[\s\S]*not uploaded/i);
-  await click(base, sessionId, '.legalArchiveChoice');
-  assert.match(await eventually(() => bodyText(base, sessionId), "preserve governed Legal archives"), /Legal Working Notes[\s\S]*Legal Library Index/);
+  await eventually(async () => assert.equal(await elementProperty(base,sessionId,await element(base,sessionId,'[data-testid="my-notes-input"]'),"value"),myNotesProbe), "reload My Notes after native restart");
   await click(base, sessionId, '[data-testid="tab-agents"]');
   assert.match(
     await eventually(() => bodyText(base, sessionId), "render Agents"),
@@ -758,12 +578,10 @@ try {
     );
   }, "persist Agent autosave into the isolated O2 root");
 
-  await click(base, sessionId, '[data-testid="tab-infrastructure"]');
-  assert.match(
-    await eventually(() => bodyText(base, sessionId), "render Infrastructure"),
-    /INFRASTRUCTURE ASSETS/,
-  );
-  await click(base, sessionId, '[data-testid="infrastructure-row-cloudflare"]');
+  await click(base, sessionId, '[data-testid="tab-projects"]');
+  await click(base,sessionId,'[aria-label="Projects workspaces"] button:nth-child(2)');
+  await eventually(async()=>assert.match(await bodyText(base,sessionId),/LOCAL TOOLS[\s\S]*Docker[\s\S]*Agent \/ MCP Surfaces/), "render retained Local Tools");
+  await click(base, sessionId, '[data-testid="infrastructure-row-docker"]');
   const newInfrastructure = await eventually(
     () => element(base, sessionId, '[data-testid="new-infrastructure"]'),
     "find New Infrastructure",
@@ -815,7 +633,7 @@ try {
       inventory.canonicalNotesPath,
       `docs/infrastructure/assets/${infrastructureProfileKey}/NOTES.md`,
     );
-    assert.match(await bodyText(base, sessionId), /RadControl E2E Infrastructure/);
+    assert.match(await bodyText(base, sessionId), /RadControl E2E Local Tool/);
   }, "create governed Infrastructure record inside the isolated root");
   await click(
     base,
@@ -952,16 +770,18 @@ for index in range(2):
     );
   }
 
-  await click(base, sessionId, '[data-testid="tab-infrastructure"]');
+  await click(base, sessionId, '[data-testid="tab-projects"]');
+  await click(base,sessionId,'[aria-label="Projects workspaces"] button:nth-child(2)');
   const infrastructureText = await eventually(
     () => bodyText(base, sessionId),
-    "reopen Infrastructure after Security",
+    "reopen Local Tools after Security",
   );
   assert.doesNotMatch(infrastructureText, /System76 Workstation/);
-  assert.match(infrastructureText, /Cloudflare/);
+  assert.match(infrastructureText, /Docker/);
 
   await click(base, sessionId, '[data-testid="tab-projects"]');
 
+  await click(base,sessionId,'[aria-label="Projects workspaces"] button:nth-child(1)');
   await click(base, sessionId, '[data-testid="new-project"]');
   const nameInput = await eventually(() => element(base, sessionId, '[data-testid="modal-project-name"]'), "open New Project modal");
   await replaceValue(base, sessionId, nameInput, "RadControl E2E Draft");
@@ -996,9 +816,15 @@ for index in range(2):
     await access(path.join(fixture.createdProjectRepo, "docs", "project-formation", "00_bootstrap_intake.json"));
     await access(path.join(fixture.o2Root, "docs", "project-formation", "records", createdProjectKey, "00_intake.json"));
     const registry = JSON.parse(await readFile(path.join(fixture.o2Root, "registry", "projects.json"), "utf8"));
+    const result=JSON.parse(await readFile(path.join(fixture.o2Root,'docs/project-formation/records',createdProjectKey,'04_bootstrap_result.json'),'utf8'));
+    assert.equal(result.ok,true,`fixture bootstrap did not pass: ${result.error || result.state}`);
+    const acceptance=JSON.parse(await readFile(path.join(fixture.o2Root,'docs/project-formation/records',createdProjectKey,'05_bootstrap_acceptance.json'),'utf8'));
+    assert.equal(acceptance.ok,true);
+    assert.equal(acceptance.checks.browser.proofKind,'fixture-adapter');
     const created = registry.find((project) => project.key === createdProjectKey);
     assert.equal(created?.repoPath, fixture.createdProjectRepo);
   }, "build a project entirely inside the isolated root", 30_000);
+  await eventually(async()=>assert.equal(await request(base,`/session/${sessionId}/execute/sync`,'POST',{script:'return document.querySelectorAll("[data-testid=modal-close]").length;',args:[]}),0),'successful build closes modal');
   assert.match(await eventually(() => bodyText(base, sessionId), "render created project"), /RadControl E2E Draft/);
 
   await click(base, sessionId, `[data-testid="project-row-${fixtureKey}"]`);
@@ -1012,41 +838,33 @@ for index in range(2):
     const status = await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:'return document.querySelector("[data-testid=project-notes]").parentElement.innerText;', args:[]});
     assert.match(status, /Saved/); assert.doesNotMatch(status, /1970|date unknown/);
   }, "Project Notes displays a valid Saved date after actual fixture autosave");
-  await click(base, sessionId, '[data-testid="tab-work"]');
-  await click(base, sessionId, '[data-testid="work-mode-timeline"]');
-  await eventually(async () => assert.match(await bodyText(base, sessionId), /RadControl Operator Cockpit completed/), "task-specific Timeline title");
-  const timelineBackup = `${workFile}.test-backup`;
-  await rename(workFile, timelineBackup);
-  await symlink(fixture.empireTodoPath, workFile);
-  await click(base, sessionId, '.workspaceActionRow .btnGhost');
-  await eventually(() => element(base, sessionId, '.workspaceShell [role="alert"]'), "Timeline load failure is visible");
-  assert.equal(await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:'return !!document.querySelector(".timelineEmptyState");',args:[]}),false);
-  await unlink(workFile); await rename(timelineBackup, workFile);
-  await click(base, sessionId, '.workspaceActionRow .btnGhost');
-  await eventually(async () => assert.equal(await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:'return document.querySelector(".workspaceActionRow .btnPrimary").disabled;',args:[]}),false), "Timeline retry is ready");
-  await click(base, sessionId, '.workspaceActionRow .btnPrimary');
-  await replaceValue(base, sessionId, await element(base, sessionId, '.timelineModalCard input:not([type=date])'), 'Backdated fixture milestone');
-  await request(base, `/session/${sessionId}/execute/sync`, "POST", {script:`const e=document.querySelector('.timelineModalCard input[type=date]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'2026-08-22');e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));`,args:[]});
-  await rename(workFile, timelineBackup);
-  await symlink(fixture.empireTodoPath, workFile);
-  await click(base, sessionId, '.timelineModalCard .btnPrimary');
-  await eventually(() => element(base, sessionId, '.timelineModalError'), "failed Timeline save retains the modal and reports an error");
-  assert.equal(JSON.parse(await readFile(timelineBackup, "utf8")).data.events.length, 1);
-  await unlink(workFile); await rename(timelineBackup, workFile);
-  await click(base, sessionId, '.timelineModalCard .btnPrimary');
-  await eventually(async () => {
-    const events = (await readWork()).data.events;
-    assert.equal(events.length, 2);
-    const backdated = events.find(event => event.title === 'Backdated fixture milestone');
-    assert.equal(backdated.date, '2026-08-22');
-    assert.ok(!backdated.createdAt.startsWith('2026-08-22'));
-    assert.match(await bodyText(base,sessionId), /Aug 22, 2026[\s\S]*Backdated fixture milestone/);
-  }, "existing event date supports backdating without changing creation metadata");
-
-  }
-  await runWave2aAcceptance({fixture,base,sessionId,request,click,eventually,mode:'e2e',expectBridge:workOnly});
-  if(!workOnly) await runWave11Acceptance({fixture,base,sessionId,request,click,eventually});
-  console.error(workOnly ? "[e2e] passed: focused Work native acceptance" : "[e2e] passed: My Notes create/edit/restart/delete, O2 Knowledge read-only projection, Todo persistence, Security read-only checks, Infrastructure migration, governed creation/autosave, and project bootstrap");
+  await runWave11Acceptance({fixture,base,sessionId,request,click,eventually});
+  // Current-registry read-only review is a separate session; writable fixtures
+  // retain only synthetic repository roots and never include the host registry.
+  await request(base, `/session/${sessionId}`, "DELETE");
+  sessionId = null;
+  await rename(path.join(fixture.o2Root,'scripts/run_o2.actual.sh'),path.join(fixture.o2Root,'scripts/run_o2.sh'));
+  const registrySource=path.join(sourceO2Root,'registry/projects.json');
+  const registryDigest=await sha256File(registrySource);
+  const roster=spawnSync('bash',[path.join(sourceO2Root,'scripts/run_o2.sh'),'list_projects'],
+    {encoding:'utf8',env:{...process.env,O2_ROOT_OVERRIDE:sourceO2Root},timeout:60_000,maxBuffer:4*1024*1024});
+  assert.equal(roster.status,0,'independent current O2 roster must succeed');
+  const payload=JSON.parse(roster.stdout);
+  assert.equal(payload.ok,true);
+  const projects=payload.projects.filter(p=>!['governance','local-control-plane'].includes(p.archetype));
+  for(const key of ['radcloud','radcalendar','dqotd','radstock'])assert.equal(projects.filter(p=>p.key===key).length,1,`current registry must contain ${key} exactly once`);
+  const reviewApp=await createBubblewrapApplication({app,tempRoot:fixture.tempRoot,home:fixture.e2eHome,
+    xdgCacheHome:fixture.xdgCacheHome,xdgConfigHome:fixture.xdgConfigHome,xdgDataHome:fixture.xdgDataHome,
+    overlays:[{source:fixture.dconfOverlay,destination:`/run/user/${process.getuid()}/dconf`}],
+    readOnlyFiles:[{source:registrySource,destination:path.join(fixture.o2Root,'registry/projects.json')}],
+    environment:{O2_ROOT:fixture.o2Root,RADCONTROL_E2E:'1',O2_E2E_HOME:fixture.e2eHome}});
+  sessionId=await startDesktopSession(base,reviewApp);
+  configureWorkspace(base,sessionId,{evidenceDir:path.join(fixture.tempRoot,'navigation'),fixture:{kind:'current-registry-readonly'}});
+  try {
+    await assertFourTabApplication({base,sessionId,eventually,projects});
+  } finally { assert.equal(await sha256File(registrySource),registryDigest,'current registry changed during read-only review'); }
+  console.error('[e2e] current-registry read-only: exact roster and paths, RadCloud once beside RadCalendar/DQOTD/RadStock');
+  console.error("[e2e] passed: four tabs, private Notes restart/autosave, Agents, Local Tools creation/autosave, Project Notes/bootstrap, native bridge and Sentinel matrix");
   }
 } catch (error) {
   if (sessionId) {

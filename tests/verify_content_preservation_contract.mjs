@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
-const [app, agents, routers, security, guardian, operations, notes, legal, css, bridge, authority, repoState] = await Promise.all([
+const [app, agents, routers, security, guardian, operations, notes, css, bridge, authority, repoState] = await Promise.all([
   read("src/App.tsx"),
   read("src/components/agents/AgentsTab.tsx"),
   read("src/components/agents/RouterHealthPanel.tsx"),
@@ -12,7 +12,6 @@ const [app, agents, routers, security, guardian, operations, notes, legal, css, 
   read("src/components/sentinel/SecurityGuardianTab.tsx"),
   read("src/components/security/EmpireOperationsWorkspace.tsx"),
   read("src/components/paste-tabs/NotesHubTab.tsx"),
-  read("src/components/paste-tabs/LegalHubTab.tsx"),
   read("src/App.css"),
   read("src-tauri/src/commands/o2.rs"),
   read("AGENTS.md"),
@@ -28,11 +27,10 @@ const expectedVisibleProjects = [
   "radfamily", "radwolfe", "radcalendar",
 ];
 const expectedPreservedInfrastructure = [
-  "openai-codex", "cloudflare", "github", "vercel", "supabase", "resend",
-  "google-workspace", "dqotd-workspace", "docker", "agent-mcp-surfaces",
+  "docker", "agent-mcp-surfaces",
 ];
 
-for (const tab of ["overview", "work", "projects", "infrastructure", "agents", "sentinel", "notes", "legal"]) {
+for (const tab of ["projects", "agents", "sentinel", "notes"]) {
   assert.match(app, new RegExp(`"${tab}"`), `primary destination ${tab} must remain registered`);
 }
 assert.match(app, /sentinel: "Security"/);
@@ -76,14 +74,9 @@ for (let index = 1; index < notesOrder.length; index += 1) {
   assert.ok(notes.indexOf(`label: "${notesOrder[index - 1]}"`) < notes.indexOf(`label: "${notesOrder[index]}"`));
 }
 
-const legalOrder = ["Structure", "Formation", "Addresses & Agent", "Brands & Ventures", "Business Accounts", "Documents & Compliance"];
-for (let index = 1; index < legalOrder.length; index += 1) {
-  assert.ok(legal.indexOf(`label: "${legalOrder[index - 1]}"`) < legal.indexOf(`label: "${legalOrder[index]}"`));
-}
-for (const archiveKey of ["legal_notes", "legal_documents", "legal_entity_structure"]) {
-  assert.match(legal, new RegExp(archiveKey));
-}
-assert.deepEqual(manifest.legalModes.map((entry) => entry.final), legalOrder);
+assert.deepEqual(manifest.legalModes, []);
+assert.equal(manifest.migratedLegalModes.length, 7);
+assert.doesNotMatch(app, /LegalHubTab|activeTab === "legal"/);
 
 for (const className of ["mainArea", "surfaceLayout", "surfaceCommandMain", "workspaceHubBody"]) {
   const match = css.match(new RegExp(`\\.${className}\\s*\\{([^}]*)\\}`));
@@ -105,7 +98,7 @@ assert.deepEqual(manifest.projects.historicalRegisteredKeys, manifest.projects.f
 assert.deepEqual(manifest.projects.historicalVisibleKeys, manifest.projects.finalVisibleKeys);
 assert.deepEqual(
   manifest.infrastructure
-    .filter((entry) => entry.action === "preserved")
+    .filter((entry) => entry.action === "KEEP_PROJECTS")
     .map((entry) => entry.key),
   expectedPreservedInfrastructure,
 );

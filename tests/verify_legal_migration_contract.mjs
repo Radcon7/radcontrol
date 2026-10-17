@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFileSync,existsSync} from 'node:fs';
+const root=new URL('../',import.meta.url),read=p=>readFileSync(new URL(p,root),'utf8');
+const app=read('src/App.tsx'),css=read('src/App.css'),files=read('src/components/common/o2Files.ts');
+for(const name of ['LegalHubTab.tsx','PortfolioBlueprint.tsx','portfolioBlueprintModel.ts','DocumentLibraryPanel.tsx'])assert.equal(existsSync(new URL('src/components/paste-tabs/'+name,root)),false);
+assert.doesNotMatch(app,/LegalHubTab|"legal"/);assert.doesNotMatch(css,/\.legalHub|\.legalOperator|\.legalStructure|\.portalAccess|\.legalArchive/);
+assert.doesNotMatch(files,/export async function (renameO2File|deleteO2File)/);
+assert.match(files,/export async function writeO2File/);assert.match(files,/export async function readO2File/);
+for(const key of ['sentinel','agents','notes','projects'])assert.ok(app.includes(`"${key}"`));
+const manifest=JSON.parse(read('docs/RADCONTROL_CONTENT_PRESERVATION.json'));
+assert.deepEqual(manifest.legalModes,[]);
+assert.deepEqual(new Set(manifest.migratedLegalModes.map(r=>r.key)),new Set(['formation','brands','accounts','structure','addresses','documents','archives']));
+assert.match(read('docs/REPO_STATE.md'),/o2_governed_files\.py write\|rename\|delete --stdin/);
+console.log('Legal UI and exclusive writes removed; seven replacement destinations, existing O2 editor path, shared read/write and all retained destinations preserved.');

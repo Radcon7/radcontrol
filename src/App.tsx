@@ -5,16 +5,12 @@ import "./App.css";
 
 import { SecurityTab } from "./components/security/SecurityTab";
 
-import { WorkHub } from "./components/work/WorkHub";
-import type { WorkTarget } from "./components/overview/workModel";
-import { Overview } from "./components/overview/Overview";
 import { NotesHubTab } from "./components/paste-tabs/NotesHubTab";
-import { LegalHubTab } from "./components/paste-tabs/LegalHubTab";
 import { ProjectsTab } from "./components/projects/ProjectsTab";
 import { AddProjectModal } from "./components/projects/AddProjectModal";
 
 import { AgentsTab } from "./components/agents/AgentsTab";
-import { InfrastructureTab } from "./components/agents/InfrastructureTab";
+import { LocalToolsTab } from "./components/projects/LocalToolsTab";
 import { RuntimeDiagnosticsModal } from "./components/runtime/RuntimeDiagnosticsModal";
 
 import type {
@@ -48,14 +44,11 @@ import {
 } from "./components/common/o2Client";
 import { readO2File } from "./components/common/o2Files";
 
-type LibraryTabKey = "notes" | "legal";
+type LibraryTabKey = "notes";
 type DocTabKey = LibraryTabKey;
 
 type TabKey =
-  | "overview"
-  | "work"
   | "projects"
-  | "infrastructure"
   | "agents"
   | "sentinel"
   | DocTabKey;
@@ -68,17 +61,13 @@ type DocTabMeta = {
 
 const DOC_TABS: DocTabMeta[] = [
   { key: "notes", label: "Notes", mode: "library" },
-  { key: "legal", label: "Legal", mode: "library" },
 ];
 
 const ALL_TABS: TabKey[] = [
-  "overview",
-  "work",
-  "projects",
-  "infrastructure",
-  "agents",
   "sentinel",
+  "agents",
   ...DOC_TABS.map((t) => t.key),
+  "projects",
 ];
 
 
@@ -98,10 +87,7 @@ function tabLabel(t: TabKey): string {
   if (isDocTab(t)) return docTabMeta(t).label;
 
   const m: Record<Exclude<TabKey, DocTabKey>, string> = {
-    overview: "Overview",
-    work: "Work",
     projects: "Projects",
-    infrastructure: "Infrastructure",
     agents: "Agents",
     sentinel: "Security",
   };
@@ -173,9 +159,8 @@ type ProjectBootstrapResult = {
 };
 
 export default function App() {
-  const [tab, setTab] = useState<TabKey>("overview");
-  const [workTarget,setWorkTarget]=useState<WorkTarget|null>(null);
-  const [workVisited,setWorkVisited]=useState(false);
+  const [tab, setTab] = useState<TabKey>("projects");
+  const [projectsMode, setProjectsMode] = useState<"repositories" | "tools">("repositories");
   const [busy, setBusy] = useState(false);
   const [portsBusy, setPortsBusy] = useState(false);
 
@@ -790,23 +775,19 @@ export default function App() {
       }
     }
 
-    if(nextTab === "work") setWorkVisited(true);
     setTab(nextTab);
+  }
+
+  async function requestProjectsMode(next: "repositories" | "tools") {
+    if (next === projectsMode) return;
+    try { if (beforeTabChangeSaverRef.current && !await beforeTabChangeSaverRef.current()) return; } catch { return; }
+    setProjectsMode(next);
   }
 
   function renderDocTab(activeTab: DocTabKey) {
     if (activeTab === "notes") {
       return (
         <NotesHubTab
-          busy={busy}
-          registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
-        />
-      );
-    }
-
-    if (activeTab === "legal") {
-      return (
-        <LegalHubTab
           busy={busy}
           registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
         />
@@ -847,10 +828,14 @@ export default function App() {
       </header>
 
       <main className="mainArea">
-        {workVisited ? <div hidden={tab!=="work"} className="workDestination"><WorkHub active={tab==="work"} target={workTarget} busy={busy} registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}/></div> : null}
-        {tab === "overview" ? <Overview onSecurity={() => void requestTabChange("sentinel")} onOpenWork={target=>{setWorkTarget({...target,nonce:Date.now()});setWorkVisited(true);void requestTabChange("work");}} /> : tab === "projects" ? (
-          <>
-            <ProjectsTab
+        {tab === "projects" ? (
+          <div className="workspaceHubWrap">
+            <div className="workspaceModeRow" role="tablist" aria-label="Projects workspaces">
+              <button className={`workspaceModeButton ${projectsMode === "repositories" ? "workspaceModeButtonActive" : ""}`} role="tab" aria-selected={projectsMode === "repositories"} onClick={() => void requestProjectsMode("repositories")}>Repositories</button>
+              <button className={`workspaceModeButton ${projectsMode === "tools" ? "workspaceModeButtonActive" : ""}`} role="tab" aria-selected={projectsMode === "tools"} onClick={() => void requestProjectsMode("tools")}>Local Tools</button>
+            </div>
+            <div className="workspaceHubBody">
+            {projectsMode === "tools" ? <LocalToolsTab projects={projects} onAppendLog={appendLog} registerBeforeTabChangeSaver={registerBeforeTabChangeSaver} /> : <ProjectsTab
               projects={projects}
               registryLoading={registryState === "loading"}
               registryError={registryError}
@@ -875,7 +860,8 @@ export default function App() {
               onSetLaunchDate={setProjectLaunchDate}
               registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
               statusForRow={statusForRow}
-            />
+            />}
+            </div>
 
             <AddProjectModal
               open={showAddProject}
@@ -886,14 +872,7 @@ export default function App() {
               projectRootOverrides={projectRootOverrides}
             />
 
-          </>
-        ) : tab === "infrastructure" ? (
-
-          <InfrastructureTab
-            projects={projects}
-            onAppendLog={appendLog}
-            registerBeforeTabChangeSaver={registerBeforeTabChangeSaver}
-          />
+          </div>
         ) : tab === "agents" ? (
           <AgentsTab
             projects={projects}

@@ -44,7 +44,7 @@ assert.match(repoState, /many visible yes\/no decisions/);
 assert.match(repoState, /recommendations assist[\s\S]*explicit decisions/);
 assert.match(repoState, /not an Empire-wide form-design standard/);
 assert.doesNotMatch(repoState, /New Project intentionally uses an AI-only prompt/);
-assert.match(repoState, /Infrastructure: governed provider\/platform assets/);
+assert.match(repoState, /Local Tools under Projects retains local Docker/);
 assert.match(repoState, /Agents: governed profiles/);
 assert.match(repoState, /Security: three first-class workspaces over O2-owned truth/);
 assert.match(repoState, /Current Now[\s\S]*Recent Events/);
@@ -53,7 +53,7 @@ assert.match(repoState, /standalone Diagnostics and Quick Answers are intentiona
 assert.match(repoState, /One[\s\S]*exact Level 1 allowlist is active/);
 assert.match(repoState, /All other Level 1 capabilities and Levels[\s\S]*2-5 remain visibly not activated/);
 assert.match(repoState, /system76-workstation[\s\S]*excluded from this roster/);
-assert.match(repoState, /Tasks owns one collection/);
+assert.match(repoState, /Overview and Work now live in RCE > RadCloud > Work/);
 assert.match(repoState, /must not be launched through localhost/);
 assert.match(repoState, /publication,[\s\S]*does not grant launch authorization/);
 assert.match(repoState, /never run it under ordinary verification authorization/);
