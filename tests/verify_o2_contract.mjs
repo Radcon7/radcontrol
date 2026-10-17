@@ -53,6 +53,9 @@ const diagnostics = await readFile(
 assert.ok(transport.includes('invokeO2Unchecked("contract_info")'));
 assert.ok(transport.includes("await ensureO2Compatibility()"));
 assert.match(diagnostics, /REQUIRED_OPERATOR_PROJECT_KEYS/);
+assert.match(diagnostics, /runtimeProductReady\(\{/);
+assert.match(diagnostics, /hasRequiredProjectKeys\(projectKeys, REQUIRED_OPERATOR_PROJECT_KEYS\)/);
+assert.doesNotMatch(diagnostics, /sameSet/);
 assert.doesNotMatch(diagnostics, /EXPECTED_PROJECT_KEYS/);
 assert.match(diagnostics, /todoAvailable: todoResult\.status === "fulfilled"/);
 assert.doesNotMatch(diagnostics, /EXPECTED_TODO_TITLES/);
