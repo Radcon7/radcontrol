@@ -5,6 +5,7 @@ import { REQUIRED_OPERATOR_PROJECT_KEYS } from "../common/o2Contract";
 import { listWork } from "../overview/workApi";
 import type { WorkResponse } from "../overview/workModel";
 import { workReadiness } from "./workReadiness";
+import { hasRequiredProjectKeys, runtimeProductReady } from "./runtimeReadiness";
 import type { ProjectRow } from "../projects/types";
 import { filterOperatorProjects } from "../projects/projectModel";
 import { loadSentinelStatus } from "../sentinel/sentinelApi";
@@ -51,10 +52,6 @@ type Props = {
 };
 
 const NOTES_VIEWS = ["Notes", "Timeline", "Empire Blueprint", "Empire To-Do"];
-
-function sameSet(actual: readonly string[], expected: readonly string[]): boolean {
-  return actual.length === expected.length && expected.every((value) => actual.includes(value));
-}
 
 function Check({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
   return (
@@ -151,15 +148,17 @@ export function RuntimeDiagnosticsModal({
       !diagnostics.bridgeFailure,
   );
   const work = workReadiness(smoke.work, diagnostics?.empireTodoStoreAvailable === true, smoke.todoError);
-  const productReady =
-    diagnostics?.runtimeMode === "production" &&
-    runtimeFilesReady &&
-    work.ready &&
-    registryState === "ready" &&
-    sameSet(projectKeys, REQUIRED_OPERATOR_PROJECT_KEYS) &&
-    smoke.todoAvailable &&
-    localToolsLabels.length === 2 &&
-    smoke.sentinelAvailable;
+  const productReady = runtimeProductReady({
+    runtimeMode: diagnostics?.runtimeMode,
+    runtimeFilesReady,
+    workReady: work.ready,
+    registryState,
+    projectKeys,
+    requiredProjectKeys: REQUIRED_OPERATOR_PROJECT_KEYS,
+    todoAvailable: smoke.todoAvailable,
+    localToolsCount: localToolsLabels.length,
+    sentinelAvailable: smoke.sentinelAvailable,
+  });
 
   if (!open) return null;
 
@@ -213,7 +212,7 @@ export function RuntimeDiagnosticsModal({
                 detail={loading ? "Checking Work authority…" : work.ready ? `${work.authority} · ${work.editing}` : work.error} />
             </div>
             <Check
-              ok={registryState === "ready" && sameSet(projectKeys, REQUIRED_OPERATOR_PROJECT_KEYS)}
+              ok={registryState === "ready" && hasRequiredProjectKeys(projectKeys, REQUIRED_OPERATOR_PROJECT_KEYS)}
               label={`Projects · ${operatorProjects.length} visible`}
               detail={registryError || operatorProjects.map((project) => project.label).join(" · ") || "Project data unavailable"}
             />

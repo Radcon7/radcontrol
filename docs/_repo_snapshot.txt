@@ -244,6 +244,7 @@ src/components/projects/projectModel.ts
 src/components/projects/projectsApi.ts
 src/components/projects/types.ts
 src/components/runtime/RuntimeDiagnosticsModal.tsx
+src/components/runtime/runtimeReadiness.ts
 src/components/runtime/workReadiness.ts
 src/components/security/EmpireOperationsWorkspace.tsx
 src/components/security/SecurityTab.tsx
@@ -275,6 +276,7 @@ tests/native_workspace_test.mjs
 tests/o2_runtime_boundary_behavior.mjs
 tests/project_intent_preview_behavior.mjs
 tests/release_candidate_evidence_test.py
+tests/runtime_readiness_test.mjs
 tests/sentinel_behavior.mjs
 tests/sentinel_episodes_behavior.mjs
 tests/sentinel_render.mjs
